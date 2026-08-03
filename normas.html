@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Normas</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .link{ color:var(--muted); font-size:14px; font-weight:500; } .link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .me{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; } .me img{ width:26px; height:26px; border-radius:7px; object-fit:cover; }
+  .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:8px 13px; font-size:13px; font-weight:700; }
+  .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+  .box h2{ font-size:16px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .box p{ font-size:13.5px; color:var(--muted); line-height:1.55; }
+  .box p b{ color:var(--text); }
+
+  .get-list,.rule-list{ list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; }
+  .rule-list{ grid-template-columns:1fr; }
+  .get-list li,.rule-list li{ position:relative; padding-left:22px; font-size:13.5px; color:var(--muted); line-height:1.45; }
+  .get-list li::before{ content:'🛡'; position:absolute; left:0; top:0; font-size:11px; }
+  .rule-list li::before{ content:'›'; position:absolute; left:4px; top:-1px; color:var(--accent); font-weight:800; }
+  .get-list li b,.rule-list li b{ color:var(--text); font-weight:700; }
+
+  .castigos{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; }
+  .cast{ display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
+  .cast img{ width:40px; height:40px; object-fit:contain; flex-shrink:0; }
+  .cast .ci{ flex:1; min-width:0; }
+  .cast .cn{ font-size:12.5px; font-weight:600; line-height:1.25; }
+  .cast .cp{ font-size:12px; font-weight:800; color:var(--accent); margin-top:2px; }
+
+  .rev-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  .rev-table td{ padding:7px 10px; font-size:13px; border-bottom:1px solid var(--line); }
+  .rev-table td:last-child{ text-align:right; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
+  @media (max-width:760px){ .get-list{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+  <header><div class="wrap nav">
+    <a class="brand" href="index.html"><span class="mark">S</span><b>SoloQ<span>Challenge</span></b></a>
+    <a class="link" href="index.html">Ranking</a>
+    <a class="link" style="color:var(--text)">Normas</a>
+    <a class="link" href="blueshell.html">Blue Shells</a>
+    <a class="link" href="ticket.html">Tickets</a>
+    <a class="link" href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
+    <div class="nav-spacer"></div>
+    <div class="me" id="me"></div>
+    <a class="btn btn-ghost" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+    <button class="btn btn-ghost" id="logout" style="display:none">Salir</button>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Normas</h1>
+    <div class="sub">Cómo funcionan las Blue Shells del SoloQ Challenge: cómo conseguirlas, los castigos y las reglas.</div>
+
+    <div class="box">
+      <h2>🛡 ¿Qué es una Blue Shell?</h2>
+      <p>Una <b>Blue Shell</b> es un castigo que un participante le lanza a otro. Al impactar, se sortea un <b>castigo</b> que el objetivo deberá cumplir en su próxima partida de SoloQ. Se consiguen jugando bien (o con suerte) y se lanzan entre jugadores de verdad — la organización verifica que se cumplan.</p>
+    </div>
+
+    <div class="box">
+      <h2>Cómo conseguir una Blue Shell</h2>
+      <ul class="get-list">
+        <li><b>Pentakill</b> (da 2 Blue Shells).</li>
+        <li>Cuadrakill.</li>
+        <li>22 kills en una partida.</li>
+        <li>30 asistencias en una partida.</li>
+        <li>Racha de 6 victorias.</li>
+        <li>Comeback de 7.000 de oro.</li>
+        <li>KDA perfecto superior a 20.</li>
+        <li>Ganar una partida de 40 minutos o más.</li>
+        <li>Cada 5 victorias con un campeón distinto.</li>
+        <li>Cada 5 victorias jugando con castigo.</li>
+        <li>Ganar a alguien que lleve una Blue Shell <b>se la roba</b>.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h2>Los castigos</h2>
+      <p style="margin-bottom:12px">Al impactar una Blue Shell se sortea uno de estos castigos (el % es su probabilidad de salir):</p>
+      <div class="castigos" id="castigos"></div>
+    </div>
+
+    <div class="box">
+      <h2>Lanzamiento</h2>
+      <ul class="rule-list">
+        <li><b>No</b> puedes lanzar si estás en <b>cola</b>, <b>selección de campeón</b> o <b>en partida</b>, ni en los minutos posteriores a terminar una partida (mientras se procesa el resultado).</li>
+        <li><b>Motivo:</b> que nadie se quite la shell de encima al ver que va a perderla. Se revisa a mano y queda registrada la <b>hora exacta</b> de cada lanzamiento.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h2>Rebote (Reverse)</h2>
+      <p>Cuanto <b>más abajo</b> esté tu objetivo en el ranking, más probable es que la shell <b>rebote</b> y el castigo te toque a <b>ti</b>. Tirar hacia arriba es más seguro. Si sale el castigo <b>Reverse</b>, rebota sola: no haces nada y el castigo se sortea para quien la lanzó.</p>
+      <table class="rev-table">
+        <tr><td>Objetivo #1 del ranking</td><td>1%</td></tr>
+        <tr><td>Objetivo #2</td><td>2%</td></tr>
+        <tr><td>Objetivo #3</td><td>3%</td></tr>
+        <tr><td>Objetivo #4</td><td>4%</td></tr>
+        <tr><td>Objetivo #5</td><td>5%</td></tr>
+        <tr><td>Del #6 en adelante</td><td>15%</td></tr>
+      </table>
+    </div>
+
+    <div class="box">
+      <h2>Inventario y cumplimiento</h2>
+      <ul class="rule-list">
+        <li><b>Máximo 3 Blue Shells</b> por participante. Si ganas más con el inventario lleno, se pierden.</li>
+        <li>Los castigos que la API detecta sola se validan automáticamente. Los que no (runas, sensibilidad x2, sin objetos hasta min 15, robo…) se <b>verifican a mano</b> con la organización.</li>
+      </ul>
+    </div>
+
+    <div class="box">
+      <h2>Drop diario</h2>
+      <p><b>Deshabilitado de inicio.</b> Solo se activa si circulan muy pocas Blue Shells. Si se activa, la organización lanza un reto sencillo (ganar una partida, un triple kill, first blood…) y se lleva la shell <b>el primero</b> que lo cumpla en una partida iniciada tras el lanzamiento. Verás el reto activo en tu página de Blue Shells.</p>
+    </div>
+
+    <div class="note">Las Blue Shells se lanzan y entregan de verdad entre jugadores. Cooldowns y verificación gestionados por la organización.</div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  const CASTIGOS = [
+    ['Sin tus 3 campeones más jugados','sin-3-campeones',17],
+    ['Una partida con Yuumi','yuumi',11],
+    ['Campeón aleatorio','campeon-aleatorio',11],
+    ['Sin Flash','sin-flash',11],
+    ['Autofill','autofill',11],
+    ['Sin botas y sin pies veloces','sin-botas',11],
+    ['Hechizos cambiados','hechizos-cambiados',6],
+    ['Sensibilidad x2','sensibilidad-x2',6],
+    ['Sin objetos completos hasta min 15','sin-objetos-min15',6],
+    ['Reverse','reverse',6],
+    ['Runas predeterminadas','runas-predeterminadas',4],
+  ];
+  document.getElementById('castigos').innerHTML = CASTIGOS.map(([name,slug,pct]) =>
+    `<div class="cast"><img src="overlay/assets/shells/${slug}.png" alt="" onerror="this.style.visibility='hidden'">
+      <div class="ci"><div class="cn">${name}</div><div class="cp">${pct}%</div></div></div>`).join('');
+
+  // Sesión: revela Admin, muestra nickname / login
+  (async function(){
+    try {
+      const u = await SQC.me();
+      if (u){
+        const me = document.getElementById('me');
+        me.innerHTML = `${u.avatar?`<img src="${u.avatar}">`:''}<span>${u.nickname}</span>`;
+        document.getElementById('nav-account').style.display = 'none';
+        const lo = document.getElementById('logout'); lo.style.display = '';
+        lo.addEventListener('click', () => { SQC.logout(); location.reload(); });
+        if (u.isAdmin){ const ad = document.getElementById('nav-admin'); if (ad) ad.style.display = ''; }
+      }
+    } catch(e){}
+  })();
+</script>
+</body>
+</html>
