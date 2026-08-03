@@ -72,7 +72,14 @@
   .htab{ font-family:var(--font); cursor:pointer; background:none; border:none; color:var(--muted); font-size:13px; font-weight:600; padding:4px 2px; border-bottom:2px solid transparent; }
   .htab.active{ color:var(--text); border-bottom-color:var(--accent); }
   .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
-  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } }
+  .get-list{ list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; }
+  .get-list li{ position:relative; padding-left:22px; font-size:13px; color:var(--muted); line-height:1.4; }
+  .get-list li::before{ content:'🛡'; position:absolute; left:0; top:0; font-size:11px; }
+  .get-list li b{ color:var(--text); font-weight:700; }
+  .dd-banner{ background:linear-gradient(90deg, rgba(74,163,255,.15), rgba(74,163,255,.03)); border:1px solid rgba(74,163,255,.4); border-radius:12px; padding:11px 14px; font-size:13px; color:var(--text); margin-bottom:18px; }
+  .dd-tag{ font-size:10px; font-weight:800; letter-spacing:.06em; color:#0a1a2f; background:#4aa3ff; padding:3px 8px; border-radius:6px; margin-right:8px; }
+  .dd-sub{ color:var(--muted); font-size:12px; }
+  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } .get-list{ grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
@@ -90,6 +97,7 @@
   <main class="wrap">
     <h1>🛡 Blue Shells</h1>
     <div class="sub" id="sub">Tu inventario, historial y lanzamientos.</div>
+    <div id="drop-banner" class="dd-banner" style="display:none"></div>
 
     <div class="grid">
       <!-- Inventario -->
@@ -107,6 +115,24 @@
         <div class="result" id="result"></div>
         <div class="rules">Reglas: máx. 3 en inventario · no puedes lanzar si estás en cola, champ select o partida · cuanto más abajo tu objetivo, más probable el rebote (Reverse). El castigo se sortea al impactar.</div>
       </div>
+    </div>
+
+    <!-- Cómo conseguir -->
+    <div class="box" style="margin-top:18px">
+      <h2>Cómo conseguir una Blue Shell</h2>
+      <ul class="get-list">
+        <li><b>Pentakill</b> (da 2 Blue Shells).</li>
+        <li>Cuadrakill.</li>
+        <li>22 kills en una partida.</li>
+        <li>30 asistencias en una partida.</li>
+        <li>Racha de 6 victorias.</li>
+        <li>Comeback de 7.000 de oro.</li>
+        <li>KDA perfecto superior a 20.</li>
+        <li>Ganar una partida de 40 minutos o más.</li>
+        <li>Cada 5 victorias con un campeón distinto.</li>
+        <li>Cada 5 victorias jugando con castigo.</li>
+        <li>Ganar a alguien que lleve una Blue Shell <b>se la roba</b>.</li>
+      </ul>
     </div>
 
     <!-- Historial -->
@@ -139,6 +165,15 @@
     $('me').innerHTML = `${user.avatar?`<img src="${user.avatar}">`:''}<span class="nn">${user.nickname}</span>`;
     if (user.isAdmin){ const ad = $('nav-admin'); if (ad) ad.style.display = ''; }
     $('logout').addEventListener('click', () => { SQC.logout(); location.href = 'index.html'; });
+
+    // Banner del drop diario (si la organización lanzó un reto activo)
+    try {
+      const drop = await SQC.api('/drop');
+      if (drop && drop.reto){
+        const b = $('drop-banner'); b.style.display = '';
+        b.innerHTML = `<span class="dd-tag">DROP DIARIO</span>${drop.reto} <span class="dd-sub">— el primero que lo cumpla se lleva una Blue Shell</span>`;
+      }
+    } catch {}
 
     let data = { inventory:[], received:[], sent:[], max:3 };
     let hMode = 'received';

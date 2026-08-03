@@ -139,17 +139,19 @@ Tiempo mínimo entre recibir una shell y poder recibir otra:
 - **Motivo:** que nadie se quite la shell de encima al ver que va a perderla. Se revisa a mano y queda **registrada la hora exacta** de cada lanzamiento.
 
 ### 4.7 Normas — Cómo conseguir una Blue Shell
-- Pentakill.
-- 20 kills en una partida.
+- Pentakill (da **2** Blue Shells).
+- Cuadrakill.
+- 22 kills en una partida.
 - 30 asistencias en una partida.
-- Racha de 5 victorias.
-- Comeback de 10.000 de oro.
+- Racha de 6 victorias.
+- Comeback de 7.000 de oro.
 - KDA perfecto superior a 20.
-- Ganar una partida de 45 minutos o más.
+- Ganar una partida de 40 minutos o más.
 - Cada 5 victorias con un campeón distinto.
+- Cada 5 victorias jugando con castigo.
 - Ganar a alguien que lleve una Blue Shell → **se la roba**.
 
-> Varias son **auto-detectables** por la app/GEP en tiempo real (pentakill, 20 kills, 30 asist., KDA>20, duración ≥45 min, rachas). El "robo" requiere detección de enfrentamiento interno + estado de inventario en el backend.
+> Varias son **auto-detectables** por la app/GEP en tiempo real (pentakill, cuadrakill, 22 kills, 30 asist., KDA>20, duración ≥40 min, rachas). El "robo" y "cada 5 victorias jugando con castigo" requieren detección de enfrentamiento interno + estado de inventario en el backend.
 
 ### 4.8 Normas — Drop diario
 - **Deshabilitado de inicio.** Solo se activa si circulan muy pocas Blue Shells.

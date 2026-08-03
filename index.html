@@ -844,10 +844,24 @@ function checkEncounters(){
   encNotified.forEach(id => { if (!liveIds.has(id)) encNotified.delete(id); });
   enc.forEach(g => { if (!encNotified.has(g.gameId)){ encNotified.add(g.gameId); showEncuentro(g); } });
 }
+/* Modo de prueba: dispara un popup de ejemplo. Úsalo con ?demo en la URL
+   o llamando demoEncuentro() en la consola. Si hay una partida real con 2+
+   del torneo, usa esa (para que "VER" funcione); si no, usa nombres de muestra. */
+function demoEncuentro(){
+  const real = LIVE_GAMES.find(g => (g.tracked || []).length >= 2);
+  const g = real || {
+    gameId: (LIVE_GAMES[0] && LIVE_GAMES[0].gameId) || 'DEMO',
+    tracked: [{ nm: (PLAYERS[0] && PLAYERS[0].nm) || 'SionAntisionista' },
+              { nm: (PLAYERS[1] && PLAYERS[1].nm) || 'Krok' }],
+  };
+  showEncuentro(g);
+}
+window.demoEncuentro = demoEncuentro;
 
 counts(); render(); renderLive();
 loadAvatars();
 checkEncounters();
+if (new URLSearchParams(location.search).has('demo')) setTimeout(demoEncuentro, 700);
 
 /* ===================== AUTO-REFRESH ===================== */
 function applyData(nd){

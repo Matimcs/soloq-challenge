@@ -59,6 +59,12 @@ async function init(){
       estado     TEXT DEFAULT 'pendiente',      -- 'pendiente' | 'aprobado' | 'rechazado'
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS drops (
+      id         SERIAL PRIMARY KEY,
+      reto       TEXT NOT NULL,
+      estado     TEXT DEFAULT 'activo',         -- 'activo' | 'cerrado'
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
   `);
   console.log('✔ Esquema Postgres listo');
 }

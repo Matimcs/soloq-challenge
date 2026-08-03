@@ -72,6 +72,18 @@
     <h1>Panel de administración</h1>
     <div class="sub">Gestión del challenge: drop diario, verificaciones, tickets y participantes.</div>
 
+    <!-- Drop diario -->
+    <div class="box">
+      <h2>Drop diario <span class="badge off" id="drop-state">Inactivo</span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Lanza un reto sencillo; el primero que lo cumpla en una partida iniciada tras el lanzamiento se lleva la Blue Shell. Actívalo solo si circulan muy pocas.</div>
+      <div class="drop-row">
+        <input type="text" id="drop-reto" placeholder="Reto (ej: gana una partida, consigue un triple kill, first blood…)">
+        <button class="btn btn-accent" id="drop-activar">Activar drop</button>
+        <button class="btn btn-ghost" id="drop-cerrar" style="display:none">Cerrar</button>
+      </div>
+      <div id="drop-current" class="empty" style="margin-top:10px">Sin drop activo.</div>
+    </div>
+
     <!-- Verificaciones manuales -->
     <div class="box">
       <h2>Verificaciones pendientes <span class="n" id="ver-count"></span></h2>
@@ -148,7 +160,31 @@
       }));
     }
 
-    renderVer(); renderTk(); renderParts();
+    // ---- Drop diario ----
+    async function renderDrop(){
+      const d = await SQC.api('/admin/drop');
+      const st = $('drop-state'), cur = $('drop-current'), cerrar = $('drop-cerrar');
+      if (d && d.estado === 'activo'){
+        st.textContent = 'Activo'; st.className = 'badge on';
+        cur.innerHTML = `Reto activo: <b style="color:var(--text)">${d.reto}</b> · desde ${fdate(d.created_at)}`;
+        cerrar.style.display = '';
+      } else {
+        st.textContent = 'Inactivo'; st.className = 'badge off';
+        cur.textContent = 'Sin drop activo.';
+        cerrar.style.display = 'none';
+      }
+    }
+    $('drop-activar').addEventListener('click', async () => {
+      const reto = $('drop-reto').value.trim();
+      if (!reto){ toast('Escribe el reto'); return; }
+      try { await SQC.api('/admin/drop', {method:'POST', body:{ reto }}); $('drop-reto').value=''; toast('Drop diario activado'); renderDrop(); }
+      catch(e){ toast(e.message); }
+    });
+    $('drop-cerrar').addEventListener('click', async () => {
+      try { await SQC.api('/admin/drop/close', {method:'POST'}); toast('Drop cerrado'); renderDrop(); } catch(e){ toast(e.message); }
+    });
+
+    renderDrop(); renderVer(); renderTk(); renderParts();
   })();
 </script>
 </body>

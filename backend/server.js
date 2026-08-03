@@ -194,6 +194,24 @@ app.post('/api/ingest', wrap(async (req,res) => {
 app.get('/players.json', (req,res,next) => liveData ? res.json(liveData) : next());
 app.get('/players.js',   (req,res,next) => liveData ? res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(liveData) + ';\n') : next());
 
+// ================= DROP DIARIO =================
+// Reto que lanza la organización; el primero que lo cumpla se lleva la Blue Shell.
+app.get('/api/drop', wrap(async (req,res) =>
+  res.json(await q1("SELECT reto, created_at FROM drops WHERE estado='activo' ORDER BY id DESC LIMIT 1"))));
+app.get('/api/admin/drop', auth, requireAdmin, wrap(async (req,res) =>
+  res.json(await q1("SELECT * FROM drops WHERE estado='activo' ORDER BY id DESC LIMIT 1"))));
+app.post('/api/admin/drop', auth, requireAdmin, wrap(async (req,res) => {
+  const reto = ((req.body && req.body.reto) || '').trim();
+  if (!reto) return res.status(400).json({ error:'Falta el reto' });
+  await q("UPDATE drops SET estado='cerrado' WHERE estado='activo'");
+  await q('INSERT INTO drops (reto) VALUES ($1)', [reto]);
+  res.json({ ok:true });
+}));
+app.post('/api/admin/drop/close', auth, requireAdmin, wrap(async (req,res) => {
+  await q("UPDATE drops SET estado='cerrado' WHERE estado='activo'");
+  res.json({ ok:true });
+}));
+
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 
