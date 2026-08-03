@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{ --line:rgba(255,255,255,.1); --text:#fff; --muted:rgba(255,255,255,.5); --down:#fb7185; --blue:#4aa3ff; --yellow:#ffd24a; }
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ background:transparent; overflow:hidden; user-select:none;
+    font-family:'Segoe UI',system-ui,sans-serif; color:var(--text); text-shadow:0 1px 3px rgba(0,0,0,.8); }
+  .wrap{ display:flex; flex-direction:column; gap:6px; cursor:move; }
+  .frame{ border:1px solid var(--line); border-radius:10px; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+    background:rgba(8,10,14,.68); box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  .top{ display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 12px; }
+  .shell{ width:22px; height:22px; }
+  .title{ font-size:12px; font-weight:800; letter-spacing:.16em; }
+  .body{ display:flex; align-items:center; gap:12px; padding:12px 14px; min-height:56px; }
+  .cast-ic{ width:56px; height:56px; border-radius:11px; border:1px solid var(--line); display:grid; place-items:center; font-size:22px; flex-shrink:0; background:rgba(255,255,255,.03); }
+  .cast-ic.empty{ color:var(--muted); }
+  .cast-img{ width:56px; height:56px; border-radius:11px; object-fit:cover; flex-shrink:0; border:1px solid var(--line); }
+  .cast-txt{ min-width:0; flex:1; }
+  .cast-hd{ font-size:10px; font-weight:800; letter-spacing:.08em; color:var(--yellow); }
+  .cast-arrow{ font-size:12px; font-weight:700; margin:2px 0 3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cast-arrow .from{ color:var(--yellow); } .cast-arrow .ar{ color:var(--muted); margin:0 2px; } .cast-arrow .to{ color:#fff; }
+  .cast-name{ overflow:hidden; white-space:nowrap; }
+  .cast-name-inner{ display:inline-block; font-size:12px; font-weight:600; color:rgba(255,255,255,.9); will-change:transform; }
+  .cast-name-inner.scroll{ animation: marq linear infinite; }
+  @keyframes marq{ 0%,10%{transform:translateX(0)} 45%,55%{transform:translateX(var(--shift))} 90%,100%{transform:translateX(0)} }
+  .lb{ font-size:9px; font-weight:800; letter-spacing:.14em; color:var(--muted); text-transform:uppercase; }
+  .val{ font-size:13px; font-weight:700; margin-top:2px; }
+  .val.ok{ color:rgba(255,255,255,.85); font-weight:600; } .val.pun{ color:var(--down); }
+  .count{ font-size:9px; color:var(--muted); margin-left:auto; align-self:flex-start; }
+</style>
+</head>
+<body>
+  <div class="wrap" id="drag">
+    <div class="frame top">
+      <svg class="shell" viewBox="0 0 24 24" aria-hidden="true">
+        <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#2b6fd6"/></linearGradient></defs>
+        <path d="M4 9c1.4-1 3-1 4 .2C9.6 6.4 12 5.2 14.6 6c-1 .6-1.7 1.5-2 2.6 1.5-1 3.4-1 4.8.2-.7.3-1.3.9-1.6 1.6 1.3-.3 2.6.2 3.2 1.4-2 .3-3.2 1.3-3.8 2.9-1 2.6-3.6 4.3-6.4 4.1C5.7 18.6 3.4 16 3.4 13c0-1.5.2-2.9.6-4Z" fill="url(#g)" stroke="#bfe0ff" stroke-width=".6"/>
+        <circle cx="10.5" cy="12.5" r="1.5" fill="#0a2a5e"/>
+      </svg>
+      <span class="title">BLUE SHELLS</span>
+    </div>
+    <div class="frame body" id="body"></div>
+  </div>
+
+<script>
+  const { ipcRenderer } = require('electron');
+  const $ = id => document.getElementById(id);
+  let castigos = [], idx = 0, me = 'tú';
+
+  function render(){
+    const body = $('body');
+    if (!castigos.length){
+      body.innerHTML = `<div class="cast-ic empty">–</div><div class="cast-txt"><div class="lb">Estado</div><div class="val ok">Sin castigo actual</div></div>`;
+      return;
+    }
+    const n = castigos.length, cur = idx % n, c = castigos[cur];
+    const hd = n > 1 ? `CASTIGO ACTUAL ${cur + 1}/${n}` : 'CASTIGO ACTUAL';
+    const img = c.img
+      ? `<img class="cast-img" src="${c.img}" onerror="this.style.display='none'">`
+      : `<div class="cast-ic empty">?</div>`;
+    const rcv = ((c.to || me) + '').split('#')[0];
+    const snd = c.from ? c.from.split('#')[0] : null;
+    const arrow = snd
+      ? `<div class="cast-arrow"><span class="from">${snd}</span><span class="ar">→</span><span class="to">${rcv}</span></div>`
+      : `<div class="cast-arrow"><span class="to">${rcv}</span></div>`;
+    body.innerHTML = `${img}<div class="cast-txt"><div class="cast-hd">${hd}</div>${arrow}<div class="cast-name"><span class="cast-name-inner">${c.name}</span></div></div>`;
+    // marquee del nombre si no cabe
+    const cont = body.querySelector('.cast-name'), inner = body.querySelector('.cast-name-inner');
+    if (cont && inner){
+      const over = inner.scrollWidth - cont.clientWidth;
+      if (over > 2){
+        inner.style.setProperty('--shift', `-${over}px`);
+        inner.style.animationDuration = Math.max(5, over / 16 + 4) + 's';
+        inner.classList.add('scroll');
+      }
+    }
+  }
+
+  ipcRenderer.on('data', (_e, d) => {
+    me = (d && d.name) || 'tú';
+    const next = (d && d.castigos) || [];
+    if (JSON.stringify(next.map(c=>c.name)) !== JSON.stringify(castigos.map(c=>c.name))) idx = 0;
+    castigos = next;
+    render();
+  });
+
+  // rota entre castigos cada 3s si hay más de uno
+  setInterval(() => { if (castigos.length > 1){ idx = (idx + 1) % castigos.length; render(); } }, 5000);
+
+  const wrap = $('drag');
+  new ResizeObserver(() => ipcRenderer.send('resize', Math.ceil(wrap.getBoundingClientRect().height) + 4)).observe(wrap);
+  let dragging = false;
+  wrap.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
+  window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
+  window.addEventListener('mouseup', () => { if(dragging){ dragging=false; ipcRenderer.send('drag-end'); } });
+
+  render();
+</script>
+</body>
+</html>

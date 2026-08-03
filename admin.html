@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Admin</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .nav a.link{ color:var(--muted); font-size:14px; font-weight:500; } .nav a.link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .admin-tag{ font-size:11px; font-weight:800; letter-spacing:.08em; color:#000; background:var(--accent); padding:4px 9px; border-radius:6px; }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+  .box h2{ font-size:15px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .box h2 .n{ color:var(--muted); font-weight:600; font-size:13px; }
+
+  .drop-row{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .badge{ font-size:10px; font-weight:800; padding:4px 9px; border-radius:6px; }
+  .badge.on{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .badge.off{ background:rgba(255,255,255,.06); color:var(--muted); border:1px solid var(--line-2); }
+  input[type=text]{ flex:1; min-width:200px; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:9px 12px; }
+  .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:700; }
+  .btn-accent{ background:var(--accent); color:#000; } .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
+  .btn-ok{ background:rgba(52,211,153,.16); color:var(--up); border:1px solid rgba(52,211,153,.45); }
+  .btn-no{ background:rgba(251,113,133,.14); color:var(--down); border:1px solid rgba(251,113,133,.45); }
+
+  .list{ display:flex; flex-direction:column; gap:8px; }
+  .item{ display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; }
+  .item img{ width:30px; height:30px; object-fit:contain; flex-shrink:0; }
+  .item .info{ flex:1; min-width:0; }
+  .item .t{ font-size:13px; font-weight:600; } .item .s{ font-size:11px; color:var(--muted); margin-top:1px; }
+  .item .acts{ display:flex; gap:6px; }
+  .empty{ color:var(--muted); font-size:13px; padding:8px 0; }
+
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ text-align:left; padding:9px 10px; font-size:13px; border-bottom:1px solid var(--line); }
+  th{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-2); font-weight:700; }
+  .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); font-size:13px; padding:11px 18px; border-radius:10px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show{ opacity:1; }
+</style>
+</head>
+<body>
+  <header><div class="wrap nav">
+    <a class="brand" href="index.html"><span class="mark">S</span><b>SoloQ<span>Challenge</span></b></a>
+    <a class="link" href="index.html">Ranking</a>
+    <a class="link" href="blueshell.html">Blue Shells</a>
+    <a class="link" href="ticket.html">Tickets</a>
+    <div class="nav-spacer"></div>
+    <span class="admin-tag">ADMIN</span>
+    <span class="link" id="who"></span>
+    <button class="btn btn-ghost" id="logout">Salir</button>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Panel de administración</h1>
+    <div class="sub">Gestión del challenge: drop diario, verificaciones, tickets y participantes.</div>
+
+    <!-- Verificaciones manuales -->
+    <div class="box">
+      <h2>Verificaciones pendientes <span class="n" id="ver-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Castigos que la API no detecta sola (runas, sensibilidad x2, sin objetos hasta min 15).</div>
+      <div class="list" id="ver-list"></div>
+    </div>
+
+    <!-- Tickets -->
+    <div class="box">
+      <h2>Tickets <span class="n" id="tk-count"></span></h2>
+      <div class="list" id="tk-list"></div>
+    </div>
+
+    <!-- Participantes -->
+    <div class="box">
+      <h2>Participantes <span class="n" id="pt-count"></span></h2>
+      <table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fdate = iso => new Date(iso).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const SLUG = { 'Runas predeterminadas':'runas-predeterminadas','Sensibilidad x2':'sensibilidad-x2','Sin objetos completos hasta min 15':'sin-objetos-min15' };
+  const IMG = name => `overlay/assets/shells/${SLUG[name]||'reverse'}.png`;
+  let toastT;
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+
+  (async () => {
+    const user = await SQC.me();
+    if (!user || !user.isAdmin){ alert('Acceso solo para el administrador.'); location.href = 'index.html'; return; }
+    $('who').textContent = user.nickname;
+    $('logout').addEventListener('click', () => { SQC.logout(); location.href='index.html'; });
+
+    // ---- Verificaciones ----
+    async function renderVer(){
+      const list = await SQC.api('/admin/verifications');
+      $('ver-count').textContent = `(${list.length})`;
+      $('ver-list').innerHTML = list.length ? list.map(v=>`
+        <div class="item"><img src="${IMG(v.castigo)}" onerror="this.style.visibility='hidden'">
+          <div class="info"><div class="t">${v.player} — ${v.castigo}</div><div class="s">Solicitó verificación · ${fdate(v.created_at)}</div></div>
+          <div class="acts"><button class="btn btn-ok" data-a="approve" data-id="${v.id}">Aprobar</button><button class="btn btn-no" data-a="reject" data-id="${v.id}">Rechazar</button></div>
+        </div>`).join('') : '<div class="empty">Sin verificaciones pendientes.</div>';
+      $('ver-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/verifications/'+b.dataset.id+'/'+b.dataset.a, {method:'POST'}); toast(b.dataset.a==='approve'?'Verificación aprobada':'Verificación rechazada'); renderVer(); }
+        catch(e){ toast(e.message); }
+      }));
+    }
+
+    // ---- Tickets ----
+    async function renderTk(){
+      const list = await SQC.api('/admin/tickets');
+      $('tk-count').textContent = `(${list.length})`;
+      $('tk-list').innerHTML = list.length ? list.map(t=>`
+        <div class="item"><div class="info"><div class="t">${t.player} — ${t.asunto}</div><div class="s">${t.mensaje||''} · ${fdate(t.created_at)}</div></div>
+          <div class="acts"><button class="btn btn-ok" data-id="${t.id}">Resolver</button></div></div>`).join('') : '<div class="empty">Sin tickets abiertos.</div>';
+      $('tk-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/tickets/'+b.dataset.id+'/resolve', {method:'POST'}); toast('Ticket resuelto'); renderTk(); } catch(e){ toast(e.message); }
+      }));
+    }
+
+    // ---- Participantes ----
+    async function renderParts(){
+      const ps = await SQC.api('/admin/participants');
+      $('pt-count').textContent = `(${ps.length})`;
+      $('pt-body').innerHTML = ps.length ? ps.map(p=>`<tr><td>${p.shells}/3</td><td>${p.nickname}</td><td style="color:var(--muted)">${p.riotid}</td>
+        <td style="text-align:right"><button class="btn btn-ghost" data-id="${p.id}" data-nm="${p.nickname}">Dar Blue Shell</button></td></tr>`).join('')
+        : '<tr><td colspan="4" class="empty">Aún no hay participantes registrados.</td></tr>';
+      $('pt-body').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/grant', {method:'POST', body:{ userId: Number(b.dataset.id), motivo:'Otorgada por la organización' }}); toast(`Blue Shell otorgada a ${b.dataset.nm}`); renderParts(); }
+        catch(e){ toast(e.message); }
+      }));
+    }
+
+    renderVer(); renderTk(); renderParts();
+  })();
+</script>
+</body>
+</html>

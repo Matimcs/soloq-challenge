@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Blue Shells</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .nav a.link{ color:var(--muted); font-size:14px; font-weight:500; }
+  .nav a.link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .me{ display:flex; align-items:center; gap:9px; font-size:13px; }
+  .me img{ width:30px; height:30px; border-radius:8px; object-fit:cover; border:1px solid var(--line-2); }
+  .me .nn{ font-weight:600; }
+  .logout{ font-family:var(--font); cursor:pointer; background:rgba(255,255,255,.06); border:1px solid var(--line-2); color:var(--text); font-size:12px; font-weight:600; padding:7px 12px; border-radius:9px; }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:28px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; }
+  .box h2{ font-size:15px; font-weight:700; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .box h2 .n{ color:var(--muted); font-weight:600; font-size:13px; }
+
+  /* inventario */
+  .inv{ display:flex; gap:12px; flex-wrap:wrap; }
+  .shell{ width:calc(33.333% - 8px); min-width:120px; background:var(--panel-2); border:1px solid var(--line-2); border-radius:12px; padding:12px; text-align:center; }
+  .shell img{ width:52px; height:52px; object-fit:contain; }
+  .shell .bs{ font-size:11px; font-weight:800; color:var(--blue); letter-spacing:.04em; margin-top:6px; }
+  .shell .motivo{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .shell .date{ font-size:10px; color:var(--muted-2); margin-top:4px; }
+  .empty{ color:var(--muted); font-size:13px; padding:12px 0; }
+
+  /* lanzar */
+  select{ width:100%; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; }
+  .throw{ margin-top:12px; width:100%; font-family:var(--font); cursor:pointer; background:var(--accent); color:#000; border:none; border-radius:11px; padding:12px; font-size:14px; font-weight:700; }
+  .throw:disabled{ opacity:.4; cursor:not-allowed; }
+  .rev-hint{ font-size:12px; color:var(--gold); margin-top:8px; }
+  .result{ font-size:13px; padding:11px 13px; border-radius:10px; margin-top:12px; display:none; }
+  .result.ok{ display:block; background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); color:var(--up); }
+  .result.bounce{ display:block; background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.4); color:var(--down); }
+  .rules{ font-size:11px; color:var(--muted-2); margin-top:12px; line-height:1.5; }
+
+  /* historial */
+  .hist{ display:flex; flex-direction:column; gap:8px; max-height:320px; overflow-y:auto; }
+  .h-item{ display:flex; align-items:center; gap:10px; padding:9px 10px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; }
+  .h-item img{ width:30px; height:30px; object-fit:contain; flex-shrink:0; }
+  .h-info{ flex:1; min-width:0; }
+  .h-cast{ font-size:12.5px; font-weight:600; }
+  .h-who{ font-size:11px; color:var(--muted); }
+  .h-date{ font-size:10px; color:var(--muted-2); margin-top:1px; }
+  .badge{ font-size:9.5px; font-weight:800; padding:3px 7px; border-radius:6px; white-space:nowrap; }
+  .badge.pend{ background:rgba(255,201,60,.14); color:var(--gold); border:1px solid rgba(255,201,60,.4); }
+  .badge.done{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .mark{ font-family:var(--font); cursor:pointer; background:rgba(255,255,255,.06); border:1px solid var(--line-2); color:var(--text); font-size:10px; font-weight:700; padding:5px 8px; border-radius:7px; }
+  .htabs{ display:flex; gap:6px; margin-bottom:12px; }
+  .htab{ font-family:var(--font); cursor:pointer; background:none; border:none; color:var(--muted); font-size:13px; font-weight:600; padding:4px 2px; border-bottom:2px solid transparent; }
+  .htab.active{ color:var(--text); border-bottom-color:var(--accent); }
+  .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
+  @media (max-width:760px){ .grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+  <header><div class="wrap nav">
+    <a class="brand" href="index.html"><span class="mark">S</span><b>SoloQ<span>Challenge</span></b></a>
+    <a class="link" href="index.html">Ranking</a>
+    <a class="link" style="color:var(--text)">Blue Shells</a>
+    <a class="link" href="ticket.html">Tickets</a>
+    <a class="link" href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
+    <div class="nav-spacer"></div>
+    <div class="me" id="me"></div>
+    <button class="logout" id="logout">Salir</button>
+  </div></header>
+
+  <main class="wrap">
+    <h1>🛡 Blue Shells</h1>
+    <div class="sub" id="sub">Tu inventario, historial y lanzamientos.</div>
+
+    <div class="grid">
+      <!-- Inventario -->
+      <div class="box">
+        <h2>Mi inventario <span class="n" id="inv-count">(0/3)</span></h2>
+        <div class="inv" id="inv"></div>
+      </div>
+
+      <!-- Lanzar -->
+      <div class="box">
+        <h2>Lanzar Blue Shell</h2>
+        <select id="target"></select>
+        <div class="rev-hint" id="rev-hint"></div>
+        <button class="throw" id="throw">Lanzar 🛡</button>
+        <div class="result" id="result"></div>
+        <div class="rules">Reglas: máx. 3 en inventario · no puedes lanzar si estás en cola, champ select o partida · cuanto más abajo tu objetivo, más probable el rebote (Reverse). El castigo se sortea al impactar.</div>
+      </div>
+    </div>
+
+    <!-- Historial -->
+    <div class="box" style="margin-top:18px">
+      <div class="htabs">
+        <button class="htab active" data-h="received">Recibidas</button>
+        <button class="htab" data-h="sent">Enviadas</button>
+      </div>
+      <div class="hist" id="hist"></div>
+    </div>
+
+    <div class="note">Las Blue Shells se lanzan y entregan de verdad entre jugadores. Cooldowns y verificación gestionados por la organización.</div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fdate = iso => new Date(iso).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const SLUG = {
+    'Sin tus 3 campeones más jugados':'sin-3-campeones','Una partida con Yuumi':'yuumi','Campeón aleatorio':'campeon-aleatorio',
+    'Sin Flash':'sin-flash','Autofill':'autofill','Sin botas y sin pies veloces':'sin-botas','Hechizos cambiados':'hechizos-cambiados',
+    'Sensibilidad x2':'sensibilidad-x2','Sin objetos completos hasta min 15':'sin-objetos-min15','Reverse':'reverse','Runas predeterminadas':'runas-predeterminadas',
+  };
+  const IMG = name => `overlay/assets/shells/${SLUG[name]||'reverse'}.png`;
+  const reverseChance = pos => (pos && pos <= 5) ? pos : 15;
+
+  (async () => {
+    const user = await SQC.me();
+    if (!user){ location.href = 'cuenta.html'; return; }
+    $('me').innerHTML = `${user.avatar?`<img src="${user.avatar}">`:''}<span class="nn">${user.nickname}</span>`;
+    if (user.isAdmin){ const ad = $('nav-admin'); if (ad) ad.style.display = ''; }
+    $('logout').addEventListener('click', () => { SQC.logout(); location.href = 'index.html'; });
+
+    let data = { inventory:[], received:[], sent:[], max:3 };
+    let hMode = 'received';
+
+    async function loadTargets(){
+      const players = await SQC.api('/participants');
+      const others = players.filter(p => p.id !== user.id);
+      $('target').innerHTML = others.length
+        ? others.map(p => `<option value="${p.id}" data-pos="${p.pos||''}">${p.pos?('#'+p.pos+' · '):''}${p.nickname}</option>`).join('')
+        : '<option value="">— no hay otros participantes registrados —</option>';
+      updateRevHint();
+    }
+    function updateRevHint(){
+      const opt = $('target').selectedOptions[0];
+      const pos = opt && +opt.dataset.pos;
+      $('rev-hint').textContent = pos ? `Probabilidad de rebote sobre este objetivo: ${reverseChance(pos)}%` : '';
+    }
+    $('target').addEventListener('change', updateRevHint);
+
+    async function refresh(){ data = await SQC.api('/blueshells'); renderInv(); renderHist(); }
+
+    function renderInv(){
+      $('inv-count').textContent = `(${data.inventory.length}/${data.max||3})`;
+      $('inv').innerHTML = data.inventory.length
+        ? data.inventory.map(s => `<div class="shell"><img src="overlay/assets/shells/reverse.png" onerror="this.style.visibility='hidden'"><div class="bs">BLUE SHELL</div><div class="motivo">${s.motivo||''}</div><div class="date">${fdate(s.created_at)}</div></div>`).join('')
+        : '<div class="empty">No tienes Blue Shells. Consíguelas con pentakills, rachas, comebacks, etc.</div>';
+      $('throw').disabled = data.inventory.length === 0;
+    }
+
+    document.querySelectorAll('.htab').forEach(t => t.addEventListener('click', () => {
+      document.querySelectorAll('.htab').forEach(x => x.classList.remove('active')); t.classList.add('active'); hMode = t.dataset.h; renderHist();
+    }));
+    function renderHist(){
+      const list = hMode === 'received' ? data.received : data.sent;
+      if (!list.length){ $('hist').innerHTML = '<div class="empty">Sin registros.</div>'; return; }
+      $('hist').innerHTML = list.map(h => {
+        const who = `${hMode === 'received' ? 'de' : 'a'} <b>${h.other}</b>`;
+        const badge = h.estado === 'cumplido' ? '<span class="badge done">Cumplido</span>' : '<span class="badge pend">Pendiente</span>';
+        const markBtn = (hMode === 'received' && h.estado === 'pendiente') ? `<button class="mark" data-id="${h.id}">Marcar cumplido</button>` : '';
+        return `<div class="h-item"><img src="${IMG(h.castigo)}" onerror="this.style.visibility='hidden'">
+          <div class="h-info"><div class="h-cast">${h.castigo}</div><div class="h-who">${who}</div><div class="h-date">${fdate(h.created_at)}</div></div>
+          ${markBtn}${badge}</div>`;
+      }).join('');
+      document.querySelectorAll('.mark').forEach(b => b.addEventListener('click', async () => {
+        try { await SQC.api('/blueshells/' + b.dataset.id + '/cumplido', { method:'POST' }); refresh(); } catch (e) { alert(e.message); }
+      }));
+    }
+
+    $('throw').addEventListener('click', async () => {
+      const opt = $('target').selectedOptions[0]; if (!opt || !opt.value) return;
+      $('throw').disabled = true;
+      const res = $('result');
+      try {
+        const r = await SQC.api('/blueshells/launch', { method:'POST', body:{ targetId: Number(opt.value) } });
+        if (r.bounce){ res.className = 'result bounce'; res.innerHTML = `↩️ <b>¡Rebotó!</b> El castigo te toca a TI: <b>${r.castigo}</b>`; }
+        else { res.className = 'result ok'; res.innerHTML = `🛡 Le lanzaste una Blue Shell a <b>${r.target}</b>. Le tocó: <b>${r.castigo}</b>`; }
+        await refresh();
+      } catch (err) { res.className = 'result bounce'; res.textContent = err.message; $('throw').disabled = false; }
+    });
+
+    await loadTargets();
+    await refresh();
+  })();
+</script>
+</body>
+</html>

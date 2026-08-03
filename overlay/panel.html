@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{ --line:rgba(255,255,255,.09); --text:#fff; --muted:rgba(255,255,255,.55); --accent:#e9ff1f; }
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ background:transparent; overflow:hidden; user-select:none; font-family:'Segoe UI',system-ui,sans-serif; color:var(--text); }
+  .shell{ background:#0b0b0b; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    box-shadow:0 12px 50px rgba(0,0,0,.6); height:100vh; display:flex; flex-direction:column; position:relative; }
+  .bar{ display:flex; align-items:center; gap:10px; padding:8px 14px; background:#0b0b0b; border-bottom:1px solid var(--line); cursor:move; }
+  .logo{ width:18px; height:18px; border-radius:5px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; font-size:11px; }
+  .btitle{ font-weight:700; font-size:13px; }
+  .hint{ margin-left:auto; font-size:11px; color:var(--muted); }
+  .hint b{ color:var(--text); background:rgba(255,255,255,.08); padding:1px 6px; border-radius:5px; }
+  .gear{ background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--text); width:26px; height:26px; border-radius:7px; cursor:pointer; font-size:13px; margin-left:10px; }
+  .gear:hover{ background:rgba(255,255,255,.18); }
+  iframe{ flex:1; width:100%; border:none; background:#0b0b0b; }
+  .settings{ position:absolute; inset:0; background:rgba(6,7,10,.94); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); padding:28px 34px; display:flex; flex-direction:column; gap:14px; }
+  .stitle{ font-size:17px; font-weight:800; }
+  .opt{ display:flex; align-items:center; gap:10px; font-size:13px; cursor:pointer; }
+  .opt input[type=checkbox]{ width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+  .opt.col{ flex-direction:column; align-items:flex-start; gap:6px; }
+  .opt.col input[type=range]{ width:260px; accent-color:var(--accent); cursor:pointer; }
+  .sbtn{ align-self:flex-start; background:var(--accent); color:#000; border:none; border-radius:8px; padding:9px 16px; font-weight:700; font-size:12px; cursor:pointer; }
+  .snote{ font-size:11px; color:var(--muted); margin-top:auto; }
+  .sclose{ position:absolute; top:14px; right:16px; background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--text); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:13px; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="bar" id="head">
+      <div class="logo">S</div><div class="btitle">SoloQ Challenge</div>
+      <div class="hint">Cerrar: <b>Alt&nbsp;+&nbsp;X</b></div>
+      <button class="gear" id="gear" title="Configuración">⚙</button>
+    </div>
+    <!-- La página REAL. Cambia esta URL por la de producción cuando despliegues. -->
+    <iframe id="site" src="http://localhost:8123"></iframe>
+
+    <div class="settings" id="settings" style="display:none">
+      <button class="sclose" id="s-close" title="Cerrar">✕</button>
+      <div class="stitle">⚙ Configuración</div>
+      <label class="opt"><input type="checkbox" id="s-small"> Mostrar tarjeta de standing</label>
+      <label class="opt"><input type="checkbox" id="s-shell"> Mostrar popup de Blue Shells</label>
+      <label class="opt"><input type="checkbox" id="s-hideoog"> Ocultar overlays fuera de partida</label>
+      <label class="opt"><input type="checkbox" id="s-aot"> Siempre encima (always-on-top)</label>
+      <label class="opt col"><span>Opacidad <b id="s-op-val"></b></span><input type="range" id="s-op" min="30" max="100"></label>
+      <button class="sbtn" id="s-reset">Reponer posiciones</button>
+      <div class="snote">Los cambios se guardan automáticamente. La página se carga en vivo desde el servidor.</div>
+    </div>
+  </div>
+
+<script>
+  const { ipcRenderer } = require('electron');
+  const $ = id => document.getElementById(id);
+  const settingsEl = $('settings');
+  async function openSettings(){
+    const s = await ipcRenderer.invoke('get-settings');
+    $('s-small').checked=!!s.smallVisible; $('s-shell').checked=!!s.shellVisible;
+    $('s-hideoog').checked=!!s.hideOutOfGame; $('s-aot').checked=!!s.alwaysOnTop;
+    const op=Math.round((s.opacity!=null?s.opacity:1)*100); $('s-op').value=op; $('s-op-val').textContent=op+'%';
+    settingsEl.style.display='flex';
+  }
+  const set = (k,v) => ipcRenderer.send('setting',{key:k,value:v});
+  $('gear').addEventListener('click', () => settingsEl.style.display==='flex' ? settingsEl.style.display='none' : openSettings());
+  $('s-close').addEventListener('click', () => settingsEl.style.display='none');
+  $('s-small').addEventListener('change', e => set('smallVisible', e.target.checked));
+  $('s-shell').addEventListener('change', e => set('shellVisible', e.target.checked));
+  $('s-hideoog').addEventListener('change', e => set('hideOutOfGame', e.target.checked));
+  $('s-aot').addEventListener('change', e => set('alwaysOnTop', e.target.checked));
+  $('s-op').addEventListener('input', e => { const v=+e.target.value; $('s-op-val').textContent=v+'%'; set('opacity', v/100); });
+  $('s-reset').addEventListener('click', () => ipcRenderer.send('reset-pos'));
+
+  const head = $('head'); let dragging=false;
+  head.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
+  window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
+  window.addEventListener('mouseup', () => { if(dragging){ dragging=false; ipcRenderer.send('drag-end'); } });
+</script>
+</body>
+</html>

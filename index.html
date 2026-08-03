@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Ranking</title>
+<style>
+  /* Tipografía original del sitio (GeneralSans, vía Fontshare) con fallback de sistema */
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+
+  :root{
+    /* ===== Paleta extraída del sitio original ===== */
+    --bg:            #0b0b0b;   /* fondo */
+    --panel:         #0b0c10;   /* tarjetas/paneles */
+    --panel-2:       #121319;   /* paneles secundarios */
+    --line:          rgba(255,255,255,.07);
+    --line-strong:   rgba(255,255,255,.12);
+    --text:          #ffffff;
+    --muted:         rgba(255,255,255,.6);
+    --muted-2:       rgba(255,255,255,.4);
+
+    --accent:        #e9ff1f;   /* lima característico (CTA) */
+    --up:            #34d399;   /* victoria / LP+ */
+    --up-soft:       #6ee7b7;
+    --down:          #fb7185;   /* derrota / LIVE / LP- */
+    --down-soft:     #fda4af;
+    --gold:          #ffc93c;   /* LP alto */
+    --blue:          #7dd3fc;
+    --purple:        #c084fc;
+
+    --radius:        14px;
+    --font: 'General Sans', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(1200px 600px at 50% -200px, rgba(233,255,31,.06), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1120px; margin:0 auto; padding:0 20px; }
+
+  /* ===================== HEADER ===================== */
+  header{
+    position:sticky; top:0; z-index:50;
+    background:rgba(11,11,11,.75);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line);
+  }
+  .nav{ display:flex; align-items:center; gap:26px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.02em; }
+  .brand .mark{
+    width:26px; height:26px; border-radius:7px;
+    background:var(--accent); color:#000;
+    display:grid; place-items:center; font-weight:700; font-size:15px;
+    box-shadow:0 0 20px rgba(233,255,31,.35);
+  }
+  .brand b{ font-size:17px; }
+  .brand span{ color:var(--accent); }
+  .nav-links{ display:flex; gap:22px; margin-left:8px; }
+  .nav-links a{ color:var(--muted); font-size:14px; font-weight:500; transition:color .15s; }
+  .nav-links a:hover, .nav-links a.active{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .btn{
+    font-family:var(--font); cursor:pointer;
+    border:none; border-radius:10px; padding:9px 16px;
+    font-size:13px; font-weight:600; letter-spacing:.02em;
+  }
+  .btn-accent{ background:var(--accent); color:#000; }
+  .btn-accent:hover{ filter:brightness(1.05); }
+  .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-strong); }
+
+  /* ===================== HERO ===================== */
+  .hero{ padding:46px 0 30px; display:grid; grid-template-columns:1.1fr .9fr; gap:28px; }
+  .hero h1{ font-size:44px; line-height:1.02; letter-spacing:-.03em; margin:0 0 14px; }
+  .hero h1 em{ color:var(--accent); font-style:normal; }
+  .hero p.lead{ color:var(--muted); font-size:16px; max-width:44ch; margin:0 0 22px; }
+
+  .countdown-card{
+    background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0));
+    border:1px solid var(--line); border-radius:var(--radius);
+    padding:16px 18px; display:inline-block;
+  }
+  .countdown-card .label{ font-size:11px; font-weight:700; letter-spacing:.16em; color:var(--muted); text-transform:uppercase; }
+  .countdown{ display:flex; gap:10px; margin-top:10px; }
+  .cd-unit{ text-align:center; min-width:58px; }
+  .cd-unit .num{
+    font-size:30px; font-weight:700; letter-spacing:-.02em;
+    background:var(--panel-2); border:1px solid var(--line-strong);
+    border-radius:10px; padding:8px 0; font-variant-numeric:tabular-nums;
+  }
+  .cd-unit .u{ font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; margin-top:6px; }
+
+  /* Stream placeholder */
+  .stream{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    overflow:hidden; display:flex; flex-direction:column;
+  }
+  .stream .scr{
+    aspect-ratio:16/9; background:
+      repeating-linear-gradient(45deg, #101218 0 12px, #0c0e13 12px 24px);
+    display:grid; place-items:center; position:relative;
+  }
+  .stream .scr .play{ width:56px; height:56px; border-radius:50%; background:rgba(233,255,31,.15); border:1px solid var(--accent); display:grid; place-items:center; color:var(--accent); }
+  .stream .bar{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-top:1px solid var(--line); }
+  .live-dot{ width:8px; height:8px; border-radius:50%; background:var(--down); box-shadow:0 0 0 4px rgba(251,113,133,.18); }
+  .stream .bar .who{ font-size:14px; font-weight:600; }
+  .stream .bar .views{ margin-left:auto; font-size:12px; color:var(--muted); }
+
+  /* ===================== RANKING ===================== */
+  .rank-head{ display:flex; align-items:baseline; gap:14px; margin:26px 0 14px; }
+  .rank-head h2{ font-size:24px; letter-spacing:-.02em; margin:0; }
+  .rank-head .updated{ font-size:12px; color:var(--muted-2); }
+  .rank-head .updated b{ color:var(--up); font-weight:600; }
+
+  .filters{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .chip{
+    font-family:var(--font); cursor:pointer;
+    background:rgba(255,255,255,.04); border:1px solid var(--line);
+    color:var(--muted); border-radius:999px; padding:7px 14px;
+    font-size:12.5px; font-weight:600; transition:.15s;
+  }
+  .chip:hover{ color:var(--text); }
+  .chip.active{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .chip .n{ opacity:.7; margin-left:5px; }
+
+  .table-card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  .tbl-scroll{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; min-width:760px; }
+  thead th{
+    text-align:left; font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--muted); padding:14px 12px; border-bottom:1px solid var(--line); position:sticky; top:0;
+    background:var(--panel); white-space:nowrap;
+  }
+  tbody td{ padding:12px; border-bottom:1px solid var(--line); font-size:14px; vertical-align:middle; white-space:nowrap; }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr{ transition:background .12s; }
+  tbody tr:hover{ background:rgba(255,255,255,.03); }
+
+  /* cabeceras ordenables */
+  thead th.sortable{ cursor:pointer; user-select:none; }
+  thead th.sortable:hover{ color:rgba(255,255,255,.85); }
+  th .arrows{ display:inline-flex; flex-direction:column; line-height:.55; margin-left:5px; vertical-align:middle; font-size:8px; }
+  th .arrows span{ color:var(--muted-2); }
+  th.sort-asc .arrows .a-up{ color:var(--accent); }
+  th.sort-desc .arrows .a-dn{ color:var(--accent); }
+
+  /* # + movimiento (barra de color por elo) */
+  td.pos-cell{ position:relative; text-align:center; padding-left:14px; }
+  td.pos-cell.high{ box-shadow: inset 3px 0 0 var(--accent); }
+  td.pos-cell.low{ box-shadow: inset 3px 0 0 rgba(255,255,255,.18); }
+  .pos{ display:inline-flex; align-items:center; gap:6px; }
+  .pos .rk{ font-weight:700; font-size:15px; font-variant-numeric:tabular-nums; }
+  .pos .mv{ font-size:10px; font-weight:700; display:inline-flex; align-items:center; gap:1px; }
+  .mv.up{ color:var(--up); } .mv.down{ color:var(--down); } .mv.same{ color:var(--muted-2); }
+  tr.top1 .rk{ color:var(--gold); } tr.top2 .rk{ color:#cfd6e6; } tr.top3 .rk{ color:#e0a56b; }
+
+  /* jugador */
+  .player{ display:flex; align-items:center; gap:9px; }
+  .fav{ background:none; border:none; cursor:pointer; color:var(--muted-2); padding:0; display:grid; place-items:center; transition:.15s; }
+  .fav svg{ width:14px; height:14px; }
+  .fav:hover{ color:var(--accent); transform:scale(1.2); }
+  .fav.on{ color:var(--accent); }
+  .ava{ width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#1a1d27,#0d0f15); border:1px solid var(--line-strong); display:grid; place-items:center; font-weight:700; font-size:13px; color:var(--muted); overflow:hidden; }
+  .player .nm{ font-weight:600; font-size:14px; display:flex; align-items:center; gap:7px; color:rgba(255,255,255,.9); }
+  .player .rid{ font-size:11.5px; color:var(--muted-2); }
+  .badge-live{ font-size:9px; font-weight:800; letter-spacing:.08em; color:#fff; background:var(--down); padding:2px 6px; border-radius:5px; }
+  .badge-ingame{ font-size:9px; font-weight:800; letter-spacing:.06em; color:var(--up); background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); padding:2px 6px; border-radius:5px; }
+
+  /* rol */
+  .role-ico{ width:20px; height:20px; opacity:.92; }
+  .role-none{ font-size:13px; color:var(--muted-2); }
+
+  /* elo (con emblema de rango) */
+  .elo{ display:flex; align-items:center; gap:9px; font-variant-numeric:tabular-nums; }
+  .elo-crest{ width:28px; height:28px; object-fit:contain; }
+  .elo .div{ font-size:12px; font-weight:700; margin-right:3px; }
+  .elo .lp{ font-weight:700; font-size:15px; }
+  .elo .lp small{ font-size:11px; color:var(--muted); font-weight:600; margin-left:2px; }
+
+  /* V/D */
+  .vd .wr{ font-weight:700; font-size:14px; }
+  .vd .rec{ font-size:11px; color:var(--muted); }
+  .wr.good{ color:var(--up); } .wr.mid{ color:var(--text); } .wr.bad{ color:var(--down-soft); }
+
+  /* racha */
+  .streak{ font-weight:700; font-size:13px; }
+  .streak.w{ color:var(--up); } .streak.l{ color:var(--down); } .streak.n{ color:var(--muted-2); }
+
+  /* ±LP */
+  .dlp{ font-size:12px; font-weight:600; display:flex; gap:9px; font-variant-numeric:tabular-nums; }
+  .dlp .u{ color:var(--up); } .dlp .d{ color:var(--down); }
+
+  /* racha: sparkline de forma reciente */
+  .spark{ width:72px; height:26px; overflow:visible; display:block; }
+  .spark.up{ color:var(--up); } .spark.down{ color:var(--down); }
+  .spark polyline{ filter:drop-shadow(0 0 3px currentColor); }
+
+  /* aegis (of valor): partidas con ~doble LP */
+  .aegis{ display:inline-flex; align-items:center; gap:6px; font-weight:800; font-size:14px; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .aegis svg{ width:22px; height:22px; filter:drop-shadow(0 0 4px rgba(255,201,60,.45)); }
+
+  /* opgg */
+  .opgg{ background:rgba(255,255,255,.06); border:1px solid var(--line-strong); color:var(--text); font-size:11px; font-weight:700; padding:6px 10px; border-radius:8px; }
+  .opgg:hover{ background:rgba(255,255,255,.12); }
+  .stats-sel{ margin-left:auto; align-self:center; font-size:12px; font-weight:600; color:var(--muted); }
+  .stats-sel b{ color:var(--text); }
+
+  /* ===== nav badge ===== */
+  .nav-badge{ display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--down); color:#fff; font-size:11px; font-weight:800; vertical-align:middle; margin-left:2px; }
+  .nav-badge.zero{ background:rgba(255,255,255,.1); color:var(--muted); }
+
+  /* ===== LIVE GAMES (scoreboard) ===== */
+  .live-hero{ text-align:center; padding:40px 0 22px; }
+  .live-title{ font-size:72px; line-height:.95; letter-spacing:-.03em; font-weight:700; font-style:italic; margin:0;
+    background:linear-gradient(180deg,#fff 0%, #9aa0ad 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .live-tagline{ color:var(--muted); font-size:15px; margin:10px 0 0; }
+  .live-filters{ display:flex; gap:8px; justify-content:center; margin-top:22px; }
+  .lf{ font-family:var(--font); cursor:pointer; background:rgba(255,255,255,.05); border:1px solid var(--line);
+    color:var(--muted); border-radius:8px; padding:8px 16px; font-size:12px; font-weight:700; letter-spacing:.06em; transition:.15s; }
+  .lf:hover{ color:var(--text); }
+  .lf.active{ background:#fff; color:#000; border-color:#fff; }
+
+  #live-games{ display:flex; flex-direction:column; gap:18px; }
+  .lg-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+  .lg-head{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .lg-players{ display:flex; align-items:center; gap:8px; }
+  .lg-ava{ width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#1a1d27,#0d0f15); border:1px solid var(--line-strong); display:grid; place-items:center; font-weight:700; font-size:12px; color:var(--muted); }
+  .lg-center{ text-align:center; }
+  .lg-elo{ display:inline-block; font-size:10px; font-weight:800; letter-spacing:.1em; color:var(--accent);
+    background:rgba(233,255,31,.1); border:1px solid rgba(233,255,31,.3); padding:2px 10px; border-radius:6px; }
+  .lg-timer{ display:block; font-size:26px; font-weight:700; font-variant-numeric:tabular-nums; margin-top:4px; letter-spacing:.02em; }
+  .lg-live{ justify-self:end; font-size:10px; font-weight:800; letter-spacing:.08em; color:var(--down);
+    border:1px solid rgba(251,113,133,.4); background:rgba(251,113,133,.08); padding:5px 10px; border-radius:7px; display:inline-flex; align-items:center; gap:6px; }
+  .lg-live .dot{ width:6px; height:6px; border-radius:50%; background:var(--down); animation:pulse 1.2s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.2} }
+
+  .lg-teams{ display:grid; grid-template-columns:1fr 1fr; }
+  .lg-side{ padding:12px 16px; }
+  .lg-side.blue{ border-right:1px solid var(--line); }
+  .lg-side-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .lg-side-label{ font-size:11px; font-weight:800; letter-spacing:.08em; }
+  .lg-side.blue .lg-side-label{ color:var(--blue); }
+  .lg-side.red  .lg-side-label{ color:var(--down); }
+  .lg-bans{ display:flex; align-items:center; gap:4px; font-size:9px; font-weight:700; letter-spacing:.08em; color:var(--muted-2); }
+  .lg-ban{ position:relative; width:18px; height:18px; border-radius:4px; filter:grayscale(.4) brightness(.8); }
+  .lg-ban::after{ content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent 45%,var(--down) 45%,var(--down) 55%,transparent 55%); border-radius:4px; }
+
+  .lg-row{ display:flex; align-items:center; gap:10px; padding:6px 8px; border-radius:9px; }
+  .lg-row.tracked{ background:linear-gradient(90deg, rgba(52,211,153,.12), rgba(52,211,153,.02)); border:1px solid rgba(52,211,153,.5); box-shadow:0 0 16px rgba(52,211,153,.12); }
+  .lg-champ{ display:flex; align-items:center; gap:3px; }
+  .lg-champ-img{ width:36px; height:36px; border-radius:8px; border:1px solid var(--line-strong); background:var(--panel-2); }
+  .lg-spells{ display:flex; flex-direction:column; gap:3px; }
+  .lg-spells img{ width:15px; height:15px; border-radius:3px; }
+  .lg-rune{ width:16px; height:16px; border-radius:50%; background:#000; }
+  .lg-info{ flex:1; min-width:0; }
+  .lg-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .lg-row.tracked .lg-name{ color:var(--up); }
+  .lg-tag{ color:var(--muted-2); font-weight:400; font-size:11px; }
+  .lg-rank{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; margin-top:1px; }
+  .lg-rank .tdot{ width:6px; height:6px; border-radius:50%; }
+  .lg-pos{ font-size:12px; font-weight:800; color:var(--up); white-space:nowrap; }
+
+  .live-empty{ text-align:center; color:var(--muted); padding:64px 20px; border:1px dashed var(--line-strong); border-radius:var(--radius); }
+
+  @media (max-width:760px){
+    .live-title{ font-size:44px; }
+    .lg-teams{ grid-template-columns:1fr; }
+    .lg-side.blue{ border-right:none; border-bottom:1px solid var(--line); }
+  }
+
+  footer{ color:var(--muted-2); font-size:12px; text-align:center; padding:40px 0 30px; }
+
+  @media (max-width:860px){
+    .hero{ grid-template-columns:1fr; }
+    .hero h1{ font-size:34px; }
+    .nav-links{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header>
+    <div class="wrap nav">
+      <div class="brand"><span class="mark">S</span><b>SoloQ<span>Challenge</span></b></div>
+      <nav class="nav-links">
+        <a href="#" class="tab-link active" data-view="ranking">Ranking</a>
+        <a href="#" class="tab-link" data-view="live">Live Games <span class="nav-badge zero" id="nav-live-count">0</span></a>
+        <a href="#">Normas</a>
+        <a href="blueshell.html" id="nav-blueshell" style="display:none">🛡 Blue Shells</a>
+        <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+        <a href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
+      </nav>
+      <div class="nav-spacer"></div>
+      <a class="btn btn-ghost" href="cuenta.html" id="nav-account" style="margin-right:8px">Iniciar sesión</a>
+      <button class="btn btn-accent" onclick="document.getElementById('ranking').scrollIntoView({behavior:'smooth'})">VER RANKING</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- ===================== HERO ===================== -->
+    <section class="hero" id="hero">
+      <div>
+        <h1>El <em>SoloQ Challenge</em><br/>de la universidad</h1>
+        <p class="lead">El ranking en vivo de los jugadores del equipo de esports. Sube en la ladder, aparece arriba. Actualizado automáticamente.</p>
+        <div class="countdown-card">
+          <div class="label">El torneo empieza en</div>
+          <div class="countdown" id="countdown">
+            <div class="cd-unit"><div class="num" id="cd-d">00</div><div class="u">días</div></div>
+            <div class="cd-unit"><div class="num" id="cd-h">00</div><div class="u">hrs</div></div>
+            <div class="cd-unit"><div class="num" id="cd-m">00</div><div class="u">min</div></div>
+            <div class="cd-unit"><div class="num" id="cd-s">00</div><div class="u">seg</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Placeholder de stream (luego se conecta un embed de Twitch real) -->
+      <div class="stream">
+        <div class="scr"><div class="play">▶</div></div>
+        <div class="bar">
+          <span class="live-dot"></span>
+          <span class="who">Partidas en Stream</span>
+          <span class="views">— en vivo pronto —</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== RANKING ===================== -->
+    <section id="ranking">
+      <div class="rank-head">
+        <h2>Ranking</h2>
+        <div class="updated">Última actualización: <b id="updated-at">hace instantes</b></div>
+      </div>
+
+      <div class="filters" id="filters">
+        <button class="chip active" data-f="all">TODOS <span class="n" id="c-all"></span></button>
+        <button class="chip" data-f="high">HIGH ELO <span class="n" id="c-high"></span></button>
+        <button class="chip" data-f="low">LOW ELO <span class="n" id="c-low"></span></button>
+        <button class="chip" data-f="live">LIVE <span class="n" id="c-live"></span></button>
+        <button class="chip" data-f="ingame">EN PARTIDA <span class="n" id="c-ingame"></span></button>
+        <span class="stats-sel">Stats: <b>OP.GG</b></span>
+      </div>
+
+      <div class="table-card">
+        <div class="tbl-scroll">
+          <table>
+            <thead>
+              <tr id="rank-head">
+                <th class="sortable sort-desc" data-sort="rank">#<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
+                <th class="sortable" data-sort="name">Jugador<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
+                <th>Rol</th>
+                <th class="sortable" data-sort="elo">Elo<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
+                <th class="sortable" data-sort="wr">V / D<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
+                <th>Racha</th>
+                <th class="sortable" data-sort="dlp">±LP<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
+                <th class="sortable" data-sort="aegis">Aegis<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
+                <th>Stats</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== LIVE GAMES ===================== -->
+    <section id="view-live" style="display:none">
+      <div class="live-hero">
+        <h1 class="live-title">LIVE GAMES</h1>
+        <p class="live-tagline">Partidas en vivo del torneo.</p>
+        <div class="live-filters" id="live-filters">
+          <button class="lf active" data-lf="all">TODOS</button>
+          <button class="lf" data-lf="high">HIGH ELO</button>
+          <button class="lf" data-lf="low">LOW ELO</button>
+        </div>
+      </div>
+      <div id="live-games"></div>
+      <div id="live-empty" class="live-empty" style="display:none">
+        Nadie del challenge está en partida en este momento.
+      </div>
+    </section>
+
+    <footer>
+      Prototipo — SoloQ Challenge · jugadores de la U (datos estáticos, jul 2026). Diseño basado en soloqchallenge.gg. Sin pickem, premios ni tier list.
+    </footer>
+  </main>
+
+<script src="players.js"></script>
+<script>
+/* ============================================================
+   FUENTE DE DATOS
+   La web usa window.SQC_DATA (generado por fetch-data.js desde la
+   Riot API, cargado vía players.js). Si no existe, usa la lista
+   estática de respaldo de abajo (FALLBACK).
+   ============================================================ */
+/* Respaldo estático (jul 2026) por si players.js no está disponible. */
+const FALLBACK = [
+  { nm:'SionAntisionista', rid:'SionAntisionista#SAS', role:'—', tier:'GRANDMASTER', div:'',    lp:902, w:264, l:234 },
+  { nm:'Krok',             rid:'Krok#DEUS',            role:'—', tier:'GRANDMASTER', div:'',    lp:821, w:527, l:515 },
+  { nm:'Petu',             rid:'Petu#99999',           role:'—', tier:'GRANDMASTER', div:'',    lp:804, w:177, l:151 },
+  { nm:'Plüs',             rid:'Plüs#SICK',            role:'—', tier:'MASTER',      div:'',    lp:580, w:78,  l:48  },
+  { nm:'Sunless',          rid:'Sunless#0410',         role:'—', tier:'MASTER',      div:'',    lp:564, w:89,  l:74  },
+  { nm:'Yoyobox',          rid:'Yoyobox#1899',         role:'—', tier:'MASTER',      div:'',    lp:438, w:395, l:378 },
+  { nm:'SKT T1 seiya157',  rid:'SKT T1 seiya157#LAS',  role:'—', tier:'MASTER',      div:'',    lp:329, w:139, l:139 },
+  { nm:'Kriida',           rid:'Kriida#7777',          role:'—', tier:'MASTER',      div:'',    lp:140, w:177, l:178 },
+  { nm:'HudsonHornet',     rid:'HudsonHornet#gueon',   role:'—', tier:'MASTER',      div:'',    lp:69,  w:106, l:79  },
+  { nm:'Yutsero',          rid:'Yutsero#LAS',          role:'—', tier:'MASTER',      div:'',    lp:23,  w:393, l:406 },
+  { nm:'Lacosabuena',      rid:'Lacosabuena#LAS',      role:'—', tier:'DIAMOND',     div:'I',   lp:75,  w:61,  l:58  },
+  { nm:'Dekai',            rid:'Dekai#LAS',            role:'—', tier:'DIAMOND',     div:'II',  lp:75,  w:33,  l:34  },
+  { nm:'vishh',            rid:'vishh#LAS',            role:'—', tier:'DIAMOND',     div:'III', lp:11,  w:215, l:210 },
+  { nm:'kıwı',             rid:'kıwı#wıkı',            role:'—', tier:'DIAMOND',     div:'IV',  lp:55,  w:209, l:213 },
+  { nm:'elmaio04',         rid:'elmaio04#LAS',         role:'—', tier:'DIAMOND',     div:'IV',  lp:40,  w:262, l:256 },
+  { nm:'DeSean',           rid:'DeSean#Elba',          role:'—', tier:'EMERALD',     div:'I',   lp:75,  w:7,   l:6   },
+  { nm:'Henry Miller',     rid:'Henry Miller#379',     role:'—', tier:'EMERALD',     div:'I',   lp:75,  w:67,  l:49  },
+];
+
+/* Usa los datos reales de la Riot API si están; si no, el respaldo. */
+let DATA = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players) && window.SQC_DATA.players.length)
+  ? window.SQC_DATA : null;
+let PLAYERS = DATA ? DATA.players : FALLBACK;
+
+/* ===== helpers ===== */
+const TIER_COLOR = {
+  CHALLENGER:'var(--gold)', GRANDMASTER:'var(--down)', MASTER:'var(--purple)',
+  DIAMOND:'var(--blue)', EMERALD:'var(--up)', PLATINUM:'#5fd6c9'
+};
+const HIGH_ELO = new Set(['CHALLENGER','GRANDMASTER','MASTER']);
+
+function wrClass(wr){ return wr>=60?'good':wr>=50?'mid':'bad'; }
+function moveEl(m){
+  if(m>0)  return `<span class="mv up">▲${m}</span>`;
+  if(m<0)  return `<span class="mv down">▼${Math.abs(m)}</span>`;
+  return `<span class="mv same">–</span>`;
+}
+function streakEl(s){
+  if(s>0) return `<span class="streak w">${s}W</span>`;
+  if(s<0) return `<span class="streak l">${Math.abs(s)}L</span>`;
+  return `<span class="streak n">–</span>`;
+}
+const CREST = tier => { const n = tier || 'UNRANKED'; return `overlay/assets/ranks/Season_2023_-_${n.charAt(0)+n.slice(1).toLowerCase()}.webp`; };
+function eloEl(p){
+  const crest = (p.tier && p.tier!=='UNRANKED')
+    ? `<img class="elo-crest" src="${CREST(p.tier)}" alt="${p.tier}" onerror="this.style.display='none'">` : '';
+  const c = TIER_COLOR[p.tier] || 'var(--muted)';
+  const div = p.div ? `<span class="div" style="color:${c}">${p.div}</span>` : '';
+  return `<div class="elo">${crest}<span>${div}<span class="lp">${p.lp}<small>LP</small></span></span></div>`;
+}
+function opggUrl(rid){
+  const [name,tag] = rid.split('#');
+  return `https://op.gg/summoners/las/${encodeURIComponent(name)}-${encodeURIComponent(tag||'')}`;
+}
+function initials(nm){ return nm.slice(0,2).toUpperCase(); }
+
+// sparkline de forma: suma acumulada (+1 win / -1 loss), verde si sube, rojo si baja
+function sparkline(form){
+  if(!form || form.length < 2) return '<span class="streak n">–</span>';
+  let y = 0; const pts = [0];
+  form.forEach(w => { y += w ? 1 : -1; pts.push(y); });
+  const min = Math.min(...pts), max = Math.max(...pts), range = (max - min) || 1;
+  const W = 72, H = 26, n = pts.length - 1;
+  const coords = pts.map((v,i)=>{
+    const x = (i / n) * W;
+    const yy = H - 2 - ((v - min) / range) * (H - 4);
+    return `${x.toFixed(1)},${yy.toFixed(1)}`;
+  });
+  const rising = pts[pts.length-1] >= pts[0];
+  const [lx,ly] = coords[coords.length-1].split(',');
+  return `<svg class="spark ${rising?'up':'down'}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <polyline points="${coords.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${lx}" cy="${ly}" r="2" fill="currentColor"/>
+  </svg>`;
+}
+
+// ícono Aegis of Valor (alas) + contador
+function aegisEl(n){
+  if(!n) return '<span class="streak n">–</span>';
+  const wings = `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3.2 14 8l4.8.3-3.7 3.1 1.2 4.7L12 13.7 7.7 16.1l1.2-4.7L5.2 8.3 10 8z" opacity=".95"/><path d="M2 9c2.5.2 4.4 1.2 5.6 3-1.8-.6-3.6-.6-5.6.2Zm20 0c-2.5.2-4.4 1.2-5.6 3 1.8-.6 3.6-.6 5.6.2Z"/></svg>`;
+  return `<span class="aegis">${wings}${n}</span>`;
+}
+
+/* ===== render + ordenamiento ===== */
+let currentFilter = 'all';
+let sortKey = 'rank', sortDir = 'desc';
+
+// Posición fija en la ladder (PLAYERS ya viene ordenado por elo desde el backend)
+PLAYERS.forEach((p, i) => { p.rankPos = i + 1; });
+
+function matches(p,f){
+  if(f==='all')    return true;
+  if(f==='high')   return HIGH_ELO.has(p.tier);
+  if(f==='low')    return !HIGH_ELO.has(p.tier);
+  if(f==='live')   return p.live;
+  if(f==='ingame') return p.inGame;
+  return true;
+}
+
+// valor de orden por columna (mayor = "arriba" cuando dir='desc')
+const SORT_VAL = {
+  rank: p => -p.rankPos,
+  elo:  p => -p.rankPos,
+  name: p => p.nm.toLowerCase(),
+  wr:   p => p.w / ((p.w + p.l) || 1),
+  dlp:   p => (p.up || 0),
+  aegis: p => (p.aegis || 0),
+};
+
+const STAR = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85L12 3.5z"></path></svg>`;
+
+function render(){
+  const body = document.getElementById('rows');
+  const val = SORT_VAL[sortKey] || SORT_VAL.rank;
+  const list = PLAYERS.filter(p => matches(p, currentFilter)).slice().sort((a,b)=>{
+    const va = val(a), vb = val(b);
+    const cmp = (typeof va === 'string') ? va.localeCompare(vb) : va - vb;
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  body.innerHTML = list.map(p=>{
+    const pos = p.rankPos;
+    const wr  = Math.round(p.w/((p.w+p.l)||1)*100);
+    const topCls = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
+    const eloCls = HIGH_ELO.has(p.tier) ? 'high' : 'low';
+    const badges = `${p.inGame?'<span class="badge-ingame">● EN PARTIDA</span>':''} ${p.live?'<span class="badge-live">LIVE</span>':''}`;
+    return `
+      <tr class="${topCls}">
+        <td class="pos-cell ${eloCls}" title="${eloCls==='high'?'High Elo':'Low Elo'}">
+          <div class="pos"><span class="rk">${pos}</span>${moveEl(p.move)}</div>
+        </td>
+        <td>
+          <div class="player">
+            <button class="fav" onclick="this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
+            <div class="ava">${initials(p.nm)}</div>
+            <div>
+              <div class="nm">${p.nm} ${badges}</div>
+              <div class="rid">${p.rid}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="role-none">–</span></td>
+        <td>${eloEl(p)}</td>
+        <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
+        <td>${sparkline(p.form)}</td>
+        <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
+        <td>${aegisEl(p.aegis)}</td>
+        <td><a class="opgg" href="${opggUrl(p.rid)}" target="_blank" rel="noopener">OP.GG</a></td>
+      </tr>`;
+  }).join('');
+}
+
+/* ordenar al clicar cabeceras */
+function updateSortHeaders(){
+  document.querySelectorAll('#rank-head th.sortable').forEach(th=>{
+    th.classList.remove('sort-asc','sort-desc');
+    if(th.dataset.sort===sortKey) th.classList.add(sortDir==='asc'?'sort-asc':'sort-desc');
+  });
+}
+document.getElementById('rank-head').addEventListener('click', e=>{
+  const th = e.target.closest('th.sortable'); if(!th) return;
+  const key = th.dataset.sort;
+  if(sortKey===key){ sortDir = sortDir==='asc'?'desc':'asc'; }
+  else { sortKey = key; sortDir = key==='name' ? 'asc' : 'desc'; }
+  updateSortHeaders(); render();
+});
+
+/* contadores en los filtros */
+function counts(){
+  const c = f => PLAYERS.filter(p=>matches(p,f)).length;
+  document.getElementById('c-all').textContent    = c('all');
+  document.getElementById('c-high').textContent   = c('high');
+  document.getElementById('c-low').textContent    = c('low');
+  document.getElementById('c-live').textContent   = c('live');
+  document.getElementById('c-ingame').textContent = c('ingame');
+}
+
+document.getElementById('filters').addEventListener('click', e=>{
+  const btn = e.target.closest('.chip'); if(!btn) return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = btn.dataset.f;
+  render();
+});
+
+/* ===== countdown al torneo (1 de diciembre 2026) ===== */
+const TARGET = new Date('2026-12-01T20:00:00-03:00').getTime();
+function tick(){
+  const diff = Math.max(0, TARGET - Date.now());
+  const d = Math.floor(diff/86400000);
+  const h = Math.floor(diff%86400000/3600000);
+  const m = Math.floor(diff%3600000/60000);
+  const s = Math.floor(diff%60000/1000);
+  const pad = n => String(n).padStart(2,'0');
+  document.getElementById('cd-d').textContent = pad(d);
+  document.getElementById('cd-h').textContent = pad(h);
+  document.getElementById('cd-m').textContent = pad(m);
+  document.getElementById('cd-s').textContent = pad(s);
+}
+setInterval(tick,1000); tick();
+
+/* fecha de última actualización desde los datos reales */
+if (DATA && DATA.updatedAt) {
+  const d = new Date(DATA.updatedAt);
+  document.getElementById('updated-at').textContent =
+    d.toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ' hrs';
+}
+
+/* ===================== LIVE GAMES (scoreboard) ===================== */
+let DDV = (DATA && DATA.ddragonVersion) || '16.15.1';
+let updatedAtMs = (DATA && DATA.updatedAt) ? new Date(DATA.updatedAt).getTime() : Date.now();
+let LIVE_GAMES = (DATA && Array.isArray(DATA.liveGames)) ? DATA.liveGames : [];
+const champUrl = img => `https://ddragon.leagueoflegends.com/cdn/${DDV}/img/champion/${img}.png`;
+const spellUrl = id  => `https://ddragon.leagueoflegends.com/cdn/${DDV}/img/spell/${id}.png`;
+const runeUrl  = ic  => `https://ddragon.leagueoflegends.com/cdn/img/${ic}`;
+let liveFilter = 'all';
+
+function fmtTimer(s){
+  const m = Math.floor(s/60), ss = s%60;
+  return `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+}
+function elapsedOf(start,len){
+  const secs = start>0 ? (Date.now()-start)/1000 : len + (Date.now()-updatedAtMs)/1000;
+  return Math.max(0, Math.floor(secs));
+}
+
+function playerRow(p){
+  const champ = p.championImg
+    ? `<img class="lg-champ-img" src="${champUrl(p.championImg)}" alt="${p.champion}" onerror="this.style.visibility='hidden'">`
+    : `<div class="lg-champ-img"></div>`;
+  const spells = `<div class="lg-spells">${p.spell1?`<img src="${spellUrl(p.spell1)}" alt="">`:''}${p.spell2?`<img src="${spellUrl(p.spell2)}" alt="">`:''}</div>`;
+  const rune = p.runeIcon ? `<img class="lg-rune" src="${runeUrl(p.runeIcon)}" alt="">` : '';
+  const color = TIER_COLOR[p.tier] || 'var(--muted-2)';
+  const tag = p.tag ? `<span class="lg-tag"> #${p.tag}</span>` : '';
+  const pos = (p.tracked && p.position) ? `<div class="lg-pos">★ #${p.position}</div>` : '';
+  return `
+    <div class="lg-row ${p.tracked?'tracked':''}">
+      <div class="lg-champ">${champ}${spells}${rune}</div>
+      <div class="lg-info">
+        <div class="lg-name">${p.name}${tag}</div>
+        <div class="lg-rank"><span class="tdot" style="background:${color}"></span>${p.rankLabel}</div>
+      </div>
+      ${pos}
+    </div>`;
+}
+function bansRow(bans){
+  const icons = (bans||[]).map(b => b ? `<img class="lg-ban" src="${champUrl(b)}" alt="">` : '').join('');
+  return `<span class="lg-bans">BANS ${icons}</span>`;
+}
+function sideHtml(label, cls, rows, bans){
+  return `
+    <div class="lg-side ${cls}">
+      <div class="lg-side-head"><span class="lg-side-label">${label}</span>${bansRow(bans)}</div>
+      ${rows.map(playerRow).join('')}
+    </div>`;
+}
+function gameCard(g){
+  const avatars = g.tracked.map(t => `<div class="lg-ava">${(t.nm||'?').slice(0,2).toUpperCase()}</div>`).join('');
+  return `
+    <div class="lg-card">
+      <div class="lg-head">
+        <div class="lg-players">${avatars}</div>
+        <div class="lg-center">
+          <span class="lg-elo">${g.elo}</span>
+          <span class="lg-timer" data-start="${g.gameStartTime}" data-len="${g.gameLength}">${fmtTimer(elapsedOf(g.gameStartTime,g.gameLength))}</span>
+        </div>
+        <span class="lg-live"><span class="dot"></span>LIVE</span>
+      </div>
+      <div class="lg-teams">
+        ${sideHtml('BLUE SIDE','blue',g.blue,g.bansBlue)}
+        ${sideHtml('RED SIDE','red',g.red,g.bansRed)}
+      </div>
+    </div>`;
+}
+
+function renderLive(){
+  const badge = document.getElementById('nav-live-count');
+  badge.textContent = LIVE_GAMES.length;
+  badge.classList.toggle('zero', LIVE_GAMES.length===0);
+
+  const games = LIVE_GAMES.filter(g =>
+    liveFilter==='all' ? true : liveFilter==='high' ? g.elo==='HIGH ELO' : g.elo==='LOW ELO');
+
+  const wrap  = document.getElementById('live-games');
+  const empty = document.getElementById('live-empty');
+  if(!games.length){
+    wrap.innerHTML='';
+    empty.style.display='block';
+    empty.textContent = LIVE_GAMES.length
+      ? 'No hay partidas en esta categoría ahora.'
+      : 'Nadie del challenge está en partida en este momento.';
+    return;
+  }
+  empty.style.display='none';
+  wrap.innerHTML = games.map(gameCard).join('');
+}
+
+/* filtros de Live Games */
+document.getElementById('live-filters').addEventListener('click', e=>{
+  const b = e.target.closest('.lf'); if(!b) return;
+  document.querySelectorAll('.lf').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); liveFilter = b.dataset.lf; renderLive();
+});
+
+/* cronómetros en vivo */
+setInterval(()=>{
+  document.querySelectorAll('.lg-timer').forEach(el=>{
+    el.textContent = fmtTimer(elapsedOf(+el.dataset.start, +el.dataset.len));
+  });
+}, 1000);
+
+/* cambio de pestaña Ranking / Live Games */
+document.querySelectorAll('.tab-link').forEach(a=>{
+  a.addEventListener('click', e=>{
+    e.preventDefault();
+    document.querySelectorAll('.tab-link').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+    const v = a.dataset.view, ranking = v==='ranking';
+    document.getElementById('hero').style.display      = ranking ? '' : 'none';
+    document.getElementById('ranking').style.display   = ranking ? '' : 'none';
+    document.getElementById('view-live').style.display = ranking ? 'none' : '';
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+});
+
+counts(); render(); renderLive();
+
+/* ===================== AUTO-REFRESH ===================== */
+function applyData(nd){
+  DATA = nd;
+  PLAYERS = (nd && nd.players) ? nd.players : FALLBACK;
+  PLAYERS.forEach((p, i) => { p.rankPos = i + 1; });
+  LIVE_GAMES = (nd && Array.isArray(nd.liveGames)) ? nd.liveGames : [];
+  DDV = (nd && nd.ddragonVersion) || DDV;
+  updatedAtMs = (nd && nd.updatedAt) ? new Date(nd.updatedAt).getTime() : Date.now();
+  if (nd && nd.updatedAt){
+    const d = new Date(nd.updatedAt);
+    document.getElementById('updated-at').textContent =
+      d.toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ' hrs';
+  }
+  counts(); render(); renderLive();
+}
+
+// Solo sobre http/https (file:// no permite fetch). Re-lee players.json cada 20s.
+if (location.protocol.startsWith('http')){
+  setInterval(async () => {
+    try {
+      const r = await fetch('players.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) return;
+      const nd = await r.json();
+      if (nd && nd.updatedAt !== (DATA && DATA.updatedAt)) applyData(nd);
+    } catch {}
+  }, 20000);
+}
+</script>
+<script src="api.js"></script>
+<script>
+/* estado de sesión: muestra Blue Shells / Tickets / Admin + nickname si hay login */
+(async function(){
+  try {
+    const u = await SQC.me();
+    if (u){
+      const bs = document.getElementById('nav-blueshell'); if (bs) bs.style.display = '';
+      const tk = document.getElementById('nav-ticket'); if (tk) tk.style.display = '';
+      const acc = document.getElementById('nav-account'); if (acc){ acc.textContent = u.nickname; acc.href = 'blueshell.html'; }
+      if (u.isAdmin){ const ad = document.getElementById('nav-admin'); if (ad) ad.style.display = ''; }
+    }
+  } catch(e){}
+})();
+</script>
+</body>
+</html>

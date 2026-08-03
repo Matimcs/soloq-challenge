@@ -1,0 +1,16 @@
+# Dependencias
+node_modules/
+backend/node_modules/
+overlay/node_modules/
+
+# Secretos y config local  ⚠ NUNCA subir
+.env
+backend/.env
+overlay/settings.json
+
+# Caché de la Riot API (PUUIDs cifrados por key)
+cache/
+
+# Logs / temporales
+*.log
+npm-debug.log*

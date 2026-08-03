@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Tickets</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:760px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .nav a.link{ color:var(--muted); font-size:14px; font-weight:500; } .nav a.link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .me{ display:flex; align-items:center; gap:9px; font-size:13px; }
+  .me img{ width:30px; height:30px; border-radius:8px; object-fit:cover; border:1px solid var(--line-2); }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:20px 22px; margin-bottom:18px; }
+  .box h2{ font-size:15px; font-weight:700; margin-bottom:14px; }
+  label{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:500; }
+  select,textarea{ width:100%; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; outline:none; }
+  select:focus,textarea:focus{ border-color:var(--accent); }
+  textarea{ min-height:100px; resize:vertical; }
+  .field{ margin-bottom:14px; }
+  .submit{ width:100%; font-family:var(--font); cursor:pointer; background:var(--accent); color:#000; border:none; border-radius:11px; padding:12px; font-size:15px; font-weight:700; }
+  .msg{ font-size:13px; padding:11px 13px; border-radius:10px; margin-top:14px; display:none; }
+  .msg.ok{ display:block; background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); color:var(--up); }
+  .msg.err{ display:block; background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.4); color:var(--down); }
+
+  .list{ display:flex; flex-direction:column; gap:8px; }
+  .item{ display:flex; align-items:center; gap:11px; padding:11px 13px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; }
+  .item .info{ flex:1; min-width:0; }
+  .item .t{ font-size:13px; font-weight:600; } .item .s{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .item .d{ font-size:10px; color:var(--muted-2); margin-top:3px; }
+  .badge{ font-size:9.5px; font-weight:800; padding:3px 8px; border-radius:6px; white-space:nowrap; }
+  .badge.abierto{ background:rgba(255,201,60,.14); color:var(--gold); border:1px solid rgba(255,201,60,.4); }
+  .badge.resuelto{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .empty{ color:var(--muted); font-size:13px; padding:8px 0; }
+</style>
+</head>
+<body>
+  <header><div class="wrap nav">
+    <a class="brand" href="index.html"><span class="mark">S</span><b>SoloQ<span>Challenge</span></b></a>
+    <a class="link" href="index.html">Ranking</a>
+    <a class="link" href="blueshell.html">Blue Shells</a>
+    <a class="link" style="color:var(--text)">Tickets</a>
+    <a class="link" href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
+    <div class="nav-spacer"></div>
+    <div class="me" id="me"></div>
+    <button class="link" id="logout" style="background:none;border:none;cursor:pointer">Salir</button>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Tickets</h1>
+    <div class="sub">Envía una consulta o reporte a la organización.</div>
+
+    <div class="box">
+      <h2>Nuevo ticket</h2>
+      <form id="form">
+        <div class="field"><label>Asunto</label>
+          <select name="asunto" required>
+            <option value="">—</option>
+            <option>Castigo no marcado</option>
+            <option>Marcar castigo como cumplido</option>
+            <option>Duda de reglas</option>
+            <option>Problema con Blue Shells</option>
+            <option>Problema técnico (web / overlay)</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div class="field"><label>Mensaje</label><textarea name="mensaje" required placeholder="Describe tu caso con el mayor detalle posible…"></textarea></div>
+        <button type="submit" class="submit">Enviar ticket</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+
+    <div class="box">
+      <h2>Mis tickets</h2>
+      <div class="list" id="mine"></div>
+    </div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const fdate = iso => new Date(iso).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  (async () => {
+    const user = await SQC.me();
+    if (!user){ location.href = 'cuenta.html'; return; }
+    $('me').innerHTML = `${user.avatar?`<img src="${user.avatar}">`:''}<span>${user.nickname}</span>`;
+    if (user.isAdmin){ const ad = $('nav-admin'); if (ad) ad.style.display = ''; }
+    $('logout').addEventListener('click', () => { SQC.logout(); location.href = 'index.html'; });
+
+    async function renderMine(){
+      const mine = await SQC.api('/tickets/mine');
+      $('mine').innerHTML = mine.length ? mine.map(t => {
+        const est = t.estado === 'resuelto' ? 'resuelto' : 'abierto';
+        return `<div class="item"><div class="info"><div class="t">${t.asunto}</div><div class="s">${t.mensaje}</div><div class="d">${fdate(t.created_at)}</div></div>
+          <span class="badge ${est}">${est === 'resuelto' ? 'Resuelto' : 'Abierto'}</span></div>`;
+      }).join('') : '<div class="empty">Aún no has enviado tickets.</div>';
+    }
+
+    $('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(e.target).entries());
+      const m = $('msg');
+      try {
+        await SQC.api('/tickets', { method:'POST', body:{ asunto:d.asunto, mensaje:d.mensaje.trim() } });
+        m.className = 'msg ok'; m.textContent = '¡Ticket enviado! La organización lo revisará.';
+        e.target.reset(); renderMine();
+      } catch (err) { m.className = 'msg err'; m.textContent = err.message; }
+    });
+
+    renderMine();
+  })();
+</script>
+</body>
+</html>

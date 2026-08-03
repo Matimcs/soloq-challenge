@@ -1,0 +1,13 @@
+{
+  "name": "sqc-overlay",
+  "version": "0.1.0",
+  "description": "SoloQ Challenge overlay (sin Overwolf) — Electron + APIs locales de Riot",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "probe": "node probe.js"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{
+    --line:rgba(255,255,255,.09); --text:#fff; --muted:rgba(255,255,255,.5);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --purple:#c084fc;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ background:transparent; overflow:hidden; user-select:none;
+    font-family:'Segoe UI',system-ui,sans-serif; color:var(--text); text-shadow:0 1px 3px rgba(0,0,0,.8); }
+
+  /* barra amarilla + fondo negro con gradiente (más transparente a la derecha) */
+  .card{ position:relative; display:flex; flex-direction:column;
+    padding:12px 16px 12px 15px; border-radius:10px; overflow:hidden; cursor:move;
+    -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px);
+    background:linear-gradient(90deg, rgba(4,5,7,.86) 0%, rgba(4,5,7,.55) 45%, rgba(4,5,7,.12) 100%); }
+  .card::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent); box-shadow:0 0 10px rgba(233,255,31,.5); }
+  .prow{ display:flex; align-items:stretch; gap:12px; }
+  .chal-notice{ margin-top:9px; padding-top:8px; border-top:1px solid var(--line); font-size:11px; font-weight:600; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .chal-notice .lbl{ color:var(--muted); }
+  .chal-notice .ally{ color:var(--up); } .chal-notice .enemy{ color:var(--down); }
+
+  .pleft{ display:flex; align-items:center; gap:11px; flex:1; min-width:0; }
+  .pcrest{ width:40px; height:40px; object-fit:contain; flex-shrink:0; filter:drop-shadow(0 0 6px rgba(192,132,252,.4)); }
+  .pname{ font-size:15px; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .dot{ width:6px; height:6px; border-radius:50%; background:var(--down); }
+  .dot.on{ background:var(--up); }
+  .prank{ font-size:12px; font-weight:700; margin-top:2px; }
+  .prank .tier{ color:var(--purple); } .prank .lp{ color:rgba(255,255,255,.85); }
+  .ppos{ font-size:11px; font-weight:800; color:var(--gold); margin-top:3px; letter-spacing:.02em; }
+
+  .pline{ width:1px; background:var(--line); align-self:stretch; }
+  .pright{ min-width:104px; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:3px; }
+  .rlabel{ font-size:10px; font-weight:800; letter-spacing:.12em; color:var(--muted); text-transform:uppercase; }
+  .rwl{ font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .rwl .w{ color:var(--up); } .rwl .l{ color:var(--down); }
+  .rsub{ font-size:12px; font-weight:700; }
+  .robj{ font-size:13px; font-weight:800; white-space:nowrap; max-width:120px; overflow:hidden; text-overflow:ellipsis; }
+  .recent{ display:flex; gap:4px; margin-top:1px; }
+  .rg{ width:22px; height:22px; border-radius:5px; border:2px solid var(--muted); object-fit:cover; background:#111; }
+  .rg.win{ border-color:var(--up); } .rg.loss{ border-color:var(--down); }
+</style>
+</head>
+<body>
+  <div class="card" id="drag">
+    <div class="prow">
+      <div class="pleft">
+        <img class="pcrest" id="crest" src="" alt="">
+        <div style="min-width:0">
+          <div class="pname"><span id="name">—</span><span class="dot" id="dot"></span></div>
+          <div class="prank"><span class="tier" id="tier"></span> <span class="lp" id="lp"></span></div>
+          <div class="ppos" id="pos"></div>
+        </div>
+      </div>
+      <div class="pline"></div>
+      <div class="pright" id="pright"></div>
+    </div>
+    <div class="chal-notice" id="chal" style="display:none"></div>
+  </div>
+
+<script>
+  const { ipcRenderer } = require('electron');
+  const $ = id => document.getElementById(id);
+  const CREST = t => { const n = t || 'UNRANKED'; return new URL(`assets/ranks/Season_2023_-_${n.charAt(0)+n.slice(1).toLowerCase()}.webp`, location.href).href; };
+  const FIXCHAMP = { FiddleSticks: 'Fiddlesticks' };   // match-v5 vs Data Dragon
+  const CH = (v,c) => (v && c) ? `https://ddragon.leagueoflegends.com/cdn/${v}/img/champion/${FIXCHAMP[c]||c}.png` : '';
+  const TIER = { GRANDMASTER:'GM', CHALLENGER:'CHALL' };
+
+  let latest = null, state = 0;   // 0 TORNEO · 1 SESIÓN · 2 ÚLTIMAS · 3 OBJETIVO (si no es #1)
+  function renderRight(){
+    if (!latest || !latest.connected){ $('pright').innerHTML = ''; return; }
+    const d = latest;
+    let s = state; if (s === 3 && !d.target) s = 0;
+    if (s === 0){
+      const g = d.torneo || { w:0, l:0 }; const t = g.w + g.l; const wr = t ? Math.round(g.w/t*100) : 0;
+      $('pright').innerHTML = `<div class="rlabel">Torneo</div><div class="rwl"><span class="w">${g.w}W</span> · <span class="l">${g.l}L</span></div><div class="rsub" style="color:var(--muted)">${wr}% WR</div>`;
+    } else if (s === 1){
+      const x = d.session || { w:0, l:0, lp:0 }; const col = x.lp>=0?'var(--up)':'var(--down)';
+      $('pright').innerHTML = `<div class="rlabel">Sesión</div><div class="rwl"><span class="w">${x.w}W</span> · <span class="l">${x.l}L</span></div><div class="rsub" style="color:${col}">${x.lp>=0?'+':''}${x.lp} LP</div>`;
+    } else if (s === 2){
+      const rec = (d.recent || []).slice(0,5);
+      const imgs = rec.length ? rec.map(g => `<img class="rg ${g.win?'win':'loss'}" src="${CH(d.ddVer,g.champ)}" onerror="this.style.visibility='hidden'">`).join('') : '<span style="font-size:11px;color:var(--muted)">—</span>';
+      $('pright').innerHTML = `<div class="rlabel">Últimas</div><div class="recent">${imgs}</div>`;
+    } else {
+      const t = d.target;
+      $('pright').innerHTML = `<div class="rlabel">Objetivo</div><div class="robj">${t.name}</div><div class="rsub" style="color:var(--gold)">a ${t.lp} LP</div>`;
+    }
+  }
+
+  ipcRenderer.on('data', (_e, d) => {
+    latest = d;
+    $('dot').classList.toggle('on', !!d.connected);
+    if (!d.connected){
+      $('name').textContent = 'Abre el cliente de LoL';
+      $('tier').textContent=''; $('lp').textContent=''; $('pos').textContent='';
+      $('crest').style.display='none'; renderRight(); return;
+    }
+    $('name').textContent = d.name || '—';
+    $('crest').style.display = (d.tier && d.tier!=='UNRANKED') ? '' : 'none';
+    if (d.tier && d.tier!=='UNRANKED') $('crest').src = CREST(d.tier);
+    $('tier').textContent = (TIER[d.tier]||d.tier||'') + (d.div?' '+d.div:'');
+    $('lp').textContent = `${d.lp} LP`;
+    $('pos').textContent = d.pos ? `#${d.pos} ${d.elo}` : '';
+
+    const chal = d.challengeInGame || [], cn = $('chal');
+    if (chal.length){
+      cn.style.display = 'flex';
+      cn.innerHTML = `<span class="lbl">⚔ Del challenge:</span> ` +
+        chal.map(c => `<span class="${c.ally?'ally':'enemy'}">${c.name}${c.ally?' (aliado)':' (rival)'}</span>`).join(', ');
+    } else cn.style.display = 'none';
+
+    renderRight();
+  });
+  setInterval(() => { const n = (latest && latest.target) ? 4 : 3; state = (state+1)%n; renderRight(); }, 3000);
+
+  const card = $('drag');
+  new ResizeObserver(() => ipcRenderer.send('resize', Math.ceil(card.getBoundingClientRect().height) + 4)).observe(card);
+  let dragging = false;
+  card.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
+  window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
+  window.addEventListener('mouseup', () => { if(dragging){ dragging=false; ipcRenderer.send('drag-end'); } });
+</script>
+</body>
+</html>
