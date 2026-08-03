@@ -14,3 +14,7 @@ cache/
 # Logs / temporales
 *.log
 npm-debug.log*
+
+# Datos generados por el runner (el server online los recibe por /api/ingest)
+players.json
+players.js

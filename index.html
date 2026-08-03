@@ -168,6 +168,7 @@
   .fav:hover{ color:var(--accent); transform:scale(1.2); }
   .fav.on{ color:var(--accent); }
   .ava{ width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,#1a1d27,#0d0f15); border:1px solid var(--line-strong); display:grid; place-items:center; font-weight:700; font-size:13px; color:var(--muted); overflow:hidden; }
+  img.ava,img.lg-ava{ object-fit:cover; }
   .player .nm{ font-weight:600; font-size:14px; display:flex; align-items:center; gap:7px; color:rgba(255,255,255,.9); }
   .player .rid{ font-size:11.5px; color:var(--muted-2); }
   .badge-live{ font-size:9px; font-weight:800; letter-spacing:.08em; color:#fff; background:var(--down); padding:2px 6px; border-radius:5px; }
@@ -457,7 +458,31 @@ function opggUrl(rid){
   const [name,tag] = rid.split('#');
   return `https://op.gg/summoners/las/${encodeURIComponent(name)}-${encodeURIComponent(tag||'')}`;
 }
-function initials(nm){ return nm.slice(0,2).toUpperCase(); }
+function initials(nm){ return (nm||'?').slice(0,2).toUpperCase(); }
+
+/* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
+   casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
+let AVA_BY_RID = {}, AVA_BY_NAME = {};
+function avaSrc(rid, nm){ return AVA_BY_RID[rid] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
+function avaHtml(rid, nm, cls){
+  cls = cls || 'ava'; const src = avaSrc(rid, nm);
+  return src ? `<img class="${cls}" src="${src}" alt="">` : `<div class="${cls}">${initials(nm)}</div>`;
+}
+async function loadAvatars(){
+  if (!location.protocol.startsWith('http')) return;
+  try {
+    const r = await fetch('/api/avatars', { cache:'no-store' }); if (!r.ok) return;
+    const list = await r.json();
+    AVA_BY_RID = {}; AVA_BY_NAME = {};
+    list.forEach(u => {
+      if (!u.avatar) return;
+      AVA_BY_RID[u.riotid] = u.avatar;
+      AVA_BY_NAME[(u.riotid.split('#')[0] || '').toLowerCase()] = u.avatar;
+      if (u.nickname) AVA_BY_NAME[u.nickname.toLowerCase()] = u.avatar;
+    });
+    render(); renderLive();
+  } catch {}
+}
 
 // sparkline de forma: suma acumulada (+1 win / -1 loss), verde si sube, rojo si baja
 function sparkline(form){
@@ -537,7 +562,7 @@ function render(){
         <td>
           <div class="player">
             <button class="fav" onclick="this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
-            <div class="ava">${initials(p.nm)}</div>
+            ${avaHtml(p.rid, p.nm)}
             <div>
               <div class="nm">${p.nm} ${badges}</div>
               <div class="rid">${p.rid}</div>
@@ -660,9 +685,9 @@ function sideHtml(label, cls, rows, bans){
     </div>`;
 }
 function gameCard(g){
-  const avatars = g.tracked.map(t => `<div class="lg-ava">${(t.nm||'?').slice(0,2).toUpperCase()}</div>`).join('');
+  const avatars = g.tracked.map(t => avaHtml(null, t.nm, 'lg-ava')).join('');
   return `
-    <div class="lg-card">
+    <div class="lg-card" data-gid="${g.gameId}">
       <div class="lg-head">
         <div class="lg-players">${avatars}</div>
         <div class="lg-center">
@@ -728,7 +753,101 @@ document.querySelectorAll('.tab-link').forEach(a=>{
   });
 });
 
+/* ===================== POPUP "¡SE HAN ENCONTRADO!" =====================
+   Cuando 2+ jugadores del torneo están en la MISMA partida en vivo, aparece
+   un popup (idéntico al del overlay). "VER" salta a esa partida en Live Games. */
+const encNotified = new Set();
+const SHELL_SVG = `<svg viewBox="0 0 32 32" width="22" height="22" aria-hidden="true">
+  <g fill="#d9edff"><polygon points="16,3 18.4,8 13.6,8"/><polygon points="8,6.5 12,9.7 8.4,11.6"/><polygon points="24,6.5 20,9.7 23.6,11.6"/></g>
+  <path d="M5 21a11 9 0 0 1 22 0z" fill="#2f7df6"/>
+  <path d="M5 21a11 9 0 0 1 22 0" fill="none" stroke="#9cc6ff" stroke-width="1.4"/>
+  <rect x="4" y="20.3" width="24" height="4.6" rx="2.2" fill="#173a6b"/>
+  <g fill="#bfe0ff"><circle cx="16" cy="16.4" r="1.8"/><circle cx="10.4" cy="19" r="1.3"/><circle cx="21.6" cy="19" r="1.3"/></g>
+</svg>`;
+const CHEV_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14l6-6 6 6"/></svg>`;
+const X_SVG    = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+
+function ensureEncStyle(){
+  if (document.getElementById('enc-style')) return;
+  const s = document.createElement('style'); s.id = 'enc-style';
+  s.textContent = `
+    #enc-stack{ position:fixed; right:18px; bottom:18px; z-index:9999; display:flex; flex-direction:column-reverse; gap:10px; pointer-events:none; }
+    .enc-toast{ pointer-events:auto; width:330px; max-width:calc(100vw - 32px); background:linear-gradient(180deg,#111318,#0c0d11); border:1px solid rgba(255,255,255,.09); border-radius:14px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.55); animation:encIn .35s cubic-bezier(.2,.8,.2,1); }
+    @keyframes encIn{ from{ opacity:0; transform:translateY(10px) scale(.98);} to{ opacity:1; transform:none; } }
+    .enc-head{ display:flex; align-items:center; gap:9px; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06); }
+    .enc-icon{ display:flex; filter:drop-shadow(0 0 6px rgba(47,125,246,.5)); }
+    .enc-title{ flex:1; font-weight:800; font-size:12.5px; letter-spacing:.02em; color:#eef0f6; }
+    .enc-ico-btn{ display:grid; place-items:center; width:22px; height:22px; border:0; background:transparent; color:rgba(255,255,255,.45); cursor:pointer; border-radius:6px; }
+    .enc-ico-btn:hover{ background:rgba(255,255,255,.08); color:#fff; }
+    .enc-body{ display:flex; align-items:center; gap:12px; padding:12px; }
+    .enc-avas{ display:flex; flex-shrink:0; }
+    .enc-ava{ width:40px; height:40px; border-radius:50%; border:2px solid var(--purple); object-fit:cover; background:linear-gradient(135deg,#1a1d27,#0d0f15); display:grid; place-items:center; font-weight:800; font-size:13px; color:var(--muted); box-shadow:0 0 0 2px #0c0d11; }
+    .enc-ava + .enc-ava{ margin-left:-14px; }
+    .enc-text{ flex:1; min-width:0; }
+    .enc-names{ font-weight:800; font-size:14px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .enc-sub{ font-size:12px; color:var(--muted); margin-top:1px; }
+    .enc-ver{ flex-shrink:0; background:var(--up); color:#05271d; font-weight:800; font-size:12.5px; letter-spacing:.04em; border:0; border-radius:9px; padding:9px 18px; cursor:pointer; }
+    .enc-ver:hover{ filter:brightness(1.08); }
+    .enc-toast.collapsed .enc-body{ display:none; }
+    .lg-card.flash{ animation:lgFlash 1.8s ease; }
+    @keyframes lgFlash{ 0%,100%{ box-shadow:none; } 15%,60%{ box-shadow:0 0 0 2px #e9ff1f, 0 0 26px rgba(233,255,31,.35); } }`;
+  document.head.appendChild(s);
+}
+function encContainer(){
+  let c = document.getElementById('enc-stack');
+  if (!c){ c = document.createElement('div'); c.id = 'enc-stack'; document.body.appendChild(c); }
+  return c;
+}
+function goToLiveGame(gid){
+  liveFilter = 'all';
+  document.querySelectorAll('.lf').forEach(x => x.classList.toggle('active', x.dataset.lf === 'all'));
+  document.querySelectorAll('.tab-link').forEach(x => x.classList.remove('active'));
+  const t = document.querySelector('.tab-link[data-view="live"]'); if (t) t.classList.add('active');
+  document.getElementById('hero').style.display = 'none';
+  document.getElementById('ranking').style.display = 'none';
+  document.getElementById('view-live').style.display = '';
+  renderLive();
+  setTimeout(() => {
+    const card = document.querySelector(`.lg-card[data-gid="${gid}"]`);
+    if (card){ card.scrollIntoView({ behavior:'smooth', block:'center' }); card.classList.add('flash'); setTimeout(() => card.classList.remove('flash'), 1800); }
+    else window.scrollTo({ top:0, behavior:'smooth' });
+  }, 90);
+}
+function showEncuentro(g){
+  ensureEncStyle();
+  const names = (g.tracked || []).map(t => t.nm);
+  const el = document.createElement('div');
+  el.className = 'enc-toast';
+  el.innerHTML =
+    `<div class="enc-head">
+       <span class="enc-icon">${SHELL_SVG}</span>
+       <span class="enc-title">¡SE HAN ENCONTRADO!</span>
+       <button class="enc-ico-btn enc-min" title="Minimizar">${CHEV_SVG}</button>
+       <button class="enc-ico-btn enc-close" title="Cerrar">${X_SVG}</button>
+     </div>
+     <div class="enc-body">
+       <div class="enc-avas">${(g.tracked || []).slice(0,3).map(t => avaHtml(null, t.nm, 'enc-ava')).join('')}</div>
+       <div class="enc-text">
+         <div class="enc-names">${names.join(', ')}</div>
+         <div class="enc-sub">juntos en la misma partida</div>
+       </div>
+       <button class="enc-ver">VER</button>
+     </div>`;
+  el.querySelector('.enc-close').addEventListener('click', () => el.remove());
+  el.querySelector('.enc-min').addEventListener('click', () => el.classList.toggle('collapsed'));
+  el.querySelector('.enc-ver').addEventListener('click', () => goToLiveGame(g.gameId));
+  encContainer().appendChild(el);
+}
+function checkEncounters(){
+  const enc = LIVE_GAMES.filter(g => (g.tracked || []).length >= 2);
+  const liveIds = new Set(enc.map(g => g.gameId));
+  encNotified.forEach(id => { if (!liveIds.has(id)) encNotified.delete(id); });
+  enc.forEach(g => { if (!encNotified.has(g.gameId)){ encNotified.add(g.gameId); showEncuentro(g); } });
+}
+
 counts(); render(); renderLive();
+loadAvatars();
+checkEncounters();
 
 /* ===================== AUTO-REFRESH ===================== */
 function applyData(nd){
@@ -744,6 +863,7 @@ function applyData(nd){
       d.toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ' hrs';
   }
   counts(); render(); renderLive();
+  checkEncounters();
 }
 
 // Solo sobre http/https (file:// no permite fetch). Re-lee players.json cada 20s.
