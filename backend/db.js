@@ -70,6 +70,11 @@ async function init(){
       data       JSONB NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS fetch_seed (     -- semilla inicial; el runner nunca la sobrescribe
+      id         TEXT PRIMARY KEY,              -- 'puuids' | 'matches'
+      data       JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
   `);
   console.log('✔ Esquema Postgres listo');
 }

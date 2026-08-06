@@ -235,6 +235,39 @@ function startEmbeddedRunner(){
       try { const row = await q1('SELECT data FROM fetch_cache WHERE id=$1', [id]);
         if (row && row.data) fs.writeFileSync(path.join(CACHE_DIR, file), JSON.stringify(row.data)); } catch {}
     }
+    await mergeSeed();
+  };
+  // Semilla permanente (fetch_seed): el runner NUNCA la sobrescribe. Se fusiona en
+  // el caché en cada arranque para restaurar el historial ±LP/aegis inicial. La
+  // fusión es idempotente (dedup por 'end'/'id') y los datos viejos caen solos
+  // cuando entran 40 partidas nuevas más recientes.
+  const mergeSeed = async () => {
+    let seed; try { const r = await q1("SELECT data FROM fetch_seed WHERE id='matches'"); seed = r && r.data; } catch { return; }
+    if (seed){
+      const file = path.join(CACHE_DIR, CACHE_FILES.matches);
+      let cur = {}; try { cur = JSON.parse(fs.readFileSync(file, 'utf8')); } catch {}
+      for (const puuid in seed){
+        const s = seed[puuid] || {};
+        const c = cur[puuid] || (cur[puuid] = { games:[], lpGames:[], lastAbsLP:null });
+        const lpSeen = new Set((c.lpGames||[]).map(g=>g.end));
+        (s.lpGames||[]).forEach(g=>{ if(!lpSeen.has(g.end)){ c.lpGames.push(g); lpSeen.add(g.end); } });
+        c.lpGames.sort((a,b)=>(b.end||0)-(a.end||0)); c.lpGames = c.lpGames.slice(0,40);
+        const gSeen = new Set((c.games||[]).map(g=>g.id));
+        (s.games||[]).forEach(g=>{ if(!gSeen.has(g.id)){ c.games.push(g); gSeen.add(g.id); } });
+        c.games.sort((a,b)=>(b.end||0)-(a.end||0)); c.games = c.games.slice(0,15);
+        if (c.lastAbsLP == null && s.lastAbsLP != null) c.lastAbsLP = s.lastAbsLP;
+      }
+      fs.writeFileSync(file, JSON.stringify(cur));
+    }
+    try {   // sembrar puuids que falten (evita re-resolver contra Riot)
+      const pr = await q1("SELECT data FROM fetch_seed WHERE id='puuids'");
+      if (pr && pr.data){
+        const pf = path.join(CACHE_DIR, CACHE_FILES.puuids);
+        let pcur = {}; try { pcur = JSON.parse(fs.readFileSync(pf,'utf8')); } catch {}
+        for (const k in pr.data) if (!pcur[k]) pcur[k] = pr.data[k];
+        fs.writeFileSync(pf, JSON.stringify(pcur));
+      }
+    } catch {}
   };
   const saveCache = async () => {
     for (const [id, file] of Object.entries(CACHE_FILES)){

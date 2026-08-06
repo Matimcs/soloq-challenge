@@ -190,17 +190,19 @@ async function updatePlayerStats(puuid, entry){
   for (const k in posCount) if (posCount[k] > mainN){ mainN = posCount[k]; mainPos = k; }
   const winD  = store.lpGames.filter(g=>g.delta>0).map(g=>g.delta);   // recientes primero (unshift)
   const lossD = store.lpGames.filter(g=>g.delta<0).map(g=>-g.delta);
-  // Aegis: en las últimas 15 partidas, cuenta las victorias que dieron ≥1.8× el
-  // LP TÍPICO (mediana, robusta a los propios dobles) → detecta los "dobles" bien
-  // aunque haya pocas partidas, sin que un doble infle la referencia.
+  // LP típico = mediana de las últimas 15 victorias (robusta a los dobles).
+  // Un aegis es una victoria de ≥1.8× ese típico (~el doble).
   const win15 = store.lpGames.slice(0, 15).filter(g=>g.delta>0).map(g=>g.delta);
   const baseA = median(win15);
+  const isAegis = d => baseA && d >= 1.8 * baseA;
   return {
     form,
     role: mainPos ? (ROLE_LBL[mainPos] || null) : null,
-    up:   winD.length  ? Math.round(avg(winD.slice(0, 2)))  : null,   // promedio últimas 2 victorias
-    down: lossD.length ? Math.round(avg(lossD.slice(0, 2))) : null,   // promedio últimas 2 derrotas
-    aegis: baseA ? win15.filter(d => d >= 1.8 * baseA).length : 0,    // ~doble del típico (últimas 15)
+    // ±LP: la última victoria/derrota NORMAL (la victoria se toma sin aegis, que
+    // es ~el doble). El aegis se cuenta aparte.
+    up:   winD.length  ? (winD.find(d => !isAegis(d)) ?? winD[0]) : null,
+    down: lossD.length ? lossD[0] : null,
+    aegis: win15.filter(isAegis).length,                             // aegis de las últimas 15
     session: computeSession(store.games, store.lpGames),
     recent: store.games.slice(0, 5).map(g => ({ win: g.win, champ: g.champ })),   // últimas 5 (borde + campeón)
   };
