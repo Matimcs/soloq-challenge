@@ -177,11 +177,18 @@
       const ps = await SQC.api('/admin/participants');
       $('pt-count').textContent = `(${ps.length})`;
       $('pt-body').innerHTML = ps.length ? ps.map(p=>`<tr><td>${p.shells}/3</td><td>${p.nickname}</td><td style="color:var(--muted)">${p.riotid}</td>
-        <td style="text-align:right"><button class="btn btn-ghost" data-id="${p.id}" data-nm="${p.nickname}">Dar Blue Shell</button></td></tr>`).join('')
+        <td style="text-align:right;white-space:nowrap">
+          <button class="btn btn-ok" data-act="grant" data-id="${p.id}" data-nm="${p.nickname}">Dar</button>
+          <button class="btn btn-no" data-act="revoke" data-id="${p.id}" data-nm="${p.nickname}" ${p.shells>0?'':'disabled style="opacity:.4;cursor:default"'}>Quitar</button>
+        </td></tr>`).join('')
         : '<tr><td colspan="4" class="empty">Aún no hay participantes registrados.</td></tr>';
-      $('pt-body').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
-        try { await SQC.api('/admin/grant', {method:'POST', body:{ userId: Number(b.dataset.id), motivo:'Otorgada por la organización' }}); toast(`Blue Shell otorgada a ${b.dataset.nm}`); renderParts(); }
-        catch(e){ toast(e.message); }
+      $('pt-body').querySelectorAll('button[data-act]').forEach(b=>b.addEventListener('click',async()=>{
+        const nm = b.dataset.nm, grant = b.dataset.act === 'grant';
+        if (!confirm(grant ? `¿Dar una Blue Shell a ${nm}?` : `¿Quitarle una Blue Shell a ${nm}?`)) return;
+        try {
+          await SQC.api(grant ? '/admin/grant' : '/admin/revoke', {method:'POST', body:{ userId: Number(b.dataset.id), motivo:'Otorgada por la organización' }});
+          toast(grant ? `Blue Shell otorgada a ${nm}` : `Blue Shell quitada a ${nm}`); renderParts();
+        } catch(e){ toast(e.message); }
       }));
     }
 

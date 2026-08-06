@@ -34,7 +34,7 @@ window.SQC = (function(){
       // Cachea el perfil para pintar la píldora al instante en la próxima página (sin flash).
       localStorage.setItem('sqc_user', JSON.stringify({ nickname:user.nickname, avatar:user.avatar || null, isAdmin: !!user.isAdmin }));
       if (acc){
-        acc.className = 'user-pill'; acc.href = 'blueshell.html';
+        acc.className = 'user-pill'; acc.href = 'perfil.html';
         acc.innerHTML = (user.avatar
           ? '<img class="uava" src="' + user.avatar + '">'
           : '<span class="uava">' + (user.nickname || '?').slice(0,1).toUpperCase() + '</span>')

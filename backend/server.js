@@ -79,6 +79,22 @@ app.post('/api/login', wrap(async (req,res) => {
 
 app.get('/api/me', auth, (req,res) => res.json({ user: publicUser(req.user) }));
 
+// Editar el propio perfil (los datos del registro). password opcional (en blanco = sin cambio).
+app.post('/api/me/update', auth, wrap(async (req,res) => {
+  const b = req.body || {};
+  if (b.riotid !== undefined && !/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  if (b.email){ const other = await q1('SELECT id FROM users WHERE email=$1 AND id<>$2', [b.email, req.user.id]); if (other) return res.status(409).json({ error:'Ese email ya está en uso' }); }
+  const sets = [], vals = []; let i = 1;
+  for (const f of ['nickname','realname','riotid','main','discord','pos1','pos2','avatar','email'])
+    if (b[f] !== undefined){ sets.push(`${f}=$${i++}`); vals.push(b[f] || null); }
+  if (b.password){ if (String(b.password).length < 6) return res.status(400).json({ error:'La contraseña debe tener al menos 6 caracteres' });
+    sets.push(`password_hash=$${i++}`); vals.push(await bcrypt.hash(b.password, 10)); }
+  if (!sets.length) return res.json({ user: publicUser(req.user) });
+  vals.push(req.user.id);
+  const u = await q1(`UPDATE users SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+  res.json({ user: publicUser(u) });
+}));
+
 // Avatares públicos (para el ranking y los popups del sitio). Sin auth: el leaderboard es público.
 app.get('/api/avatars', wrap(async (req,res) => {
   const rows = await q('SELECT riotid, nickname, avatar, pos1 FROM users WHERE avatar IS NOT NULL');
@@ -171,6 +187,14 @@ app.post('/api/admin/grant', auth, requireAdmin, wrap(async (req,res) => {
   const c = await q1('SELECT COUNT(*)::int AS c FROM shells WHERE owner_id=$1', [target.id]);
   if (c.c >= MAX_SHELLS) return res.status(400).json({ error:`${target.nickname} ya tiene el inventario lleno (${MAX_SHELLS})` });
   await q('INSERT INTO shells (owner_id,motivo) VALUES ($1,$2)', [target.id, motivo || 'Otorgada por la organización']);
+  res.json({ ok:true });
+}));
+app.post('/api/admin/revoke', auth, requireAdmin, wrap(async (req,res) => {
+  const target = req.body && req.body.userId && await q1('SELECT * FROM users WHERE id=$1', [Number(req.body.userId)]);
+  if (!target) return res.status(400).json({ error:'Usuario inválido' });
+  const shell = await q1('SELECT id FROM shells WHERE owner_id=$1 ORDER BY id DESC LIMIT 1', [target.id]);
+  if (!shell) return res.status(400).json({ error:`${target.nickname} no tiene Blue Shells` });
+  await q('DELETE FROM shells WHERE id=$1', [shell.id]);
   res.json({ ok:true });
 }));
 

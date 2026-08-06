@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Mi perfil</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --blue:#4aa3ff;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .brand b span{ color:var(--accent); }
+  .wrap{ max-width:640px; margin:0 auto; padding:0 20px; }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:24px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:20px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:22px 24px; }
+  .sec{ font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin:18px 0 10px; }
+  .sec:first-child{ margin-top:0; }
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field{ margin-bottom:12px; }
+  label{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:500; }
+  input,select{ width:100%; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; outline:none; }
+  input:focus,select:focus{ border-color:var(--accent); }
+  input::placeholder{ color:var(--muted-2); }
+  .hint{ font-size:11px; color:var(--muted-2); margin-top:4px; }
+  .avatar-row{ display:flex; align-items:center; gap:14px; }
+  .avatar-prev{ width:60px; height:60px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line-2); object-fit:cover; display:grid; place-items:center; color:var(--muted-2); font-size:11px; }
+  .file-btn{ font-family:var(--font); cursor:pointer; background:rgba(255,255,255,.06); border:1px solid var(--line-2); color:var(--text); font-size:12px; font-weight:600; padding:9px 14px; border-radius:9px; }
+  .submit{ width:100%; font-family:var(--font); cursor:pointer; background:var(--accent); color:#000; border:none; border-radius:11px; padding:13px; font-size:15px; font-weight:700; margin-top:16px; }
+  .submit:hover{ filter:brightness(1.05); }
+  .msg{ font-size:13px; padding:10px 12px; border-radius:9px; margin-top:14px; display:none; }
+  .msg.ok{ display:block; background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); color:var(--up); }
+  .msg.err{ display:block; background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.4); color:var(--down); }
+  .logout-box{ margin:18px 0 40px; text-align:center; }
+  .logout-btn{ font-family:var(--font); cursor:pointer; background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.4); color:var(--down); font-size:14px; font-weight:700; padding:11px 22px; border-radius:11px; }
+  .logout-btn:hover{ background:rgba(251,113,133,.2); }
+</style>
+<link rel="stylesheet" href="nav.css">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games</a>
+      <a href="encuentros.html">Encuentros</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Mi perfil</h1>
+    <div class="sub">Tus datos del registro. Edita lo que quieras y guarda.</div>
+
+    <div class="card">
+      <form id="form">
+        <div class="sec">Perfil</div>
+        <div class="field"><label>Nickname público</label><input name="nickname" required></div>
+        <div class="field"><label>Nombre y apellido real</label><input name="realname" required></div>
+        <div class="field"><label>Avatar</label>
+          <div class="avatar-row">
+            <img class="avatar-prev" id="avatar-prev" alt="" src="" style="display:none"><span id="avatar-ph" class="avatar-prev" style="display:grid">IMG</span>
+            <input type="file" id="avatar-input" accept="image/*" style="display:none">
+            <button type="button" class="file-btn" id="avatar-btn">Cambiar imagen</button>
+          </div>
+        </div>
+
+        <div class="sec">Cuenta</div>
+        <div class="row">
+          <div class="field"><label>Email</label><input type="email" name="email" required></div>
+          <div class="field"><label>Discord</label><input name="discord" required></div>
+        </div>
+        <div class="field"><label>Nueva contraseña <span style="color:var(--muted-2)">(opcional)</span></label>
+          <input type="password" name="password" minlength="6" placeholder="Déjalo en blanco para no cambiarla"></div>
+
+        <div class="sec">League of Legends</div>
+        <div class="field"><label>Riot ID del challenge</label><input name="riotid" required placeholder="Nombre#TAG">
+          <div class="hint">Formato Nombre#TAG.</div></div>
+        <div class="field"><label>Cuenta main</label><input name="main" required></div>
+        <div class="row">
+          <div class="field"><label>Posición primaria</label>
+            <select name="pos1" required><option value="">—</option><option>Top</option><option>Jungla</option><option>Medio</option><option>ADC</option><option>Support</option><option>Fill</option></select></div>
+          <div class="field"><label>Posición secundaria</label>
+            <select name="pos2" required><option value="">—</option><option>Top</option><option>Jungla</option><option>Medio</option><option>ADC</option><option>Support</option><option>Fill</option></select></div>
+        </div>
+
+        <button type="submit" class="submit">Guardar cambios</button>
+        <div class="msg" id="msg"></div>
+      </form>
+    </div>
+
+    <div class="logout-box">
+      <button class="logout-btn" id="logout-btn">Cerrar sesión</button>
+    </div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  let avatarData = null;
+
+  (async () => {
+    const user = await SQC.me();
+    if (!user){ location.href = 'cuenta.html'; return; }
+    SQC.preNav(); SQC.paintNav(user);
+
+    // rellenar el formulario con los datos actuales
+    const f = $('form');
+    ['nickname','realname','email','discord','riotid','main','pos1','pos2'].forEach(k => { if (f[k] != null && user[k] != null) f[k].value = user[k]; });
+    if (user.avatar){ avatarData = user.avatar; $('avatar-prev').src = user.avatar; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; }
+
+    $('avatar-btn').addEventListener('click', () => $('avatar-input').click());
+    $('avatar-input').addEventListener('change', e => {
+      const file = e.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = () => { avatarData = r.result; $('avatar-prev').src = avatarData; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; };
+      r.readAsDataURL(file);
+    });
+
+    f.addEventListener('submit', async e => {
+      e.preventDefault();
+      const d = Object.fromEntries(new FormData(f).entries());
+      const msg = $('msg');
+      if (!/^.+#.+$/.test(d.riotid)){ msg.className = 'msg err'; msg.textContent = 'El Riot ID debe tener formato Nombre#TAG.'; return; }
+      const body = { nickname:d.nickname, realname:d.realname, email:d.email, discord:d.discord,
+        riotid:d.riotid, main:d.main, pos1:d.pos1, pos2:d.pos2, avatar:avatarData };
+      if (d.password) body.password = d.password;
+      try {
+        const res = await SQC.api('/me/update', { method:'POST', body });
+        SQC.paintNav(res.user);   // refresca la píldora (nombre/avatar) y el caché
+        msg.className = 'msg ok'; msg.textContent = 'Cambios guardados.';
+      } catch (err){ msg.className = 'msg err'; msg.textContent = err.message; }
+    });
+
+    const doLogout = () => { SQC.logout(); location.href = 'index.html'; };
+    $('logout-btn').addEventListener('click', doLogout);
+    $('logout').addEventListener('click', doLogout);
+  })();
+</script>
+</body>
+</html>
