@@ -215,6 +215,30 @@ app.post('/api/admin/drop/close', auth, requireAdmin, wrap(async (req,res) => {
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 
+// ---- Runner embebido (opcional) ----
+// Si RIOT_API_KEY está en el entorno, el propio server actualiza el ranking
+// corriendo fetch-data.js cada INTERVAL_SEC (por defecto 120s). Así NO hace
+// falta correr el runner en un PC: todo vive en la nube. La key nunca se
+// expone al navegador (solo la usa el proceso del server).
+function startEmbeddedRunner(){
+  if (!process.env.RIOT_API_KEY) return;
+  const { spawn } = require('child_process');
+  const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
+  const runOnce = () => new Promise(res => {
+    const p = spawn(process.execPath, [path.join(ROOT, 'fetch-data.js')], { cwd: ROOT, env: process.env, stdio: 'inherit' });
+    p.on('exit', () => res()); p.on('error', () => res());
+  });
+  console.log(`▶ Runner embebido activo — actualiza el ranking cada ${INTERVAL / 1000}s`);
+  (async () => {
+    for (;;){
+      const t = Date.now();
+      try { await runOnce(); liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); }
+      catch (e){ console.error('Runner embebido:', e.message); }
+      await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));
+    }
+  })();
+}
+
 init()
-  .then(() => app.listen(PORT, () => console.log(`✔ Backend + web en http://localhost:${PORT}`)))
+  .then(() => app.listen(PORT, () => { console.log(`✔ Backend + web en http://localhost:${PORT}`); startEmbeddedRunner(); }))
   .catch(e => { console.error('❌ No se pudo conectar a la base de datos:', e.message); process.exit(1); });

@@ -3,7 +3,7 @@ window.SQC = (function(){
   const TOKEN_KEY = 'sqc_token';
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = t => localStorage.setItem(TOKEN_KEY, t);
-  const clearToken = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('sqc_admin'); };
+  const clearToken = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('sqc_admin'); localStorage.removeItem('sqc_user'); };
 
   async function api(path, { method = 'GET', body } = {}){
     const res = await fetch('/api' + path, {
@@ -31,6 +31,8 @@ window.SQC = (function(){
       ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
       if (user.isAdmin){ const a = g('nav-admin'); if (a) a.style.display = ''; localStorage.setItem('sqc_admin','1'); }
       else localStorage.removeItem('sqc_admin');
+      // Cachea el perfil para pintar la píldora al instante en la próxima página (sin flash).
+      localStorage.setItem('sqc_user', JSON.stringify({ nickname:user.nickname, avatar:user.avatar || null, isAdmin: !!user.isAdmin }));
       if (acc){
         acc.className = 'user-pill'; acc.href = 'blueshell.html';
         acc.innerHTML = (user.avatar
@@ -42,6 +44,7 @@ window.SQC = (function(){
     } else {
       if (acc){ acc.className = 'login-pill'; acc.href = 'cuenta.html'; acc.textContent = 'Iniciar sesión'; }
       if (logout) logout.style.display = 'none';
+      localStorage.removeItem('sqc_user');
     }
   }
   // Para páginas públicas: obtiene la sesión y pinta la navbar sola.
@@ -50,9 +53,7 @@ window.SQC = (function(){
   // si hay token, muestra Blue Shells/Tickets ya; Admin si el flag está guardado.
   function preNav(){
     if (!token()) return;
-    const g = id => document.getElementById(id);
-    ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
-    if (localStorage.getItem('sqc_admin') === '1'){ const a = g('nav-admin'); if (a) a.style.display = ''; }
+    try { const u = JSON.parse(localStorage.getItem('sqc_user') || 'null'); if (u) paintNav(u); } catch {}
   }
 
   return { api, token, setToken, clearToken, me, logout, paintNav, mountNav, preNav };
