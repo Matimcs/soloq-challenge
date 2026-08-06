@@ -22,5 +22,29 @@ window.SQC = (function(){
   }
   function logout(){ clearToken(); }
 
-  return { api, token, setToken, clearToken, me, logout };
+  // Pinta la navbar según la sesión: revela Blue Shells/Tickets/Admin y
+  // convierte "Iniciar sesión" en la píldora de usuario (avatar + nickname).
+  function paintNav(user){
+    const g = id => document.getElementById(id);
+    const acc = g('nav-account'), logout = g('logout');
+    if (user){
+      ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
+      if (user.isAdmin){ const a = g('nav-admin'); if (a) a.style.display = ''; }
+      if (acc){
+        acc.className = 'user-pill'; acc.href = 'blueshell.html';
+        acc.innerHTML = (user.avatar
+          ? '<img class="uava" src="' + user.avatar + '">'
+          : '<span class="uava">' + (user.nickname || '?').slice(0,1).toUpperCase() + '</span>')
+          + '<span>' + (user.nickname || '') + '</span>';
+      }
+      if (logout){ logout.style.display = ''; logout.onclick = () => { clearToken(); location.href = 'index.html'; }; }
+    } else {
+      if (acc){ acc.className = 'login-pill'; acc.href = 'cuenta.html'; acc.textContent = 'Iniciar sesión'; }
+      if (logout) logout.style.display = 'none';
+    }
+  }
+  // Para páginas públicas: obtiene la sesión y pinta la navbar sola.
+  async function mountNav(){ try { paintNav(await me()); } catch { paintNav(null); } }
+
+  return { api, token, setToken, clearToken, me, logout, paintNav, mountNav };
 })();

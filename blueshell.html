@@ -81,18 +81,26 @@
   .dd-sub{ color:var(--muted); font-size:12px; }
   @media (max-width:760px){ .grid{ grid-template-columns:1fr; } .get-list{ grid-template-columns:1fr; } }
 </style>
+<link rel="stylesheet" href="nav.css">
 </head>
 <body>
   <header><div class="wrap nav">
-    <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge" style="height:38px;width:auto;display:block;flex-shrink:0"><b>SoloQ<span>Challenge</span></b></a>
-    <a class="link" href="index.html">Ranking</a>
-    <a class="link" href="normas.html">Normas</a>
-    <a class="link" style="color:var(--text)">Blue Shells</a>
-    <a class="link" href="ticket.html">Tickets</a>
-    <a class="link" href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
-    <div class="nav-spacer"></div>
-    <div class="me" id="me"></div>
-    <button class="logout" id="logout">Salir</button>
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+      <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" class="active">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
   </div></header>
 
   <main class="wrap">
@@ -163,9 +171,7 @@
   (async () => {
     const user = await SQC.me();
     if (!user){ location.href = 'cuenta.html'; return; }
-    $('me').innerHTML = `${user.avatar?`<img src="${user.avatar}">`:''}<span class="nn">${user.nickname}</span>`;
-    if (user.isAdmin){ const ad = $('nav-admin'); if (ad) ad.style.display = ''; }
-    $('logout').addEventListener('click', () => { SQC.logout(); location.href = 'index.html'; });
+    SQC.paintNav(user);
 
     // Banner del drop diario (si la organización lanzó un reto activo)
     try {

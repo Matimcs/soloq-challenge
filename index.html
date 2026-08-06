@@ -285,24 +285,29 @@
     .nav-links{ display:none; }
   }
 </style>
+<link rel="stylesheet" href="nav.css">
 </head>
 <body>
 
   <!-- ===================== HEADER ===================== -->
   <header>
     <div class="wrap nav">
-      <div class="brand"><img src="overlay/assets/logo.png" alt="SoloQ Challenge" style="height:38px;width:auto;display:block;flex-shrink:0"><b>SoloQ<span>Challenge</span></b></div>
-      <nav class="nav-links">
+      <div class="nav-left">
+        <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+        <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
+      </div>
+      <nav class="nav-pill">
         <a href="#" class="tab-link active" data-view="ranking">Ranking</a>
         <a href="#" class="tab-link" data-view="live">Live Games <span class="nav-badge zero" id="nav-live-count">0</span></a>
         <a href="normas.html">Normas</a>
-        <a href="blueshell.html" id="nav-blueshell" style="display:none">🛡 Blue Shells</a>
+        <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
         <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
-        <a href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
+        <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
       </nav>
-      <div class="nav-spacer"></div>
-      <a class="btn btn-ghost" href="cuenta.html" id="nav-account" style="margin-right:8px">Iniciar sesión</a>
-      <button class="btn btn-accent" onclick="document.getElementById('ranking').scrollIntoView({behavior:'smooth'})">VER RANKING</button>
+      <div class="nav-right">
+        <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+        <button class="logout-link" id="logout" style="display:none">Salir</button>
+      </div>
     </div>
   </header>
 
@@ -907,18 +912,10 @@ if (location.protocol.startsWith('http')){
 </script>
 <script src="api.js"></script>
 <script>
-/* estado de sesión: muestra Blue Shells / Tickets / Admin + nickname si hay login */
-(async function(){
-  try {
-    const u = await SQC.me();
-    if (u){
-      const bs = document.getElementById('nav-blueshell'); if (bs) bs.style.display = '';
-      const tk = document.getElementById('nav-ticket'); if (tk) tk.style.display = '';
-      const acc = document.getElementById('nav-account'); if (acc){ acc.textContent = u.nickname; acc.href = 'blueshell.html'; }
-      if (u.isAdmin){ const ad = document.getElementById('nav-admin'); if (ad) ad.style.display = ''; }
-    }
-  } catch(e){}
-})();
+/* estado de sesión: pinta la navbar (Blue Shells/Tickets/Admin + píldora de usuario) */
+SQC.mountNav();
+/* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
+if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 </script>
 </body>
 </html>

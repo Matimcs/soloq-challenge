@@ -55,19 +55,27 @@
   .toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); font-size:13px; padding:11px 18px; border-radius:10px; opacity:0; transition:opacity .2s; pointer-events:none; }
   .toast.show{ opacity:1; }
 </style>
+<link rel="stylesheet" href="nav.css">
 </head>
 <body>
   <header><div class="wrap nav">
-    <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge" style="height:38px;width:auto;display:block;flex-shrink:0"><b>SoloQ<span>Challenge</span></b></a>
-    <a class="link" href="index.html">Ranking</a>
-    <a class="link" href="normas.html">Normas</a>
-    <a class="link" href="blueshell.html">Blue Shells</a>
-    <a class="link" href="ticket.html">Tickets</a>
-    <a class="link" href="admin.html" style="color:var(--text)">⚙ Admin</a>
-    <div class="nav-spacer"></div>
-    <span class="admin-tag">ADMIN</span>
-    <span class="link" id="who"></span>
-    <button class="btn btn-ghost" id="logout">Salir</button>
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+      <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" class="active">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <span class="admin-tag">ADMIN</span>
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
   </div></header>
 
   <main class="wrap">
@@ -119,8 +127,7 @@
   (async () => {
     const user = await SQC.me();
     if (!user || !user.isAdmin){ alert('Acceso solo para el administrador.'); location.href = 'index.html'; return; }
-    $('who').textContent = user.nickname;
-    $('logout').addEventListener('click', () => { SQC.logout(); location.href='index.html'; });
+    SQC.paintNav(user);
 
     // ---- Verificaciones ----
     async function renderVer(){

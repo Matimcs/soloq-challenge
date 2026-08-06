@@ -54,19 +54,26 @@
   .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
   @media (max-width:760px){ .get-list{ grid-template-columns:1fr; } }
 </style>
+<link rel="stylesheet" href="nav.css">
 </head>
 <body>
   <header><div class="wrap nav">
-    <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge" style="height:38px;width:auto;display:block;flex-shrink:0"><b>SoloQ<span>Challenge</span></b></a>
-    <a class="link" href="index.html">Ranking</a>
-    <a class="link" style="color:var(--text)">Normas</a>
-    <a class="link" href="blueshell.html">Blue Shells</a>
-    <a class="link" href="ticket.html">Tickets</a>
-    <a class="link" href="admin.html" id="nav-admin" style="display:none">⚙ Admin</a>
-    <div class="nav-spacer"></div>
-    <div class="me" id="me"></div>
-    <a class="btn btn-ghost" href="cuenta.html" id="nav-account">Iniciar sesión</a>
-    <button class="btn btn-ghost" id="logout" style="display:none">Salir</button>
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+      <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games</a>
+      <a href="normas.html" class="active">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
   </div></header>
 
   <main class="wrap">
@@ -157,20 +164,8 @@
     `<div class="cast"><img src="overlay/assets/shells/${slug}.png" alt="" onerror="this.style.visibility='hidden'">
       <div class="ci"><div class="cn">${name}</div><div class="cp">${pct}%</div></div></div>`).join('');
 
-  // Sesión: revela Admin, muestra nickname / login
-  (async function(){
-    try {
-      const u = await SQC.me();
-      if (u){
-        const me = document.getElementById('me');
-        me.innerHTML = `${u.avatar?`<img src="${u.avatar}">`:''}<span>${u.nickname}</span>`;
-        document.getElementById('nav-account').style.display = 'none';
-        const lo = document.getElementById('logout'); lo.style.display = '';
-        lo.addEventListener('click', () => { SQC.logout(); location.reload(); });
-        if (u.isAdmin){ const ad = document.getElementById('nav-admin'); if (ad) ad.style.display = ''; }
-      }
-    } catch(e){}
-  })();
+  // Sesión: pinta la navbar (píldora de usuario / login)
+  SQC.mountNav();
 </script>
 </body>
 </html>
