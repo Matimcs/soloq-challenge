@@ -78,7 +78,7 @@
   let DDV = (window.SQC_DATA && window.SQC_DATA.ddragonVersion) || '16.15.1';
   const champUrl = c => c ? `https://ddragon.leagueoflegends.com/cdn/${DDV}/img/champion/${FIXCHAMP[c]||c}.png` : '';
   const opgg = rid => { const [n,t] = rid.split('#'); return `https://op.gg/summoners/las/${encodeURIComponent(n)}-${encodeURIComponent(t||'')}`; };
-  const logUrl = id => { const num = String(id).split('_')[1] || id; return `https://www.leagueofgraphs.com/match/la2/${num}`; };
+  const logUrl = id => { const num = String(id).split('_')[1] || id; return `https://www.leagueofgraphs.com/match/las/${num}`; };
   const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
 
   function plHtml(p){
@@ -104,7 +104,6 @@
       <div class="sides">${sides}</div>
       <div class="meta">
         <span class="date">${fdate(e.end)}</span>
-        <a class="opgg" href="${opgg(players[0].rid)}" target="_blank" rel="noopener">op.gg</a>
         <a class="go" href="${logUrl(e.id)}" target="_blank" rel="noopener">Ver partida</a>
       </div>
     </div>`;
