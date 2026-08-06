@@ -177,6 +177,7 @@
   /* rol */
   .role-ico{ width:20px; height:20px; opacity:.92; }
   .role-none{ font-size:13px; color:var(--muted-2); }
+  .role-lbl{ display:inline-block; font-size:12px; font-weight:600; color:var(--text); padding:2px 9px; border-radius:6px; background:rgba(255,255,255,.06); border:1px solid var(--line); }
 
   /* elo (con emblema de rango) */
   .elo{ display:flex; align-items:center; gap:9px; font-variant-numeric:tabular-nums; }
@@ -290,7 +291,7 @@
   <!-- ===================== HEADER ===================== -->
   <header>
     <div class="wrap nav">
-      <div class="brand"><span class="mark">S</span><b>SoloQ<span>Challenge</span></b></div>
+      <div class="brand"><img src="overlay/assets/logo.png" alt="SoloQ Challenge" style="height:38px;width:auto;display:block;flex-shrink:0"><b>SoloQ<span>Challenge</span></b></div>
       <nav class="nav-links">
         <a href="#" class="tab-link active" data-view="ranking">Ranking</a>
         <a href="#" class="tab-link" data-view="live">Live Games <span class="nav-badge zero" id="nav-live-count">0</span></a>
@@ -462,8 +463,19 @@ function initials(nm){ return (nm||'?').slice(0,2).toUpperCase(); }
 
 /* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
    casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
-let AVA_BY_RID = {}, AVA_BY_NAME = {};
+let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {};
 function avaSrc(rid, nm){ return AVA_BY_RID[rid] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
+// Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
+function roleFor(p){
+  const reg = ROLE_BY_RID[p.rid];
+  if (reg) return reg;
+  if (p.role && p.role !== '—' && p.role !== '–') return p.role;
+  return null;
+}
+function roleCell(p){
+  const r = roleFor(p);
+  return r ? '<span class="role-lbl">' + r + '</span>' : '<span class="role-none">–</span>';
+}
 function avaHtml(rid, nm, cls){
   cls = cls || 'ava'; const src = avaSrc(rid, nm);
   return src ? `<img class="${cls}" src="${src}" alt="">` : `<div class="${cls}">${initials(nm)}</div>`;
@@ -473,8 +485,9 @@ async function loadAvatars(){
   try {
     const r = await fetch('/api/avatars', { cache:'no-store' }); if (!r.ok) return;
     const list = await r.json();
-    AVA_BY_RID = {}; AVA_BY_NAME = {};
+    AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {};
     list.forEach(u => {
+      if (u.pos1) ROLE_BY_RID[u.riotid] = u.pos1;
       if (!u.avatar) return;
       AVA_BY_RID[u.riotid] = u.avatar;
       AVA_BY_NAME[(u.riotid.split('#')[0] || '').toLowerCase()] = u.avatar;
@@ -569,7 +582,7 @@ function render(){
             </div>
           </div>
         </td>
-        <td><span class="role-none">–</span></td>
+        <td>${roleCell(p)}</td>
         <td>${eloEl(p)}</td>
         <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
         <td>${sparkline(p.form)}</td>

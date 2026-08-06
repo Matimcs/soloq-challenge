@@ -81,8 +81,8 @@ app.get('/api/me', auth, (req,res) => res.json({ user: publicUser(req.user) }));
 
 // Avatares públicos (para el ranking y los popups del sitio). Sin auth: el leaderboard es público.
 app.get('/api/avatars', wrap(async (req,res) => {
-  const rows = await q('SELECT riotid, nickname, avatar FROM users WHERE avatar IS NOT NULL');
-  res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, avatar:r.avatar })));
+  const rows = await q('SELECT riotid, nickname, avatar, pos1 FROM users WHERE avatar IS NOT NULL');
+  res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, avatar:r.avatar, pos1:r.pos1 })));
 }));
 
 // ================= PARTICIPANTES =================

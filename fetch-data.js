@@ -37,6 +37,7 @@ const QUEUES = { 420:'Ranked SoloQ', 440:'Flex', 400:'Normal Draft', 430:'Normal
                  450:'ARAM', 490:'Quickplay', 700:'Clash', 720:'ARAM Clash',
                  1700:'Arena', 900:'ARURF', 1900:'URF' };
 // Nombre de tier en formato "Master" (como el sitio original)
+const ROLE_LBL = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Medio', BOTTOM:'ADC', UTILITY:'Support' };
 const TIER_LABEL = { CHALLENGER:'Challenger', GRANDMASTER:'Grandmaster', MASTER:'Master',
                      DIAMOND:'Diamond', EMERALD:'Emerald', PLATINUM:'Platinum', GOLD:'Gold',
                      SILVER:'Silver', BRONZE:'Bronze', IRON:'Iron' };
@@ -163,7 +164,7 @@ async function updatePlayerStats(puuid, entry){
     if (!m || !m.info) continue;
     const me = (m.info.participants || []).find(p => p.puuid === puuid);
     if (!me) continue;
-    const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0 };
+    const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '' };
     store.games.unshift(g); fetched.push(g);
   }
   store.games = store.games.slice(0, 15);
@@ -181,12 +182,18 @@ async function updatePlayerStats(puuid, entry){
   matchStore[puuid] = store;
 
   // Métricas para el frontend
-  const form = store.games.slice(0, 10).reverse().map(g => g.win);   // viejas→nuevas (para sparkline)
+  const form = store.games.slice(0, 15).reverse().map(g => g.win);   // viejas→nuevas (para sparkline)
+  // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
+  const posCount = {};
+  store.games.forEach(g => { if (g.pos) posCount[g.pos] = (posCount[g.pos] || 0) + 1; });
+  let mainPos = null, mainN = 0;
+  for (const k in posCount) if (posCount[k] > mainN){ mainN = posCount[k]; mainPos = k; }
   const winD  = store.lpGames.filter(g=>g.delta>0).map(g=>g.delta);
   const lossD = store.lpGames.filter(g=>g.delta<0).map(g=>-g.delta);
   const base  = median(winD);
   return {
     form,
+    role: mainPos ? (ROLE_LBL[mainPos] || null) : null,
     up:   winD.length  ? Math.round(avg(winD))  : null,
     down: lossD.length ? Math.round(avg(lossD)) : null,
     aegis: base ? winD.filter(d => d >= 1.6 * base).length : 0,   // partidas con ~doble LP
@@ -238,7 +245,7 @@ function rankText(entry) {
       const div  = entry ? (NO_DIVISION.has(tier) ? '' : entry.rank) : '';
       const soloRaw = (raw && raw.gameQueueConfigId === 420) ? raw : null;   // SOLO SoloQ (420)
       players.push({
-        nm:name, rid, puuid, role:'—',
+        nm:name, rid, puuid, role: stats.role || '—',
         tier, div, lp: entry ? entry.leaguePoints : 0,
         w: entry ? entry.wins : 0, l: entry ? entry.losses : 0,
         inGame: !!soloRaw, hotStreak: entry ? !!entry.hotStreak : false,
