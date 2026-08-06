@@ -3,7 +3,7 @@ window.SQC = (function(){
   const TOKEN_KEY = 'sqc_token';
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = t => localStorage.setItem(TOKEN_KEY, t);
-  const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+  const clearToken = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('sqc_admin'); };
 
   async function api(path, { method = 'GET', body } = {}){
     const res = await fetch('/api' + path, {
@@ -29,7 +29,8 @@ window.SQC = (function(){
     const acc = g('nav-account'), logout = g('logout');
     if (user){
       ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
-      if (user.isAdmin){ const a = g('nav-admin'); if (a) a.style.display = ''; }
+      if (user.isAdmin){ const a = g('nav-admin'); if (a) a.style.display = ''; localStorage.setItem('sqc_admin','1'); }
+      else localStorage.removeItem('sqc_admin');
       if (acc){
         acc.className = 'user-pill'; acc.href = 'blueshell.html';
         acc.innerHTML = (user.avatar
@@ -45,6 +46,14 @@ window.SQC = (function(){
   }
   // Para páginas públicas: obtiene la sesión y pinta la navbar sola.
   async function mountNav(){ try { paintNav(await me()); } catch { paintNav(null); } }
+  // Revelado optimista e inmediato (sin esperar la API) para evitar el parpadeo:
+  // si hay token, muestra Blue Shells/Tickets ya; Admin si el flag está guardado.
+  function preNav(){
+    if (!token()) return;
+    const g = id => document.getElementById(id);
+    ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
+    if (localStorage.getItem('sqc_admin') === '1'){ const a = g('nav-admin'); if (a) a.style.display = ''; }
+  }
 
-  return { api, token, setToken, clearToken, me, logout, paintNav, mountNav };
+  return { api, token, setToken, clearToken, me, logout, paintNav, mountNav, preNav };
 })();

@@ -294,7 +294,6 @@
     <div class="wrap nav">
       <div class="nav-left">
         <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
-        <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
       </div>
       <nav class="nav-pill">
         <a href="#" class="tab-link active" data-view="ranking">Ranking</a>
@@ -918,7 +917,7 @@ if (location.protocol.startsWith('http')){
 <script src="api.js"></script>
 <script>
 /* estado de sesión: pinta la navbar (Blue Shells/Tickets/Admin + píldora de usuario) */
-SQC.mountNav();
+SQC.preNav(); SQC.mountNav();
 /* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
 if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 </script>

@@ -87,7 +87,6 @@
   <header><div class="wrap nav">
     <div class="nav-left">
       <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
-      <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
     </div>
     <nav class="nav-pill">
       <a href="index.html">Ranking</a>
@@ -169,6 +168,7 @@
   const reverseChance = pos => (pos && pos <= 5) ? pos : 15;
 
   (async () => {
+    SQC.preNav();
     const user = await SQC.me();
     if (!user){ location.href = 'cuenta.html'; return; }
     SQC.paintNav(user);

@@ -61,7 +61,6 @@
   <header><div class="wrap nav">
     <div class="nav-left">
       <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
-      <button class="season-pill" type="button">SQC 2026 <span class="caret">▾</span></button>
     </div>
     <nav class="nav-pill">
       <a href="index.html">Ranking</a>
@@ -72,9 +71,13 @@
       <a href="admin.html" id="nav-admin" class="active">Admin</a>
     </nav>
     <div class="nav-right">
-      <span class="admin-tag">ADMIN</span>
-      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
-      <button class="logout-link" id="logout" style="display:none">Salir</button>
+      <div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px">
+        <span class="admin-tag">ADMIN</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+          <button class="logout-link" id="logout" style="display:none">Salir</button>
+        </div>
+      </div>
     </div>
   </div></header>
 
@@ -125,6 +128,7 @@
   function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 
   (async () => {
+    SQC.preNav();
     const user = await SQC.me();
     if (!user || !user.isAdmin){ alert('Acceso solo para el administrador.'); location.href = 'index.html'; return; }
     SQC.paintNav(user);
