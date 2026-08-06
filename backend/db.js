@@ -65,6 +65,11 @@ async function init(){
       estado     TEXT DEFAULT 'activo',         -- 'activo' | 'cerrado'
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS fetch_cache (
+      id         TEXT PRIMARY KEY,              -- 'puuids' | 'ranks' | 'matches'
+      data       JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
   `);
   console.log('✔ Esquema Postgres listo');
 }

@@ -224,15 +224,35 @@ function startEmbeddedRunner(){
   if (!process.env.RIOT_API_KEY) return;
   const { spawn } = require('child_process');
   const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
+  const CACHE_DIR = path.join(ROOT, 'cache');
+  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json' };
+
+  // El caché (PUUIDs, rangos y sobre todo el historial ±LP/aegis) se guarda en
+  // Postgres para que sobreviva los reinicios/redeploys de Render (disco efímero).
+  const loadCache = async () => {
+    if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive:true });
+    for (const [id, file] of Object.entries(CACHE_FILES)){
+      try { const row = await q1('SELECT data FROM fetch_cache WHERE id=$1', [id]);
+        if (row && row.data) fs.writeFileSync(path.join(CACHE_DIR, file), JSON.stringify(row.data)); } catch {}
+    }
+  };
+  const saveCache = async () => {
+    for (const [id, file] of Object.entries(CACHE_FILES)){
+      try { const raw = fs.readFileSync(path.join(CACHE_DIR, file), 'utf8');
+        await q('INSERT INTO fetch_cache (id,data,updated_at) VALUES ($1,$2::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()', [id, raw]); } catch {}
+    }
+  };
   const runOnce = () => new Promise(res => {
     const p = spawn(process.execPath, [path.join(ROOT, 'fetch-data.js')], { cwd: ROOT, env: process.env, stdio: 'inherit' });
     p.on('exit', () => res()); p.on('error', () => res());
   });
+
   console.log(`▶ Runner embebido activo — actualiza el ranking cada ${INTERVAL / 1000}s`);
   (async () => {
+    await loadCache();   // restaura el historial ±LP/aegis persistido
     for (;;){
       const t = Date.now();
-      try { await runOnce(); liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); }
+      try { await runOnce(); await saveCache(); liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); }
       catch (e){ console.error('Runner embebido:', e.message); }
       await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));
     }
