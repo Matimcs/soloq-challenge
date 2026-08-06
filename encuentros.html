@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Encuentros</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+  .brand b span{ color:var(--accent); }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+
+  .enc{ display:flex; flex-direction:column; gap:12px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .tag{ font-size:10px; font-weight:800; letter-spacing:.06em; padding:4px 9px; border-radius:6px; flex-shrink:0; }
+  .tag.rival{ background:rgba(251,113,133,.14); color:var(--down); border:1px solid rgba(251,113,133,.4); }
+  .tag.ally{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .sides{ display:flex; align-items:center; gap:12px; flex:1; min-width:220px; flex-wrap:wrap; }
+  .side{ display:flex; align-items:center; gap:9px; }
+  .pl{ display:flex; align-items:center; gap:8px; }
+  .pl img{ width:34px; height:34px; border-radius:9px; object-fit:cover; background:var(--panel-2); border:1px solid var(--line); }
+  .pl .nm{ font-size:14px; font-weight:700; }
+  .pl .res{ font-size:11px; font-weight:800; }
+  .pl .res.w{ color:var(--up); } .pl .res.l{ color:var(--down); }
+  .vs{ font-size:12px; font-weight:800; color:var(--muted-2); }
+  .meta{ display:flex; align-items:center; gap:10px; margin-left:auto; flex-shrink:0; }
+  .date{ font-size:11px; color:var(--muted-2); white-space:nowrap; }
+  .go{ font-size:12px; font-weight:700; color:#000; background:var(--accent); padding:7px 13px; border-radius:8px; white-space:nowrap; }
+  .go:hover{ filter:brightness(1.05); }
+  .opgg{ font-size:11px; font-weight:700; color:var(--blue); border:1px solid rgba(74,163,255,.4); padding:6px 10px; border-radius:8px; }
+  .empty{ color:var(--muted); font-size:14px; text-align:center; padding:50px 0; }
+  .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:24px 0 40px; }
+</style>
+<link rel="stylesheet" href="nav.css">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games</a>
+      <a href="encuentros.html" class="active">Encuentros</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Encuentros</h1>
+    <div class="sub">Partidas donde coincidieron dos o más jugadores del torneo — como aliados o como rivales.</div>
+    <div class="enc" id="enc"></div>
+    <div class="note">Se detectan cruzando el historial reciente de cada jugador (últimas ~15 partidas). Actualiza solo.</div>
+  </main>
+
+<script src="players.js"></script>
+<script src="api.js"></script>
+<script>
+  const FIXCHAMP = { FiddleSticks:'Fiddlesticks' };
+  let DDV = (window.SQC_DATA && window.SQC_DATA.ddragonVersion) || '16.15.1';
+  const champUrl = c => c ? `https://ddragon.leagueoflegends.com/cdn/${DDV}/img/champion/${FIXCHAMP[c]||c}.png` : '';
+  const opgg = rid => { const [n,t] = rid.split('#'); return `https://op.gg/summoners/las/${encodeURIComponent(n)}-${encodeURIComponent(t||'')}`; };
+  const logUrl = id => { const num = String(id).split('_')[1] || id; return `https://www.leagueofgraphs.com/match/la2/${num}`; };
+  const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+
+  function plHtml(p){
+    const res = p.win ? '<span class="res w">Ganó</span>' : '<span class="res l">Perdió</span>';
+    return `<a class="pl" href="${opgg(p.rid)}" target="_blank" rel="noopener" title="op.gg de ${p.nm}">
+      <img src="${champUrl(p.champ)}" onerror="this.style.visibility='hidden'">
+      <span><span class="nm">${p.nm}</span> ${res}</span></a>`;
+  }
+
+  function card(e){
+    const players = e.players || [];
+    const winners = players.filter(p=>p.win), losers = players.filter(p=>!p.win);
+    const rivals = winners.length && losers.length;
+    let sides;
+    if (rivals){
+      sides = `<div class="side">${winners.map(plHtml).join('')}</div><span class="vs">VS</span><div class="side">${losers.map(plHtml).join('')}</div>`;
+    } else {
+      sides = `<div class="side">${players.map(plHtml).join('')}</div>`;
+    }
+    const tag = rivals ? '<span class="tag rival">⚔ Rivales</span>' : '<span class="tag ally">🤝 Aliados</span>';
+    return `<div class="card">
+      ${tag}
+      <div class="sides">${sides}</div>
+      <div class="meta">
+        <span class="date">${fdate(e.end)}</span>
+        <a class="opgg" href="${opgg(players[0].rid)}" target="_blank" rel="noopener">op.gg</a>
+        <a class="go" href="${logUrl(e.id)}" target="_blank" rel="noopener">Ver partida</a>
+      </div>
+    </div>`;
+  }
+
+  function render(data){
+    DDV = (data && data.ddragonVersion) || DDV;
+    const list = (data && Array.isArray(data.encounters)) ? data.encounters : [];
+    const el = document.getElementById('enc');
+    el.innerHTML = list.length ? list.map(card).join('')
+      : '<div class="empty">Aún no hay encuentros registrados. Aparecerán cuando dos jugadores del torneo coincidan en una partida.</div>';
+  }
+
+  render(window.SQC_DATA || null);
+  SQC.preNav(); SQC.mountNav();
+
+  if (location.protocol.startsWith('http')){
+    setInterval(async () => {
+      try { const r = await fetch('players.json?t=' + Date.now(), { cache:'no-store' }); if (!r.ok) return; render(await r.json()); } catch {}
+    }, 20000);
+  }
+</script>
+</body>
+</html>

@@ -27,6 +27,11 @@ const RIOT_IDS = [
   'elmaio04#LAS', 'DeSean#Elba', 'Henry Miller#379',
   'AntisionistaSion#SMURF', 'Hunßatz#LAS', 'pancho pistolas2#LAS',
 ];
+// Cuentas agregadas manualmente desde el admin (el server escribe roster-extra.json desde la DB).
+try {
+  const extra = JSON.parse(fs.readFileSync(path.join(__dirname, 'roster-extra.json'), 'utf8'));
+  if (Array.isArray(extra)) for (const rid of extra) if (rid && !RIOT_IDS.includes(rid)) RIOT_IDS.push(rid);
+} catch {}
 
 const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
                      PLATINUM:4, GOLD:3, SILVER:2, BRONZE:1, IRON:0, UNRANKED:-1 };
@@ -51,9 +56,11 @@ const RANK_FILE  = path.join(CACHE_DIR, 'ranks.json');
 const RANK_TTL   = 15 * 60 * 1000;   // rango de un RIVAL vale 15 min (dura ~1 partida)
 function loadJSON(f, def){ try { return JSON.parse(fs.readFileSync(f,'utf8')); } catch { return def; } }
 const MATCH_FILE = path.join(CACHE_DIR, 'matches.json');
+const ENC_FILE   = path.join(CACHE_DIR, 'encounters.json');
 const puuidCache = loadJSON(PUUID_FILE, {});   // "RiotId#TAG" -> puuid  (nunca caduca)
 const rankStore  = loadJSON(RANK_FILE,  {});   // puuid -> { entry, at }
 const matchStore = loadJSON(MATCH_FILE, {});   // puuid -> { games:[{id,win,champ,end}], lastAbsLP, lpGames:[{win,delta}] }
+const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
 let REQ_COUNT = 0;                             // requests reales a Riot este ciclo
 
 async function riot(url) {
@@ -333,9 +340,30 @@ function rankText(entry) {
     console.log(`  ✔ ${who} — ${blue.length}v${red.length}`);
   }
 
+  // ---- ENCUENTROS: partidas donde coincidieron 2+ jugadores del torneo ----
+  // Se cruzan los match IDs de los historiales. Aliado/rival se deduce del
+  // resultado: en SoloQ, mismo equipo → mismo resultado; rivales → opuesto.
+  const byMatch = {};
+  for (const [puuid, store] of Object.entries(matchStore)){
+    const t = trackedByPuuid.get(puuid); if (!t) continue;
+    for (const g of (store.games || [])){
+      if (!g.id) continue;
+      (byMatch[g.id] = byMatch[g.id] || []).push({ nm:t.nm, rid:t.rid, win:!!g.win, champ:g.champ || null, end:g.end || 0 });
+    }
+  }
+  for (const [id, ps] of Object.entries(byMatch)){
+    // dedup por rid (un jugador no puede estar 2 veces en la misma partida)
+    const uniq = []; const seen = new Set();
+    for (const p of ps){ if (!seen.has(p.rid)){ seen.add(p.rid); uniq.push(p); } }
+    if (uniq.length >= 2) encounterStore[id] = { id, end: Math.max(...uniq.map(p=>p.end||0)), players: uniq };
+  }
+  const encList = Object.values(encounterStore).sort((a,b)=>(b.end||0)-(a.end||0)).slice(0, 60);
+  for (const k in encounterStore) delete encounterStore[k];
+  encList.forEach(e => { encounterStore[e.id] = e; });
+
   const out = {
     updatedAt: new Date().toISOString(), region: 'LAS',
-    ddragonVersion: DD.version, players, liveGames,
+    ddragonVersion: DD.version, players, liveGames, encounters: encList,
   };
   fs.writeFileSync(path.join(__dirname, 'players.json'), JSON.stringify(out, null, 2), 'utf8');
   fs.writeFileSync(path.join(__dirname, 'players.js'),
@@ -348,6 +376,7 @@ function rankText(entry) {
   fs.writeFileSync(PUUID_FILE, JSON.stringify(puuidCache));
   fs.writeFileSync(RANK_FILE,  JSON.stringify(rankStore));
   fs.writeFileSync(MATCH_FILE, JSON.stringify(matchStore));
+  fs.writeFileSync(ENC_FILE, JSON.stringify(encounterStore));
 
   console.log(`\n✔ ${players.length} jugadores · ${liveGames.length} live games → players.json + players.js`);
   console.log(`   Requests a Riot este ciclo: ${REQ_COUNT}`

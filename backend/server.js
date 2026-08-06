@@ -212,6 +212,20 @@ app.post('/api/admin/drop/close', auth, requireAdmin, wrap(async (req,res) => {
   res.json({ ok:true });
 }));
 
+// ================= ROSTER (cuentas agregadas a mano) =================
+app.get('/api/admin/roster', auth, requireAdmin, wrap(async (req,res) =>
+  res.json(await q('SELECT riotid, created_at FROM roster ORDER BY created_at DESC'))));
+app.post('/api/admin/roster', auth, requireAdmin, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  await q('INSERT INTO roster (riotid) VALUES ($1) ON CONFLICT (riotid) DO NOTHING', [riotid]);
+  res.json({ ok:true });
+}));
+app.post('/api/admin/roster/remove', auth, requireAdmin, wrap(async (req,res) => {
+  await q('DELETE FROM roster WHERE riotid=$1', [((req.body && req.body.riotid) || '').trim()]);
+  res.json({ ok:true });
+}));
+
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 
@@ -225,7 +239,12 @@ function startEmbeddedRunner(){
   const { spawn } = require('child_process');
   const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
   const CACHE_DIR = path.join(ROOT, 'cache');
-  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json' };
+  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json' };
+  // Escribe roster-extra.json (cuentas agregadas por el admin) para que fetch-data las incluya.
+  const writeRoster = async () => {
+    try { const rows = await q('SELECT riotid FROM roster ORDER BY created_at');
+      fs.writeFileSync(path.join(ROOT, 'roster-extra.json'), JSON.stringify(rows.map(r=>r.riotid))); } catch {}
+  };
 
   // El caché (PUUIDs, rangos y sobre todo el historial ±LP/aegis) se guarda en
   // Postgres para que sobreviva los reinicios/redeploys de Render (disco efímero).
@@ -281,7 +300,7 @@ function startEmbeddedRunner(){
     await loadCache();   // restaura el historial ±LP/aegis persistido
     for (;;){
       const t = Date.now();
-      try { await runOnce(); await saveCache(); liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); }
+      try { await writeRoster(); await runOnce(); await saveCache(); liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); }
       catch (e){ console.error('Runner embebido:', e.message); }
       await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));
     }

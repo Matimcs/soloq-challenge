@@ -65,6 +65,7 @@
     <nav class="nav-pill">
       <a href="index.html">Ranking</a>
       <a href="index.html#live">Live Games</a>
+      <a href="encuentros.html">Encuentros</a>
       <a href="normas.html">Normas</a>
       <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
@@ -95,6 +96,17 @@
         <button class="btn btn-ghost" id="drop-cerrar" style="display:none">Cerrar</button>
       </div>
       <div id="drop-current" class="empty" style="margin-top:10px">Sin drop activo.</div>
+    </div>
+
+    <!-- Agregar cuenta al ranking -->
+    <div class="box">
+      <h2>Agregar cuenta al ranking <span class="n" id="rt-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Suma una cuenta al ranking sin que el jugador se registre. Se trackea junto al resto (aparece tras el próximo ciclo del runner, ~2 min).</div>
+      <div class="drop-row">
+        <input type="text" id="rt-riotid" placeholder="Riot ID (Nombre#TAG), ej: pancho pistolas2#LAS">
+        <button class="btn btn-accent" id="rt-add">Agregar</button>
+      </div>
+      <div class="list" id="rt-list" style="margin-top:12px"></div>
     </div>
 
     <!-- Verificaciones manuales -->
@@ -197,7 +209,26 @@
       try { await SQC.api('/admin/drop/close', {method:'POST'}); toast('Drop cerrado'); renderDrop(); } catch(e){ toast(e.message); }
     });
 
-    renderDrop(); renderVer(); renderTk(); renderParts();
+    // ---- Roster (agregar cuentas) ----
+    async function renderRoster(){
+      const list = await SQC.api('/admin/roster');
+      $('rt-count').textContent = `(${list.length})`;
+      $('rt-list').innerHTML = list.length ? list.map(r=>`
+        <div class="item"><div class="info"><div class="t">${r.riotid}</div><div class="s">Agregada ${fdate(r.created_at)}</div></div>
+          <div class="acts"><button class="btn btn-no" data-rid="${r.riotid}">Quitar</button></div></div>`).join('')
+        : '<div class="empty">No hay cuentas agregadas a mano.</div>';
+      $('rt-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/roster/remove',{method:'POST',body:{riotid:b.dataset.rid}}); toast('Cuenta quitada'); renderRoster(); } catch(e){ toast(e.message); }
+      }));
+    }
+    $('rt-add').addEventListener('click', async () => {
+      const riotid = $('rt-riotid').value.trim();
+      if (!/^.+#.+$/.test(riotid)){ toast('Formato Nombre#TAG'); return; }
+      try { await SQC.api('/admin/roster', {method:'POST', body:{ riotid }}); $('rt-riotid').value=''; toast('Cuenta agregada'); renderRoster(); }
+      catch(e){ toast(e.message); }
+    });
+
+    renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts();
   })();
 </script>
 </body>

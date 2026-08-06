@@ -18,3 +18,6 @@ npm-debug.log*
 # Datos generados por el runner (el server online los recibe por /api/ingest)
 players.json
 players.js
+
+# Roster extra (lo genera el server desde la DB)
+roster-extra.json
