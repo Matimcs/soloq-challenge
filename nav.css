@@ -4,63 +4,70 @@
    Usa las variables de cada página (--accent, --font, --down…).
    Se enlaza DESPUÉS del <style> de cada página para que gane.
    ============================================================ */
-header{ position:sticky; top:0; z-index:50; background:transparent; }
-/* Grid 1fr | auto | 1fr → la píldora central queda SIEMPRE centrada,
-   sin importar el ancho del logo/temporada (izq) ni del usuario (der). */
-header .nav{ display:grid; grid-template-columns:1fr minmax(0,auto) 1fr; align-items:center; gap:18px; height:118px; }
+/* Encabezado 100% transparente: sin fondo, sin línea de separación y sin
+   desenfoque (anula el backdrop-filter/border de los estilos de cada página). */
+header{
+  position:sticky; top:0; z-index:50;
+  background:transparent !important; border-bottom:none !important; box-shadow:none !important;
+  -webkit-backdrop-filter:none !important; backdrop-filter:none !important;
+}
+/* Grid 1fr | auto | 1fr → la píldora central queda centrada y los lados
+   (logo/temporada e usuario) quedan a su izquierda y derecha, sin solaparse. */
+header .nav{ display:grid; grid-template-columns:1fr minmax(0,auto) 1fr; align-items:center; gap:26px; height:120px; }
 
-.nav-left{ display:flex; align-items:center; gap:18px; justify-self:start; min-width:0; }
-.nav-right{ display:flex; align-items:center; justify-content:flex-end; gap:16px; justify-self:end; min-width:0; }
+.nav-left{ display:flex; align-items:center; gap:16px; justify-self:start; min-width:0; }
+.nav-right{ display:flex; align-items:center; justify-content:flex-end; gap:14px; justify-self:end; min-width:0; }
 
 .brand{ display:flex; align-items:center; flex-shrink:0; }
-.brand img{ height:88px; width:auto; display:block; }
+.brand img{ height:104px; width:auto; display:block; }
 
 .season-pill{
-  display:flex; align-items:center; gap:8px; flex-shrink:0;
+  display:flex; align-items:center; gap:7px; flex-shrink:0;
   background:var(--accent); color:#000; font-family:var(--font);
-  font-weight:800; font-size:15px; letter-spacing:.01em;
-  padding:11px 20px; border-radius:999px; cursor:pointer; border:none; white-space:nowrap;
+  font-weight:800; font-size:13.5px; letter-spacing:.01em;
+  padding:9px 16px; border-radius:999px; cursor:pointer; border:none; white-space:nowrap;
 }
-.season-pill .caret{ font-size:11px; opacity:.85; }
+.season-pill .caret{ font-size:10px; opacity:.85; }
 
+/* Píldora central más compacta */
 .nav-pill{
-  justify-self:center; display:flex; align-items:center; gap:3px; max-width:100%;
+  justify-self:center; display:flex; align-items:center; gap:2px; max-width:100%;
   background:#0d0d0f; border:1px solid rgba(255,255,255,.09);
-  border-radius:999px; padding:8px 10px; overflow-x:auto; scrollbar-width:none;
+  border-radius:999px; padding:6px 7px; overflow-x:auto; scrollbar-width:none;
 }
 .nav-pill::-webkit-scrollbar{ display:none; }
 .nav-pill a{
-  color:rgba(255,255,255,.72); font-size:16px; font-weight:600;
-  padding:11px 21px; border-radius:999px; white-space:nowrap; text-decoration:none;
-  display:inline-flex; align-items:center; gap:7px; transition:color .15s;
+  color:rgba(255,255,255,.72); font-size:13.5px; font-weight:600;
+  padding:8px 15px; border-radius:999px; white-space:nowrap; text-decoration:none;
+  display:inline-flex; align-items:center; gap:6px; transition:color .15s;
 }
 .nav-pill a:hover{ color:#fff; }
 .nav-pill a.active{ color:var(--accent); font-style:italic; font-weight:800; }
 
-.nav-badge{ display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--down); color:#fff; font-size:12px; font-weight:800; }
+.nav-badge{ display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--down); color:#fff; font-size:11px; font-weight:800; }
 .nav-badge.zero{ background:rgba(255,255,255,.14); color:rgba(255,255,255,.6); }
 
 .user-pill{
-  display:flex; align-items:center; gap:11px; flex-shrink:0; text-decoration:none;
+  display:flex; align-items:center; gap:10px; flex-shrink:0; text-decoration:none;
   background:var(--accent); color:#000; font-family:var(--font);
-  font-weight:800; font-size:15px; padding:6px 20px 6px 6px; border-radius:999px; border:none; cursor:pointer; white-space:nowrap;
+  font-weight:800; font-size:14px; padding:5px 17px 5px 5px; border-radius:999px; border:none; cursor:pointer; white-space:nowrap;
 }
-.user-pill .uava{ width:38px; height:38px; border-radius:50%; object-fit:cover; background:#000; display:grid; place-items:center; color:var(--accent); font-size:14px; font-weight:800; overflow:hidden; flex-shrink:0; }
+.user-pill .uava{ width:34px; height:34px; border-radius:50%; object-fit:cover; background:#000; display:grid; place-items:center; color:var(--accent); font-size:13px; font-weight:800; overflow:hidden; flex-shrink:0; }
 
 .login-pill{
-  background:var(--accent); color:#000; font-family:var(--font); font-weight:800; font-size:15px;
-  padding:13px 24px; border-radius:999px; text-decoration:none; cursor:pointer; border:none; white-space:nowrap; flex-shrink:0;
+  background:var(--accent); color:#000; font-family:var(--font); font-weight:800; font-size:14px;
+  padding:11px 21px; border-radius:999px; text-decoration:none; cursor:pointer; border:none; white-space:nowrap; flex-shrink:0;
 }
-.logout-link{ background:none; border:none; color:var(--muted); font-family:var(--font); font-size:14px; font-weight:600; cursor:pointer; flex-shrink:0; }
+.logout-link{ background:none; border:none; color:var(--muted); font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; flex-shrink:0; }
 .logout-link:hover{ color:#fff; }
 
 @media (max-width:1000px){
-  header .nav{ height:92px; gap:10px; }
-  .brand img{ height:62px; }
+  header .nav{ height:92px; gap:12px; }
+  .brand img{ height:70px; }
   .season-pill{ display:none; }
 }
 @media (max-width:640px){
-  header .nav{ height:74px; }
-  .brand img{ height:50px; }
+  header .nav{ height:76px; }
+  .brand img{ height:54px; }
   .nav-left,.nav-right{ gap:10px; }
 }

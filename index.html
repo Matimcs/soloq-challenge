@@ -175,7 +175,7 @@
   .badge-ingame{ font-size:9px; font-weight:800; letter-spacing:.06em; color:var(--up); background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); padding:2px 6px; border-radius:5px; }
 
   /* rol */
-  .role-ico{ width:20px; height:20px; opacity:.92; }
+  .role-ico{ width:22px; height:22px; object-fit:contain; opacity:.95; vertical-align:middle; }
   .role-none{ font-size:13px; color:var(--muted-2); }
   .role-lbl{ display:inline-block; font-size:12px; font-weight:600; color:var(--text); padding:2px 9px; border-radius:6px; background:rgba(255,255,255,.06); border:1px solid var(--line); }
 
@@ -477,9 +477,14 @@ function roleFor(p){
   if (p.role && p.role !== '—' && p.role !== '–') return p.role;
   return null;
 }
+const ROLE_ICON = { 'Top':'top', 'Jungla':'jg', 'Medio':'mid', 'ADC':'adc', 'Support':'support' };
 function roleCell(p){
   const r = roleFor(p);
-  return r ? '<span class="role-lbl">' + r + '</span>' : '<span class="role-none">–</span>';
+  if (!r) return '<span class="role-none">–</span>';
+  const slug = ROLE_ICON[r];
+  return slug
+    ? `<img class="role-ico" src="overlay/assets/roles/${slug}.webp" alt="${r}" title="${r}">`
+    : `<span class="role-lbl">${r}</span>`;
 }
 function avaHtml(rid, nm, cls){
   cls = cls || 'ava'; const src = avaSrc(rid, nm);
