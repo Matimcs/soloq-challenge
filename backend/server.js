@@ -249,13 +249,9 @@ function startEmbeddedRunner(){
       for (const puuid in seed){
         const s = seed[puuid] || {};
         const c = cur[puuid] || (cur[puuid] = { games:[], lpGames:[], lastAbsLP:null });
-        const lpSeen = new Set((c.lpGames||[]).map(g=>g.end));
-        (s.lpGames||[]).forEach(g=>{ if(!lpSeen.has(g.end)){ c.lpGames.push(g); lpSeen.add(g.end); } });
-        c.lpGames.sort((a,b)=>(b.end||0)-(a.end||0)); c.lpGames = c.lpGames.slice(0,40);
-        const gSeen = new Set((c.games||[]).map(g=>g.id));
-        (s.games||[]).forEach(g=>{ if(!gSeen.has(g.id)){ c.games.push(g); gSeen.add(g.id); } });
-        c.games.sort((a,b)=>(b.end||0)-(a.end||0)); c.games = c.games.slice(0,15);
+        c.lpGames = (s.lpGames || []).slice(0, 40);   // el seed es la línea base de ±LP al arrancar; lo vivo se apila encima
         if (c.lastAbsLP == null && s.lastAbsLP != null) c.lastAbsLP = s.lastAbsLP;
+        if ((!c.games || !c.games.length) && s.games) c.games = s.games;
       }
       fs.writeFileSync(file, JSON.stringify(cur));
     }

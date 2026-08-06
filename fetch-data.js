@@ -25,7 +25,7 @@ const RIOT_IDS = [
   'Yoyobox#1899', 'SKT T1 seiya157#LAS', 'Kriida#7777', 'HudsonHornet#gueon',
   'Yutsero#LAS', 'Lacosabuena#LAS', 'Dekai#LAS', 'vishh#LAS', 'kıwı#wıkı',
   'elmaio04#LAS', 'DeSean#Elba', 'Henry Miller#379',
-  'AntisionistaSion#SMURF', 'Hunßatz#LAS',
+  'AntisionistaSion#SMURF', 'Hunßatz#LAS', 'pancho pistolas2#LAS',
 ];
 
 const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
