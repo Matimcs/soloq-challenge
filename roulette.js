@@ -55,11 +55,38 @@ window.SQCRoulette = (function(){
       .sqcr-result{ min-height:26px; font-size:16px; font-weight:800; color:var(--accent,#e9ff1f); opacity:0; transition:opacity .3s; }
       .sqcr-overlay.done .sqcr-result{ opacity:1; }
       .sqcr-hint{ font-size:11px; color:rgba(255,255,255,.35); margin-top:8px; opacity:0; transition:opacity .3s; }
-      .sqcr-overlay.done .sqcr-hint{ opacity:1; }`;
+      .sqcr-overlay.done .sqcr-hint{ opacity:1; }
+      .sqcr-spinner{ width:54px; height:54px; border-radius:50%; border:4px solid rgba(255,255,255,.15); border-top-color:var(--accent,#e9ff1f); animation:sqcr-spin .8s linear infinite; }
+      @keyframes sqcr-spin{ to{ transform:rotate(360deg); } }`;
     document.head.appendChild(s);
   }
 
   function slugFor(name){ const f = CASTIGOS.find(c => c[0] === name); return f ? f[1] : 'reverse'; }
+
+  // Precarga las 11 imágenes de castigos. Resuelve cuando todas cargaron.
+  function preloadImages(imgBase){
+    imgBase = imgBase || 'overlay/assets/shells/';
+    return Promise.all(CASTIGOS.map(([,slug]) => new Promise(res => {
+      const im = new Image(); im.onload = im.onerror = () => res(); im.src = imgBase + slug + '.png';
+    })));
+  }
+  // Espera a que el audio esté listo para reproducirse sin cortes (o timeout).
+  function waitAudio(audio, maxMs){
+    return new Promise(res => {
+      if (!audio) return res();
+      if (audio.readyState >= 4) return res();   // HAVE_ENOUGH_DATA
+      let done = false; const finish = () => { if (done) return; done = true; res(); };
+      audio.addEventListener('canplaythrough', finish, { once:true });
+      setTimeout(finish, maxMs || 5000);
+    });
+  }
+  // Círculo de carga a pantalla completa (mientras se precarga todo).
+  function loading(on){
+    injectCss();
+    let el = document.getElementById('sqcr-loading');
+    if (on){ if (!el){ el = document.createElement('div'); el.id = 'sqcr-loading'; el.className = 'sqcr-overlay'; el.innerHTML = '<div class="sqcr-spinner"></div>'; document.body.appendChild(el); } }
+    else if (el){ el.remove(); }
+  }
 
   function show(opts){
     opts = opts || {};
@@ -129,5 +156,5 @@ window.SQCRoulette = (function(){
   // Precarga (web): calienta el caché de las 11 imágenes al cargar la página.
   try { CASTIGOS.forEach(([,slug]) => { const im = new Image(); im.src = 'overlay/assets/shells/' + slug + '.png'; }); } catch(e){}
 
-  return { show, CASTIGOS, slugFor };
+  return { show, CASTIGOS, slugFor, preloadImages, waitAudio, loading };
 })();

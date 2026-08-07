@@ -34,21 +34,29 @@
 
   ipcRenderer.on('bs-event', (_e, ev) => {
     const from = ev.from || 'Alguien', castigo = ev.castigo || 'Reverse';
+    const audio = new Audio(AUDIO); audio.preload = 'auto';
     if (ev.mode === 'roulette'){
-      // Fuera de partida: ruleta completa con sonido
-      SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO,
-        title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
-      setTimeout(done, 11000);   // auto-cierre de respaldo
+      // Fuera de partida: precarga TODO (círculo de carga) y arranca audio+ruleta juntos.
+      SQCRoulette.loading(true);
+      Promise.all([ SQCRoulette.waitAudio(audio), SQCRoulette.preloadImages(IMG) ]).then(() => {
+        SQCRoulette.loading(false);
+        try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
+        SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio,
+          title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
+        setTimeout(done, 12000);   // auto-cierre de respaldo
+      });
     } else {
-      // En partida: solo sonido + notificación pequeña al seg 3.48 (no invasiva)
-      let audio; try { audio = new Audio(AUDIO); audio.play().catch(()=>{}); } catch(e){}
-      setTimeout(() => {
-        document.getElementById('ni').src = IMG + (SLUG[castigo] || 'reverse') + '.png';
-        document.getElementById('nt').innerHTML = '🛡 <b>' + from + '</b> te lanzó una Blue Shell';
-        document.getElementById('nc').textContent = castigo;
-        document.getElementById('notif').style.display = 'flex';
-      }, 4140);
-      setTimeout(done, 4140 + 7000);   // se cierra sola ~7s después de aparecer
+      // En partida: precarga el audio (sin cubrir la pantalla), arranca el sonido y al seg 4.14 la notificación pequeña.
+      SQCRoulette.waitAudio(audio).then(() => {
+        try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
+        setTimeout(() => {
+          document.getElementById('ni').src = IMG + (SLUG[castigo] || 'reverse') + '.png';
+          document.getElementById('nt').innerHTML = '🛡 <b>' + from + '</b> te lanzó una Blue Shell';
+          document.getElementById('nc').textContent = castigo;
+          document.getElementById('notif').style.display = 'flex';
+        }, 4140);
+        setTimeout(done, 4140 + 7000);   // se cierra sola ~7s después de aparecer
+      });
     }
   });
 </script>
