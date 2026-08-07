@@ -7,7 +7,7 @@
    Cada una se mueve y se activa/desactiva por separado.
    Solo tiene en cuenta partidas de SoloQ (queue 420).
    ============================================================ */
-const { app, BrowserWindow, screen, ipcMain, globalShortcut } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, globalShortcut, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -34,15 +34,13 @@ const SHELL_IMG = {
 };
 // URL absoluta file:// de la imagen (robusto en Electron; la relativa fallaba)
 function shellImgUrl(name){ const s = SHELL_IMG[name]; return s ? pathToFileURL(path.join(__dirname, 'assets', 'shells', s + '.png')).href : ''; }
-// Castigos de PRUEBA: se leen de overlay/mock-castigos.json (sin líos de escaping en cmd).
-// Formato: [ { "from":"Petu", "to":"Hunßatz#LAS", "name":"Campeón aleatorio" }, ... ]
-// Se re-lee en cada ciclo, así puedes editar el archivo en vivo. Si no existe → sin castigos.
-function mockCastigos(){
-  try {
-    const arr = JSON.parse(fs.readFileSync(path.join(__dirname, 'mock-castigos.json'), 'utf8'));
-    if (Array.isArray(arr)) return arr.filter(c => c && c.name).map(c => ({ name: c.name, from: c.from || null, to: c.to || null, img: shellImgUrl(c.name) }));
-  } catch {}
-  return [];
+// Castigos actuales del jugador = las Blue Shells recibidas pendientes (para el popup).
+// Las llena pollShells desde el backend (ya no hay castigos de prueba).
+let myShells = [];
+function myCastigosForPopup(){
+  return (myShells || [])
+    .filter(s => s.estado !== 'cumplido')
+    .map(s => ({ name: s.castigo, from: s.from || null, to: 'tú', img: shellImgUrl(s.castigo) }));
 }
 
 // LP absoluto (para calcular distancia al jugador de arriba)
@@ -163,6 +161,25 @@ function createWindows(){
   bsWin.setAlwaysOnTop(true, 'screen-saver'); bsWin.loadFile(path.join(__dirname, 'bs-event.html'));
 }
 
+// Ícono en la bandeja (íconos ocultos) con menú para cerrar el overlay.
+let tray;
+function createTray(){
+  try {
+    const raw = nativeImage.createFromPath(path.join(__dirname, 'assets', 'logo.png'));
+    tray = new Tray(raw.isEmpty() ? nativeImage.createEmpty() : raw.resize({ width: 18, height: 18 }));
+    tray.setToolTip('SoloQ Overlay');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: 'SoloQ Challenge — Overlay', enabled: false },
+      { type: 'separator' },
+      { label: 'Panel de la web (Alt+X)', click: () => { if (bigWin) bigWin.isVisible() ? bigWin.hide() : bigWin.show(); } },
+      { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
+      { type: 'separator' },
+      { label: 'Salir', click: () => app.quit() },
+    ]));
+    tray.on('double-click', () => { if (win) win.isVisible() ? win.hide() : win.showInactive(); });
+  } catch (e) { console.error('tray:', e.message); }
+}
+
 // ---- Drag / resize (dirigido a la ventana que envía) ----
 ipcMain.on('drag-start', (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w._d = { dx: mx - b.x, dy: my - b.y }; });
 ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && w._d) w.setPosition(Math.round(mx - w._d.dx), Math.round(my - w._d.dy)); });
@@ -196,7 +213,7 @@ ipcMain.handle('get-settings', () => settings);
 async function poll(){
   const roster = loadRoster();
   const creds = getCreds();
-  let payload = { connected: false, ddVer: DD && DD.ver, castigos: mockCastigos() };
+  let payload = { connected: false, ddVer: DD && DD.ver, castigos: myCastigosForPopup() };
 
   try {
     if (creds){
@@ -274,6 +291,7 @@ async function pollShells(){
     if (!r.ok){ dlog(`pollShells: HTTP ${r.status} rid=${myRidForShells}`); return; }
     const shells = await r.json();
     if (!Array.isArray(shells)) return;
+    myShells = shells;   // alimenta el popup con tus castigos reales
     // Solo las recibidas DESPUÉS de abrir el overlay (margen de 60s por desfase de reloj) y no mostradas aún.
     const nuevas = shells
       .filter(s => !shownShellIds.has(s.id) && new Date(s.created_at).getTime() > OVERLAY_START - 60000)
@@ -287,6 +305,7 @@ async function pollShells(){
 
 app.whenReady().then(async () => {
   createWindows();
+  createTray();
   applyOpacity(); applyAlwaysOnTop();
   if (!settings.smallVisible){ smallShown = false; win.hide(); }
   if (!settings.shellVisible){ shellShown = false; shellWin.hide(); }

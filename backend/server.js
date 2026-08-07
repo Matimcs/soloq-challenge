@@ -107,7 +107,7 @@ app.get('/api/overlay/shells', wrap(async (req,res) => {
   if (!riotid) return res.json([]);
   const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
   if (!u) return res.json([]);
-  res.json(await q(`SELECT id, castigo, other AS "from", created_at FROM events
+  res.json(await q(`SELECT id, castigo, other AS "from", estado, created_at FROM events
     WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [u.id]));
 }));
 
