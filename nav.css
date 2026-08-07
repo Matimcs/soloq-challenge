@@ -13,7 +13,7 @@ header{
 }
 /* Grid 1fr | auto | 1fr → la píldora central queda centrada y los lados
    (logo/temporada e usuario) quedan a su izquierda y derecha, sin solaparse. */
-header .nav{ display:grid; grid-template-columns:1fr minmax(0,auto) 1fr; align-items:center; gap:30px; height:148px; }
+header .nav{ display:grid; grid-template-columns:1fr minmax(0,auto) 1fr; align-items:center; gap:30px; height:148px; max-width:1200px; margin:0 auto; }
 
 /* El logo se pega al lado IZQUIERDO de la píldora y el perfil al DERECHO,
    a la misma distancia (el gap). Si algo desborda, lo hace hacia afuera,

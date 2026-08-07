@@ -141,7 +141,7 @@
       const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
       const cj = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/en_US/champion.json`)).json();
       const dl = $('champlist'); dl.innerHTML = '';
-      Object.values(cj.data).sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+      Object.values(cj.data).filter(c => !c.id.includes('_')).sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
         CHAMP_MAP[normChamp(c.name)] = c.id; CHAMP_MAP[normChamp(c.id)] = c.id;
         const o = document.createElement('option'); o.value = c.name; dl.appendChild(o);
       });

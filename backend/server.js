@@ -47,7 +47,7 @@ async function loadChampions(){
   try {
     DD_VER = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0] || DD_VER;
     const cj = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${DD_VER}/data/en_US/champion.json`)).json();
-    CHAMP_IDS = Object.values(cj.data).map(c => c.id);
+    CHAMP_IDS = Object.values(cj.data).filter(c => !c.id.includes('_')).map(c => c.id);
     console.log(`✔ ${CHAMP_IDS.length} campeones (DDragon ${DD_VER})`);
   } catch (e) { console.error('champions:', e.message); }
 }
