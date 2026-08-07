@@ -8,6 +8,8 @@
    ============================================================ */
 const CLUSTER = 'americas', PLATFORM = 'la2';
 const FLASH = 4;
+const POTIONS = [2003, 2031, 2033];    // pociones: vida / recargable / corruptora
+const CONTROL_WARD = 2055;             // pink / guardián de control
 const POS = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Medio', BOTTOM:'ADC', UTILITY:'Support' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -40,6 +42,19 @@ const CHECKS = {
     if (!inS1 && !inS2) return false;
     return ctx.flashSlot === 1 ? inS2 : inS1;
   },
+  // Jugó el campeón que le tocó al sortear (events.extra).
+  'Campeón aleatorio':                (me, ctx) => !!ctx.extra && me.championName === ctx.extra,
+  // Sin pociones (laners) o sin pinks (jungla). Requiere la timeline (las compras).
+  'Sin pociones ni pinks':            async (me, ctx, h) => {
+    const tl = await riot(`https://${CLUSTER}.api.riotgames.com/lol/match/v5/matches/${h.matchId}/timeline`, h.KEY);
+    await sleep(120);
+    if (!tl || !tl.info || !Array.isArray(tl.info.frames)) return false;
+    const forbidden = me.teamPosition === 'JUNGLE' ? [CONTROL_WARD] : POTIONS;
+    for (const fr of tl.info.frames)
+      for (const ev of (fr.events || []))
+        if (ev.type === 'ITEM_PURCHASED' && ev.participantId === me.participantId && forbidden.includes(ev.itemId)) return false;
+    return true;   // no compró lo prohibido → cumplido
+  },
 };
 const AUTO = Object.keys(CHECKS);
 
@@ -47,7 +62,7 @@ async function runCheck({ q, KEY }){
   if (!KEY) return;
   let pend;
   try {
-    pend = await q(`SELECT e.id, e.castigo, e.created_at, u.riotid, u.pos1, u.pos2, u.champ1, u.champ2, u.champ3, u.flash_slot
+    pend = await q(`SELECT e.id, e.castigo, e.created_at, e.extra, u.riotid, u.pos1, u.pos2, u.champ1, u.champ2, u.champ3, u.flash_slot
       FROM events e JOIN users u ON u.id = e.user_id
       WHERE e.kind='received' AND e.estado='pendiente' AND e.castigo = ANY($1)
       ORDER BY e.id LIMIT 12`, [AUTO]);
@@ -63,14 +78,14 @@ async function runCheck({ q, KEY }){
       await sleep(120);
       if (!Array.isArray(ids) || !ids.length) continue;
 
-      const ctx = { pos1: p.pos1, pos2: p.pos2, champ1: p.champ1, champ2: p.champ2, champ3: p.champ3, flashSlot: p.flash_slot };
+      const ctx = { pos1: p.pos1, pos2: p.pos2, champ1: p.champ1, champ2: p.champ2, champ3: p.champ3, flashSlot: p.flash_slot, extra: p.extra };
       let cumplido = false;
       for (const id of ids){
         const m = await riot(`https://${CLUSTER}.api.riotgames.com/lol/match/v5/matches/${id}`, KEY);
         await sleep(120);
         if (!m || !m.info) continue;
         const me = (m.info.participants || []).find(x => x.puuid === puuid);
-        if (me && CHECKS[p.castigo](me, ctx)){ cumplido = true; break; }
+        if (me && await CHECKS[p.castigo](me, ctx, { matchId: id, puuid, KEY })){ cumplido = true; break; }
       }
       if (cumplido){
         await q("UPDATE events SET estado='cumplido' WHERE id=$1", [p.id]);

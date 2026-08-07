@@ -30,7 +30,7 @@ const SHELLS = [
   { name:'Sin tus 3 campeones más jugados', w:17 }, { name:'Una partida con Yuumi', w:11 },
   { name:'Campeón aleatorio', w:11 }, { name:'Sin Flash', w:11 }, { name:'Autofill', w:11 },
   { name:'Sin botas y sin pies veloces', w:11 }, { name:'Hechizos cambiados', w:6 },
-  { name:'Sensibilidad x2', w:6 }, { name:'Sin objetos completos hasta min 15', w:6 },
+  { name:'Sin pociones ni pinks', w:6 }, { name:'Sin objetos completos hasta min 15', w:6 },
   { name:'Reverse', w:6 }, { name:'Runas predeterminadas', w:4 },
 ];
 const MAX_SHELLS = 3;
@@ -72,7 +72,7 @@ const requireAdmin = (req,res,next) => req.user.is_admin ? next() : res.status(4
 // ================= AUTH =================
 app.post('/api/register', wrap(async (req,res) => {
   const b = req.body || {};
-  for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2','avatar','champ1','champ2','champ3'])
+  for (const f of ['email','password','nickname','realname','riotid','main','discord','pos1','pos2','avatar','champ1','champ2','champ3'])
     if (!b[f]) return res.status(400).json({ error:`Falta el campo: ${f}` });
   if (!/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
   const flash = Number(b.flashSlot);

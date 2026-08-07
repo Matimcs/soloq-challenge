@@ -14,7 +14,7 @@ window.SQCRoulette = (function(){
     ['Autofill','autofill'],
     ['Sin botas y sin pies veloces','sin-botas'],
     ['Hechizos cambiados','hechizos-cambiados'],
-    ['Sensibilidad x2','sensibilidad-x2'],
+    ['Sin pociones ni pinks','sin-pociones'],
     ['Sin objetos completos hasta min 15','sin-objetos-min15'],
     ['Reverse','reverse'],
     ['Runas predeterminadas','runas-predeterminadas'],

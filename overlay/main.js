@@ -30,7 +30,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const SHELL_IMG = {
   'Sin tus 3 campeones más jugados': 'sin-3-campeones', 'Una partida con Yuumi': 'yuumi', 'Campeón aleatorio': 'campeon-aleatorio',
   'Sin Flash': 'sin-flash', 'Autofill': 'autofill', 'Sin botas y sin pies veloces': 'sin-botas', 'Hechizos cambiados': 'hechizos-cambiados',
-  'Sensibilidad x2': 'sensibilidad-x2', 'Sin objetos completos hasta min 15': 'sin-objetos-min15', 'Reverse': 'reverse', 'Runas predeterminadas': 'runas-predeterminadas',
+  'Sin pociones ni pinks': 'sin-pociones', 'Sin objetos completos hasta min 15': 'sin-objetos-min15', 'Reverse': 'reverse', 'Runas predeterminadas': 'runas-predeterminadas',
 };
 // URL absoluta file:// de la imagen (robusto en Electron; la relativa fallaba)
 function shellImgUrl(name){ const s = SHELL_IMG[name]; return s ? pathToFileURL(path.join(__dirname, 'assets', 'shells', s + '.png')).href : ''; }
@@ -315,7 +315,7 @@ app.whenReady().then(async () => {
   globalShortcut.register('Alt+X', () => { if (bigWin) bigWin.isVisible() ? bigWin.hide() : bigWin.show(); });
   // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
   globalShortcut.register('Alt+B', () => {
-    const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sensibilidad x2','Runas predeterminadas','Sin botas y sin pies veloces'];
+    const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sin pociones ni pinks','Runas predeterminadas','Sin botas y sin pies veloces'];
     showBlueShellEvent({ castigo: cs[Math.floor(Math.random() * cs.length)], from: 'Prueba' });
   });
   console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.' + (KEY ? '' : '  (sin Riot key: rango/runas deshabilitados)'));
