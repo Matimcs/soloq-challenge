@@ -23,7 +23,7 @@ const { runCheck } = require('./checker');
 
 const PORT = process.env.PORT || 8123;
 const JWT_SECRET = process.env.JWT_SECRET || 'sqc-dev-secret-cambiar-en-produccion';
-const ADMIN_RID = 'SionAntisionista#SAS';
+const ADMIN_RIDS = new Set(['SionAntisionista#SAS', 'SKT T1 seiya157#LAS']);
 const ROOT = path.join(__dirname, '..');
 
 const SHELLS = [
@@ -82,7 +82,7 @@ app.post('/api/register', wrap(async (req,res) => {
   const hash = await bcrypt.hash(b.password, 10);
   const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,confirmed,is_admin)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,false,$15) RETURNING *`,
-    [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, b.riotid === ADMIN_RID]);
+    [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, ADMIN_RIDS.has(b.riotid)]);
   res.json({ token: sign(u), user: publicUser(u) });
 }));
 
