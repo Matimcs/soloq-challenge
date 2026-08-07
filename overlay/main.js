@@ -58,8 +58,13 @@ let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGa
 try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
 function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch {} }
 
+// Log de diagnóstico (en la carpeta de datos del usuario)
+let DEBUG_LOG; try { DEBUG_LOG = path.join(app.getPath('userData'), 'overlay-debug.log'); } catch { DEBUG_LOG = path.join(__dirname, 'overlay-debug.log'); }
+function dlog(m){ try { fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} }
+
 let DD = null, cachedMatchup = null, myApiPuuid = null, myRidForShells = null;
-let lastShellId = (typeof settings.lastShellId === 'number') ? settings.lastShellId : null;
+const OVERLAY_START = Date.now();
+let shownShellIds = new Set(Array.isArray(settings.shownShellIds) ? settings.shownShellIds : []);
 
 // El roster/standing se baja del backend (players.json), no de un archivo local:
 // así el .exe es independiente y usa datos frescos de la nube.
@@ -205,6 +210,7 @@ async function poll(){
       const inSoloQ = queueId === 420 && phase === 'InProgress';
 
       const myRid = (me && !me.error) ? `${me.gameName}#${me.tagLine}` : null;
+      if (myRid !== myRidForShells) dlog('myRid = ' + myRid);
       myRidForShells = myRid;
       const players = roster.players || [];
       const idx = players.findIndex(p => p.rid === myRid);
@@ -251,28 +257,32 @@ async function poll(){
 // ---- Blue Shells recibidas: ruleta (fuera de partida) / notificación (en partida) ----
 ipcMain.on('bs-done', () => { if (bsWin && !bsWin.isDestroyed()) bsWin.hide(); });
 function showBlueShellEvent(s){
-  if (!bsWin || bsWin.isDestroyed()) return;
+  if (!bsWin || bsWin.isDestroyed()){ dlog('showBlueShellEvent: bsWin no disponible'); return; }
   const d = defaults();
   const mode = lastInGame ? 'notif' : 'roulette';
+  dlog(`showBlueShellEvent: ${s.from} → ${s.castigo} (${mode})`);
   if (mode === 'roulette'){ const W = 680, H = 380; bsWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - W) / 2), y: Math.round(d.wa.y + (d.wa.height - H) / 2), width: W, height: H }); }
   else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
   bsWin.showInactive();
   bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien' });
 }
 async function pollShells(){
-  if (!myRidForShells || !bsWin) return;
+  if (!bsWin) return;
+  if (!myRidForShells){ dlog('pollShells: sin myRid (¿LoL abierto en tu cuenta registrada?)'); return; }
   try {
     const r = await fetch(`${BACKEND}/api/overlay/shells?riotid=${encodeURIComponent(myRidForShells)}`);
-    if (!r.ok) return;
+    if (!r.ok){ dlog(`pollShells: HTTP ${r.status} rid=${myRidForShells}`); return; }
     const shells = await r.json();
-    if (!Array.isArray(shells) || !shells.length) return;
-    const maxId = shells[0].id;
-    if (lastShellId == null){ lastShellId = maxId; settings.lastShellId = maxId; saveSettings(); return; }  // baseline: no repite las viejas
-    const nuevas = shells.filter(s => s.id > lastShellId).sort((a, b) => a.id - b.id);
+    if (!Array.isArray(shells)) return;
+    // Solo las recibidas DESPUÉS de abrir el overlay (margen de 60s por desfase de reloj) y no mostradas aún.
+    const nuevas = shells
+      .filter(s => !shownShellIds.has(s.id) && new Date(s.created_at).getTime() > OVERLAY_START - 60000)
+      .sort((a, b) => a.id - b.id);
     if (!nuevas.length) return;
-    lastShellId = maxId; settings.lastShellId = maxId; saveSettings();
-    nuevas.forEach((s, i) => setTimeout(() => showBlueShellEvent(s), i * 12000));   // espaciadas si llegan varias
-  } catch {}
+    dlog(`pollShells: rid=${myRidForShells} nuevas=${nuevas.map(s => s.id + ':' + s.castigo).join(', ')} inGame=${lastInGame}`);
+    nuevas.forEach((s, i) => { shownShellIds.add(s.id); setTimeout(() => showBlueShellEvent(s), i * 12000); });
+    settings.shownShellIds = [...shownShellIds].slice(-80); saveSettings();
+  } catch (e) { dlog('pollShells error: ' + (e && e.message)); }
 }
 
 app.whenReady().then(async () => {
