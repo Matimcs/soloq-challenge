@@ -91,32 +91,43 @@ window.SQCRoulette = (function(){
     // audio: usa el que ya venía sonando (para no perder el gesto del click) o crea uno
     let audio = opts.audio;
     if (!audio){ try { audio = new Audio(audioUrl); audio.play().catch(()=>{}); } catch(e){} }
-    const elapsed = (audio && audio.currentTime) ? audio.currentTime*1000 : 0;
-    const dur = Math.max(600, REVEAL_MS - elapsed);   // aterriza en el seg 3.48 del audio
 
     const stripEl = overlay.querySelector('.sqcr-strip');
     const trackEl = overlay.querySelector('.sqcr-track');
     const winEl   = overlay.querySelector(`.sqcr-card[data-i="${winIdx}"]`);
 
-    requestAnimationFrame(() => {
+    let closed = false;
+    function close(){ if (closed) return; closed = true; try{ overlay.remove(); }catch(e){} try{ if(audio){audio.pause();} }catch(e){} onDone(); }
+
+    function startSpin(){
+      const elapsed = (audio && audio.currentTime) ? audio.currentTime*1000 : 0;
+      const dur = Math.max(600, REVEAL_MS - elapsed);   // aterriza en el seg 4.14 del audio
       const target = (winEl.offsetLeft + winEl.offsetWidth/2) - trackEl.clientWidth/2
         + (Math.random()-0.5) * winEl.offsetWidth * 0.4;   // jitter leve (queda sobre la carta)
       // easeOutCirc: mantiene la velocidad alta y frena de golpe al final (menos predecible)
       stripEl.style.transition = `transform ${dur}ms cubic-bezier(0,.55,.45,1)`;
       requestAnimationFrame(() => { stripEl.style.transform = `translateX(${-target}px)`; });
-    });
+      setTimeout(() => {
+        if (winEl) winEl.classList.add('win');
+        overlay.querySelector('.sqcr-result').innerHTML = `<b>${castigo}</b>`;
+        overlay.classList.add('done');
+        setTimeout(() => overlay.addEventListener('click', close), 150);
+      }, dur);
+    }
 
-    let closed = false;
-    function close(){ if (closed) return; closed = true; try{ overlay.remove(); }catch(e){} try{ if(audio){audio.pause();} }catch(e){} onDone(); }
-    setTimeout(() => {
-      if (winEl) winEl.classList.add('win');
-      overlay.querySelector('.sqcr-result').innerHTML = `<b>${castigo}</b>`;
-      overlay.classList.add('done');
-      setTimeout(() => overlay.addEventListener('click', close), 150);
-    }, dur);
+    // Precarga las imágenes ANTES de girar (para que la elegida no aparezca "cargando").
+    // Máximo 1.2s de espera; el audio ya suena mientras tanto (el reveal sigue sincronizado).
+    const slugs = [...new Set(strip.map(c => c[1]))];
+    Promise.race([
+      Promise.all(slugs.map(sl => new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = imgBase + sl + '.png'; }))),
+      new Promise(res => setTimeout(res, 1200)),
+    ]).then(startSpin);
 
     return { close };
   }
+
+  // Precarga (web): calienta el caché de las 11 imágenes al cargar la página.
+  try { CASTIGOS.forEach(([,slug]) => { const im = new Image(); im.src = 'overlay/assets/shells/' + slug + '.png'; }); } catch(e){}
 
   return { show, CASTIGOS, slugFor };
 })();
