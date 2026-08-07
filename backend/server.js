@@ -19,6 +19,7 @@ try {
 } catch {}
 
 const { q, q1, init } = require('./db');
+const { runCheck } = require('./checker');
 
 const PORT = process.env.PORT || 8123;
 const JWT_SECRET = process.env.JWT_SECRET || 'sqc-dev-secret-cambiar-en-produccion';
@@ -360,5 +361,14 @@ function startEmbeddedRunner(){
 }
 
 init()
-  .then(() => app.listen(PORT, () => { console.log(`✔ Backend + web en http://localhost:${PORT}`); startEmbeddedRunner(); }))
+  .then(() => app.listen(PORT, () => {
+    console.log(`✔ Backend + web en http://localhost:${PORT}`);
+    startEmbeddedRunner();
+    // Detección automática de cumplimiento de castigos (cada 3 min) si hay Riot key.
+    if (process.env.RIOT_API_KEY){
+      const check = () => runCheck({ q, KEY: process.env.RIOT_API_KEY }).catch(e => console.error('checker:', e.message));
+      setTimeout(check, 20000);
+      setInterval(check, 180000);
+    }
+  }))
   .catch(e => { console.error('❌ No se pudo conectar a la base de datos:', e.message); process.exit(1); });
