@@ -100,6 +100,17 @@
           <select name="pos2" required><option value="">—</option><option>Top</option><option>Jungla</option><option>Medio</option><option>ADC</option><option>Support</option><option>Fill</option></select></div>
       </div>
 
+      <div class="field"><label>Tus 3 campeones más jugados (recientes) <span class="req">*</span></label>
+        <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+          <input name="champ1" list="champlist" required placeholder="Campeón 1" autocomplete="off">
+          <input name="champ2" list="champlist" required placeholder="Campeón 2" autocomplete="off">
+          <input name="champ3" list="champlist" required placeholder="Campeón 3" autocomplete="off">
+        </div>
+        <div class="hint">Deben existir y estar bien escritos. Se usan para el castigo "sin tus 3 campeones".</div></div>
+      <div class="field"><label>¿En qué slot usas el Flash/Destello? <span class="req">*</span></label>
+        <select name="flashSlot" required><option value="">—</option><option value="1">1er slot (tecla D)</option><option value="2">2do slot (tecla F)</option></select></div>
+      <datalist id="champlist"></datalist>
+
       <label class="check"><input type="checkbox" id="consent" required>
         Acepto las <a href="#">normas del challenge</a> y que la app/overlay lea mis datos de partida (con mi cliente abierto) para mostrar mis estadísticas.</label>
 
@@ -121,6 +132,23 @@
 <script src="api.js"></script>
 <script>
   const $ = id => document.getElementById(id);
+
+  // Campeones (Data Dragon): autocompletar y validar que existan.
+  let CHAMP_MAP = {};
+  const normChamp = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  (async () => {
+    try {
+      const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
+      const cj = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/en_US/champion.json`)).json();
+      const dl = $('champlist'); dl.innerHTML = '';
+      Object.values(cj.data).sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+        CHAMP_MAP[normChamp(c.name)] = c.id; CHAMP_MAP[normChamp(c.id)] = c.id;
+        const o = document.createElement('option'); o.value = c.name; dl.appendChild(o);
+      });
+    } catch (e) {}
+  })();
+  const champId = v => CHAMP_MAP[normChamp(v)] || null;
+
   // Cambio de pestañas
   function setMode(mode){
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
@@ -147,10 +175,15 @@
     if (d.password !== d.password2){ msg.className = 'msg err'; msg.textContent = 'Las contraseñas no coinciden.'; return; }
     if (!/^.+#.+$/.test(d.riotid)){ msg.className = 'msg err'; msg.textContent = 'El Riot ID debe tener formato Nombre#TAG.'; return; }
     if (!avatarData){ msg.className = 'msg err'; msg.textContent = 'Debes adjuntar un avatar.'; return; }
+    const c1 = champId(d.champ1), c2 = champId(d.champ2), c3 = champId(d.champ3);
+    if (!c1 || !c2 || !c3){ msg.className = 'msg err'; msg.textContent = 'Revisa los 3 campeones: deben existir y estar bien escritos.'; return; }
+    if (new Set([c1,c2,c3]).size < 3){ msg.className = 'msg err'; msg.textContent = 'Los 3 campeones deben ser distintos.'; return; }
+    if (d.flashSlot !== '1' && d.flashSlot !== '2'){ msg.className = 'msg err'; msg.textContent = 'Indica en qué slot usas el Flash.'; return; }
     try {
       const res = await SQC.api('/register', { method:'POST', body:{
         email:d.email, password:d.password, nickname:d.nickname, realname:d.realname,
-        riotid:d.riotid, main:d.main, discord:d.discord, pos1:d.pos1, pos2:d.pos2, avatar:avatarData } });
+        riotid:d.riotid, main:d.main, discord:d.discord, pos1:d.pos1, pos2:d.pos2, avatar:avatarData,
+        champ1:c1, champ2:c2, champ3:c3, flashSlot:Number(d.flashSlot) } });
       SQC.setToken(res.token);
       msg.className = 'msg ok'; msg.textContent = `¡Cuenta creada, ${res.user.nickname}! Redirigiendo…`;
       setTimeout(() => { window.location.href = 'blueshell.html'; }, 600);

@@ -40,7 +40,7 @@ let myShells = [];
 function myCastigosForPopup(){
   return (myShells || [])
     .filter(s => s.estado !== 'cumplido')
-    .map(s => ({ name: s.castigo, from: s.from || null, to: 'tú', img: shellImgUrl(s.castigo) }));
+    .map(s => ({ name: s.castigo + (s.extra ? ' (' + s.extra + ')' : ''), from: s.from || null, to: 'tú', img: shellImgUrl(s.castigo) }));
 }
 
 // LP absoluto (para calcular distancia al jugador de arriba)
@@ -281,7 +281,9 @@ function showBlueShellEvent(s){
   if (mode === 'roulette'){ const W = 680, H = 380; bsWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - W) / 2), y: Math.round(d.wa.y + (d.wa.height - H) / 2), width: W, height: H }); }
   else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
   bsWin.showInactive();
-  bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien' });
+  const champ = s.extra || null;
+  const champIcon = (champ && DD) ? `https://ddragon.leagueoflegends.com/cdn/${DD.ver}/img/champion/${champ}.png` : null;
+  bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien', champ, champIcon });
 }
 async function pollShells(){
   if (!bsWin) return;

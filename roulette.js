@@ -30,7 +30,7 @@ window.SQCRoulette = (function(){
         background:rgba(5,6,10,.82); -webkit-backdrop-filter:blur(4px); backdrop-filter:blur(4px);
         font-family:'General Sans',system-ui,-apple-system,'Segoe UI',sans-serif; animation:sqcr-fade .2s ease; }
       @keyframes sqcr-fade{ from{opacity:0} to{opacity:1} }
-      .sqcr-box{ width:min(680px,92vw); background:#0d0e12; border:1px solid rgba(255,255,255,.1); border-radius:18px;
+      .sqcr-box{ position:relative; width:min(680px,92vw); background:#0d0e12; border:1px solid rgba(255,255,255,.1); border-radius:18px;
         padding:22px 20px 24px; box-shadow:0 20px 60px rgba(0,0,0,.6); text-align:center; }
       .sqcr-title{ font-size:18px; font-weight:800; color:#fff; letter-spacing:.01em; }
       .sqcr-sub{ font-size:13px; color:rgba(255,255,255,.55); margin-top:3px; }
@@ -57,7 +57,11 @@ window.SQCRoulette = (function(){
       .sqcr-hint{ font-size:11px; color:rgba(255,255,255,.35); margin-top:8px; opacity:0; transition:opacity .3s; }
       .sqcr-overlay.done .sqcr-hint{ opacity:1; }
       .sqcr-spinner{ width:54px; height:54px; border-radius:50%; border:4px solid rgba(255,255,255,.15); border-top-color:var(--accent,#e9ff1f); animation:sqcr-spin .8s linear infinite; }
-      @keyframes sqcr-spin{ to{ transform:rotate(360deg); } }`;
+      @keyframes sqcr-spin{ to{ transform:rotate(360deg); } }
+      .sqcr-champ-badge{ position:absolute; right:16px; bottom:14px; display:flex; align-items:center; gap:7px; opacity:0; transition:opacity .3s; }
+      .sqcr-overlay.done .sqcr-champ-badge{ opacity:1; }
+      .sqcr-champ-badge img{ width:46px; height:46px; border-radius:50%; border:2px solid var(--accent,#e9ff1f); object-fit:cover; box-shadow:0 0 10px rgba(233,255,31,.4); }
+      .sqcr-champ-badge span{ font-size:12px; font-weight:800; color:#fff; }`;
     document.head.appendChild(s);
   }
 
@@ -112,6 +116,7 @@ window.SQCRoulette = (function(){
         <div class="sqcr-track"><div class="sqcr-pointer"></div><div class="sqcr-strip">${cardsHtml}</div></div>
         <div class="sqcr-result"></div>
         <div class="sqcr-hint">Click para cerrar</div>
+        ${opts.champIcon ? `<div class="sqcr-champ-badge"><img src="${opts.champIcon}" alt="" onerror="this.style.display='none'"><span>${opts.champName || ''}</span></div>` : ''}
       </div>`;
     (opts.mount || document.body).appendChild(overlay);
 

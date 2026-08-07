@@ -67,6 +67,7 @@
   <main class="wrap">
     <h1>Mi perfil</h1>
     <div class="sub">Tus datos del registro. Edita lo que quieras y guarda.</div>
+    <div id="confirm-status" style="font-size:13px;font-weight:700;margin:-14px 0 18px"></div>
 
     <div class="card">
       <form id="form">
@@ -100,6 +101,16 @@
             <select name="pos2" required><option value="">—</option><option>Top</option><option>Jungla</option><option>Medio</option><option>ADC</option><option>Support</option><option>Fill</option></select></div>
         </div>
 
+        <div class="field"><label>Tus 3 campeones más jugados (recientes)</label>
+          <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+            <input name="champ1" list="champlist" placeholder="Campeón 1" autocomplete="off">
+            <input name="champ2" list="champlist" placeholder="Campeón 2" autocomplete="off">
+            <input name="champ3" list="champlist" placeholder="Campeón 3" autocomplete="off">
+          </div></div>
+        <div class="field"><label>¿En qué slot usas el Flash/Destello?</label>
+          <select name="flashSlot"><option value="">—</option><option value="1">1er slot (tecla D)</option><option value="2">2do slot (tecla F)</option></select></div>
+        <datalist id="champlist"></datalist>
+
         <button type="submit" class="submit">Guardar cambios</button>
         <div class="msg" id="msg"></div>
       </form>
@@ -115,14 +126,37 @@
   const $ = id => document.getElementById(id);
   let avatarData = null;
 
+  // Campeones (Data Dragon): autocompletar/validar y mapear id ↔ nombre.
+  let CHAMP_MAP = {}, CHAMP_NAME = {};
+  const normChamp = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const champId = v => CHAMP_MAP[normChamp(v)] || null;
+  async function loadChamps(){
+    try {
+      const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
+      const cj = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/en_US/champion.json`)).json();
+      const dl = $('champlist'); dl.innerHTML = '';
+      Object.values(cj.data).sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+        CHAMP_MAP[normChamp(c.name)] = c.id; CHAMP_MAP[normChamp(c.id)] = c.id; CHAMP_NAME[c.id] = c.name;
+        const o = document.createElement('option'); o.value = c.name; dl.appendChild(o);
+      });
+    } catch (e) {}
+  }
+
   (async () => {
     const user = await SQC.me();
     if (!user){ location.href = 'cuenta.html'; return; }
     SQC.preNav(); SQC.paintNav(user);
 
+    $('confirm-status').innerHTML = user.confirmed
+      ? '<span style="color:var(--up)">✓ Perfil confirmado por la organización</span>'
+      : '<span style="color:#ffd24a">⏳ Perfil por confirmar (pendiente de aprobación del admin)</span>';
+
     // rellenar el formulario con los datos actuales
     const f = $('form');
     ['nickname','realname','email','discord','riotid','main','pos1','pos2'].forEach(k => { if (f[k] != null && user[k] != null) f[k].value = user[k]; });
+    if (user.flashSlot) f.flashSlot.value = user.flashSlot;
+    await loadChamps();
+    ['champ1','champ2','champ3'].forEach(k => { if (user[k]) f[k].value = CHAMP_NAME[user[k]] || user[k]; });
     if (user.avatar){ avatarData = user.avatar; $('avatar-prev').src = user.avatar; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; }
 
     $('avatar-btn').addEventListener('click', () => $('avatar-input').click());
@@ -138,8 +172,12 @@
       const d = Object.fromEntries(new FormData(f).entries());
       const msg = $('msg');
       if (!/^.+#.+$/.test(d.riotid)){ msg.className = 'msg err'; msg.textContent = 'El Riot ID debe tener formato Nombre#TAG.'; return; }
+      const c1 = champId(d.champ1), c2 = champId(d.champ2), c3 = champId(d.champ3);
+      if ((d.champ1 || d.champ2 || d.champ3) && (!c1 || !c2 || !c3)){ msg.className = 'msg err'; msg.textContent = 'Revisa los 3 campeones: deben existir y estar bien escritos.'; return; }
       const body = { nickname:d.nickname, realname:d.realname, email:d.email, discord:d.discord,
-        riotid:d.riotid, main:d.main, pos1:d.pos1, pos2:d.pos2, avatar:avatarData };
+        riotid:d.riotid, main:d.main, pos1:d.pos1, pos2:d.pos2, avatar:avatarData,
+        champ1:c1, champ2:c2, champ3:c3 };
+      if (d.flashSlot) body.flashSlot = Number(d.flashSlot);
       if (d.password) body.password = d.password;
       try {
         const res = await SQC.api('/me/update', { method:'POST', body });

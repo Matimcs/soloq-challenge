@@ -250,7 +250,7 @@
         // Arranca audio (desde 0, con sonido) y ruleta JUNTOS → sincronizados.
         try { if (audio){ audio.currentTime = 0; audio.muted = false; audio.play().catch(()=>{}); } } catch(e){}
         const subtitle = r.bounce ? '↩️ ¡Rebotó! El castigo te toca a TI' : `Le lanzaste una Blue Shell a ${r.target}`;
-        SQCRoulette.show({ castigo: r.castigo, audio, subtitle, onDone: async () => {
+        SQCRoulette.show({ castigo: r.castigo, audio, subtitle, champIcon: r.champIcon, champName: r.champ, onDone: async () => {
           if (r.bounce){ res.className = 'result bounce'; res.innerHTML = `↩️ <b>¡Rebotó!</b> El castigo te toca a TI: <b>${r.castigo}</b>`; }
           else { res.className = 'result ok'; res.innerHTML = `🛡 Le lanzaste una Blue Shell a <b>${r.target}</b>. Le tocó: <b>${r.castigo}</b>`; }
           await refresh();

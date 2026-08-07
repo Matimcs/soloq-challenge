@@ -79,6 +79,13 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Columnas nuevas (perfil): 3 campeones más jugados, slot del Flash, confirmación del admin.
+    ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ1     TEXT;
+    ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ2     TEXT;
+    ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ3     TEXT;
+    ALTER TABLE users  ADD COLUMN IF NOT EXISTS flash_slot INTEGER;   -- 1 (D) | 2 (F)
+    ALTER TABLE users  ADD COLUMN IF NOT EXISTS confirmed  BOOLEAN DEFAULT false;
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS extra      TEXT;       -- ej. campeón aleatorio asignado
   `);
   console.log('✔ Esquema Postgres listo');
 }

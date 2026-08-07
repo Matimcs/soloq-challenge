@@ -109,6 +109,13 @@
       <div class="list" id="rt-list" style="margin-top:12px"></div>
     </div>
 
+    <!-- Perfiles por confirmar -->
+    <div class="box">
+      <h2>Perfiles por confirmar <span class="n" id="cf-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Jugadores recién registrados. Revisa sus datos (Riot ID, campeones, slot de Flash) y confirma.</div>
+      <div class="list" id="cf-list"></div>
+    </div>
+
     <!-- Verificaciones manuales -->
     <div class="box">
       <h2>Verificaciones pendientes <span class="n" id="ver-count"></span></h2>
@@ -271,7 +278,22 @@
       try{ await SQC.api('/admin/penalty', {method:'POST', body:{ userId, castigo }}); toast('Penalización dada'); renderPen(); }catch(e){ toast(e.message); }
     });
 
-    renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen();
+    // ---- Perfiles por confirmar ----
+    async function renderConfirm(){
+      const list = await SQC.api('/admin/unconfirmed');
+      $('cf-count').textContent = `(${list.length})`;
+      $('cf-list').innerHTML = list.length ? list.map(u=>`
+        <div class="item"><div class="info">
+          <div class="t">${u.nickname} — ${u.riotid}</div>
+          <div class="s">${u.pos1||'?'}/${u.pos2||'?'} · Champs: ${[u.champ1,u.champ2,u.champ3].filter(Boolean).join(', ')||'—'} · Flash slot ${u.flashSlot||'?'} · main ${u.main||'—'}</div></div>
+          <div class="acts"><button class="btn btn-ok" data-id="${u.id}">Confirmar</button></div></div>`).join('')
+        : '<div class="empty">No hay perfiles por confirmar.</div>';
+      $('cf-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try{ await SQC.api('/admin/confirm',{method:'POST',body:{userId:Number(b.dataset.id)}}); toast('Perfil confirmado'); renderConfirm(); }catch(e){ toast(e.message); }
+      }));
+    }
+
+    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen();
   })();
 </script>
 </body>

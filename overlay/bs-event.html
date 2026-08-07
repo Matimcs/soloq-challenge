@@ -41,7 +41,7 @@
       Promise.all([ SQCRoulette.waitAudio(audio), SQCRoulette.preloadImages(IMG) ]).then(() => {
         SQCRoulette.loading(false);
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
-        SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio,
+        SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio, champIcon: ev.champIcon, champName: ev.champ,
           title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
         setTimeout(done, 12000);   // auto-cierre de respaldo
       });
@@ -52,7 +52,7 @@
         setTimeout(() => {
           document.getElementById('ni').src = IMG + (SLUG[castigo] || 'reverse') + '.png';
           document.getElementById('nt').innerHTML = '🛡 <b>' + from + '</b> te lanzó una Blue Shell';
-          document.getElementById('nc').textContent = castigo;
+          document.getElementById('nc').textContent = castigo + (ev.champ ? ' — ' + ev.champ : '');
           document.getElementById('notif').style.display = 'flex';
         }, 4140);
         setTimeout(done, 4140 + 7000);   // se cierra sola ~7s después de aparecer

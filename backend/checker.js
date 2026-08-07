@@ -30,8 +30,16 @@ async function getPuuid(riotid, KEY){
 const CHECKS = {
   'Una partida con Yuumi':            (me) => me.championName === 'Yuumi',
   'Sin Flash':                        (me) => me.summoner1Id !== FLASH && me.summoner2Id !== FLASH,
-  'Sin tus 3 campeones más jugados':  (me, ctx) => Array.isArray(ctx.top3) && !ctx.top3.includes(me.championId),
+  // Usa los 3 campeones que declaró el jugador al registrarse (DDragon id).
+  'Sin tus 3 campeones más jugados':  (me, ctx) => { const c = [ctx.champ1, ctx.champ2, ctx.champ3].filter(Boolean); return c.length > 0 && !c.includes(me.championName); },
   'Autofill':                         (me, ctx) => { const p = POS[me.teamPosition]; return !!p && p !== ctx.pos1 && p !== ctx.pos2; },
+  // Flash en el slot CONTRARIO al habitual (flashSlot 1=D, 2=F).
+  'Hechizos cambiados':               (me, ctx) => {
+    if (ctx.flashSlot !== 1 && ctx.flashSlot !== 2) return false;
+    const inS1 = me.summoner1Id === FLASH, inS2 = me.summoner2Id === FLASH;
+    if (!inS1 && !inS2) return false;
+    return ctx.flashSlot === 1 ? inS2 : inS1;
+  },
 };
 const AUTO = Object.keys(CHECKS);
 
@@ -39,7 +47,7 @@ async function runCheck({ q, KEY }){
   if (!KEY) return;
   let pend;
   try {
-    pend = await q(`SELECT e.id, e.castigo, e.created_at, u.riotid, u.pos1, u.pos2
+    pend = await q(`SELECT e.id, e.castigo, e.created_at, u.riotid, u.pos1, u.pos2, u.champ1, u.champ2, u.champ3, u.flash_slot
       FROM events e JOIN users u ON u.id = e.user_id
       WHERE e.kind='received' AND e.estado='pendiente' AND e.castigo = ANY($1)
       ORDER BY e.id LIMIT 12`, [AUTO]);
@@ -55,15 +63,7 @@ async function runCheck({ q, KEY }){
       await sleep(120);
       if (!Array.isArray(ids) || !ids.length) continue;
 
-      // contexto extra según el castigo
-      const ctx = { pos1: p.pos1, pos2: p.pos2 };
-      if (p.castigo === 'Sin tus 3 campeones más jugados'){
-        const top = await riot(`https://${PLATFORM}.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/${puuid}/top?count=3`, KEY);
-        await sleep(120);
-        ctx.top3 = Array.isArray(top) ? top.map(t => t.championId) : null;
-        if (!ctx.top3) continue;   // sin datos de maestría → no evaluamos (queda pendiente)
-      }
-
+      const ctx = { pos1: p.pos1, pos2: p.pos2, champ1: p.champ1, champ2: p.champ2, champ3: p.champ3, flashSlot: p.flash_slot };
       let cumplido = false;
       for (const id of ids){
         const m = await riot(`https://${CLUSTER}.api.riotgames.com/lol/match/v5/matches/${id}`, KEY);

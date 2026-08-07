@@ -41,13 +41,25 @@ function ladderPos(riotid){
     const i = (d.players||[]).findIndex(p => p.rid === riotid); return i >= 0 ? i+1 : null; } catch { return null; }
 }
 
+// Lista de campeones (Data Dragon): para validar los del registro y sortear el "Campeón aleatorio".
+let CHAMP_IDS = [], DD_VER = '15.1.1';
+async function loadChampions(){
+  try {
+    DD_VER = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0] || DD_VER;
+    const cj = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${DD_VER}/data/en_US/champion.json`)).json();
+    CHAMP_IDS = Object.values(cj.data).map(c => c.id);
+    console.log(`✔ ${CHAMP_IDS.length} campeones (DDragon ${DD_VER})`);
+  } catch (e) { console.error('champions:', e.message); }
+}
+const champIconUrl = id => `https://ddragon.leagueoflegends.com/cdn/${DD_VER}/img/champion/${id}.png`;
+
 const app = express();
 app.use(express.json({ limit: '3mb' }));
 app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.header('Access-Control-Allow-Headers','Content-Type,Authorization'); res.header('Access-Control-Allow-Methods','GET,POST,OPTIONS'); if(req.method==='OPTIONS') return res.sendStatus(204); next(); });
 
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
 const sign = u => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
-const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, isAdmin: !!u.is_admin });
+const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!t) return res.status(401).json({ error:'No autenticado' });
@@ -60,14 +72,17 @@ const requireAdmin = (req,res,next) => req.user.is_admin ? next() : res.status(4
 // ================= AUTH =================
 app.post('/api/register', wrap(async (req,res) => {
   const b = req.body || {};
-  for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2','avatar'])
+  for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2','avatar','champ1','champ2','champ3'])
     if (!b[f]) return res.status(400).json({ error:`Falta el campo: ${f}` });
   if (!/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  const flash = Number(b.flashSlot);
+  if (flash !== 1 && flash !== 2) return res.status(400).json({ error:'Indica en qué slot usas el Flash (1 o 2)' });
+  if (CHAMP_IDS.length && ![b.champ1,b.champ2,b.champ3].every(c => CHAMP_IDS.includes(c))) return res.status(400).json({ error:'Algún campeón no existe (revisa que esté bien escrito)' });
   if (await q1('SELECT 1 FROM users WHERE email=$1', [b.email])) return res.status(409).json({ error:'Ese email ya está registrado' });
   const hash = await bcrypt.hash(b.password, 10);
-  const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,is_admin)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-    [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.riotid === ADMIN_RID]);
+  const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,confirmed,is_admin)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,false,$15) RETURNING *`,
+    [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, b.riotid === ADMIN_RID]);
   res.json({ token: sign(u), user: publicUser(u) });
 }));
 
@@ -85,9 +100,19 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
   const b = req.body || {};
   if (b.riotid !== undefined && !/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
   if (b.email){ const other = await q1('SELECT id FROM users WHERE email=$1 AND id<>$2', [b.email, req.user.id]); if (other) return res.status(409).json({ error:'Ese email ya está en uso' }); }
+  if (CHAMP_IDS.length && [b.champ1,b.champ2,b.champ3].some(c => c !== undefined && c && !CHAMP_IDS.includes(c)))
+    return res.status(400).json({ error:'Algún campeón no existe (revisa que esté bien escrito)' });
   const sets = [], vals = []; let i = 1;
-  for (const f of ['nickname','realname','riotid','main','discord','pos1','pos2','avatar','email'])
+  for (const f of ['nickname','realname','riotid','main','discord','pos1','pos2','avatar','email','champ1','champ2','champ3'])
     if (b[f] !== undefined){ sets.push(`${f}=$${i++}`); vals.push(b[f] || null); }
+  if (b.flashSlot !== undefined){ const fl = Number(b.flashSlot); if (fl === 1 || fl === 2){ sets.push(`flash_slot=$${i++}`); vals.push(fl); } }
+  // Si cambian datos que el admin verifica, el perfil vuelve a quedar "por confirmar".
+  const changedVerif = (b.riotid !== undefined && b.riotid !== req.user.riotid)
+    || (b.champ1 !== undefined && b.champ1 !== req.user.champ1)
+    || (b.champ2 !== undefined && b.champ2 !== req.user.champ2)
+    || (b.champ3 !== undefined && b.champ3 !== req.user.champ3)
+    || (b.flashSlot !== undefined && Number(b.flashSlot) !== req.user.flash_slot);
+  if (changedVerif){ sets.push(`confirmed=$${i++}`); vals.push(false); }
   if (b.password){ if (String(b.password).length < 6) return res.status(400).json({ error:'La contraseña debe tener al menos 6 caracteres' });
     sets.push(`password_hash=$${i++}`); vals.push(await bcrypt.hash(b.password, 10)); }
   if (!sets.length) return res.json({ user: publicUser(req.user) });
@@ -108,7 +133,7 @@ app.get('/api/overlay/shells', wrap(async (req,res) => {
   if (!riotid) return res.json([]);
   const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
   if (!u) return res.json([]);
-  res.json(await q(`SELECT id, castigo, other AS "from", estado, created_at FROM events
+  res.json(await q(`SELECT id, castigo, other AS "from", estado, extra, created_at FROM events
     WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [u.id]));
 }));
 
@@ -139,13 +164,17 @@ app.post('/api/blueshells/launch', auth, wrap(async (req,res) => {
   if (castigo === 'Reverse'){ bounce = true; do { castigo = rollShell(); } while (castigo === 'Reverse'); }
   if (Math.random()*100 < reverseChance(ladderPos(target.riotid))) bounce = true;
 
+  // "Campeón aleatorio": se sortea el campeón en el momento y se guarda/devuelve (para el icono).
+  const extra = (castigo === 'Campeón aleatorio' && CHAMP_IDS.length) ? CHAMP_IDS[Math.floor(Math.random()*CHAMP_IDS.length)] : null;
+  const champIcon = extra ? champIconUrl(extra) : null;
+
   if (bounce){
-    await q("INSERT INTO events (kind,user_id,other,castigo,bounce) VALUES ('received',$1,$2,$3,true)", [req.user.id, '↩️ rebote (' + target.nickname + ')', castigo]);
-    return res.json({ bounce:true, castigo, msg:`¡Rebotó! El castigo te toca a TI: ${castigo}` });
+    await q("INSERT INTO events (kind,user_id,other,castigo,extra,bounce) VALUES ('received',$1,$2,$3,$4,true)", [req.user.id, '↩️ rebote (' + target.nickname + ')', castigo, extra]);
+    return res.json({ bounce:true, castigo, champ: extra, champIcon, msg:`¡Rebotó! El castigo te toca a TI: ${castigo}` });
   }
-  await q("INSERT INTO events (kind,user_id,other,castigo) VALUES ('sent',$1,$2,$3)", [req.user.id, target.nickname, castigo]);
-  await q("INSERT INTO events (kind,user_id,other,castigo) VALUES ('received',$1,$2,$3)", [target.id, req.user.nickname, castigo]);
-  res.json({ bounce:false, castigo, target: target.nickname, msg:`Le lanzaste una Blue Shell a ${target.nickname}. Le tocó: ${castigo}` });
+  await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('sent',$1,$2,$3,$4)", [req.user.id, target.nickname, castigo, extra]);
+  await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('received',$1,$2,$3,$4)", [target.id, req.user.nickname, castigo, extra]);
+  res.json({ bounce:false, castigo, target: target.nickname, champ: extra, champIcon, msg:`Le lanzaste una Blue Shell a ${target.nickname}. Le tocó: ${castigo}` });
 }));
 
 app.post('/api/blueshells/:id/cumplido', auth, wrap(async (req,res) => {
@@ -224,6 +253,18 @@ app.post('/api/admin/penalty', auth, requireAdmin, wrap(async (req,res) => {
 }));
 app.post('/api/admin/penalty/remove', auth, requireAdmin, wrap(async (req,res) => {
   await q("DELETE FROM events WHERE id=$1 AND kind='received'", [Number(req.body && req.body.id)]);
+  res.json({ ok:true });
+}));
+
+// ---- Confirmación de perfiles (el registro queda "por confirmar" hasta que el admin lo apruebe) ----
+app.get('/api/admin/unconfirmed', auth, requireAdmin, wrap(async (req,res) =>
+  res.json(await q(`SELECT id, nickname, riotid, pos1, pos2, champ1, champ2, champ3, flash_slot AS "flashSlot", main, discord, created_at
+    FROM users WHERE confirmed = false ORDER BY created_at`))));
+app.post('/api/admin/confirm', auth, requireAdmin, wrap(async (req,res) => {
+  const id = Number(req.body && req.body.userId);
+  const u = id && await q1('SELECT id FROM users WHERE id=$1', [id]);
+  if (!u) return res.status(400).json({ error:'Usuario inválido' });
+  await q('UPDATE users SET confirmed = true WHERE id=$1', [id]);
   res.json({ ok:true });
 }));
 
@@ -363,6 +404,7 @@ function startEmbeddedRunner(){
 init()
   .then(() => app.listen(PORT, () => {
     console.log(`✔ Backend + web en http://localhost:${PORT}`);
+    loadChampions();
     startEmbeddedRunner();
     // Detección automática de cumplimiento de castigos (cada 3 min) si hay Riot key.
     if (process.env.RIOT_API_KEY){
