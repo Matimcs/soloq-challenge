@@ -19,7 +19,7 @@ window.SQCRoulette = (function(){
     ['Reverse','reverse'],
     ['Runas predeterminadas','runas-predeterminadas'],
   ];
-  const REVEAL_MS = 3480;   // el sonido revela al seg 3.48
+  const REVEAL_MS = 4140;   // el sonido revela al seg 4.14
   let injected = false;
 
   function injectCss(){
@@ -68,7 +68,7 @@ window.SQCRoulette = (function(){
     const imgBase  = opts.imgBase  || 'overlay/assets/shells/';
     const audioUrl = opts.audioUrl || 'overlay/assets/Roulette Sound.mp3';
     const onDone   = opts.onDone   || function(){};
-    const CARDS = 60, winIdx = 50;
+    const CARDS = 90, winIdx = 76;   // más recorrido → gira más rápido
 
     const strip = [];
     for (let i = 0; i < CARDS; i++)
@@ -101,7 +101,8 @@ window.SQCRoulette = (function(){
     requestAnimationFrame(() => {
       const target = (winEl.offsetLeft + winEl.offsetWidth/2) - trackEl.clientWidth/2
         + (Math.random()-0.5) * winEl.offsetWidth * 0.4;   // jitter leve (queda sobre la carta)
-      stripEl.style.transition = `transform ${dur}ms cubic-bezier(.12,.82,.16,1)`;
+      // easeOutCirc: mantiene la velocidad alta y frena de golpe al final (menos predecible)
+      stripEl.style.transition = `transform ${dur}ms cubic-bezier(0,.55,.45,1)`;
       requestAnimationFrame(() => { stripEl.style.transform = `translateX(${-target}px)`; });
     });
 
