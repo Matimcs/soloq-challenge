@@ -59,7 +59,7 @@ const requireAdmin = (req,res,next) => req.user.is_admin ? next() : res.status(4
 // ================= AUTH =================
 app.post('/api/register', wrap(async (req,res) => {
   const b = req.body || {};
-  for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2'])
+  for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2','avatar'])
     if (!b[f]) return res.status(400).json({ error:`Falta el campo: ${f}` });
   if (!/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
   if (await q1('SELECT 1 FROM users WHERE email=$1', [b.email])) return res.status(409).json({ error:'Ese email ya está registrado' });
@@ -195,6 +195,24 @@ app.post('/api/admin/revoke', auth, requireAdmin, wrap(async (req,res) => {
   const shell = await q1('SELECT id FROM shells WHERE owner_id=$1 ORDER BY id DESC LIMIT 1', [target.id]);
   if (!shell) return res.status(400).json({ error:`${target.nickname} no tiene Blue Shells` });
   await q('DELETE FROM shells WHERE id=$1', [shell.id]);
+  res.json({ ok:true });
+}));
+
+// ---- Penalizaciones (castigos): dar directamente y quitar pendientes ----
+app.get('/api/admin/penalties', auth, requireAdmin, wrap(async (req,res) =>
+  res.json(await q(`SELECT e.id, e.castigo, e.other, e.created_at, u.nickname AS player
+    FROM events e JOIN users u ON u.id=e.user_id
+    WHERE e.kind='received' AND e.estado='pendiente' ORDER BY e.id DESC`))));
+app.post('/api/admin/penalty', auth, requireAdmin, wrap(async (req,res) => {
+  const { userId, castigo } = req.body || {};
+  const target = userId && await q1('SELECT * FROM users WHERE id=$1', [Number(userId)]);
+  if (!target) return res.status(400).json({ error:'Usuario inválido' });
+  if (!castigo) return res.status(400).json({ error:'Falta el castigo' });
+  await q("INSERT INTO events (kind,user_id,other,castigo) VALUES ('received',$1,'Organización',$2)", [target.id, castigo]);
+  res.json({ ok:true });
+}));
+app.post('/api/admin/penalty/remove', auth, requireAdmin, wrap(async (req,res) => {
+  await q("DELETE FROM events WHERE id=$1 AND kind='received'", [Number(req.body && req.body.id)]);
   res.json({ ok:true });
 }));
 

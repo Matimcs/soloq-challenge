@@ -157,6 +157,7 @@
   </main>
 
 <script src="api.js"></script>
+<script src="roulette.js"></script>
 <script>
   const $ = id => document.getElementById(id);
   const fdate = iso => new Date(iso).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
@@ -234,12 +235,17 @@
       const opt = $('target').selectedOptions[0]; if (!opt || !opt.value) return;
       $('throw').disabled = true;
       const res = $('result');
+      // El audio se dispara YA (dentro del gesto del click) para que el navegador no lo bloquee.
+      let audio; try { audio = new Audio('overlay/assets/Roulette Sound.mp3'); audio.play().catch(()=>{}); } catch(e){}
       try {
         const r = await SQC.api('/blueshells/launch', { method:'POST', body:{ targetId: Number(opt.value) } });
-        if (r.bounce){ res.className = 'result bounce'; res.innerHTML = `↩️ <b>¡Rebotó!</b> El castigo te toca a TI: <b>${r.castigo}</b>`; }
-        else { res.className = 'result ok'; res.innerHTML = `🛡 Le lanzaste una Blue Shell a <b>${r.target}</b>. Le tocó: <b>${r.castigo}</b>`; }
-        await refresh();
-      } catch (err) { res.className = 'result bounce'; res.textContent = err.message; $('throw').disabled = false; }
+        const subtitle = r.bounce ? '↩️ ¡Rebotó! El castigo te toca a TI' : `Le lanzaste una Blue Shell a ${r.target}`;
+        SQCRoulette.show({ castigo: r.castigo, audio, subtitle, onDone: async () => {
+          if (r.bounce){ res.className = 'result bounce'; res.innerHTML = `↩️ <b>¡Rebotó!</b> El castigo te toca a TI: <b>${r.castigo}</b>`; }
+          else { res.className = 'result ok'; res.innerHTML = `🛡 Le lanzaste una Blue Shell a <b>${r.target}</b>. Le tocó: <b>${r.castigo}</b>`; }
+          await refresh();
+        }});
+      } catch (err) { if (audio) audio.pause(); res.className = 'result bounce'; res.textContent = err.message; $('throw').disabled = false; }
     });
 
     await loadTargets();

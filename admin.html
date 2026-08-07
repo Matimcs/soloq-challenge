@@ -35,7 +35,7 @@
   .badge{ font-size:10px; font-weight:800; padding:4px 9px; border-radius:6px; }
   .badge.on{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
   .badge.off{ background:rgba(255,255,255,.06); color:var(--muted); border:1px solid var(--line-2); }
-  input[type=text]{ flex:1; min-width:200px; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:9px 12px; }
+  input[type=text],select{ flex:1; min-width:160px; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:9px 12px; }
   .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:700; }
   .btn-accent{ background:var(--accent); color:#000; } .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
   .btn-ok{ background:rgba(52,211,153,.16); color:var(--up); border:1px solid rgba(52,211,153,.45); }
@@ -126,6 +126,18 @@
     <div class="box">
       <h2>Participantes <span class="n" id="pt-count"></span></h2>
       <table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table>
+    </div>
+
+    <!-- Penalizaciones -->
+    <div class="box">
+      <h2>Penalizaciones <span class="n" id="pen-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Asigna un castigo directamente a un jugador (queda pendiente en sus "recibidas") o quita uno pendiente.</div>
+      <div class="drop-row">
+        <select id="pen-user"></select>
+        <select id="pen-castigo"></select>
+        <button class="btn btn-accent" id="pen-add">Dar penalización</button>
+      </div>
+      <div class="list" id="pen-list" style="margin-top:12px"></div>
     </div>
   </main>
   <div class="toast" id="toast"></div>
@@ -235,7 +247,31 @@
       catch(e){ toast(e.message); }
     });
 
-    renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts();
+    // ---- Penalizaciones ----
+    const CASTIGOS = ['Sin tus 3 campeones más jugados','Una partida con Yuumi','Campeón aleatorio','Sin Flash','Autofill','Sin botas y sin pies veloces','Hechizos cambiados','Sensibilidad x2','Sin objetos completos hasta min 15','Reverse','Runas predeterminadas'];
+    async function renderPen(){
+      const parts = await SQC.api('/admin/participants');
+      $('pen-user').innerHTML = parts.length ? parts.map(p=>`<option value="${p.id}">${p.nickname}</option>`).join('') : '<option value="">— sin participantes —</option>';
+      $('pen-castigo').innerHTML = CASTIGOS.map(c=>`<option>${c}</option>`).join('');
+      const list = await SQC.api('/admin/penalties');
+      $('pen-count').textContent = `(${list.length})`;
+      $('pen-list').innerHTML = list.length ? list.map(p=>`
+        <div class="item"><div class="info"><div class="t">${p.player} — ${p.castigo}</div><div class="s">${p.other||''} · ${fdate(p.created_at)}</div></div>
+          <div class="acts"><button class="btn btn-no" data-id="${p.id}">Quitar</button></div></div>`).join('')
+        : '<div class="empty">Sin penalizaciones pendientes.</div>';
+      $('pen-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        if(!confirm('¿Quitar esta penalización?')) return;
+        try{ await SQC.api('/admin/penalty/remove',{method:'POST',body:{id:Number(b.dataset.id)}}); toast('Penalización quitada'); renderPen(); }catch(e){ toast(e.message); }
+      }));
+    }
+    $('pen-add').addEventListener('click', async () => {
+      const userId = Number($('pen-user').value), castigo = $('pen-castigo').value;
+      if (!userId){ toast('Elige un jugador'); return; }
+      if (!confirm(`¿Dar "${castigo}" a ${$('pen-user').selectedOptions[0].textContent}?`)) return;
+      try{ await SQC.api('/admin/penalty', {method:'POST', body:{ userId, castigo }}); toast('Penalización dada'); renderPen(); }catch(e){ toast(e.message); }
+    });
+
+    renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen();
   })();
 </script>
 </body>
