@@ -101,6 +101,16 @@ app.get('/api/avatars', wrap(async (req,res) => {
   res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, avatar:r.avatar, pos1:r.pos1 })));
 }));
 
+// Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
+app.get('/api/overlay/shells', wrap(async (req,res) => {
+  const riotid = (req.query.riotid || '').trim();
+  if (!riotid) return res.json([]);
+  const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
+  if (!u) return res.json([]);
+  res.json(await q(`SELECT id, castigo, other AS "from", created_at FROM events
+    WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [u.id]));
+}));
+
 // ================= PARTICIPANTES =================
 app.get('/api/participants', auth, wrap(async (req,res) => {
   const rows = await q('SELECT id,nickname,riotid FROM users ORDER BY nickname');

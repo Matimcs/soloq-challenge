@@ -1,0 +1,56 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{ --accent:#e9ff1f; }
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ background:transparent; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; user-select:none; }
+
+  /* Notificación en partida (pequeña, esquina) */
+  .notif{ display:none; align-items:center; gap:12px; margin:10px; padding:12px 14px; border-radius:12px;
+    background:linear-gradient(180deg,#111318,#0c0d11); border:1px solid rgba(255,255,255,.1);
+    box-shadow:0 12px 34px rgba(0,0,0,.55); color:#fff; animation:pop .3s ease; }
+  @keyframes pop{ from{ opacity:0; transform:translateX(16px);} to{ opacity:1; transform:none; } }
+  .notif img{ width:44px; height:44px; object-fit:contain; flex-shrink:0; }
+  .nt{ font-size:12px; color:rgba(255,255,255,.75); }
+  .nt b{ color:var(--accent); }
+  .nc{ font-size:14px; font-weight:800; color:#fff; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="notif" id="notif">
+    <img id="ni" src="" onerror="this.style.visibility='hidden'">
+    <div><div class="nt" id="nt"></div><div class="nc" id="nc"></div></div>
+  </div>
+
+<script src="../roulette.js"></script>
+<script>
+  const { ipcRenderer } = require('electron');
+  const SLUG = { 'Sin tus 3 campeones más jugados':'sin-3-campeones','Una partida con Yuumi':'yuumi','Campeón aleatorio':'campeon-aleatorio','Sin Flash':'sin-flash','Autofill':'autofill','Sin botas y sin pies veloces':'sin-botas','Hechizos cambiados':'hechizos-cambiados','Sensibilidad x2':'sensibilidad-x2','Sin objetos completos hasta min 15':'sin-objetos-min15','Reverse':'reverse','Runas predeterminadas':'runas-predeterminadas' };
+  const AUDIO = 'assets/Roulette Sound.mp3';
+  const IMG = 'assets/shells/';
+  const done = () => ipcRenderer.send('bs-done');
+
+  ipcRenderer.on('bs-event', (_e, ev) => {
+    const from = ev.from || 'Alguien', castigo = ev.castigo || 'Reverse';
+    if (ev.mode === 'roulette'){
+      // Fuera de partida: ruleta completa con sonido
+      SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO,
+        title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
+      setTimeout(done, 11000);   // auto-cierre de respaldo
+    } else {
+      // En partida: solo sonido + notificación pequeña al seg 3.48 (no invasiva)
+      let audio; try { audio = new Audio(AUDIO); audio.play().catch(()=>{}); } catch(e){}
+      setTimeout(() => {
+        document.getElementById('ni').src = IMG + (SLUG[castigo] || 'reverse') + '.png';
+        document.getElementById('nt').innerHTML = '🛡 <b>' + from + '</b> te lanzó una Blue Shell';
+        document.getElementById('nc').textContent = castigo;
+        document.getElementById('notif').style.display = 'flex';
+      }, 3480);
+      setTimeout(done, 3480 + 7000);   // se cierra sola ~7s después de aparecer
+    }
+  });
+</script>
+</body>
+</html>

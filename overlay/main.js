@@ -18,6 +18,7 @@ const ROSTER_FILE = path.join(__dirname, '..', 'players.json');
 const NO_DIV = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
 const HIGH = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
 const KEY = process.env.RIOT_API_KEY || null;
+const BACKEND = (process.env.SQC_BACKEND || 'https://soloq-challenge-em9q.onrender.com').replace(/\/+$/, '');
 const PLATFORM = 'la2', CLUSTER = 'americas';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -51,7 +52,8 @@ let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGa
 try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
 function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch {} }
 
-let DD = null, cachedMatchup = null, myApiPuuid = null;
+let DD = null, cachedMatchup = null, myApiPuuid = null, myRidForShells = null;
+let lastShellId = (typeof settings.lastShellId === 'number') ? settings.lastShellId : null;
 
 function loadRoster(){ try { return JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8')); } catch { return { players: [] }; } }
 
@@ -124,7 +126,7 @@ async function buildMatchup(spec, myPuuid, roster){
 }
 
 // ---- Ventanas ----
-let win, shellWin, bigWin;
+let win, shellWin, bigWin, bsWin;
 function baseWin(w, h, x, y, show = true){
   return new BrowserWindow({ width: w, height: h, x, y, show,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable: false, hasShadow: false,
@@ -139,6 +141,9 @@ function createWindows(){
   const BW = 1200, BH = 780;
   bigWin = baseWin(BW, BH, Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2), false);
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
+  // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
+  bsWin = baseWin(680, 380, Math.round(d.wa.x + (d.wa.width - 680) / 2), Math.round(d.wa.y + (d.wa.height - 380) / 2), false);
+  bsWin.setAlwaysOnTop(true, 'screen-saver'); bsWin.loadFile(path.join(__dirname, 'bs-event.html'));
 }
 
 // ---- Drag / resize (dirigido a la ventana que envía) ----
@@ -148,8 +153,8 @@ ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.send
 ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(50, Math.min(900, Math.round(h))) }); });
 
 // ---- Aplicar settings ----
-function applyOpacity(){ [win, shellWin, bigWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
-function applyAlwaysOnTop(){ [win, shellWin, bigWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
+function applyOpacity(){ [win, shellWin, bigWin, bsWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
+function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
 function applyVis(){
   const okSmall = settings.smallVisible && !(settings.hideOutOfGame && !lastInGame);
@@ -188,6 +193,7 @@ async function poll(){
       const inSoloQ = queueId === 420 && phase === 'InProgress';
 
       const myRid = (me && !me.error) ? `${me.gameName}#${me.tagLine}` : null;
+      myRidForShells = myRid;
       const players = roster.players || [];
       const idx = players.findIndex(p => p.rid === myRid);
       const standing = idx >= 0 ? players[idx] : null;
@@ -230,6 +236,33 @@ async function poll(){
   [win, shellWin, bigWin].forEach(w => { if (w && !w.isDestroyed()) w.webContents.send('data', payload); });
 }
 
+// ---- Blue Shells recibidas: ruleta (fuera de partida) / notificación (en partida) ----
+ipcMain.on('bs-done', () => { if (bsWin && !bsWin.isDestroyed()) bsWin.hide(); });
+function showBlueShellEvent(s){
+  if (!bsWin || bsWin.isDestroyed()) return;
+  const d = defaults();
+  const mode = lastInGame ? 'notif' : 'roulette';
+  if (mode === 'roulette'){ const W = 680, H = 380; bsWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - W) / 2), y: Math.round(d.wa.y + (d.wa.height - H) / 2), width: W, height: H }); }
+  else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
+  bsWin.showInactive();
+  bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien' });
+}
+async function pollShells(){
+  if (!myRidForShells || !bsWin) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/overlay/shells?riotid=${encodeURIComponent(myRidForShells)}`);
+    if (!r.ok) return;
+    const shells = await r.json();
+    if (!Array.isArray(shells) || !shells.length) return;
+    const maxId = shells[0].id;
+    if (lastShellId == null){ lastShellId = maxId; settings.lastShellId = maxId; saveSettings(); return; }  // baseline: no repite las viejas
+    const nuevas = shells.filter(s => s.id > lastShellId).sort((a, b) => a.id - b.id);
+    if (!nuevas.length) return;
+    lastShellId = maxId; settings.lastShellId = maxId; saveSettings();
+    nuevas.forEach((s, i) => setTimeout(() => showBlueShellEvent(s), i * 12000));   // espaciadas si llegan varias
+  } catch {}
+}
+
 app.whenReady().then(async () => {
   createWindows();
   applyOpacity(); applyAlwaysOnTop();
@@ -240,6 +273,8 @@ app.whenReady().then(async () => {
   console.log(KEY ? '✔ Overlay listo. Alt+X abre el panel.' : 'ℹ Sin RIOT_API_KEY → rango/runas de los 10 deshabilitados.');
   poll();
   setInterval(poll, 3000);
+  pollShells();
+  setInterval(pollShells, 12000);   // revisa Blue Shells recibidas cada 12s
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());
