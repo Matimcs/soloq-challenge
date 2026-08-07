@@ -21,3 +21,8 @@ players.js
 
 # Roster extra (lo genera el server desde la DB)
 roster-extra.json
+
+# Config del overlay (contiene la Riot key) y build del exe
+overlay/config.json
+overlay/dist/
+overlay/roulette.js

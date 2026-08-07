@@ -4,10 +4,27 @@
   "description": "SoloQ Challenge overlay (sin Overwolf) — Electron + APIs locales de Riot",
   "main": "main.js",
   "scripts": {
+    "prestart": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\"",
     "start": "electron .",
+    "predist": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\"",
+    "dist": "electron-builder --win portable",
     "probe": "node probe.js"
   },
   "devDependencies": {
-    "electron": "^31.0.0"
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "gg.soloqchallenge.overlay",
+    "productName": "SoloQ Overlay",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable"
+    },
+    "portable": {
+      "artifactName": "SoloQ Overlay.exe"
+    }
   }
 }

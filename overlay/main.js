@@ -17,8 +17,12 @@ const { liveClient } = require('./liveclient');
 const ROSTER_FILE = path.join(__dirname, '..', 'players.json');
 const NO_DIV = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
 const HIGH = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
-const KEY = process.env.RIOT_API_KEY || null;
-const BACKEND = (process.env.SQC_BACKEND || 'https://soloq-challenge-em9q.onrender.com').replace(/\/+$/, '');
+// Config opcional (para el .exe: sin cmd ni variables de entorno). overlay/config.json:
+//   { "riotApiKey": "RGAPI-...", "backend": "https://...onrender.com" }
+function loadConfig(){ try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch { return {}; } }
+const CONFIG = loadConfig();
+const KEY = process.env.RIOT_API_KEY || CONFIG.riotApiKey || null;
+const BACKEND = (process.env.SQC_BACKEND || CONFIG.backend || 'https://soloq-challenge-em9q.onrender.com').replace(/\/+$/, '');
 const PLATFORM = 'la2', CLUSTER = 'americas';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -47,7 +51,9 @@ const DIV_OFF  = { I:300, II:200, III:100, IV:0, '':0 };
 function absLP(p){ if(!p) return 0; if(HIGH.has(p.tier)) return 2800 + (p.lp||0); return (TIER_IDX[p.tier]??0)*400 + (DIV_OFF[p.div]||0) + (p.lp||0); }
 
 // ---- Settings persistentes ----
-const SETTINGS_FILE = path.join(__dirname, 'settings.json');
+// En el .exe empaquetado __dirname es de solo lectura → guardar en la carpeta de datos del usuario.
+let SETTINGS_FILE;
+try { SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json'); } catch { SETTINGS_FILE = path.join(__dirname, 'settings.json'); }
 let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: false, alwaysOnTop: true };
 try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
 function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch {} }
@@ -55,7 +61,13 @@ function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(se
 let DD = null, cachedMatchup = null, myApiPuuid = null, myRidForShells = null;
 let lastShellId = (typeof settings.lastShellId === 'number') ? settings.lastShellId : null;
 
-function loadRoster(){ try { return JSON.parse(fs.readFileSync(ROSTER_FILE, 'utf8')); } catch { return { players: [] }; } }
+// El roster/standing se baja del backend (players.json), no de un archivo local:
+// así el .exe es independiente y usa datos frescos de la nube.
+let rosterCache = { players: [] };
+async function refreshRoster(){
+  try { const r = await fetch(`${BACKEND}/players.json?t=${Date.now()}`); if (r.ok) rosterCache = await r.json(); } catch {}
+}
+function loadRoster(){ return rosterCache; }
 
 async function loadDDragon(){
   const ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
@@ -270,9 +282,16 @@ app.whenReady().then(async () => {
   if (!settings.shellVisible){ shellShown = false; shellWin.hide(); }
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }
   globalShortcut.register('Alt+X', () => { if (bigWin) bigWin.isVisible() ? bigWin.hide() : bigWin.show(); });
-  console.log(KEY ? '✔ Overlay listo. Alt+X abre el panel.' : 'ℹ Sin RIOT_API_KEY → rango/runas de los 10 deshabilitados.');
+  // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
+  globalShortcut.register('Alt+B', () => {
+    const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sensibilidad x2','Runas predeterminadas','Sin botas y sin pies veloces'];
+    showBlueShellEvent({ castigo: cs[Math.floor(Math.random() * cs.length)], from: 'Prueba' });
+  });
+  console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.' + (KEY ? '' : '  (sin Riot key: rango/runas deshabilitados)'));
+  await refreshRoster();
   poll();
   setInterval(poll, 3000);
+  setInterval(refreshRoster, 30000);
   pollShells();
   setInterval(pollShells, 12000);   // revisa Blue Shells recibidas cada 12s
 });
