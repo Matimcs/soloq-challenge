@@ -83,6 +83,25 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS match_participants ( -- datos crudos: cada participante de cada partida de un jugador del torneo (historial para stats)
+      match_id      TEXT,
+      puuid         TEXT,
+      riotid        TEXT,
+      name          TEXT,
+      champion      TEXT,
+      position      TEXT,
+      team_id       INTEGER,
+      win           BOOLEAN,
+      kills         INTEGER,
+      deaths        INTEGER,
+      assists       INTEGER,
+      is_tournament BOOLEAN DEFAULT false,
+      game_end      BIGINT,
+      created_at    TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (match_id, puuid)
+    );
+    CREATE INDEX IF NOT EXISTS mp_puuid_idx        ON match_participants (puuid);
+    CREATE INDEX IF NOT EXISTS mp_tournament_idx   ON match_participants (is_tournament);
     CREATE TABLE IF NOT EXISTS overlay_reports ( -- datos que el overlay (exe) manda para ahorrar API a la nube
       riotid     TEXT PRIMARY KEY,
       entry      JSONB,                          -- entrada de liga (tier, rank, leaguePoints, wins, losses)

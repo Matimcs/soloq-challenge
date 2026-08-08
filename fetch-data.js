@@ -51,6 +51,60 @@ function freshReport(rid){
   return (r && r.at && (Date.now() - r.at) < REPORT_TTL) ? r : null;
 }
 
+// ===== Persistencia de datos crudos en Postgres (para stats históricas a futuro) =====
+// Guarda CADA participante de CADA partida que juega un jugador del torneo: aliado/rival,
+// campeón, KDA, si es del torneo o externo. Idempotente (PK match_id+puuid). Así se puede
+// hacer luego, p.ej., "top de externos más enfrentados a favor/en contra" con solo consultar.
+const TOURNAMENT_SET = new Set(RIOT_IDS.map(s => s.toLowerCase()));
+let pgPool = null;
+async function initDB(){
+  if (!process.env.DATABASE_URL) return;
+  try {
+    const { Pool } = require('pg');
+    const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
+    pgPool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: isLocal ? false : { rejectUnauthorized: false }, max: 3 });
+    await pgPool.query(`CREATE TABLE IF NOT EXISTS match_participants (
+      match_id      TEXT,
+      puuid         TEXT,
+      riotid        TEXT,
+      name          TEXT,
+      champion      TEXT,
+      position      TEXT,
+      team_id       INTEGER,
+      win           BOOLEAN,
+      kills         INTEGER,
+      deaths        INTEGER,
+      assists       INTEGER,
+      is_tournament BOOLEAN DEFAULT false,
+      game_end      BIGINT,
+      created_at    TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (match_id, puuid)
+    )`);
+    console.log('✔ DB conectada (match_participants)');
+  } catch (e) { console.error('DB match_participants:', e.message); pgPool = null; }
+}
+async function saveParticipants(matchId, info){
+  if (!pgPool || !info || !Array.isArray(info.participants)) return;
+  const end = info.gameEndTimestamp || 0;
+  const rows = info.participants.map(p => {
+    const gn = p.riotIdGameName || p.summonerName || '';
+    const tg = p.riotIdTagline || '';
+    const riotid = gn ? (tg ? `${gn}#${tg}` : gn) : '';
+    return [matchId, p.puuid || '', riotid, gn, p.championName || '', p.teamPosition || p.individualPosition || '',
+      p.teamId || 0, !!p.win, p.kills || 0, p.deaths || 0, p.assists || 0,
+      riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end];
+  }).filter(r => r[1]);   // requiere puuid
+  if (!rows.length) return;
+  const cols = 13;
+  const values = rows.map((_, i) => '(' + Array.from({length:cols}, (_,j) => `$${i*cols+j+1}`).join(',') + ')').join(',');
+  const flat = rows.flat();
+  try {
+    await pgPool.query(
+      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end)
+       VALUES ${values} ON CONFLICT (match_id,puuid) DO NOTHING`, flat);
+  } catch (e) { /* no romper el runner por un fallo de escritura */ }
+}
+
 const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
                      PLATINUM:4, GOLD:3, SILVER:2, BRONZE:1, IRON:0, UNRANKED:-1 };
 const DIV_VAL = { I:4, II:3, III:2, IV:1, '':0 };
@@ -189,6 +243,7 @@ async function updatePlayerStats(puuid, entry){
     if (!m || !m.info) continue;
     const me = (m.info.participants || []).find(p => p.puuid === puuid);
     if (!me) continue;
+    await saveParticipants(id, m.info);   // guarda los 10 participantes en la DB (idempotente)
     const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '' };
     store.games.unshift(g); fetched.push(g);
   }
@@ -245,6 +300,7 @@ function rankText(entry) {
 }
 
 (async () => {
+  await initDB();   // conexión a Postgres para guardar participantes (si hay DATABASE_URL)
   process.stdout.write('Cargando Data Dragon... ');
   const DD = await getDDragon();
   console.log(`v${DD.version}\n`);
@@ -411,4 +467,7 @@ function rankText(entry) {
   console.log(`   Requests a Riot este ciclo: ${REQ_COUNT}`
     + ` · PUUIDs en caché: ${Object.keys(puuidCache).length}`
     + ` · rangos en caché: ${Object.keys(rankStore).length}`);
+
+  // Cerrar la conexión a Postgres para que el proceso del runner termine (el server espera su exit).
+  if (pgPool) { try { await pgPool.end(); } catch {} }
 })();
