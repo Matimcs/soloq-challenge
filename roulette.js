@@ -17,7 +17,7 @@ window.SQCRoulette = (function(){
     ['Sin pociones ni pinks','sin-pociones'],
     ['Sin objetos completos hasta min 15','sin-objetos-min15'],
     ['Reverse','reverse'],
-    ['Clase de campeón','clase-campeon'],
+    ['Clase de campeón aleatoria','clase-campeon'],
   ];
   const REVEAL_MS = 4140;   // el sonido revela al seg 4.14
   let injected = false;

@@ -153,7 +153,7 @@
 <script>
   const $ = id => document.getElementById(id);
   const fdate = iso => new Date(iso).toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  const SLUG = { 'Clase de campeón':'clase-campeon','Sin pociones ni pinks':'sin-pociones','Sin objetos completos hasta min 15':'sin-objetos-min15' };
+  const SLUG = { 'Clase de campeón aleatoria':'clase-campeon','Sin pociones ni pinks':'sin-pociones','Sin objetos completos hasta min 15':'sin-objetos-min15' };
   const IMG = name => `overlay/assets/shells/${SLUG[name]||'reverse'}.png`;
   let toastT;
   function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -255,7 +255,7 @@
     });
 
     // ---- Penalizaciones ----
-    const CASTIGOS = ['Sin tus 3 campeones más jugados','Una partida con Yuumi','Campeón aleatorio','Sin Flash','Autofill','Sin botas y sin pies veloces','Hechizos cambiados','Sin pociones ni pinks','Sin objetos completos hasta min 15','Reverse','Clase de campeón'];
+    const CASTIGOS = ['Sin tus 3 campeones más jugados','Una partida con Yuumi','Campeón aleatorio','Sin Flash','Autofill','Sin botas y sin pies veloces','Hechizos cambiados','Sin pociones ni pinks','Sin objetos completos hasta min 15','Reverse','Clase de campeón aleatoria'];
     async function renderPen(){
       const parts = await SQC.api('/admin/participants');
       $('pen-user').innerHTML = parts.length ? parts.map(p=>`<option value="${p.id}">${p.nickname}</option>`).join('') : '<option value="">— sin participantes —</option>';

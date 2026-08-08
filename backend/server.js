@@ -32,9 +32,9 @@ const SHELLS = [
   { name:'Campeón aleatorio', w:11 }, { name:'Sin Flash', w:11 }, { name:'Autofill', w:11 },
   { name:'Sin botas y sin pies veloces', w:11 }, { name:'Hechizos cambiados', w:6 },
   { name:'Sin pociones ni pinks', w:6 }, { name:'Sin objetos completos hasta min 15', w:6 },
-  { name:'Reverse', w:6 }, { name:'Clase de campeón', w:4 },
+  { name:'Reverse', w:6 }, { name:'Clase de campeón aleatoria', w:4 },
 ];
-// Clases de campeón (tags de Data Dragon). El castigo "Clase de campeón" sortea una y
+// Clases de campeón (tags de Data Dragon). El castigo "Clase de campeón aleatoria" sortea una y
 // el jugador debe jugar un campeón que la tenga. extra guarda el tag en inglés (para el
 // checker); CLASS_ES es solo para mostrar.
 const CLASSES = ['Fighter','Tank','Mage','Assassin','Marksman','Support'];
@@ -174,12 +174,12 @@ app.post('/api/blueshells/launch', auth, wrap(async (req,res) => {
 
   // Sorteos del momento (se guardan en events.extra):
   //  - "Campeón aleatorio": un campeón concreto (extra = id DDragon, con icono).
-  //  - "Clase de campeón":  una clase/tag (extra = tag en inglés; se muestra en español).
+  //  - "Clase de campeón aleatoria":  una clase/tag (extra = tag en inglés; se muestra en español).
   let extra = null, champIcon = null, display = null;
   if (castigo === 'Campeón aleatorio' && CHAMP_IDS.length){
     extra = CHAMP_IDS[Math.floor(Math.random()*CHAMP_IDS.length)];
     champIcon = champIconUrl(extra); display = extra;
-  } else if (castigo === 'Clase de campeón'){
+  } else if (castigo === 'Clase de campeón aleatoria'){
     extra = CLASSES[Math.floor(Math.random()*CLASSES.length)];
     display = CLASS_ES[extra] || extra;
   }

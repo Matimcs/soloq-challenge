@@ -30,13 +30,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const SHELL_IMG = {
   'Sin tus 3 campeones más jugados': 'sin-3-campeones', 'Una partida con Yuumi': 'yuumi', 'Campeón aleatorio': 'campeon-aleatorio',
   'Sin Flash': 'sin-flash', 'Autofill': 'autofill', 'Sin botas y sin pies veloces': 'sin-botas', 'Hechizos cambiados': 'hechizos-cambiados',
-  'Sin pociones ni pinks': 'sin-pociones', 'Sin objetos completos hasta min 15': 'sin-objetos-min15', 'Reverse': 'reverse', 'Clase de campeón': 'clase-campeon',
+  'Sin pociones ni pinks': 'sin-pociones', 'Sin objetos completos hasta min 15': 'sin-objetos-min15', 'Reverse': 'reverse', 'Clase de campeón aleatoria': 'clase-campeon',
 };
-// Traduce el "extra" de una shell para mostrarlo. En "Clase de campeón" el extra es un
+// Traduce el "extra" de una shell para mostrarlo. En "Clase de campeón aleatoria" el extra es un
 // tag de DDragon en inglés (Tank, Mage…) -> se muestra en español. En el resto (p.ej.
 // "Campeón aleatorio") el extra ya es legible (id del campeón).
 const CLASS_ES = { Fighter:'Luchador', Tank:'Tanque', Mage:'Mago', Assassin:'Asesino', Marksman:'Tirador', Support:'Soporte' };
-function extraLabel(castigo, extra){ if (!extra) return null; return castigo === 'Clase de campeón' ? (CLASS_ES[extra] || extra) : extra; }
+function extraLabel(castigo, extra){ if (!extra) return null; return castigo === 'Clase de campeón aleatoria' ? (CLASS_ES[extra] || extra) : extra; }
 // URL absoluta file:// de la imagen (robusto en Electron; la relativa fallaba)
 function shellImgUrl(name){ const s = SHELL_IMG[name]; return s ? pathToFileURL(path.join(__dirname, 'assets', 'shells', s + '.png')).href : ''; }
 // Castigos actuales del jugador = las Blue Shells recibidas pendientes (para el popup).
@@ -286,7 +286,7 @@ function showBlueShellEvent(s){
   if (mode === 'roulette'){ const W = 680, H = 380; bsWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - W) / 2), y: Math.round(d.wa.y + (d.wa.height - H) / 2), width: W, height: H }); }
   else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
   bsWin.showInactive();
-  // "Campeón aleatorio" -> icono del campeón. "Clase de campeón" -> etiqueta en español (sin icono).
+  // "Campeón aleatorio" -> icono del campeón. "Clase de campeón aleatoria" -> etiqueta en español (sin icono).
   const isChamp = s.castigo === 'Campeón aleatorio';
   const champ = extraLabel(s.castigo, s.extra);
   const champIcon = (isChamp && s.extra && DD) ? `https://ddragon.leagueoflegends.com/cdn/${DD.ver}/img/champion/${s.extra}.png` : null;
@@ -322,10 +322,10 @@ app.whenReady().then(async () => {
   globalShortcut.register('Alt+X', () => { if (bigWin) bigWin.isVisible() ? bigWin.hide() : bigWin.show(); });
   // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
   globalShortcut.register('Alt+B', () => {
-    const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sin pociones ni pinks','Clase de campeón','Sin botas y sin pies veloces'];
+    const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sin pociones ni pinks','Clase de campeón aleatoria','Sin botas y sin pies veloces'];
     const castigo = cs[Math.floor(Math.random() * cs.length)];
     // extra de prueba para ver la insignia (campeón / clase)
-    const extra = castigo === 'Campeón aleatorio' ? 'Yuumi' : castigo === 'Clase de campeón' ? 'Tank' : null;
+    const extra = castigo === 'Campeón aleatorio' ? 'Yuumi' : castigo === 'Clase de campeón aleatoria' ? 'Tank' : null;
     showBlueShellEvent({ castigo, from: 'Prueba', extra });
   });
   console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.' + (KEY ? '' : '  (sin Riot key: rango/runas deshabilitados)'));
