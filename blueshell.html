@@ -123,6 +123,8 @@
         <div class="rev-hint" id="rev-hint"></div>
         <div style="display:flex;align-items:center;gap:10px;margin:6px 0 10px;flex-wrap:wrap">
           <button type="button" id="bs-rec" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer">🎤 Grabar audio (opcional)</button>
+          <button type="button" id="bs-file-btn" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer">📎 Subir audio</button>
+          <input type="file" id="bs-file" accept="audio/*" style="display:none">
           <span id="bs-rec-time" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums"></span>
           <button type="button" id="bs-rec-clear" style="display:none;background:none;border:0;color:rgba(255,255,255,.5);font-family:inherit;font-size:12px;cursor:pointer">✕ quitar</button>
         </div>
@@ -266,6 +268,16 @@
     function bsClearAudio(){ bsAudio=null; $('bs-rec-time').textContent=''; $('bs-rec-clear').style.display='none'; $('bs-rec').textContent='🎤 Grabar audio (opcional)'; }
     $('bs-rec').addEventListener('click', bsToggleRec);
     $('bs-rec-clear').addEventListener('click', bsClearAudio);
+    // Subir un archivo de audio en vez de grabar
+    $('bs-file-btn').addEventListener('click', () => $('bs-file').click());
+    $('bs-file').addEventListener('change', e => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      if (!f.type.startsWith('audio/')){ alert('Elige un archivo de audio'); e.target.value=''; return; }
+      if (f.size > 1500000){ alert('El audio es muy pesado (máx ~1.5 MB). Usa un clip corto.'); e.target.value=''; return; }
+      const fr = new FileReader();
+      fr.onload = () => { bsAudio = fr.result; const t=$('bs-rec-time'); t.style.color='var(--up,#34d399)'; t.textContent='✓ '+f.name; $('bs-rec-clear').style.display=''; };
+      fr.readAsDataURL(f); e.target.value='';
+    });
 
     $('throw').addEventListener('click', async () => {
       const opt = $('target').selectedOptions[0]; if (!opt || !opt.value) return;

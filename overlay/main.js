@@ -57,7 +57,7 @@ function absLP(p){ if(!p) return 0; if(HIGH.has(p.tier)) return 2800 + (p.lp||0)
 // En el .exe empaquetado __dirname es de solo lectura → guardar en la carpeta de datos del usuario.
 let SETTINGS_FILE;
 try { SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json'); } catch { SETTINGS_FILE = path.join(__dirname, 'settings.json'); }
-let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: true, alwaysOnTop: true, volume: 0.8, autoLaunch: true };
+let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: true, alwaysOnTop: true, volume: 0.8, voiceVolume: 0.9, autoLaunch: true };
 try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
 function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch {} }
 
@@ -177,7 +177,7 @@ function createWindows(){
   audioWin.loadFile(path.join(__dirname, 'audio.html'));
 }
 function playVoice(dataUrl){
-  if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.volume != null ? settings.volume : 0.9 });
+  if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
 }
 
 // Ícono en la bandeja (íconos ocultos) con menú para cerrar el overlay.
@@ -389,7 +389,7 @@ function showAdminMessage(m){
   const MW = 460, MH = 104;
   msgWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - MW) / 2), y: d.wa.y + d.wa.height - MH - 46, width: MW, height: MH });
   msgWin.showInactive();
-  msgWin.webContents.send('admin-msg', { text: m.text || '', audio: m.audio || null, volume: settings.volume != null ? settings.volume : 0.9 });
+  msgWin.webContents.send('admin-msg', { text: m.text || '', audio: m.audio || null, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
   dlog('admin-msg mostrado: ' + (m.text ? m.text.slice(0, 40) : '(voz)'));
 }
 async function pollMessages(){

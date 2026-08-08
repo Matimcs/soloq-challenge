@@ -48,7 +48,8 @@
       <label class="opt"><input type="checkbox" id="s-autostart"> Abrir al iniciar el PC</label>
       <label class="opt"><input type="checkbox" id="s-aot"> Siempre encima (always-on-top)</label>
       <label class="opt col"><span>Opacidad <b id="s-op-val"></b></span><input type="range" id="s-op" min="30" max="100"></label>
-      <label class="opt col"><span>Volumen <b id="s-vol-val"></b></span><input type="range" id="s-vol" min="0" max="100"></label>
+      <label class="opt col"><span>Volumen (efectos / ruleta) <b id="s-vol-val"></b></span><input type="range" id="s-vol" min="0" max="100"></label>
+      <label class="opt col"><span>Volumen de mensajes de voz <b id="s-vvol-val"></b></span><input type="range" id="s-vvol" min="0" max="100"></label>
       <button class="sbtn" id="s-reset">Reponer posiciones</button>
       <div class="snote">Los cambios se guardan automáticamente. La página se carga en vivo desde el servidor.</div>
     </div>
@@ -65,6 +66,7 @@
     $('s-autostart').checked = s.autoLaunch !== false;
     const op=Math.round((s.opacity!=null?s.opacity:1)*100); $('s-op').value=op; $('s-op-val').textContent=op+'%';
     const vol=Math.round((s.volume!=null?s.volume:0.8)*100); $('s-vol').value=vol; $('s-vol-val').textContent=vol+'%';
+    const vvol=Math.round((s.voiceVolume!=null?s.voiceVolume:0.9)*100); $('s-vvol').value=vvol; $('s-vvol-val').textContent=vvol+'%';
     settingsEl.style.display='flex';
   }
   const set = (k,v) => ipcRenderer.send('setting',{key:k,value:v});
@@ -77,6 +79,7 @@
   $('s-aot').addEventListener('change', e => set('alwaysOnTop', e.target.checked));
   $('s-op').addEventListener('input', e => { const v=+e.target.value; $('s-op-val').textContent=v+'%'; set('opacity', v/100); });
   $('s-vol').addEventListener('input', e => { const v=+e.target.value; $('s-vol-val').textContent=v+'%'; set('volume', v/100); });
+  $('s-vvol').addEventListener('input', e => { const v=+e.target.value; $('s-vvol-val').textContent=v+'%'; set('voiceVolume', v/100); });
   $('s-reset').addEventListener('click', () => ipcRenderer.send('reset-pos'));
 
   const head = $('head'); let dragging=false;
