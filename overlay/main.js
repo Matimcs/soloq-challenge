@@ -57,7 +57,7 @@ function absLP(p){ if(!p) return 0; if(HIGH.has(p.tier)) return 2800 + (p.lp||0)
 // En el .exe empaquetado __dirname es de solo lectura → guardar en la carpeta de datos del usuario.
 let SETTINGS_FILE;
 try { SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json'); } catch { SETTINGS_FILE = path.join(__dirname, 'settings.json'); }
-let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: false, alwaysOnTop: true };
+let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: true, alwaysOnTop: true, volume: 0.8, autoLaunch: true };
 try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
 function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch {} }
 
@@ -201,10 +201,20 @@ function applyVis(){
   if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? win.showInactive() : win.hide(); }
   if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
 }
+function applyAutoLaunch(){
+  try {
+    const opts = { openAtLogin: settings.autoLaunch !== false, args: [] };
+    // En el .exe portable, process.execPath es una ruta temporal; usar el exe real.
+    if (process.env.PORTABLE_EXECUTABLE_FILE) opts.path = process.env.PORTABLE_EXECUTABLE_FILE;
+    app.setLoginItemSettings(opts);
+  } catch (e) { dlog('autoLaunch: ' + e.message); }
+}
 ipcMain.on('setting', (_e, { key, value }) => {
   settings[key] = value; saveSettings();
   if (key === 'opacity') applyOpacity();
   else if (key === 'alwaysOnTop') applyAlwaysOnTop();
+  else if (key === 'autoLaunch') applyAutoLaunch();
+  else if (key === 'volume') { /* se aplica en el próximo evento de Blue Shell */ }
   else applyVis();
 });
 ipcMain.on('reset-pos', () => {
@@ -214,6 +224,27 @@ ipcMain.on('reset-pos', () => {
   saveSettings(); applyVis();
 });
 ipcMain.handle('get-settings', () => settings);
+
+// Reporta a la nube el rango del jugador (sacado del cliente vía LCU, GRATIS) y si está en
+// partida, para que el runner NO gaste llamadas a la Riot API por este jugador. Máx. 1/min.
+let lastReportAt = 0;
+async function reportToBackend(riotid, solo, inGame){
+  if (!riotid) return;
+  if (Date.now() - lastReportAt < 60000) return;
+  lastReportAt = Date.now();
+  // Solo mandamos "entry" si tenemos rango completo (para no ensuciar el ranking).
+  let entry = null;
+  if (solo && solo.tier && Number.isFinite(solo.wins) && Number.isFinite(solo.losses)){
+    entry = { tier: solo.tier, rank: NO_DIV.has(solo.tier) ? '' : solo.division,
+              leaguePoints: solo.leaguePoints || 0, wins: solo.wins, losses: solo.losses, hotStreak: !!solo.isHotStreak };
+  }
+  try {
+    await fetch(`${BACKEND}/api/overlay/report`, {
+      method:'POST', headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ riotid, entry, inGame: !!inGame, secret: CONFIG.reportSecret || undefined }),
+    });
+  } catch (e) { dlog('report error: ' + (e && e.message)); }
+}
 
 async function poll(){
   const roster = loadRoster();
@@ -253,6 +284,7 @@ async function poll(){
       });
 
       lastInGame = inSoloQ;
+      reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
       if (inSoloQ && DD && KEY && me && me.gameName){
         if (!myApiPuuid) myApiPuuid = await accountPuuid(me.gameName, me.tagLine);
         if (!cachedMatchup && myApiPuuid){
@@ -290,7 +322,7 @@ function showBlueShellEvent(s){
   const isChamp = s.castigo === 'Campeón aleatorio';
   const champ = extraLabel(s.castigo, s.extra);
   const champIcon = (isChamp && s.extra && DD) ? `https://ddragon.leagueoflegends.com/cdn/${DD.ver}/img/champion/${s.extra}.png` : null;
-  bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien', champ, champIcon });
+  bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien', champ, champIcon, volume: settings.volume != null ? settings.volume : 0.8 });
 }
 async function pollShells(){
   if (!bsWin) return;
@@ -315,7 +347,7 @@ async function pollShells(){
 app.whenReady().then(async () => {
   createWindows();
   createTray();
-  applyOpacity(); applyAlwaysOnTop();
+  applyOpacity(); applyAlwaysOnTop(); applyAutoLaunch();
   if (!settings.smallVisible){ smallShown = false; win.hide(); }
   if (!settings.shellVisible){ shellShown = false; shellWin.hide(); }
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }

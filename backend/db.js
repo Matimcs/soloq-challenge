@@ -83,6 +83,12 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS overlay_reports ( -- datos que el overlay (exe) manda para ahorrar API a la nube
+      riotid     TEXT PRIMARY KEY,
+      entry      JSONB,                          -- entrada de liga (tier, rank, leaguePoints, wins, losses)
+      in_game    BOOLEAN DEFAULT false,          -- si está en una SoloQ ahora mismo
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS shell_progress ( -- progreso para otorgar Blue Shells automáticamente
       user_id     INTEGER PRIMARY KEY,
       last_end    BIGINT  DEFAULT 0,            -- gameEndTimestamp (ms) de la última partida procesada

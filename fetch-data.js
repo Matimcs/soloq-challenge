@@ -41,6 +41,15 @@ try {
     for (let i = RIOT_IDS.length - 1; i >= 0; i--) if (hide.has(RIOT_IDS[i])) RIOT_IDS.splice(i, 1);
   }
 } catch {}
+// Reportes del overlay (exe): rango/estado que los jugadores mandan desde su cliente (GRATIS,
+// vía LCU). Si hay uno fresco para un jugador, el runner NO llama a Riot para su rango/spectator.
+let OVERLAY_REPORTS = {};
+try { OVERLAY_REPORTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'overlay-reports.json'), 'utf8')) || {}; } catch {}
+const REPORT_TTL = 6 * 60 * 1000;
+function freshReport(rid){
+  const r = OVERLAY_REPORTS[rid];
+  return (r && r.at && (Date.now() - r.at) < REPORT_TTL) ? r : null;
+}
 
 const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
                      PLATINUM:4, GOLD:3, SILVER:2, BRONZE:1, IRON:0, UNRANKED:-1 };
@@ -253,8 +262,19 @@ function rankText(entry) {
     try {
       const puuid = await getPuuid(rid); await sleep(110);
       if (!puuid) { console.log('cuenta no encontrada'); continue; }
-      const entry = await getSoloEntry(puuid); await sleep(110);
-      const raw   = await getSpectator(puuid); await sleep(110);
+
+      // Si el overlay del jugador reportó hace poco, usamos SUS datos (0 llamadas a Riot).
+      const rep = freshReport(rid);
+      const repEntry = rep && rep.entry && rep.entry.tier && Number.isFinite(rep.entry.wins) && Number.isFinite(rep.entry.losses)
+        ? rep.entry : null;
+
+      let entry;
+      if (repEntry) { entry = repEntry; }                                  // rango GRATIS del overlay
+      else { entry = await getSoloEntry(puuid); await sleep(110); }
+
+      let raw;
+      if (rep && rep.inGame === false) { raw = null; }                     // el overlay dice que NO está en partida
+      else { raw = await getSpectator(puuid); await sleep(110); }
 
       rankCache.set(puuid, entry);
       rankStore[puuid] = { entry, at: Date.now() };   // trackeado → siempre fresco

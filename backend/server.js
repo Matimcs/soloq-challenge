@@ -25,6 +25,9 @@ const { runGrant } = require('./granter');
 const PORT = process.env.PORT || 8123;
 const JWT_SECRET = process.env.JWT_SECRET || 'sqc-dev-secret-cambiar-en-produccion';
 const ADMIN_RIDS = new Set(['SionAntisionista#SAS', 'SKT T1 seiya157#LAS']);
+// Secreto opcional para que el overlay (exe) reporte datos y ahorre API a la nube.
+// Si no está configurado, se aceptan reportes solo de cuentas conocidas (registradas o en roster).
+const REPORT_SECRET = process.env.REPORT_SECRET || null;
 const ROOT = path.join(__dirname, '..');
 
 const SHELLS = [
@@ -133,6 +136,23 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
 app.get('/api/avatars', wrap(async (req,res) => {
   const rows = await q('SELECT riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
   res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, realname:r.realname, avatar:r.avatar, pos1:r.pos1, pos2:r.pos2, main:r.main, champ1:r.champ1, champ2:r.champ2, champ3:r.champ3, flashSlot:r.flash_slot })));
+}));
+
+// El overlay (exe) reporta el rango/estado del jugador (obtenido GRATIS del cliente vía LCU)
+// para que el runner de la nube NO tenga que gastar llamadas a la Riot API por ese jugador.
+app.post('/api/overlay/report', wrap(async (req,res) => {
+  const b = req.body || {};
+  const riotid = (b.riotid || '').trim();
+  if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'riotid inválido' });
+  let allowed;
+  if (REPORT_SECRET) allowed = b.secret === REPORT_SECRET;
+  else allowed = !!(await q1('SELECT 1 FROM users WHERE riotid=$1 UNION SELECT 1 FROM roster WHERE riotid=$1', [riotid]));
+  if (!allowed) return res.status(403).json({ error:'no autorizado' });
+  const entry = (b.entry && typeof b.entry === 'object') ? b.entry : null;
+  await q(`INSERT INTO overlay_reports (riotid,entry,in_game,updated_at) VALUES ($1,$2::jsonb,$3,now())
+           ON CONFLICT (riotid) DO UPDATE SET entry=$2::jsonb, in_game=$3, updated_at=now()`,
+    [riotid, JSON.stringify(entry), !!b.inGame]);
+  res.json({ ok:true });
 }));
 
 // Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
@@ -376,6 +396,12 @@ function startEmbeddedRunner(){
       fs.writeFileSync(path.join(ROOT, 'roster-extra.json'), JSON.stringify(rows.map(r=>r.riotid))); } catch {}
     try { const hid = await q('SELECT riotid FROM roster_hidden');
       fs.writeFileSync(path.join(ROOT, 'roster-removed.json'), JSON.stringify(hid.map(r=>r.riotid))); } catch {}
+    // Reportes frescos del overlay (últimos 10 min): el runner los usa para saltarse llamadas a Riot.
+    try {
+      const reps = await q("SELECT riotid, entry, in_game, (EXTRACT(EPOCH FROM updated_at)*1000)::bigint AS at FROM overlay_reports WHERE updated_at > now() - interval '10 minutes'");
+      const obj = {}; reps.forEach(r => { obj[r.riotid] = { entry:r.entry, inGame:r.in_game, at:Number(r.at) }; });
+      fs.writeFileSync(path.join(ROOT, 'overlay-reports.json'), JSON.stringify(obj));
+    } catch {}
   };
 
   // El caché (PUUIDs, rangos y sobre todo el historial ±LP/aegis) se guarda en

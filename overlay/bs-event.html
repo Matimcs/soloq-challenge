@@ -35,6 +35,7 @@
   ipcRenderer.on('bs-event', (_e, ev) => {
     const from = ev.from || 'Alguien', castigo = ev.castigo || 'Reverse';
     const audio = new Audio(AUDIO); audio.preload = 'auto';
+    audio.volume = (ev.volume != null) ? Math.max(0, Math.min(1, ev.volume)) : 0.8;
     if (ev.mode === 'roulette'){
       // Fuera de partida: precarga TODO (círculo de carga) y arranca audio+ruleta juntos.
       SQCRoulette.loading(true);
