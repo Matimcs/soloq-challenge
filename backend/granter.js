@@ -35,6 +35,8 @@ async function award(q, userId, n, motivo){
     await q('INSERT INTO shells (owner_id,motivo) VALUES ($1,$2)', [userId, motivo]);
     given++;
   }
+  // Registro permanente de "conseguidas" (aunque el inventario esté lleno, cuenta el logro).
+  if (n > 0) { try { await q('INSERT INTO shell_log (user_id,motivo) VALUES ($1,$2)', [userId, motivo]); } catch {} }
   if (given) console.log(`🛡 +${given} Blue Shell(s) a user ${userId} — ${motivo}`);
   return given;
 }

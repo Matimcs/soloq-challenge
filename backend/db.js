@@ -97,11 +97,41 @@ async function init(){
       assists       INTEGER,
       is_tournament BOOLEAN DEFAULT false,
       game_end      BIGINT,
+      cs            INTEGER,
+      gold          INTEGER,
+      damage        INTEGER,
+      vision        INTEGER,
+      penta         INTEGER,
+      first_blood   BOOLEAN,
+      champ_level   INTEGER,
+      duration      INTEGER,
       created_at    TIMESTAMPTZ DEFAULT now(),
       PRIMARY KEY (match_id, puuid)
     );
     CREATE INDEX IF NOT EXISTS mp_puuid_idx        ON match_participants (puuid);
     CREATE INDEX IF NOT EXISTS mp_tournament_idx   ON match_participants (is_tournament);
+    -- columnas nuevas (para tablas ya creadas)
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS cs          INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS gold        INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS damage      INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS vision      INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS penta       INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS first_blood BOOLEAN;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS champ_level INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS duration    INTEGER;
+    CREATE TABLE IF NOT EXISTS matches (        -- partida COMPLETA (match-v5 entero) para historial detallado
+      match_id   TEXT PRIMARY KEY,
+      data       JSONB NOT NULL,
+      game_end   BIGINT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS shell_log (      -- registro permanente de Blue Shells CONSEGUIDAS (el granter otorga)
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER,
+      motivo     TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS shell_log_user_idx ON shell_log (user_id);
     CREATE TABLE IF NOT EXISTS overlay_reports ( -- datos que el overlay (exe) manda para ahorrar API a la nube
       riotid     TEXT PRIMARY KEY,
       entry      JSONB,                          -- entrada de liga (tier, rank, leaguePoints, wins, losses)

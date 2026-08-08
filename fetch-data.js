@@ -86,23 +86,36 @@ async function initDB(){
 async function saveParticipants(matchId, info){
   if (!pgPool || !info || !Array.isArray(info.participants)) return;
   const end = info.gameEndTimestamp || 0;
+  const dur = info.gameDuration || 0;
   const rows = info.participants.map(p => {
     const gn = p.riotIdGameName || p.summonerName || '';
     const tg = p.riotIdTagline || '';
     const riotid = gn ? (tg ? `${gn}#${tg}` : gn) : '';
+    const cs = (p.totalMinionsKilled || 0) + (p.neutralMinionsKilled || 0);
     return [matchId, p.puuid || '', riotid, gn, p.championName || '', p.teamPosition || p.individualPosition || '',
       p.teamId || 0, !!p.win, p.kills || 0, p.deaths || 0, p.assists || 0,
-      riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end];
+      riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end,
+      cs, p.goldEarned || 0, p.totalDamageDealtToChampions || 0, p.visionScore || 0,
+      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur];
   }).filter(r => r[1]);   // requiere puuid
   if (!rows.length) return;
-  const cols = 13;
+  const cols = 21;
   const values = rows.map((_, i) => '(' + Array.from({length:cols}, (_,j) => `$${i*cols+j+1}`).join(',') + ')').join(',');
   const flat = rows.flat();
   try {
     await pgPool.query(
-      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end)
+      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration)
        VALUES ${values} ON CONFLICT (match_id,puuid) DO NOTHING`, flat);
   } catch (e) { /* no romper el runner por un fallo de escritura */ }
+}
+// Guarda la partida COMPLETA (match-v5 entero) para el historial detallado.
+async function saveMatch(matchId, m){
+  if (!pgPool || !m || !m.info) return;
+  try {
+    await pgPool.query(
+      `INSERT INTO matches (match_id,data,game_end) VALUES ($1,$2::jsonb,$3) ON CONFLICT (match_id) DO NOTHING`,
+      [matchId, JSON.stringify(m), m.info.gameEndTimestamp || 0]);
+  } catch (e) { /* idem */ }
 }
 
 const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
@@ -244,6 +257,7 @@ async function updatePlayerStats(puuid, entry){
     const me = (m.info.participants || []).find(p => p.puuid === puuid);
     if (!me) continue;
     await saveParticipants(id, m.info);   // guarda los 10 participantes en la DB (idempotente)
+    await saveMatch(id, m);               // guarda la partida COMPLETA
     const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '' };
     store.games.unshift(g); fetched.push(g);
   }

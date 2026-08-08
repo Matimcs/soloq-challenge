@@ -138,6 +138,100 @@ app.get('/api/avatars', wrap(async (req,res) => {
   res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, realname:r.realname, avatar:r.avatar, pos1:r.pos1, pos2:r.pos2, main:r.main, champ1:r.champ1, champ2:r.champ2, champ3:r.champ3, flashSlot:r.flash_slot })));
 }));
 
+// Ficha de un jugador (para el despliegue del ranking). Todo sale de la DB, sin Riot API.
+function buildHistoryRow(m, puuid){
+  if (!m || !m.info) return null;
+  const P = m.info.participants || [];
+  const me = P.find(p => p.puuid === puuid); if (!me) return null;
+  const teamKills = P.filter(p => p.teamId === me.teamId).reduce((s,p)=>s+(p.kills||0),0);
+  const opp = P.find(p => p.teamId !== me.teamId && (p.teamPosition||'') === (me.teamPosition||'') && me.teamPosition);
+  const cs = (me.totalMinionsKilled||0) + (me.neutralMinionsKilled||0);
+  const dur = m.info.gameDuration || 0;
+  const ks = me.perks && me.perks.styles && me.perks.styles[0] && me.perks.styles[0].selections && me.perks.styles[0].selections[0] && me.perks.styles[0].selections[0].perk;
+  const secStyle = me.perks && me.perks.styles && me.perks.styles[1] && me.perks.styles[1].style;
+  return {
+    matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
+    win: !!me.win, champion: me.championName, position: me.teamPosition || '',
+    k: me.kills||0, d: me.deaths||0, a: me.assists||0,
+    kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
+    kp: teamKills ? Math.round(((me.kills||0)+(me.assists||0))/teamKills*100) : 0,
+    cs, csMin: dur ? +(cs/(dur/60)).toFixed(1) : 0,
+    spells: [me.summoner1Id, me.summoner2Id], keystone: ks || null, secStyle: secStyle || null,
+    items: [me.item0,me.item1,me.item2,me.item3,me.item4,me.item5,me.item6].map(x=>x||0),
+    duration: dur, end: m.info.gameEndTimestamp || 0, oppChampion: opp ? opp.championName : null,
+    doubleK: me.doubleKills||0, tripleK: me.tripleKills||0, quadraK: me.quadraKills||0, pentaK: me.pentaKills||0,
+  };
+}
+app.get('/api/player/:riotid', wrap(async (req,res) => {
+  const riotid = (req.params.riotid || '').trim();   // Express ya decodifica el parámetro
+  if (!riotid) return res.status(400).json({ error:'Falta riotid' });
+
+  // Perfil desde la caché del ranking (players.json) + usuario registrado
+  const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
+  const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
+  const u = await q1('SELECT * FROM users WHERE riotid=$1', [riotid]);
+
+  // puuid: del ranking o de los datos crudos guardados
+  let puuid = lp && lp.puuid;
+  if (!puuid){ const r = await q1('SELECT puuid FROM match_participants WHERE lower(riotid)=lower($1) AND puuid<>\'\' ORDER BY game_end DESC LIMIT 1', [riotid]); puuid = r && r.puuid; }
+
+  // Historial detallado (últimas 15) desde las partidas completas guardadas
+  let history = [];
+  if (puuid){
+    const parts = await q('SELECT match_id FROM match_participants WHERE puuid=$1 ORDER BY game_end DESC NULLS LAST LIMIT 15', [puuid]);
+    const ids = parts.map(p => p.match_id);
+    if (ids.length){
+      const fulls = await q('SELECT match_id, data FROM matches WHERE match_id = ANY($1)', [ids]);
+      const byId = {}; fulls.forEach(f => byId[f.match_id] = f.data);
+      history = ids.map(id => buildHistoryRow(byId[id], puuid)).filter(Boolean);
+    }
+  }
+
+  // Stats agregadas sobre TODO el historial guardado
+  let stats = null;
+  if (puuid){
+    const s = await q1(`SELECT count(*)::int n, coalesce(sum(kills),0)::int k, coalesce(sum(deaths),0)::int d,
+      coalesce(sum(assists),0)::int a, coalesce(sum(cs),0)::bigint cs, coalesce(sum(duration),0)::bigint dur,
+      coalesce(sum(damage),0)::bigint dmg, coalesce(avg(vision),0)::float vis, coalesce(sum(penta),0)::int penta,
+      count(*) FILTER (WHERE first_blood)::int fb, coalesce(max(kills),0)::int rec,
+      coalesce(avg(duration),0)::float avgdur, coalesce(max(duration),0)::int maxdur,
+      count(*) FILTER (WHERE win)::int wins FROM match_participants WHERE puuid=$1`, [puuid]);
+    if (s && s.n){
+      const durMin = Number(s.dur)/60 || 1;
+      stats = { registradas:s.n, k:s.k, d:s.d, a:s.a, kda:+(((s.k+s.a)/Math.max(1,s.d)).toFixed(2)),
+        csMin:+(Number(s.cs)/durMin).toFixed(1), dmgMin:Math.round(Number(s.dmg)/durMin), vision:+s.vis.toFixed(1),
+        penta:s.penta, firstBloods:s.fb, recordKills:s.rec, avgDurMin:Math.round(s.avgdur/60), maxDurMin:Math.round(s.maxdur/60),
+        wins:s.wins, losses:s.n - s.wins };
+    }
+  }
+
+  // Blue Shells (si es un usuario registrado)
+  let blueshells = null;
+  if (u){
+    const inv = await q1('SELECT count(*)::int c FROM shells WHERE owner_id=$1', [u.id]);
+    const con = await q1('SELECT count(*)::int c FROM shell_log WHERE user_id=$1', [u.id]);
+    const rob = await q1("SELECT count(*)::int c FROM shell_log WHERE user_id=$1 AND motivo ILIKE 'Robada%'", [u.id]);
+    const lan = await q1("SELECT count(*)::int c FROM events WHERE user_id=$1 AND kind='sent'", [u.id]);
+    const rec = await q1("SELECT count(*)::int c FROM events WHERE user_id=$1 AND kind='received'", [u.id]);
+    const listCon = await q('SELECT motivo, created_at FROM shell_log WHERE user_id=$1 ORDER BY id DESC LIMIT 40', [u.id]);
+    const listLan = await q("SELECT castigo, other, estado, created_at FROM events WHERE user_id=$1 AND kind='sent' ORDER BY id DESC LIMIT 40", [u.id]);
+    const listRec = await q(`SELECT castigo, other AS "from", estado, extra, bounce, created_at FROM events WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 40`, [u.id]);
+    blueshells = { inventory:inv.c, max:MAX_SHELLS, conseguidas:con.c, robadas:rob.c, lanzadas:lan.c, recibidas:rec.c, castigos:rec.c,
+      listConseguidas:listCon, listLanzadas:listLan, listRecibidas:listRec };
+  }
+
+  const profile = {
+    riotid, nickname: (u && u.nickname) || (lp && lp.nm) || riotid.split('#')[0],
+    realname: u && u.realname, avatar: u && u.avatar, pos1: u && u.pos1, pos2: u && u.pos2,
+    champs: u ? [u.champ1,u.champ2,u.champ3].filter(Boolean) : [], flashSlot: u && u.flash_slot,
+    isRegistered: !!u,
+    tier: lp && lp.tier, div: lp && lp.div, lp: lp && lp.lp, rankPos,
+    w: lp ? lp.w : (stats?stats.wins:0), l: lp ? lp.l : (stats?stats.losses:0),
+    form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
+  };
+  res.json({ profile, history, stats, blueshells, ddragonVersion: liveData && liveData.ddragonVersion });
+}));
+
 // El overlay (exe) reporta el rango/estado del jugador (obtenido GRATIS del cliente vía LCU)
 // para que el runner de la nube NO tenga que gastar llamadas a la Riot API por ese jugador.
 app.post('/api/overlay/report', wrap(async (req,res) => {
