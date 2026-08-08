@@ -278,6 +278,71 @@
     .lg-side.blue{ border-right:none; border-bottom:1px solid var(--line); }
   }
 
+  /* ===== avatar clickable + menú de perfil ===== */
+  .ava-btn{ background:none; border:0; padding:0; cursor:pointer; line-height:0; border-radius:9px; transition:transform .12s, box-shadow .12s; }
+  .ava-btn:hover{ transform:scale(1.07); box-shadow:0 0 0 2px var(--accent); }
+  .pmenu{ position:fixed; z-index:400; min-width:176px; background:#14161c; border:1px solid var(--line-strong);
+    border-radius:12px; padding:6px; box-shadow:0 16px 44px rgba(0,0,0,.55); animation:pm-fade .12s ease; }
+  .pmenu button{ display:flex; align-items:center; gap:9px; width:100%; text-align:left; background:none; border:0;
+    color:var(--text); font-family:var(--font); font-size:13px; font-weight:600; padding:9px 11px; border-radius:8px; cursor:pointer; }
+  .pmenu button:hover{ background:rgba(255,255,255,.07); }
+  .pmenu button.danger{ color:var(--down); }
+  .pmenu button.danger:hover{ background:rgba(251,113,133,.12); }
+  .pmenu .ic{ width:16px; height:16px; display:grid; place-items:center; }
+
+  /* ===== modal de perfil de jugador ===== */
+  @keyframes pm-fade{ from{opacity:0} to{opacity:1} }
+  @keyframes pm-pop{ from{opacity:0; transform:translateY(12px) scale(.98)} to{opacity:1; transform:none} }
+  .pm-overlay{ position:fixed; inset:0; z-index:350; display:grid; place-items:center; padding:20px;
+    background:rgba(5,6,10,.74); -webkit-backdrop-filter:blur(5px); backdrop-filter:blur(5px); animation:pm-fade .18s ease; }
+  .pm-card{ width:min(560px,96vw); max-height:92vh; overflow:auto; background:var(--panel);
+    border:1px solid var(--line-strong); border-radius:18px; box-shadow:0 24px 70px rgba(0,0,0,.6); animation:pm-pop .22s cubic-bezier(.2,.8,.2,1); }
+  .pm-banner{ position:relative; padding:22px 22px 18px; display:flex; align-items:center; gap:16px;
+    background:linear-gradient(135deg, rgba(233,255,31,.10), rgba(233,255,31,0) 60%), linear-gradient(180deg, rgba(255,255,255,.04), transparent);
+    border-bottom:1px solid var(--line); }
+  .pm-close{ position:absolute; top:14px; right:14px; width:30px; height:30px; display:grid; place-items:center;
+    background:rgba(255,255,255,.06); border:1px solid var(--line-strong); border-radius:8px; color:var(--muted); cursor:pointer; font-size:16px; }
+  .pm-close:hover{ background:rgba(255,255,255,.12); color:#fff; }
+  .pm-ava{ width:76px; height:76px; border-radius:16px; object-fit:cover; border:2px solid var(--line-strong);
+    background:linear-gradient(135deg,#1a1d27,#0d0f15); display:grid; place-items:center; font-weight:800; font-size:26px; color:var(--muted); flex-shrink:0; }
+  .pm-id{ min-width:0; }
+  .pm-name{ font-size:22px; font-weight:800; letter-spacing:-.01em; display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .pm-rid{ font-size:12.5px; color:var(--muted-2); margin-top:2px; }
+  .pm-rankpill{ font-size:12px; font-weight:800; color:#000; background:var(--accent); padding:3px 9px; border-radius:7px; }
+  .pm-realname{ font-size:12.5px; color:var(--muted); margin-top:5px; }
+  .pm-body{ padding:18px 22px 22px; }
+  .pm-sec-t{ font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin:0 0 10px; }
+  .pm-elo{ display:flex; align-items:center; gap:12px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:18px; }
+  .pm-elo img{ width:44px; height:44px; object-fit:contain; }
+  .pm-elo .lp{ font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .pm-elo .lp small{ font-size:12px; color:var(--muted); font-weight:600; margin-left:3px; }
+  .pm-elo .tier-t{ font-size:12.5px; color:var(--muted); font-weight:600; }
+  .pm-roles{ display:flex; gap:8px; margin-left:auto; }
+  .pm-role{ display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:8px; padding:5px 10px; font-size:12px; font-weight:700; }
+  .pm-role img{ width:18px; height:18px; }
+  .pm-champs{ display:flex; gap:12px; margin-bottom:18px; }
+  .pm-champ{ text-align:center; }
+  .pm-champ .sq{ position:relative; width:60px; height:60px; border-radius:12px; overflow:hidden; border:1px solid var(--line-strong); background:var(--panel-2); }
+  .pm-champ .sq img{ width:100%; height:100%; object-fit:cover; }
+  .pm-champ .cn{ font-size:11px; color:var(--muted); margin-top:5px; font-weight:600; max-width:64px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pm-flash{ display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--muted);
+    background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:8px; padding:6px 11px; margin-bottom:18px; }
+  .pm-flash b{ color:var(--accent); }
+  .pm-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:18px; }
+  .pm-stat{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .pm-stat .k{ font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted-2); }
+  .pm-stat .v{ font-size:19px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums; display:flex; align-items:center; gap:6px; }
+  .pm-stat .v .sub{ font-size:12px; font-weight:600; color:var(--muted); }
+  .pm-bar{ height:5px; border-radius:3px; background:rgba(255,255,255,.08); margin-top:8px; overflow:hidden; }
+  .pm-bar span{ display:block; height:100%; background:var(--up); border-radius:3px; }
+  .pm-actions{ display:flex; gap:10px; margin-top:4px; }
+  .pm-btn{ flex:1; text-align:center; font-family:var(--font); font-size:13px; font-weight:700; padding:11px; border-radius:10px; cursor:pointer; border:1px solid var(--line-strong); background:rgba(255,255,255,.06); color:var(--text); }
+  .pm-btn:hover{ background:rgba(255,255,255,.12); }
+  .pm-btn.danger{ background:rgba(251,113,133,.1); border-color:rgba(251,113,133,.4); color:var(--down-soft); flex:0 0 auto; }
+  .pm-btn.danger:hover{ background:rgba(251,113,133,.2); }
+  .pm-empty{ color:var(--muted-2); font-size:13px; padding:6px 0 14px; }
+  @media (max-width:520px){ .pm-grid{ grid-template-columns:repeat(2,1fr); } .pm-roles{ width:100%; margin:8px 0 0; } .pm-elo{ flex-wrap:wrap; } }
+
   footer{ color:var(--muted-2); font-size:12px; text-align:center; padding:40px 0 30px; }
 
   @media (max-width:860px){
@@ -466,10 +531,11 @@ function opggUrl(rid){
   return `https://op.gg/summoners/las/${encodeURIComponent(name)}-${encodeURIComponent(tag||'')}`;
 }
 function initials(nm){ return (nm||'?').slice(0,2).toUpperCase(); }
+function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/'/g,'&#39;'); }
 
 /* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
    casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
-let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {};
+let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {};
 function avaSrc(rid, nm){ return AVA_BY_RID[rid] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
 // Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
 function roleFor(p){
@@ -496,8 +562,9 @@ async function loadAvatars(){
   try {
     const r = await fetch('/api/avatars', { cache:'no-store' }); if (!r.ok) return;
     const list = await r.json();
-    AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {};
+    AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {}; USER_BY_RID = {};
     list.forEach(u => {
+      USER_BY_RID[u.riotid] = u;
       if (u.pos1) ROLE_BY_RID[u.riotid] = u.pos1;
       if (!u.avatar) return;
       AVA_BY_RID[u.riotid] = u.avatar;
@@ -585,7 +652,7 @@ function render(){
         <td>
           <div class="player">
             <button class="fav" onclick="this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
-            ${avaHtml(p.rid, p.nm)}
+            <button class="ava-btn" data-rid="${escAttr(p.rid)}" title="Ver perfil">${avaHtml(p.rid, p.nm)}</button>
             <div>
               <div class="nm">${p.nm} ${badges}</div>
               <div class="rid">${p.rid}</div>
@@ -880,6 +947,146 @@ function demoEncuentro(){
   showEncuentro(g);
 }
 window.demoEncuentro = demoEncuentro;
+
+/* ===================== PERFIL DE JUGADOR (click en el avatar) =====================
+   Se arma 100% con datos ya cargados: players.json (ranking histórico) + /api/avatars
+   (perfil registrado, de NUESTRA base de datos). No hace ninguna llamada a la Riot API. */
+const POS_SLUG = { 'Top':'top', 'Jungla':'jg', 'Medio':'mid', 'ADC':'adc', 'Support':'support' };
+function roleChip(r){
+  if (!r) return '';
+  const slug = POS_SLUG[r];
+  return `<span class="pm-role">${slug?`<img src="overlay/assets/roles/${slug}.webp" alt="">`:''}${r}</span>`;
+}
+function streakFromForm(form){
+  if (!form || !form.length) return 0;
+  const last = form[form.length-1]; let n = 0;
+  for (let i=form.length-1; i>=0; i--){ if (form[i]===last) n++; else break; }
+  return last ? n : -n;
+}
+function champSquare(id){
+  if (!id) return '';
+  return `<div class="pm-champ"><div class="sq"><img src="${champUrl(id)}" alt="" onerror="this.parentNode.style.opacity=.3"></div><div class="cn">${id}</div></div>`;
+}
+
+let pmMenuEl = null;
+function closePlayerMenu(){ if (pmMenuEl){ pmMenuEl.remove(); pmMenuEl = null; document.removeEventListener('click', onDocClickMenu, true); } }
+function onDocClickMenu(e){ if (pmMenuEl && !pmMenuEl.contains(e.target)) closePlayerMenu(); }
+function openPlayerMenu(x, y, rid){
+  closePlayerMenu();
+  const isAdmin = localStorage.getItem('sqc_admin') === '1';
+  const m = document.createElement('div');
+  m.className = 'pmenu';
+  m.innerHTML =
+    `<button data-act="view"><span class="ic">👤</span> Ver perfil</button>` +
+    (isAdmin ? `<button class="danger" data-act="del"><span class="ic">🗑</span> Eliminar cuenta</button>` : '');
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect();
+  m.style.left = Math.min(x, innerWidth  - r.width  - 8) + 'px';
+  m.style.top  = Math.min(y, innerHeight - r.height - 8) + 'px';
+  m.querySelector('[data-act="view"]').onclick = () => { closePlayerMenu(); openPlayerProfile(rid); };
+  const del = m.querySelector('[data-act="del"]');
+  if (del) del.onclick = () => { closePlayerMenu(); deletePlayer(rid); };
+  pmMenuEl = m;
+  setTimeout(() => document.addEventListener('click', onDocClickMenu, true), 0);
+}
+
+function openPlayerProfile(rid){
+  const p = PLAYERS.find(x => x.rid === rid) || null;
+  const u = USER_BY_RID[rid] || null;
+  const nm = (u && u.nickname) || (p && p.nm) || rid.split('#')[0];
+  const rankPos = p ? p.rankPos : null;
+  const w = p ? p.w : 0, l = p ? p.l : 0, tot = w + l;
+  const wr = tot ? Math.round(w/tot*100) : 0;
+  const strk = p ? streakFromForm(p.form) : 0;
+
+  const crest = (p && p.tier && p.tier!=='UNRANKED')
+    ? `<img src="${CREST(p.tier)}" alt="" onerror="this.style.display='none'">` : '';
+  const tierTxt = p && p.tier && p.tier!=='UNRANKED'
+    ? `${p.tier.charAt(0)+p.tier.slice(1).toLowerCase()}${p.div?' '+p.div:''}` : 'Sin rango';
+
+  const roles = u ? [u.pos1, u.pos2].filter(Boolean) : (p && roleFor(p) ? [roleFor(p)] : []);
+  const rolesHtml = roles.length ? `<div class="pm-roles">${roles.map(roleChip).join('')}</div>` : '';
+
+  const champs = u ? [u.champ1, u.champ2, u.champ3].filter(Boolean) : [];
+  const champsHtml = champs.length
+    ? `<p class="pm-sec-t">Campeones más jugados</p><div class="pm-champs">${champs.map(champSquare).join('')}</div>`
+    : '';
+  const flashHtml = (u && (u.flashSlot===1 || u.flashSlot===2))
+    ? `<div class="pm-flash">Destello en <b>${u.flashSlot===1?'D · 1er hechizo':'F · 2º hechizo'}</b></div>` : '';
+
+  const badges = p ? `${p.inGame?'<span class="badge-ingame">● EN PARTIDA</span>':''} ${p.live?'<span class="badge-live">LIVE</span>':''}` : '';
+  const avaBig = (u && u.avatar) ? `<img class="pm-ava" src="${u.avatar}" alt="">` : `<div class="pm-ava">${initials(nm)}</div>`;
+
+  const stats = p ? `
+    <div class="pm-grid">
+      <div class="pm-stat"><div class="k">Winrate</div><div class="v">${wr}%</div><div class="pm-bar"><span style="width:${wr}%"></span></div></div>
+      <div class="pm-stat"><div class="k">Partidas</div><div class="v">${tot}<span class="sub">${w}V·${l}D</span></div></div>
+      <div class="pm-stat"><div class="k">Racha</div><div class="v" style="color:${strk>0?'var(--up)':strk<0?'var(--down)':'var(--muted)'}">${strk>0?strk+'W':strk<0?Math.abs(strk)+'L':'–'}</div></div>
+      <div class="pm-stat"><div class="k">±LP última</div><div class="v" style="font-size:15px">${p.up==null?'–':`<span style="color:var(--up)">▲${p.up}</span> <span style="color:var(--down)">▼${p.down}</span>`}</div></div>
+      <div class="pm-stat"><div class="k">Aegis</div><div class="v">${p.aegis||0}</div></div>
+      <div class="pm-stat"><div class="k">Movimiento</div><div class="v" style="font-size:15px">${moveEl(p.move||0)}</div></div>
+    </div>
+    <p class="pm-sec-t">Forma reciente</p><div style="margin-bottom:4px">${sparkline(p.form)}</div>
+  ` : `<p class="pm-empty">Aún no hay estadísticas de ranking para este jugador.</p>`;
+
+  const eloRow = p ? `
+    <div class="pm-elo">
+      ${crest}
+      <div><div class="lp">${p.lp}<small>LP</small></div><div class="tier-t">${tierTxt}</div></div>
+      ${rolesHtml}
+    </div>` : (rolesHtml ? `<div class="pm-elo">${rolesHtml}</div>` : '');
+
+  const isAdmin = localStorage.getItem('sqc_admin') === '1';
+  const overlay = document.createElement('div');
+  overlay.className = 'pm-overlay';
+  overlay.innerHTML = `
+    <div class="pm-card">
+      <div class="pm-banner">
+        <button class="pm-close" aria-label="Cerrar">✕</button>
+        ${avaBig}
+        <div class="pm-id">
+          <div class="pm-name">${nm} ${rankPos?`<span class="pm-rankpill">#${rankPos}</span>`:''} ${badges}</div>
+          <div class="pm-rid">${rid}</div>
+          ${u && u.realname ? `<div class="pm-realname">${u.realname}</div>` : ''}
+        </div>
+      </div>
+      <div class="pm-body">
+        ${eloRow}
+        ${champsHtml}
+        ${flashHtml}
+        ${stats}
+        <div class="pm-actions">
+          <a class="pm-btn" href="${opggUrl(rid)}" target="_blank" rel="noopener">Ver en OP.GG</a>
+          ${isAdmin ? `<button class="pm-btn danger" data-del>Eliminar</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  const close = () => overlay.remove();
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+  overlay.querySelector('.pm-close').onclick = close;
+  const delBtn = overlay.querySelector('[data-del]');
+  if (delBtn) delBtn.onclick = () => { close(); deletePlayer(rid); };
+  document.body.appendChild(overlay);
+}
+
+async function deletePlayer(rid){
+  if (!confirm(`¿Eliminar a "${rid}" del ranking?\n\nSe borrará su perfil registrado y se quitará del ranking de forma permanente.`)) return;
+  try {
+    await SQC.api('/admin/player/remove', { method:'POST', body:{ riotid: rid } });
+    PLAYERS = PLAYERS.filter(p => p.rid !== rid);
+    PLAYERS.forEach((p,i)=>{ p.rankPos = i+1; });
+    delete USER_BY_RID[rid];
+    counts(); render();
+    alert(`"${rid}" eliminado. El ranking terminará de actualizarse en el próximo ciclo del runner.`);
+  } catch (e) { alert('No se pudo eliminar: ' + e.message); }
+}
+
+// Click en el avatar del ranking -> menú (Ver perfil / Eliminar).
+document.getElementById('rows').addEventListener('click', e => {
+  const btn = e.target.closest('.ava-btn'); if (!btn) return;
+  e.preventDefault(); e.stopPropagation();
+  openPlayerMenu(e.clientX, e.clientY, btn.dataset.rid);
+});
 
 counts(); render(); renderLive();
 loadAvatars();

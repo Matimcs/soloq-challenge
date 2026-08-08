@@ -32,6 +32,15 @@ try {
   const extra = JSON.parse(fs.readFileSync(path.join(__dirname, 'roster-extra.json'), 'utf8'));
   if (Array.isArray(extra)) for (const rid of extra) if (rid && !RIOT_IDS.includes(rid)) RIOT_IDS.push(rid);
 } catch {}
+// Cuentas eliminadas por el admin (roster_hidden en la DB): se excluyen del ranking
+// aunque estén en la lista fija de arriba.
+try {
+  const removed = JSON.parse(fs.readFileSync(path.join(__dirname, 'roster-removed.json'), 'utf8'));
+  if (Array.isArray(removed) && removed.length){
+    const hide = new Set(removed);
+    for (let i = RIOT_IDS.length - 1; i >= 0; i--) if (hide.has(RIOT_IDS[i])) RIOT_IDS.splice(i, 1);
+  }
+} catch {}
 
 const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
                      PLATINUM:4, GOLD:3, SILVER:2, BRONZE:1, IRON:0, UNRANKED:-1 };

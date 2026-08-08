@@ -79,6 +79,10 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS roster_hidden (  -- cuentas eliminadas del ranking por el admin
+      riotid     TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
     -- Columnas nuevas (perfil): 3 campeones más jugados, slot del Flash, confirmación del admin.
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ1     TEXT;
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ2     TEXT;

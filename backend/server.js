@@ -123,8 +123,8 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
 
 // Avatares públicos (para el ranking y los popups del sitio). Sin auth: el leaderboard es público.
 app.get('/api/avatars', wrap(async (req,res) => {
-  const rows = await q('SELECT riotid, nickname, avatar, pos1 FROM users WHERE avatar IS NOT NULL');
-  res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, avatar:r.avatar, pos1:r.pos1 })));
+  const rows = await q('SELECT riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
+  res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, realname:r.realname, avatar:r.avatar, pos1:r.pos1, pos2:r.pos2, main:r.main, champ1:r.champ1, champ2:r.champ2, champ3:r.champ3, flashSlot:r.flash_slot })));
 }));
 
 // Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
@@ -320,6 +320,26 @@ app.post('/api/admin/roster/remove', auth, requireAdmin, wrap(async (req,res) =>
   res.json({ ok:true });
 }));
 
+// Eliminar un jugador del ranking POR COMPLETO: borra su perfil registrado (y datos
+// asociados), lo saca del roster manual y lo agrega a roster_hidden para que el runner
+// lo excluya aunque esté en la lista fija de RIOT_IDS.
+app.post('/api/admin/player/remove', auth, requireAdmin, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  if (!riotid) return res.status(400).json({ error:'Falta riotid' });
+  if (ADMIN_RIDS.has(riotid)) return res.status(400).json({ error:'No se puede eliminar a un administrador' });
+  const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
+  if (u){
+    await q('DELETE FROM events        WHERE user_id=$1', [u.id]);
+    await q('DELETE FROM shells        WHERE owner_id=$1', [u.id]);
+    await q('DELETE FROM tickets       WHERE user_id=$1', [u.id]);
+    await q('DELETE FROM verifications WHERE user_id=$1', [u.id]);
+    await q('DELETE FROM users         WHERE id=$1', [u.id]);
+  }
+  await q('DELETE FROM roster WHERE riotid=$1', [riotid]);
+  await q('INSERT INTO roster_hidden (riotid) VALUES ($1) ON CONFLICT (riotid) DO NOTHING', [riotid]);
+  res.json({ ok:true });
+}));
+
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 
@@ -338,6 +358,8 @@ function startEmbeddedRunner(){
   const writeRoster = async () => {
     try { const rows = await q('SELECT riotid FROM roster ORDER BY created_at');
       fs.writeFileSync(path.join(ROOT, 'roster-extra.json'), JSON.stringify(rows.map(r=>r.riotid))); } catch {}
+    try { const hid = await q('SELECT riotid FROM roster_hidden');
+      fs.writeFileSync(path.join(ROOT, 'roster-removed.json'), JSON.stringify(hid.map(r=>r.riotid))); } catch {}
   };
 
   // El caché (PUUIDs, rangos y sobre todo el historial ±LP/aegis) se guarda en
