@@ -364,6 +364,29 @@ app.post('/api/overlay/report', wrap(async (req,res) => {
   res.json({ ok:true });
 }));
 
+// Mensajes (texto y/o voz) que el admin manda al overlay de un jugador.
+app.post('/api/admin/message', auth, requireAdmin, wrap(async (req,res) => {
+  const uid = Number(req.body && req.body.userId);
+  if (!uid) return res.status(400).json({ error:'Falta el jugador' });
+  const text  = ((req.body && req.body.text) || '').trim() || null;
+  const audio = (req.body && typeof req.body.audio === 'string' && req.body.audio.startsWith('data:audio')) ? req.body.audio : null;
+  if (!text && !audio) return res.status(400).json({ error:'Escribe un mensaje o graba un audio' });
+  if (audio && audio.length > 2000000) return res.status(400).json({ error:'El audio es muy largo (grábalo más corto)' });
+  const target = await q1('SELECT id FROM users WHERE id=$1', [uid]);
+  if (!target) return res.status(400).json({ error:'Jugador inválido' });
+  await q('INSERT INTO admin_messages (user_id,text,audio) VALUES ($1,$2,$3)', [uid, text, audio]);
+  res.json({ ok:true });
+}));
+// El overlay sondea sus mensajes recientes (últimos 5 min) por Riot ID. Sin auth (solo lectura de lo propio).
+app.get('/api/overlay/messages', wrap(async (req,res) => {
+  const riotid = (req.query.riotid || '').trim();
+  if (!riotid) return res.json([]);
+  const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
+  if (!u) return res.json([]);
+  res.json(await q(`SELECT id, text, audio, created_at FROM admin_messages
+    WHERE user_id=$1 AND created_at > now() - interval '5 minutes' ORDER BY id ASC LIMIT 10`, [u.id]));
+}));
+
 // Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
 app.get('/api/overlay/shells', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();

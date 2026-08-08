@@ -125,6 +125,14 @@ async function init(){
       game_end   BIGINT,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS admin_messages ( -- mensajes (texto y/o voz) del admin al overlay de un jugador
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL,
+      text       TEXT,
+      audio      TEXT,                           -- data URL base64 del audio grabado (opcional)
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS admin_msg_user_idx ON admin_messages (user_id, id);
     CREATE TABLE IF NOT EXISTS shell_log (      -- registro permanente de Blue Shells CONSEGUIDAS (el granter otorga)
       id         SERIAL PRIMARY KEY,
       user_id    INTEGER,

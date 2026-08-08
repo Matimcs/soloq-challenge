@@ -147,6 +147,23 @@
       </div>
       <div class="list" id="pen-list" style="margin-top:12px"></div>
     </div>
+
+    <div class="box">
+      <h2>Mensaje a jugador</h2>
+      <div class="sub" style="margin:-6px 0 12px">Manda una notificación (texto y/o voz) al overlay del jugador. La voz se graba aquí y suena en su pantalla.</div>
+      <div class="drop-row">
+        <select id="msg-user"></select>
+        <button class="btn btn-ghost" id="msg-rec">● Grabar voz</button>
+        <span class="n" id="msg-rec-state"></span>
+      </div>
+      <textarea id="msg-text" rows="2" placeholder="Mensaje de texto (opcional)"
+        style="width:100%;margin-top:10px;background:rgba(255,255,255,.04);border:1px solid var(--line-strong,rgba(255,255,255,.12));border-radius:10px;color:#fff;font-family:inherit;font-size:14px;padding:10px 12px;resize:vertical"></textarea>
+      <audio id="msg-preview" controls style="display:none;margin-top:10px;width:100%;height:36px"></audio>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="btn btn-accent" id="msg-send">Enviar mensaje</button>
+        <button class="btn btn-ghost" id="msg-clear" style="display:none">Descartar audio</button>
+      </div>
+    </div>
   </main>
   <div class="toast" id="toast"></div>
 
@@ -294,7 +311,49 @@
       }));
     }
 
-    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen();
+    // ===== Mensaje a jugador (texto + voz) =====
+    async function loadMsgUsers(){
+      try {
+        const ps = await SQC.api('/admin/participants');
+        $('msg-user').innerHTML = ps.length ? ps.map(p=>`<option value="${p.id}">${p.nickname}</option>`).join('') : '<option value="">— sin participantes —</option>';
+      } catch(e){}
+    }
+    let mediaRec=null, chunks=[], recording=false, recordedAudio=null, recStream=null, recTimer=null;
+    async function toggleRec(){
+      const btn=$('msg-rec'), st=$('msg-rec-state');
+      if (recording){ try{ mediaRec.stop(); }catch(e){} return; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ toast('Este navegador no permite grabar'); return; }
+      try { recStream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
+      catch(e){ toast('No se pudo acceder al micrófono'); return; }
+      chunks=[]; try { mediaRec = new MediaRecorder(recStream); } catch(e){ toast('Grabación no soportada'); return; }
+      mediaRec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+      mediaRec.onstop = () => {
+        try { recStream.getTracks().forEach(t=>t.stop()); } catch(e){}
+        clearTimeout(recTimer);
+        const blob = new Blob(chunks, { type: (mediaRec && mediaRec.mimeType) || 'audio/webm' });
+        const fr = new FileReader();
+        fr.onload = () => { recordedAudio = fr.result; $('msg-preview').src = recordedAudio; $('msg-preview').style.display='block'; $('msg-clear').style.display=''; };
+        fr.readAsDataURL(blob);
+        recording=false; btn.textContent='● Grabar voz'; btn.style.color=''; st.textContent='';
+      };
+      mediaRec.start(); recording=true; btn.textContent='■ Detener'; btn.style.color='var(--down,#fb7185)'; st.textContent='Grabando…';
+      recTimer = setTimeout(()=>{ if (recording) try{ mediaRec.stop(); }catch(e){} }, 20000);   // corta a los 20s
+    }
+    async function sendMsg(){
+      const userId = Number($('msg-user').value), text = $('msg-text').value.trim();
+      if (!userId){ toast('Elige un jugador'); return; }
+      if (!text && !recordedAudio){ toast('Escribe un mensaje o graba un audio'); return; }
+      try {
+        await SQC.api('/admin/message', { method:'POST', body:{ userId, text, audio: recordedAudio } });
+        toast('Mensaje enviado');
+        $('msg-text').value=''; recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none';
+      } catch(e){ toast(e.message); }
+    }
+    $('msg-rec').addEventListener('click', toggleRec);
+    $('msg-send').addEventListener('click', sendMsg);
+    $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
+
+    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers();
   })();
 </script>
 </body>

@@ -68,6 +68,7 @@ function dlog(m){ try { fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString(
 let DD = null, cachedMatchup = null, myApiPuuid = null, myRidForShells = null;
 const OVERLAY_START = Date.now();
 let shownShellIds = new Set(Array.isArray(settings.shownShellIds) ? settings.shownShellIds : []);
+let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shownMsgIds  : []);
 
 // El roster/standing se baja del backend (players.json), no de un archivo local:
 // así el .exe es independiente y usa datos frescos de la nube.
@@ -146,7 +147,7 @@ async function buildMatchup(spec, myPuuid, roster){
 }
 
 // ---- Ventanas ----
-let win, shellWin, bigWin, bsWin;
+let win, shellWin, bigWin, bsWin, msgWin;
 function baseWin(w, h, x, y, show = true, focusable = false){
   return new BrowserWindow({ width: w, height: h, x, y, show,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable, hasShadow: false,
@@ -166,6 +167,10 @@ function createWindows(){
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
   bsWin = baseWin(680, 380, Math.round(d.wa.x + (d.wa.width - 680) / 2), Math.round(d.wa.y + (d.wa.height - 380) / 2), false);
   bsWin.setAlwaysOnTop(true, 'screen-saver'); bsWin.loadFile(path.join(__dirname, 'bs-event.html'));
+  // Notificación de mensaje del admin (abajo-centro): texto y/o voz.
+  const MW = 460, MH = 104;
+  msgWin = baseWin(MW, MH, Math.round(d.wa.x + (d.wa.width - MW) / 2), d.wa.y + d.wa.height - MH - 46, false);
+  msgWin.setAlwaysOnTop(true, 'screen-saver'); msgWin.loadFile(path.join(__dirname, 'message.html'));
 }
 
 // Ícono en la bandeja (íconos ocultos) con menú para cerrar el overlay.
@@ -196,8 +201,8 @@ ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.send
 ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(50, Math.min(900, Math.round(h))) }); });
 
 // ---- Aplicar settings ----
-function applyOpacity(){ [win, shellWin, bigWin, bsWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
-function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
+function applyOpacity(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
+function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
@@ -367,6 +372,34 @@ async function pollShells(){
   } catch (e) { dlog('pollShells error: ' + (e && e.message)); }
 }
 
+// ---- Mensajes del admin (texto y/o voz) -> notificación abajo-centro ----
+ipcMain.on('msg-done', () => { if (msgWin && !msgWin.isDestroyed()) msgWin.hide(); });
+function showAdminMessage(m){
+  if (!msgWin || msgWin.isDestroyed()) return;
+  const d = defaults();
+  const MW = 460, MH = 104;
+  msgWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - MW) / 2), y: d.wa.y + d.wa.height - MH - 46, width: MW, height: MH });
+  msgWin.showInactive();
+  msgWin.webContents.send('admin-msg', { text: m.text || '', audio: m.audio || null, volume: settings.volume != null ? settings.volume : 0.9 });
+  dlog('admin-msg mostrado: ' + (m.text ? m.text.slice(0, 40) : '(voz)'));
+}
+async function pollMessages(){
+  if (!msgWin || !myRidForShells) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/overlay/messages?riotid=${encodeURIComponent(myRidForShells)}`);
+    if (!r.ok) return;
+    const msgs = await r.json();
+    if (!Array.isArray(msgs)) return;
+    const nuevas = msgs
+      .filter(m => !shownMsgIds.has(m.id) && new Date(m.created_at).getTime() > OVERLAY_START - 60000)
+      .sort((a, b) => a.id - b.id);
+    if (!nuevas.length) return;
+    dlog(`pollMessages: nuevas=${nuevas.map(m => m.id).join(',')}`);
+    nuevas.forEach((m, i) => { shownMsgIds.add(m.id); setTimeout(() => showAdminMessage(m), i * 10000); });
+    settings.shownMsgIds = [...shownMsgIds].slice(-80); saveSettings();
+  } catch (e) { dlog('pollMessages error: ' + (e && e.message)); }
+}
+
 app.whenReady().then(async () => {
   createWindows();
   createTray();
@@ -392,6 +425,8 @@ app.whenReady().then(async () => {
   setInterval(refreshRoster, 30000);
   pollShells();
   setInterval(pollShells, 12000);   // revisa Blue Shells recibidas cada 12s
+  pollMessages();
+  setInterval(pollMessages, 8000);  // revisa mensajes del admin cada 8s
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());
