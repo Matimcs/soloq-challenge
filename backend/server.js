@@ -232,6 +232,121 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
   res.json({ profile, history, stats, blueshells, ddragonVersion: liveData && liveData.ddragonVersion });
 }));
 
+// ---- Ficha COMPLETA: evolución de elo + Premios (ranking entre jugadores) + récords ----
+const TIERV = { IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6,MASTER:7,GRANDMASTER:7,CHALLENGER:7 };
+const DIVV  = { I:3, II:2, III:1, IV:0, '':0 };
+function absLPof(tier, div, lp){
+  if (!tier || tier==='UNRANKED') return null;
+  if (tier==='MASTER'||tier==='GRANDMASTER'||tier==='CHALLENGER') return 2800 + (lp||0);
+  return (TIERV[tier]||0)*400 + (DIVV[div]||0)*100 + (lp||0);
+}
+// Premios: cada uno mide algo por jugador y se rankea. get(p) null = "sin registro".
+const AWARDS = [
+  { key:'grindeador',  title:'El Grindeador',            prize:'2.500 €', unit:'',                   get:p=>p.games },
+  { key:'onetrick',    title:'One Trick King',           prize:'2.500 €', unit:'',                   get:p=>p.oneTrick||null },
+  { key:'main',        title:'Main Character',           prize:'2.500 €', unit:'%',  min:20,         get:p=>p.games>=20?+p.winrate.toFixed(1):null },
+  { key:'sinfrenos',   title:'Sin Frenos',               prize:'1.500 €', unit:'',                   get:p=>p.maxDeaths||null },
+  { key:'penta',       title:'Pentakill Hunter',         prize:'1.500 €', unit:'',                   get:p=>p.pentas||null },
+  { key:'caos',        title:'Agente del Caos',          prize:'1.500 €', unit:' derrotas seguidas', get:p=>p.lossStreak||null },
+  { key:'pool',        title:'Maestro del Champion Pool', prize:'1.000 €', unit:'',                   get:p=>p.distinctChamps||null },
+  { key:'consistency', title:'Consistency King',         prize:'1.000 €', unit:'',                   get:p=>p.winStreak||null },
+  { key:'kda',         title:'KDA Player',               prize:'1.000 €', unit:'',                   get:p=>p.games?+p.bestKda.toFixed(2):null },
+  { key:'criminal',    title:'Criminal de Guerra',       prize:'1.000 €', unit:'',                   get:p=>p.maxKills||null },
+];
+// Récords por partida (mejor marca de una sola partida).
+const RECORDS = [
+  { key:'kills',   title:'Más kills',             unit:'',    get:p=>p.maxKills },
+  { key:'assists', title:'Más asistencias',       unit:'',    get:p=>p.maxAssists },
+  { key:'damage',  title:'Más daño a campeones',  unit:'',    get:p=>p.maxDamage,  fmt:v=>v.toLocaleString('es-CL') },
+  { key:'vision',  title:'Más visión',            unit:'',    get:p=>p.maxVision },
+  { key:'longest', title:'Victoria más larga',    unit:'',    get:p=>p.longestWin, fmt:v=>Math.floor(v/60)+':'+String(Math.floor(v%60)).padStart(2,'0') },
+  { key:'kda',     title:'Mejor KDA',             unit:'',    get:p=>+p.bestKda.toFixed(2) },
+  { key:'gold',    title:'Más oro',               unit:'',    get:p=>p.maxGold,    fmt:v=>v.toLocaleString('es-CL') },
+  { key:'csmin',   title:'Mejor CS/min',          unit:'',    get:p=>+p.bestCsMin.toFixed(1) },
+];
+// Agregados por jugador del torneo (cache 60s: es global, igual para todos).
+let LB_CACHE = { at:0, players:[] };
+async function leaderboardPlayers(){
+  if (Date.now() - LB_CACHE.at < 60000) return LB_CACHE.players;
+  const rows = await q(`SELECT puuid, riotid, name, champion, win, kills, deaths, assists, cs, gold, damage, vision, penta, duration, game_end
+    FROM match_participants WHERE is_tournament=true`);
+  const byP = {};
+  for (const r of rows){
+    const p = byP[r.puuid] || (byP[r.puuid] = { puuid:r.puuid, riotid:r.riotid, name:(r.name || (r.riotid||'').split('#')[0] || '—'),
+      games:0, wins:0, maxKills:0, maxDeaths:0, maxAssists:0, maxDamage:0, maxVision:0, maxGold:0, pentas:0,
+      bestKda:0, bestCsMin:0, longestWin:0, champs:{}, seq:[] });
+    p.games++; if (r.win) p.wins++;
+    p.maxKills=Math.max(p.maxKills,r.kills||0); p.maxDeaths=Math.max(p.maxDeaths,r.deaths||0); p.maxAssists=Math.max(p.maxAssists,r.assists||0);
+    p.maxDamage=Math.max(p.maxDamage,r.damage||0); p.maxVision=Math.max(p.maxVision,r.vision||0); p.maxGold=Math.max(p.maxGold,r.gold||0);
+    p.pentas+=r.penta||0;
+    const kda=((r.kills||0)+(r.assists||0))/Math.max(1,r.deaths||0); if (kda>p.bestKda) p.bestKda=kda;
+    if (r.duration>0){ const cm=(r.cs||0)/(r.duration/60); if (cm>p.bestCsMin) p.bestCsMin=cm; }
+    if (r.win) p.longestWin=Math.max(p.longestWin,r.duration||0);
+    p.champs[r.champion]=(p.champs[r.champion]||0)+1;
+    p.seq.push({ end:r.game_end||0, win:!!r.win });
+  }
+  const players = Object.values(byP).map(p => {
+    const cc=Object.values(p.champs); p.distinctChamps=Object.keys(p.champs).length; p.oneTrick=cc.length?Math.max(...cc):0;
+    p.winrate=p.games?p.wins/p.games*100:0;
+    p.seq.sort((a,b)=>a.end-b.end);
+    let ws=0,ls=0,mw=0,ml=0; for (const g of p.seq){ if (g.win){ ws++; ls=0; mw=Math.max(mw,ws);} else { ls++; ws=0; ml=Math.max(ml,ls);} }
+    p.winStreak=mw; p.lossStreak=ml; delete p.seq; delete p.champs; return p;
+  });
+  LB_CACHE = { at:Date.now(), players };
+  return players;
+}
+// Rankea a los jugadores por una métrica y devuelve el puesto/líder del jugador puuid.
+function rankBy(players, getFn, puuid){
+  const scored = players.map(p => ({ p, v:getFn(p) })).filter(x => x.v != null && x.v > 0).sort((a,b) => b.v - a.v);
+  const total = scored.length;
+  const leader = scored[0] ? { name:scored[0].p.name, value:scored[0].v } : null;
+  const idx = scored.findIndex(x => x.p.puuid === puuid);
+  const mine = idx >= 0 ? scored[idx].v : null;
+  return { value:mine, rank: idx>=0 ? idx+1 : null, total, leader };
+}
+app.get('/api/ficha/:riotid', wrap(async (req,res) => {
+  const riotid = (req.params.riotid || '').trim();
+  const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
+  const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
+  const u = await q1('SELECT nickname, realname, avatar, pos1 FROM users WHERE riotid=$1', [riotid]);
+  let puuid = lp && lp.puuid;
+  if (!puuid){ const r = await q1('SELECT puuid FROM match_participants WHERE lower(riotid)=lower($1) AND puuid<>\'\' ORDER BY game_end DESC LIMIT 1', [riotid]); puuid = r && r.puuid; }
+
+  // Evolución de elo: reconstruida de los ±LP absolutos guardados
+  let eloSeries = [];
+  const curAbs = lp ? absLPof(lp.tier, lp.div, lp.lp) : null;
+  if (puuid && curAbs != null){
+    try {
+      const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
+      const s = r && r.data && r.data[puuid];
+      if (s && Array.isArray(s.lpGames)){
+        const lg = s.lpGames.filter(g => g.end);
+        let abs = curAbs; const pts = [{ t:Date.now(), lp:abs }];
+        for (const g of lg){ abs -= (g.delta||0); pts.push({ t:g.end, lp:abs }); }
+        eloSeries = pts.reverse();
+      }
+    } catch {}
+  }
+
+  // Premios + récords (ranking entre todos los jugadores del torneo)
+  const players = await leaderboardPlayers();
+  const premios = AWARDS.map(a => { const r = rankBy(players, a.get, puuid); return { key:a.key, title:a.title, prize:a.prize, unit:a.unit, ...r }; });
+  const records = RECORDS.map(a => {
+    const r = rankBy(players, a.get, puuid);
+    const f = a.fmt || (v=>v);
+    return { key:a.key, title:a.title, value:r.value!=null?f(r.value):null, rank:r.rank, total:r.total };
+  });
+
+  const w = lp ? lp.w : 0, l = lp ? lp.l : 0, tot = w+l;
+  res.json({
+    profile: { riotid, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:u&&u.realname, avatar:u&&u.avatar,
+      tier:lp&&lp.tier, div:lp&&lp.div, lp:lp&&lp.lp, rankPos, role:(u&&u.pos1)||(lp&&lp.role),
+      elo: lp && ['MASTER','GRANDMASTER','CHALLENGER'].includes(lp.tier) ? 'High Elo' : 'Low Elo',
+      w, l, winrate: tot?Math.round(w/tot*100):0 },
+    eloSeries, premios, records,
+  });
+}));
+
 // El overlay (exe) reporta el rango/estado del jugador (obtenido GRATIS del cliente vía LCU)
 // para que el runner de la nube NO tenga que gastar llamadas a la Riot API por ese jugador.
 app.post('/api/overlay/report', wrap(async (req,res) => {

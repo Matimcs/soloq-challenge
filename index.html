@@ -426,6 +426,44 @@
   .rev{ color:var(--purple); font-weight:800; font-size:10px; }
   @media (max-width:760px){ .pd-m{ grid-template-columns:1fr 1fr; } .pd-m-items,.pd-m-lp{ grid-column:span 2; } .bs-cols{ grid-template-columns:1fr; } }
 
+  /* ===== ficha completa (modal) ===== */
+  .ff-overlay{ position:fixed; inset:0; z-index:400; display:grid; place-items:start center; overflow-y:auto; padding:24px 16px; background:rgba(3,4,7,.8); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); animation:pm-fade .18s ease; }
+  .ff-card{ position:relative; width:min(880px,96vw); background:#0b0c10; border:1px solid var(--line-strong); border-radius:20px; box-shadow:0 30px 80px rgba(0,0,0,.6); padding:24px 26px 30px; }
+  .ff-loading{ padding:60px; text-align:center; color:var(--muted); }
+  .ff-x{ position:absolute; top:18px; right:18px; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.08); border:1px solid var(--line-strong); color:var(--muted); cursor:pointer; font-size:15px; }
+  .ff-x:hover{ background:rgba(255,255,255,.16); color:#fff; }
+  .ff-title{ font-size:28px; font-weight:800; letter-spacing:-.02em; }
+  .ff-tags{ display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .ff-tag{ font-size:11.5px; font-weight:700; color:var(--muted); background:rgba(255,255,255,.06); border:1px solid var(--line); padding:4px 10px; border-radius:7px; }
+  .ff-tag.lime{ color:#000; background:var(--accent); border-color:var(--accent); }
+  .ff-stats{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:18px 0; background:var(--panel-2); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .ff-s{ text-align:center; } .ff-s .v{ font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; } .ff-s .v.good,.ff-s .v.up{ color:var(--up);} .ff-s .v.down{color:var(--down);} .ff-s .v.lime{color:var(--accent);}
+  .ff-s .k{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-top:5px; }
+  .ff-sec{ margin-top:22px; }
+  .ff-sec-t{ font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin-bottom:12px; }
+  .ffc{ width:100%; height:auto; display:block; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
+  .ffc-yl{ fill:var(--muted-2); font-size:10px; } .ffc-xl{ fill:var(--muted-2); font-size:9px; }
+  .ff-empty{ color:var(--muted); font-size:13px; padding:30px; text-align:center; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
+  .ff-awards{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .ff-award{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:14px; }
+  .ff-a-top{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .ff-a-t{ font-size:13px; font-weight:800; }
+  .ff-a-p{ font-size:12px; font-weight:800; color:var(--up); white-space:nowrap; }
+  .ff-a-v{ font-size:22px; font-weight:800; margin-top:8px; font-variant-numeric:tabular-nums; }
+  .ff-a-none{ font-size:13px; color:var(--muted-2); margin-top:8px; }
+  .ff-a-bar{ height:5px; border-radius:3px; background:rgba(255,255,255,.08); margin-top:8px; overflow:hidden; }
+  .ff-a-bar span{ display:block; height:100%; background:var(--up); }
+  .ff-a-b{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:9px; min-height:16px; }
+  .ff-a-rank{ font-size:13px; font-weight:800; } .ff-a-rank small{ color:var(--muted-2); font-weight:600; }
+  .ff-a-lead{ font-size:10.5px; color:var(--muted); text-align:right; }
+  .ff-recs{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  .ff-rec{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px; }
+  .ff-r-t{ font-size:11px; color:var(--muted); margin-bottom:8px; min-height:28px; }
+  .ff-r-row{ display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
+  .ff-r-v{ font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .ff-r-rank{ font-size:12px; font-weight:800; color:var(--muted-2); }
+  @media (max-width:760px){ .ff-stats{ grid-template-columns:repeat(3,1fr);} .ff-awards{ grid-template-columns:1fr;} .ff-recs{ grid-template-columns:repeat(2,1fr);} }
+
   footer{ color:var(--muted-2); font-size:12px; text-align:center; padding:40px 0 30px; }
 
   @media (max-width:860px){
@@ -1122,7 +1160,7 @@ function renderDetail(root, rid, data){
     <div class="pd-tabs">
       <button class="pd-tab active" data-t="hist">Historial</button>
       <button class="pd-tab" data-t="stats">Stats &amp; Elo</button>
-      <button class="pd-tab" data-t="premios">Premios Klok</button>
+      <button class="pd-tab" data-t="premios">Premios</button>
       <button class="pd-tab" data-t="bs">Blue Shell${bs?` <span class="pd-x">×${bs.inventory}</span>`:''}</button>
       <a class="pd-full" href="#">Ver ficha completa →</a>
     </div>
@@ -1130,7 +1168,7 @@ function renderDetail(root, rid, data){
   const c = root.querySelector('#pd-c');
   const tabs = { hist:()=>renderHist(c,data), stats:()=>renderStats(c,data), premios:()=>renderPremios(c), bs:()=>renderBS(c,data) };
   root.querySelectorAll('.pd-tab').forEach(b => b.onclick = () => { root.querySelectorAll('.pd-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); tabs[b.dataset.t](); });
-  root.querySelector('.pd-full').onclick = e => { e.preventDefault(); alert('La ficha completa del jugador llegará pronto.'); };
+  root.querySelector('.pd-full').onclick = e => { e.preventDefault(); openFullFicha(rid); };
   const del = root.querySelector('[data-pd-del]'); if (del) del.onclick = () => deletePlayer(rid);
   tabs.hist();
 }
@@ -1175,7 +1213,7 @@ function renderStats(c, data){
     </div>
     <div class="pd-empty" style="margin-top:10px">La evolución de elo llegará con la ficha completa.</div>`;
 }
-function renderPremios(c){ c.innerHTML = `<div class="pd-empty">Premios Klok — próximamente.</div>`; }
+function renderPremios(c){ c.innerHTML = `<div class="pd-empty">Los Premios y objetivos están en la ficha completa. <a href="#" onclick="event.preventDefault();this.closest('.pd').querySelector('.pd-full').click()" style="color:var(--accent);font-weight:700">Ver ficha completa →</a></div>`; }
 function renderBS(c, data){
   const bs = data.blueshells;
   if (!bs){ c.innerHTML = `<div class="pd-empty">Este jugador no está registrado (sin Blue Shells).</div>`; return; }
@@ -1199,6 +1237,67 @@ function renderBS(c, data){
       <div class="bs-col"><div class="bs-col-h">Lanzadas</div>${lanLi}</div>
       <div class="bs-col"><div class="bs-col-h">Recibidas</div>${recLi}</div>
     </div>`;
+}
+
+// ===================== FICHA COMPLETA (modal) =====================
+function eloChartSVG(series){
+  if (!series || series.length < 2) return '<div class="ff-empty">Aún no hay suficientes datos de elo (se llena a medida que juegas).</div>';
+  const W=760, H=220, padL=54, padR=14, padT=14, padB=26;
+  const xs=series.map(p=>p.t), ys=series.map(p=>p.lp);
+  const minY=Math.min(...ys), maxY=Math.max(...ys), rY=(maxY-minY)||1;
+  const minX=Math.min(...xs), maxX=Math.max(...xs), rX=(maxX-minX)||1;
+  const X=t=>padL+((t-minX)/rX)*(W-padL-padR);
+  const Y=v=>padT+(1-(v-minY)/rY)*(H-padT-padB);
+  const pts=series.map(p=>`${X(p.t).toFixed(1)},${Y(p.lp).toFixed(1)}`).join(' ');
+  const area=`${padL},${H-padB} ${pts} ${(W-padR).toFixed(1)},${H-padB}`;
+  const yl=[maxY,(minY+maxY)/2,minY].map(v=>`<text x="8" y="${(Y(v)+4).toFixed(1)}" class="ffc-yl">${Math.round(v)}</text>`).join('');
+  let xlab=''; const n=4; for(let i=0;i<=n;i++){ const t=minX+rX*i/n; const d=new Date(t); xlab+=`<text x="${X(t).toFixed(1)}" y="${H-8}" class="ffc-xl" text-anchor="middle">${d.getDate()+' '+d.toLocaleString('es-CL',{month:'short'})}</text>`; }
+  return `<svg class="ffc" viewBox="0 0 ${W} ${H}">
+    <polyline points="${area}" fill="rgba(233,255,31,.08)" stroke="none"/>
+    <polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    ${yl}${xlab}</svg>`;
+}
+async function openFullFicha(rid){
+  const overlay=document.createElement('div'); overlay.className='ff-overlay';
+  overlay.innerHTML=`<div class="ff-card"><div class="ff-loading">Cargando ficha…</div></div>`;
+  const close=()=>overlay.remove();
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) close(); });
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ close(); document.removeEventListener('keydown',esc); } });
+  document.body.appendChild(overlay);
+  let data; try{ const r=await fetch('/api/ficha/'+encodeURIComponent(rid),{cache:'no-store'}); if(!r.ok) throw 0; data=await r.json(); }
+  catch{ overlay.querySelector('.ff-card').innerHTML='<button class="ff-x">✕</button><div class="ff-loading">No se pudo cargar la ficha.</div>'; overlay.querySelector('.ff-x').onclick=close; return; }
+  renderFullFicha(overlay.querySelector('.ff-card'), data, close);
+}
+function renderFullFicha(card, data, close){
+  const p=data.profile||{};
+  const tierTxt=(p.tier&&p.tier!=='UNRANKED')?`${p.tier.charAt(0)+p.tier.slice(1).toLowerCase()}${p.div?' '+p.div:''} · ${p.lp} LP`:'Sin rango';
+  const award=a=>{
+    const has=a.value!=null;
+    const pct=has&&a.leader&&a.leader.value?Math.max(4,Math.min(100,a.value/a.leader.value*100)):0;
+    return `<div class="ff-award">
+      <div class="ff-a-top"><span class="ff-a-t">${a.title}</span><span class="ff-a-p">${a.prize||''}</span></div>
+      ${has?`<div class="ff-a-v">${a.value}${a.unit||''}</div><div class="ff-a-bar"><span style="width:${pct}%"></span></div>`:`<div class="ff-a-none">Sin registro</div>`}
+      <div class="ff-a-b">${a.rank?`<span class="ff-a-rank">#${a.rank}<small>/${a.total}</small></span>`:'<span></span>'}${a.leader?`<span class="ff-a-lead">Líder: ${a.leader.name} - ${a.leader.value}${a.unit||''}</span>`:''}</div>
+    </div>`;
+  };
+  const rec=r=>`<div class="ff-rec"><div class="ff-r-t">${r.title}</div><div class="ff-r-row"><span class="ff-r-v">${r.value!=null?r.value:'—'}</span>${r.rank?`<span class="ff-r-rank">#${r.rank}</span>`:''}</div></div>`;
+  card.innerHTML=`
+    <button class="ff-x" title="Cerrar">✕</button>
+    <div class="ff-head">
+      <div class="ff-title">${p.nickname}</div>
+      <div class="ff-tags">${p.tier?`<span class="ff-tag lime">${tierTxt}</span>`:''}${p.elo?`<span class="ff-tag">${p.elo}</span>`:''}${p.role?`<span class="ff-tag">${p.role}</span>`:''}</div>
+    </div>
+    <div class="ff-stats">
+      <div class="ff-s"><div class="v good">${p.winrate}%</div><div class="k">Winrate</div></div>
+      <div class="ff-s"><div class="v up">${p.w}</div><div class="k">Victorias</div></div>
+      <div class="ff-s"><div class="v down">${p.l}</div><div class="k">Derrotas</div></div>
+      <div class="ff-s"><div class="v">${p.w+p.l}</div><div class="k">Partidas</div></div>
+      <div class="ff-s"><div class="v lime">${p.lp!=null?p.lp:'—'}</div><div class="k">LP</div></div>
+    </div>
+    <div class="ff-sec"><div class="ff-sec-t">Evolución de elo</div>${eloChartSVG(data.eloSeries)}</div>
+    <div class="ff-sec"><div class="ff-sec-t">Premios · Objetivos</div><div class="ff-awards">${(data.premios||[]).map(award).join('')}</div></div>
+    <div class="ff-sec"><div class="ff-sec-t">Récords por partida · Mejor puesto</div><div class="ff-recs">${(data.records||[]).map(rec).join('')}</div></div>`;
+  card.querySelector('.ff-x').onclick=close;
 }
 
 async function deletePlayer(rid){
