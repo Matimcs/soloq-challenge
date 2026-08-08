@@ -45,7 +45,6 @@
       <div class="stitle">⚙ Configuración</div>
       <label class="opt"><input type="checkbox" id="s-small"> Mostrar tarjeta de standing</label>
       <label class="opt"><input type="checkbox" id="s-shell"> Mostrar popup de Blue Shells</label>
-      <label class="opt"><input type="checkbox" id="s-hideoog"> Mostrar overlay solo en partida</label>
       <label class="opt"><input type="checkbox" id="s-autostart"> Abrir al iniciar el PC</label>
       <label class="opt"><input type="checkbox" id="s-aot"> Siempre encima (always-on-top)</label>
       <label class="opt col"><span>Opacidad <b id="s-op-val"></b></span><input type="range" id="s-op" min="30" max="100"></label>
@@ -62,7 +61,7 @@
   async function openSettings(){
     const s = await ipcRenderer.invoke('get-settings');
     $('s-small').checked=!!s.smallVisible; $('s-shell').checked=!!s.shellVisible;
-    $('s-hideoog').checked=!!s.hideOutOfGame; $('s-aot').checked=!!s.alwaysOnTop;
+    $('s-aot').checked=!!s.alwaysOnTop;
     $('s-autostart').checked = s.autoLaunch !== false;
     const op=Math.round((s.opacity!=null?s.opacity:1)*100); $('s-op').value=op; $('s-op-val').textContent=op+'%';
     const vol=Math.round((s.volume!=null?s.volume:0.8)*100); $('s-vol').value=vol; $('s-vol-val').textContent=vol+'%';
@@ -74,7 +73,6 @@
   $('s-close').addEventListener('click', () => settingsEl.style.display='none');
   $('s-small').addEventListener('change', e => set('smallVisible', e.target.checked));
   $('s-shell').addEventListener('change', e => set('shellVisible', e.target.checked));
-  $('s-hideoog').addEventListener('change', e => set('hideOutOfGame', e.target.checked));
   $('s-autostart').addEventListener('change', e => set('autoLaunch', e.target.checked));
   $('s-aot').addEventListener('change', e => set('alwaysOnTop', e.target.checked));
   $('s-op').addEventListener('input', e => { const v=+e.target.value; $('s-op-val').textContent=v+'%'; set('opacity', v/100); });

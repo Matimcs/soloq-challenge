@@ -7,9 +7,11 @@
   *{ box-sizing:border-box; margin:0; }
   html,body{ background:transparent; overflow:hidden; user-select:none;
     font-family:'Segoe UI',system-ui,sans-serif; color:var(--text); text-shadow:0 1px 3px rgba(0,0,0,.8); }
+  /* padding para que la sombra de las tarjetas no se corte contra el borde de la ventana */
+  body{ padding:10px 14px 16px; }
   .wrap{ display:flex; flex-direction:column; gap:6px; cursor:move; }
   .frame{ border:1px solid var(--line); border-radius:10px; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
-    background:rgba(8,10,14,.68); box-shadow:0 6px 24px rgba(0,0,0,.5); }
+    background:rgba(8,10,14,.68); box-shadow:0 5px 18px rgba(0,0,0,.5); }
   .top{ display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 12px; }
   .shell{ width:22px; height:22px; }
   .title{ font-size:12px; font-weight:800; letter-spacing:.16em; }
@@ -91,7 +93,7 @@
   setInterval(() => { if (castigos.length > 1){ idx = (idx + 1) % castigos.length; render(); } }, 5000);
 
   const wrap = $('drag');
-  new ResizeObserver(() => ipcRenderer.send('resize', Math.ceil(wrap.getBoundingClientRect().height) + 4)).observe(wrap);
+  new ResizeObserver(() => ipcRenderer.send('resize', Math.ceil(wrap.getBoundingClientRect().height) + 26)).observe(wrap);
   let dragging = false;
   wrap.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
   window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });

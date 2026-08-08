@@ -153,11 +153,11 @@ function baseWin(w, h, x, y, show = true){
     webPreferences: { nodeIntegration: true, contextIsolation: false } });
 }
 function defaults(){ const wa = screen.getPrimaryDisplay().workArea; const M = 16;
-  return { wa, M, smallX: wa.x + wa.width - 340 - M, smallY: wa.y + M, shellX: wa.x + wa.width - 250 - M, shellY: wa.y + M + 150 }; }
+  return { wa, M, smallX: wa.x + wa.width - 340 - M, smallY: wa.y + M, shellX: wa.x + wa.width - 278 - M, shellY: wa.y + M + 150 }; }
 function createWindows(){
   const d = defaults();
   win = baseWin(340, 130, d.smallX, d.smallY); win.setAlwaysOnTop(true, 'screen-saver'); win.loadFile(path.join(__dirname, 'overlay.html'));
-  shellWin = baseWin(250, 130, d.shellX, d.shellY); shellWin.setAlwaysOnTop(true, 'screen-saver'); shellWin.loadFile(path.join(__dirname, 'shells.html'));
+  shellWin = baseWin(278, 150, d.shellX, d.shellY); shellWin.setAlwaysOnTop(true, 'screen-saver'); shellWin.loadFile(path.join(__dirname, 'shells.html'));
   const BW = 1200, BH = 780;
   bigWin = baseWin(BW, BH, Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2), false);
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
@@ -201,9 +201,10 @@ let smallShown = true, shellShown = true, lastInGame = false;
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
 let forceShowAll = false;
 function applyVis(){
-  const inGameOk = !(settings.hideOutOfGame && !lastInGame);
-  const okSmall = forceShowAll || (settings.smallVisible && inGameOk);
-  const okShell = forceShowAll || (settings.shellVisible && inGameOk);
+  // Regla fija: la tarjeta de standing y el popup de Blue Shells SOLO se ven en partida,
+  // salvo que se pida mostrar todo a mano (doble-click en bandeja / Alt+X).
+  const okSmall = forceShowAll || (settings.smallVisible && lastInGame);
+  const okShell = forceShowAll || (settings.shellVisible && lastInGame);
   if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? win.showInactive() : win.hide(); }
   if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
 }
@@ -219,7 +220,7 @@ function hideAll(){
   if (bigWin && !bigWin.isDestroyed()) bigWin.hide();
   applyVis();
 }
-function toggleAll(){ (bigWin && bigWin.isVisible()) ? hideAll() : showAll(); }
+function toggleAll(){ (forceShowAll || (bigWin && bigWin.isVisible())) ? hideAll() : showAll(); }
 function applyAutoLaunch(){
   try {
     const opts = { openAtLogin: settings.autoLaunch !== false, args: [] };
@@ -368,8 +369,9 @@ app.whenReady().then(async () => {
   createWindows();
   createTray();
   applyOpacity(); applyAlwaysOnTop(); applyAutoLaunch();
-  if (!settings.smallVisible){ smallShown = false; win.hide(); }
-  if (!settings.shellVisible){ shellShown = false; shellWin.hide(); }
+  // Arranca oculto (aún no estás en partida). applyVis los mostrará al entrar a una SoloQ.
+  smallShown = false; win.hide();
+  shellShown = false; shellWin.hide();
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }
   globalShortcut.register('Alt+X', () => toggleAll());   // muestra/cierra TODO el overlay
   // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
