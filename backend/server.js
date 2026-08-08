@@ -393,7 +393,7 @@ app.get('/api/overlay/shells', wrap(async (req,res) => {
   if (!riotid) return res.json([]);
   const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
   if (!u) return res.json([]);
-  res.json(await q(`SELECT id, castigo, other AS "from", estado, extra, created_at FROM events
+  res.json(await q(`SELECT id, castigo, other AS "from", estado, extra, audio, created_at FROM events
     WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [u.id]));
 }));
 
@@ -418,6 +418,9 @@ app.post('/api/blueshells/launch', auth, wrap(async (req,res) => {
   if (target.id === req.user.id) return res.status(400).json({ error:'No puedes lanzarte a ti mismo' });
   const shell = await q1('SELECT id FROM shells WHERE owner_id=$1 ORDER BY id LIMIT 1', [req.user.id]);
   if (!shell) return res.status(400).json({ error:'No tienes Blue Shells' });
+  // Audio opcional (voz) que sonará en el overlay del objetivo. Máx ~8s.
+  const audio = (req.body && typeof req.body.audio === 'string' && req.body.audio.startsWith('data:audio')) ? req.body.audio : null;
+  if (audio && audio.length > 1600000) return res.status(400).json({ error:'El audio es muy largo (máx 8s)' });
 
   await q('DELETE FROM shells WHERE id=$1', [shell.id]);
   let castigo = rollShell(), bounce = false;
@@ -437,11 +440,11 @@ app.post('/api/blueshells/launch', auth, wrap(async (req,res) => {
   }
 
   if (bounce){
-    await q("INSERT INTO events (kind,user_id,other,castigo,extra,bounce) VALUES ('received',$1,$2,$3,$4,true)", [req.user.id, '↩️ rebote (' + target.nickname + ')', castigo, extra]);
+    await q("INSERT INTO events (kind,user_id,other,castigo,extra,bounce,audio) VALUES ('received',$1,$2,$3,$4,true,$5)", [req.user.id, '↩️ rebote (' + target.nickname + ')', castigo, extra, audio]);
     return res.json({ bounce:true, castigo, champ: display, champIcon, msg:`¡Rebotó! El castigo te toca a TI: ${castigo}` });
   }
   await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('sent',$1,$2,$3,$4)", [req.user.id, target.nickname, castigo, extra]);
-  await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('received',$1,$2,$3,$4)", [target.id, req.user.nickname, castigo, extra]);
+  await q("INSERT INTO events (kind,user_id,other,castigo,extra,audio) VALUES ('received',$1,$2,$3,$4,$5)", [target.id, req.user.nickname, castigo, extra, audio]);
   res.json({ bounce:false, castigo, target: target.nickname, champ: display, champIcon, msg:`Le lanzaste una Blue Shell a ${target.nickname}. Le tocó: ${castigo}` });
 }));
 

@@ -147,7 +147,7 @@ async function buildMatchup(spec, myPuuid, roster){
 }
 
 // ---- Ventanas ----
-let win, shellWin, bigWin, bsWin, msgWin;
+let win, shellWin, bigWin, bsWin, msgWin, audioWin;
 function baseWin(w, h, x, y, show = true, focusable = false){
   return new BrowserWindow({ width: w, height: h, x, y, show,
     frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable, hasShadow: false,
@@ -171,6 +171,13 @@ function createWindows(){
   const MW = 460, MH = 104;
   msgWin = baseWin(MW, MH, Math.round(d.wa.x + (d.wa.width - MW) / 2), d.wa.y + d.wa.height - MH - 46, false);
   msgWin.setAlwaysOnTop(true, 'screen-saver'); msgWin.loadFile(path.join(__dirname, 'message.html'));
+  // Ventana OCULTA que solo reproduce audio (voz adjunta a Blue Shells) — sin UI.
+  audioWin = new BrowserWindow({ show:false, width:200, height:120, frame:false, skipTaskbar:true, focusable:false,
+    webPreferences:{ nodeIntegration:true, contextIsolation:false } });
+  audioWin.loadFile(path.join(__dirname, 'audio.html'));
+}
+function playVoice(dataUrl){
+  if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.volume != null ? settings.volume : 0.9 });
 }
 
 // Ícono en la bandeja (íconos ocultos) con menú para cerrar el overlay.
@@ -351,6 +358,8 @@ function showBlueShellEvent(s){
   const champ = extraLabel(s.castigo, s.extra);
   const champIcon = (isChamp && s.extra && DD) ? `https://ddragon.leagueoflegends.com/cdn/${DD.ver}/img/champion/${s.extra}.png` : null;
   bsWin.webContents.send('bs-event', { mode, castigo: s.castigo, from: s.from || 'Alguien', champ, champIcon, volume: settings.volume != null ? settings.volume : 0.8 });
+  // Voz opcional adjunta a la shell: solo suena (sin UI), tras el reveal de la ruleta.
+  if (s.audio) setTimeout(() => playVoice(s.audio), mode === 'roulette' ? 4300 : 500);
 }
 async function pollShells(){
   if (!bsWin) return;

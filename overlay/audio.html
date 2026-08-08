@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8" /></head>
+<body>
+<!-- Ventana oculta: solo reproduce audio (voz adjunta a una Blue Shell). Sin UI. -->
+<script>
+  const { ipcRenderer } = require('electron');
+  let a = null;
+  ipcRenderer.on('play-audio', (_e, m) => {
+    try {
+      if (a){ try { a.pause(); } catch(e){} }
+      a = new Audio(m.audio);
+      a.volume = (m.volume != null) ? Math.max(0, Math.min(1, m.volume)) : 0.9;
+      a.play().catch(()=>{});
+    } catch(e){}
+  });
+</script>
+</body>
+</html>

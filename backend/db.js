@@ -161,6 +161,7 @@ async function init(){
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS flash_slot INTEGER;   -- 1 (D) | 2 (F)
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS confirmed  BOOLEAN DEFAULT false;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS extra      TEXT;       -- ej. campeón aleatorio asignado
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS audio      TEXT;       -- audio opcional (voz) que suena al recibir la shell
   `);
   console.log('✔ Esquema Postgres listo');
 }

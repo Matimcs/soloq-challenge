@@ -121,6 +121,11 @@
         <h2>Lanzar Blue Shell</h2>
         <select id="target"></select>
         <div class="rev-hint" id="rev-hint"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin:6px 0 10px;flex-wrap:wrap">
+          <button type="button" id="bs-rec" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer">🎤 Grabar audio (opcional)</button>
+          <span id="bs-rec-time" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums"></span>
+          <button type="button" id="bs-rec-clear" style="display:none;background:none;border:0;color:rgba(255,255,255,.5);font-family:inherit;font-size:12px;cursor:pointer">✕ quitar</button>
+        </div>
         <button class="throw" id="throw">Lanzar 🛡</button>
         <div class="result" id="result"></div>
         <div class="rules">Reglas: máx. 3 en inventario · no puedes lanzar si estás en cola, champ select o partida · cuanto más abajo tu objetivo, más probable el rebote (Reverse). El castigo se sortea al impactar.</div>
@@ -232,6 +237,36 @@
       }));
     }
 
+    // ===== Audio opcional para adjuntar a la Blue Shell (máx 8s, con cuenta atrás) =====
+    const BS_MAX = 8;
+    let bsRec=null, bsChunks=[], bsRecording=false, bsAudio=null, bsStream=null, bsTick=null, bsTimeout=null;
+    function bsStopRec(){ if (bsRec && bsRecording){ try{ bsRec.stop(); }catch(e){} } }
+    async function bsToggleRec(){
+      const btn=$('bs-rec'), t=$('bs-rec-time');
+      if (bsRecording){ bsStopRec(); return; }
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ alert('Tu navegador no permite grabar'); return; }
+      try { bsStream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
+      catch(e){ alert('No se pudo acceder al micrófono'); return; }
+      bsChunks=[]; try { bsRec = new MediaRecorder(bsStream); } catch(e){ alert('Grabación no soportada'); return; }
+      bsRec.ondataavailable = e => { if (e.data && e.data.size) bsChunks.push(e.data); };
+      bsRec.onstop = () => {
+        try { bsStream.getTracks().forEach(x=>x.stop()); } catch(e){}
+        clearInterval(bsTick); clearTimeout(bsTimeout);
+        const blob = new Blob(bsChunks, { type:(bsRec&&bsRec.mimeType)||'audio/webm' });
+        const fr = new FileReader();
+        fr.onload = () => { bsAudio = fr.result; t.style.color='var(--up,#34d399)'; t.textContent='✓ audio listo'; $('bs-rec-clear').style.display=''; };
+        fr.readAsDataURL(blob);
+        bsRecording=false; btn.textContent='🎤 Regrabar';
+      };
+      bsRec.start(); bsRecording=true; btn.textContent='■ Detener';
+      let left=BS_MAX; t.style.color='var(--down,#fb7185)'; t.textContent='Grabando… '+left+'s';
+      bsTick = setInterval(()=>{ left--; t.textContent='Grabando… '+Math.max(0,left)+'s'; if (left<=0) bsStopRec(); }, 1000);
+      bsTimeout = setTimeout(bsStopRec, BS_MAX*1000+200);
+    }
+    function bsClearAudio(){ bsAudio=null; $('bs-rec-time').textContent=''; $('bs-rec-clear').style.display='none'; $('bs-rec').textContent='🎤 Grabar audio (opcional)'; }
+    $('bs-rec').addEventListener('click', bsToggleRec);
+    $('bs-rec-clear').addEventListener('click', bsClearAudio);
+
     $('throw').addEventListener('click', async () => {
       const opt = $('target').selectedOptions[0]; if (!opt || !opt.value) return;
       $('throw').disabled = true;
@@ -243,7 +278,7 @@
       try {
         // Precarga en paralelo: resultado del lanzamiento + audio listo + imágenes.
         const [r] = await Promise.all([
-          SQC.api('/blueshells/launch', { method:'POST', body:{ targetId: Number(opt.value) } }),
+          SQC.api('/blueshells/launch', { method:'POST', body:{ targetId: Number(opt.value), audio: bsAudio } }),
           SQCRoulette.waitAudio(audio),
           SQCRoulette.preloadImages('overlay/assets/shells/'),
         ]);
@@ -254,6 +289,7 @@
         SQCRoulette.show({ castigo: r.castigo, audio, subtitle, champIcon: r.champIcon, champName: r.champ, onDone: async () => {
           if (r.bounce){ res.className = 'result bounce'; res.innerHTML = `↩️ <b>¡Rebotó!</b> El castigo te toca a TI: <b>${r.castigo}</b>`; }
           else { res.className = 'result ok'; res.innerHTML = `🛡 Le lanzaste una Blue Shell a <b>${r.target}</b>. Le tocó: <b>${r.castigo}</b>`; }
+          bsClearAudio();
           await refresh();
         }});
       } catch (err) { SQCRoulette.loading(false); if (audio) audio.pause(); res.className = 'result bounce'; res.textContent = err.message; $('throw').disabled = false; }
