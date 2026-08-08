@@ -176,12 +176,14 @@ function createTray(){
     tray.setContextMenu(Menu.buildFromTemplate([
       { label: 'SoloQ Challenge — Overlay', enabled: false },
       { type: 'separator' },
-      { label: 'Panel de la web (Alt+X)', click: () => { if (bigWin) bigWin.isVisible() ? bigWin.hide() : bigWin.show(); } },
+      { label: 'Mostrar todo (Alt+X)', click: () => showAll() },
+      { label: 'Cerrar overlay', click: () => hideAll() },
       { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
       { type: 'separator' },
       { label: 'Salir', click: () => app.quit() },
     ]));
-    tray.on('double-click', () => { if (win) win.isVisible() ? win.hide() : win.showInactive(); });
+    // Doble-click en la bandeja = mostrar TODO (standing + Blue Shells + panel), aunque estés fuera de partida.
+    tray.on('double-click', () => showAll());
   } catch (e) { console.error('tray:', e.message); }
 }
 
@@ -195,12 +197,29 @@ ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.s
 function applyOpacity(){ [win, shellWin, bigWin, bsWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
 function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
+// Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
+// estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
+let forceShowAll = false;
 function applyVis(){
-  const okSmall = settings.smallVisible && !(settings.hideOutOfGame && !lastInGame);
-  const okShell = settings.shellVisible && !(settings.hideOutOfGame && !lastInGame);
+  const inGameOk = !(settings.hideOutOfGame && !lastInGame);
+  const okSmall = forceShowAll || (settings.smallVisible && inGameOk);
+  const okShell = forceShowAll || (settings.shellVisible && inGameOk);
   if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? win.showInactive() : win.hide(); }
   if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
 }
+// Mostrar todo (tarjeta de standing + popup de Blue Shells + panel de la web).
+function showAll(){
+  forceShowAll = true;
+  applyVis();
+  if (bigWin && !bigWin.isDestroyed()) bigWin.show();
+}
+// Cerrar todo el overlay (respeta de nuevo la config: fuera de partida vuelve a ocultarse).
+function hideAll(){
+  forceShowAll = false;
+  if (bigWin && !bigWin.isDestroyed()) bigWin.hide();
+  applyVis();
+}
+function toggleAll(){ (bigWin && bigWin.isVisible()) ? hideAll() : showAll(); }
 function applyAutoLaunch(){
   try {
     const opts = { openAtLogin: settings.autoLaunch !== false, args: [] };
@@ -224,6 +243,7 @@ ipcMain.on('reset-pos', () => {
   saveSettings(); applyVis();
 });
 ipcMain.handle('get-settings', () => settings);
+ipcMain.on('close-all', () => hideAll());   // botón ✕ del panel
 
 // Reporta a la nube el rango del jugador (sacado del cliente vía LCU, GRATIS) y si está en
 // partida, para que el runner NO gaste llamadas a la Riot API por este jugador. Máx. 1/min.
@@ -351,7 +371,7 @@ app.whenReady().then(async () => {
   if (!settings.smallVisible){ smallShown = false; win.hide(); }
   if (!settings.shellVisible){ shellShown = false; shellWin.hide(); }
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }
-  globalShortcut.register('Alt+X', () => { if (bigWin) bigWin.isVisible() ? bigWin.hide() : bigWin.show(); });
+  globalShortcut.register('Alt+X', () => toggleAll());   // muestra/cierra TODO el overlay
   // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
   globalShortcut.register('Alt+B', () => {
     const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sin pociones ni pinks','Clase de campeón aleatoria','Sin botas y sin pies veloces'];
