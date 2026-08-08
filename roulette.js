@@ -17,7 +17,7 @@ window.SQCRoulette = (function(){
     ['Sin pociones ni pinks','sin-pociones'],
     ['Sin objetos completos hasta min 15','sin-objetos-min15'],
     ['Reverse','reverse'],
-    ['Runas predeterminadas','runas-predeterminadas'],
+    ['Clase de campeón','clase-campeon'],
   ];
   const REVEAL_MS = 4140;   // el sonido revela al seg 4.14
   let injected = false;
@@ -116,7 +116,7 @@ window.SQCRoulette = (function(){
         <div class="sqcr-track"><div class="sqcr-pointer"></div><div class="sqcr-strip">${cardsHtml}</div></div>
         <div class="sqcr-result"></div>
         <div class="sqcr-hint">Click para cerrar</div>
-        ${opts.champIcon ? `<div class="sqcr-champ-badge"><img src="${opts.champIcon}" alt="" onerror="this.style.display='none'"><span>${opts.champName || ''}</span></div>` : ''}
+        ${(opts.champIcon || opts.champName) ? `<div class="sqcr-champ-badge">${opts.champIcon ? `<img src="${opts.champIcon}" alt="" onerror="this.style.display='none'">` : ''}<span>${opts.champName || ''}</span></div>` : ''}
       </div>`;
     (opts.mount || document.body).appendChild(overlay);
 

@@ -27,7 +27,7 @@
 <script src="roulette.js"></script>
 <script>
   const { ipcRenderer } = require('electron');
-  const SLUG = { 'Sin tus 3 campeones más jugados':'sin-3-campeones','Una partida con Yuumi':'yuumi','Campeón aleatorio':'campeon-aleatorio','Sin Flash':'sin-flash','Autofill':'autofill','Sin botas y sin pies veloces':'sin-botas','Hechizos cambiados':'hechizos-cambiados','Sin pociones ni pinks':'sin-pociones','Sin objetos completos hasta min 15':'sin-objetos-min15','Reverse':'reverse','Runas predeterminadas':'runas-predeterminadas' };
+  const SLUG = { 'Sin tus 3 campeones más jugados':'sin-3-campeones','Una partida con Yuumi':'yuumi','Campeón aleatorio':'campeon-aleatorio','Sin Flash':'sin-flash','Autofill':'autofill','Sin botas y sin pies veloces':'sin-botas','Hechizos cambiados':'hechizos-cambiados','Sin pociones ni pinks':'sin-pociones','Sin objetos completos hasta min 15':'sin-objetos-min15','Reverse':'reverse','Clase de campeón':'clase-campeon' };
   const AUDIO = 'assets/Roulette Sound.mp3';
   const IMG = 'assets/shells/';
   const done = () => ipcRenderer.send('bs-done');

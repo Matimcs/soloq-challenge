@@ -12,6 +12,8 @@ const POTIONS = [2003, 2031, 2033];    // pociones: vida / recargable / corrupto
 const CONTROL_WARD = 2055;             // pink / guardián de control
 const POS = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Medio', BOTTOM:'ADC', UTILITY:'Support' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+// Clases (tags DDragon) por campeón. Lo inyecta el server en runCheck (para "Clase de campeón").
+let CHAMP_TAGS = {};
 
 async function riot(url, KEY){
   try { const r = await fetch(url, { headers: { 'X-Riot-Token': KEY } }); return r.ok ? r.json() : null; } catch { return null; }
@@ -44,6 +46,8 @@ const CHECKS = {
   },
   // Jugó el campeón que le tocó al sortear (events.extra).
   'Campeón aleatorio':                (me, ctx) => !!ctx.extra && me.championName === ctx.extra,
+  // Jugó un campeón de la clase que le tocó (extra = tag DDragon en inglés).
+  'Clase de campeón':                 (me, ctx) => { const t = CHAMP_TAGS[me.championName] || []; return !!ctx.extra && t.includes(ctx.extra); },
   // Sin pociones (laners) o sin pinks (jungla). Requiere la timeline (las compras).
   'Sin pociones ni pinks':            async (me, ctx, h) => {
     const tl = await riot(`https://${CLUSTER}.api.riotgames.com/lol/match/v5/matches/${h.matchId}/timeline`, h.KEY);
@@ -58,8 +62,9 @@ const CHECKS = {
 };
 const AUTO = Object.keys(CHECKS);
 
-async function runCheck({ q, KEY }){
+async function runCheck({ q, KEY, champTags }){
   if (!KEY) return;
+  if (champTags && Object.keys(champTags).length) CHAMP_TAGS = champTags;
   let pend;
   try {
     pend = await q(`SELECT e.id, e.castigo, e.created_at, e.extra, u.riotid, u.pos1, u.pos2, u.champ1, u.champ2, u.champ3, u.flash_slot

@@ -20,6 +20,7 @@ try {
 
 const { q, q1, init } = require('./db');
 const { runCheck } = require('./checker');
+const { runGrant } = require('./granter');
 
 const PORT = process.env.PORT || 8123;
 const JWT_SECRET = process.env.JWT_SECRET || 'sqc-dev-secret-cambiar-en-produccion';
@@ -31,8 +32,13 @@ const SHELLS = [
   { name:'Campeón aleatorio', w:11 }, { name:'Sin Flash', w:11 }, { name:'Autofill', w:11 },
   { name:'Sin botas y sin pies veloces', w:11 }, { name:'Hechizos cambiados', w:6 },
   { name:'Sin pociones ni pinks', w:6 }, { name:'Sin objetos completos hasta min 15', w:6 },
-  { name:'Reverse', w:6 }, { name:'Runas predeterminadas', w:4 },
+  { name:'Reverse', w:6 }, { name:'Clase de campeón', w:4 },
 ];
+// Clases de campeón (tags de Data Dragon). El castigo "Clase de campeón" sortea una y
+// el jugador debe jugar un campeón que la tenga. extra guarda el tag en inglés (para el
+// checker); CLASS_ES es solo para mostrar.
+const CLASSES = ['Fighter','Tank','Mage','Assassin','Marksman','Support'];
+const CLASS_ES = { Fighter:'Luchador', Tank:'Tanque', Mage:'Mago', Assassin:'Asesino', Marksman:'Tirador', Support:'Soporte' };
 const MAX_SHELLS = 3;
 function rollShell(){ const t = SHELLS.reduce((a,s)=>a+s.w,0); let r = Math.random()*t; for (const s of SHELLS){ if ((r-=s.w)<=0) return s.name; } return SHELLS[0].name; }
 function reverseChance(pos){ return (pos && pos<=5) ? pos : 15; }
@@ -42,12 +48,14 @@ function ladderPos(riotid){
 }
 
 // Lista de campeones (Data Dragon): para validar los del registro y sortear el "Campeón aleatorio".
-let CHAMP_IDS = [], DD_VER = '15.1.1';
+let CHAMP_IDS = [], CHAMP_TAGS = {}, DD_VER = '15.1.1';
 async function loadChampions(){
   try {
     DD_VER = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0] || DD_VER;
     const cj = await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${DD_VER}/data/en_US/champion.json`)).json();
-    CHAMP_IDS = Object.values(cj.data).filter(c => !c.id.includes('_')).map(c => c.id);
+    const real = Object.values(cj.data).filter(c => !c.id.includes('_'));
+    CHAMP_IDS = real.map(c => c.id);
+    CHAMP_TAGS = {}; real.forEach(c => { CHAMP_TAGS[c.id] = c.tags || []; });
     console.log(`✔ ${CHAMP_IDS.length} campeones (DDragon ${DD_VER})`);
   } catch (e) { console.error('champions:', e.message); }
 }
@@ -164,17 +172,25 @@ app.post('/api/blueshells/launch', auth, wrap(async (req,res) => {
   if (castigo === 'Reverse'){ bounce = true; do { castigo = rollShell(); } while (castigo === 'Reverse'); }
   if (Math.random()*100 < reverseChance(ladderPos(target.riotid))) bounce = true;
 
-  // "Campeón aleatorio": se sortea el campeón en el momento y se guarda/devuelve (para el icono).
-  const extra = (castigo === 'Campeón aleatorio' && CHAMP_IDS.length) ? CHAMP_IDS[Math.floor(Math.random()*CHAMP_IDS.length)] : null;
-  const champIcon = extra ? champIconUrl(extra) : null;
+  // Sorteos del momento (se guardan en events.extra):
+  //  - "Campeón aleatorio": un campeón concreto (extra = id DDragon, con icono).
+  //  - "Clase de campeón":  una clase/tag (extra = tag en inglés; se muestra en español).
+  let extra = null, champIcon = null, display = null;
+  if (castigo === 'Campeón aleatorio' && CHAMP_IDS.length){
+    extra = CHAMP_IDS[Math.floor(Math.random()*CHAMP_IDS.length)];
+    champIcon = champIconUrl(extra); display = extra;
+  } else if (castigo === 'Clase de campeón'){
+    extra = CLASSES[Math.floor(Math.random()*CLASSES.length)];
+    display = CLASS_ES[extra] || extra;
+  }
 
   if (bounce){
     await q("INSERT INTO events (kind,user_id,other,castigo,extra,bounce) VALUES ('received',$1,$2,$3,$4,true)", [req.user.id, '↩️ rebote (' + target.nickname + ')', castigo, extra]);
-    return res.json({ bounce:true, castigo, champ: extra, champIcon, msg:`¡Rebotó! El castigo te toca a TI: ${castigo}` });
+    return res.json({ bounce:true, castigo, champ: display, champIcon, msg:`¡Rebotó! El castigo te toca a TI: ${castigo}` });
   }
   await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('sent',$1,$2,$3,$4)", [req.user.id, target.nickname, castigo, extra]);
   await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('received',$1,$2,$3,$4)", [target.id, req.user.nickname, castigo, extra]);
-  res.json({ bounce:false, castigo, target: target.nickname, champ: extra, champIcon, msg:`Le lanzaste una Blue Shell a ${target.nickname}. Le tocó: ${castigo}` });
+  res.json({ bounce:false, castigo, target: target.nickname, champ: display, champIcon, msg:`Le lanzaste una Blue Shell a ${target.nickname}. Le tocó: ${castigo}` });
 }));
 
 app.post('/api/blueshells/:id/cumplido', auth, wrap(async (req,res) => {
@@ -430,9 +446,14 @@ init()
     startEmbeddedRunner();
     // Detección automática de cumplimiento de castigos (cada 3 min) si hay Riot key.
     if (process.env.RIOT_API_KEY){
-      const check = () => runCheck({ q, KEY: process.env.RIOT_API_KEY }).catch(e => console.error('checker:', e.message));
+      const check = () => runCheck({ q, KEY: process.env.RIOT_API_KEY, champTags: CHAMP_TAGS }).catch(e => console.error('checker:', e.message));
       setTimeout(check, 20000);
       setInterval(check, 180000);
+      // Otorga Blue Shells automáticamente por logros en SoloQ (cada GRANTER_SEC, 5 min por defecto).
+      const grant = () => runGrant({ q, KEY: process.env.RIOT_API_KEY }).catch(e => console.error('granter:', e.message));
+      const GRANT_MS = (Number(process.env.GRANTER_SEC) || 300) * 1000;
+      setTimeout(grant, 45000);
+      setInterval(grant, GRANT_MS);
     }
   }))
   .catch(e => { console.error('❌ No se pudo conectar a la base de datos:', e.message); process.exit(1); });

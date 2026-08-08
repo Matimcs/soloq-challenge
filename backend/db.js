@@ -83,6 +83,14 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS shell_progress ( -- progreso para otorgar Blue Shells automáticamente
+      user_id     INTEGER PRIMARY KEY,
+      last_end    BIGINT  DEFAULT 0,            -- gameEndTimestamp (ms) de la última partida procesada
+      streak      INTEGER DEFAULT 0,            -- racha de victorias en curso
+      champ_wins  JSONB   DEFAULT '[]',         -- campeones distintos ganados (hacia "5 distintos")
+      castigo_wins INTEGER DEFAULT 0,           -- victorias jugando con castigo (hacia "5 con castigo")
+      updated_at  TIMESTAMPTZ DEFAULT now()
+    );
     -- Columnas nuevas (perfil): 3 campeones más jugados, slot del Flash, confirmación del admin.
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ1     TEXT;
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ2     TEXT;
