@@ -180,7 +180,7 @@ async function updatePlayerStats(puuid, entry){
   const store = matchStore[puuid] || { games:[], lpGames:[], lastAbsLP:null };
   const known = new Set(store.games.map(g=>g.id));
   const backfill = store.games.length === 0;
-  const ids = await getMatchIds(puuid, backfill ? 10 : 3); await sleep(110);
+  const ids = await getMatchIds(puuid, backfill ? 20 : 3); await sleep(110);
   const newIds = ids.filter(id => !known.has(id));
 
   const fetched = [];
@@ -192,7 +192,7 @@ async function updatePlayerStats(puuid, entry){
     const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '' };
     store.games.unshift(g); fetched.push(g);
   }
-  store.games = store.games.slice(0, 15);
+  store.games = store.games.slice(0, 20);
 
   // ±LP: solo hacia adelante. Si apareció EXACTAMENTE 1 partida nueva, el delta de LP es de esa partida.
   const cur = absLP(entry);
@@ -207,7 +207,7 @@ async function updatePlayerStats(puuid, entry){
   matchStore[puuid] = store;
 
   // Métricas para el frontend
-  const form = store.games.slice(0, 15).reverse().map(g => g.win);   // viejas→nuevas (para sparkline)
+  const form = store.games.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
   // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
   const posCount = {};
   store.games.forEach(g => { if (g.pos) posCount[g.pos] = (posCount[g.pos] || 0) + 1; });

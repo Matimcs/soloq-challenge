@@ -147,9 +147,9 @@ async function buildMatchup(spec, myPuuid, roster){
 
 // ---- Ventanas ----
 let win, shellWin, bigWin, bsWin;
-function baseWin(w, h, x, y, show = true){
+function baseWin(w, h, x, y, show = true, focusable = false){
   return new BrowserWindow({ width: w, height: h, x, y, show,
-    frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable: false, hasShadow: false,
+    frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable, hasShadow: false,
     webPreferences: { nodeIntegration: true, contextIsolation: false } });
 }
 function defaults(){ const wa = screen.getPrimaryDisplay().workArea; const M = 16;
@@ -159,7 +159,9 @@ function createWindows(){
   win = baseWin(340, 130, d.smallX, d.smallY); win.setAlwaysOnTop(true, 'screen-saver'); win.loadFile(path.join(__dirname, 'overlay.html'));
   shellWin = baseWin(278, 150, d.shellX, d.shellY); shellWin.setAlwaysOnTop(true, 'screen-saver'); shellWin.loadFile(path.join(__dirname, 'shells.html'));
   const BW = 1200, BH = 780;
-  bigWin = baseWin(BW, BH, Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2), false);
+  // El panel es ENFOCABLE (a diferencia de los overlays chicos): así se puede escribir en
+  // los campos de la web (login, tickets, etc.).
+  bigWin = baseWin(BW, BH, Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2), false, true);
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
   bsWin = baseWin(680, 380, Math.round(d.wa.x + (d.wa.width - 680) / 2), Math.round(d.wa.y + (d.wa.height - 380) / 2), false);
@@ -212,7 +214,7 @@ function applyVis(){
 function showAll(){
   forceShowAll = true;
   applyVis();
-  if (bigWin && !bigWin.isDestroyed()) bigWin.show();
+  if (bigWin && !bigWin.isDestroyed()){ bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.show(); bigWin.moveTop(); bigWin.focus(); }
 }
 // Cerrar todo el overlay (respeta de nuevo la config: fuera de partida vuelve a ocultarse).
 function hideAll(){
@@ -373,7 +375,8 @@ app.whenReady().then(async () => {
   smallShown = false; win.hide();
   shellShown = false; shellWin.hide();
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }
-  globalShortcut.register('Alt+X', () => toggleAll());   // muestra/cierra TODO el overlay
+  const okX = globalShortcut.register('Alt+X', () => toggleAll());   // muestra/cierra TODO el overlay
+  dlog('Alt+X registrado: ' + okX + (okX ? '' : ' (¿otra app lo tomó? En juego usa modo Sin bordes/Borderless)'));
   // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
   globalShortcut.register('Alt+B', () => {
     const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sin pociones ni pinks','Clase de campeón aleatoria','Sin botas y sin pies veloces'];
