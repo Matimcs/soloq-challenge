@@ -370,6 +370,9 @@
   .pd-opgg{ background:rgba(233,255,31,.12); border:1px solid rgba(233,255,31,.4); color:var(--accent); font-size:11px; font-weight:800; padding:7px 12px; border-radius:8px; }
   .pd-del{ background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.4); color:var(--down-soft); font-family:var(--font); font-size:11px; font-weight:700; padding:7px 12px; border-radius:8px; cursor:pointer; }
   .pd-del:hover{ background:rgba(251,113,133,.24); }
+  .pd-adm{ background:rgba(192,132,252,.14); border:1px solid rgba(192,132,252,.45); color:var(--purple); font-family:var(--font); font-size:11px; font-weight:700; padding:7px 12px; border-radius:8px; cursor:pointer; }
+  .pd-adm:hover{ background:rgba(192,132,252,.26); }
+  .pd-adm:disabled{ opacity:.5; cursor:default; }
   .pd-tabs{ display:flex; align-items:center; gap:8px; padding:12px 18px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .pd-tab{ background:none; border:0; border-bottom:2px solid transparent; color:var(--muted); font-family:var(--font); font-size:13px; font-weight:700; padding:8px 12px; cursor:pointer; border-radius:8px 8px 0 0; }
   .pd-tab:hover{ color:var(--text); }
@@ -1193,6 +1196,7 @@ function renderDetail(root, rid, data){
       <div class="pd-mini">${prof.aegis?aegisEl(prof.aegis):''}</div>
       <div class="pd-actions">
         <a class="pd-opgg" href="${opggUrl(rid)}" target="_blank" rel="noopener">OP.GG</a>
+        ${(isAdmin && prof.isRegistered)?`<button class="pd-adm" data-pd-adm>${prof.isAdmin?'Quitar admin':'Hacer admin'}</button>`:''}
         ${isAdmin?`<button class="pd-del" data-pd-del>Eliminar jugador</button>`:''}
       </div>
     </div>
@@ -1209,6 +1213,17 @@ function renderDetail(root, rid, data){
   root.querySelectorAll('.pd-tab').forEach(b => b.onclick = () => { root.querySelectorAll('.pd-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); tabs[b.dataset.t](); });
   root.querySelector('.pd-full').onclick = e => { e.preventDefault(); openFullFicha(rid); };
   const del = root.querySelector('[data-pd-del]'); if (del) del.onclick = () => deletePlayer(rid);
+  const adm = root.querySelector('[data-pd-adm]');
+  if (adm) adm.onclick = async () => {
+    const makeAdmin = !prof.isAdmin;
+    if (!confirm(makeAdmin ? `¿Hacer administrador a ${prof.nickname}?` : `¿Quitar admin a ${prof.nickname}?`)) return;
+    adm.disabled = true;
+    try {
+      await SQC.api('/admin/set-admin', { method:'POST', body:{ riotid: rid, admin: makeAdmin } });
+      const r = await fetch('/api/player/' + encodeURIComponent(rid), { cache:'no-store' });
+      renderDetail(root, rid, await r.json());   // refresca la ficha con el nuevo estado
+    } catch (e) { adm.disabled = false; alert('No se pudo: ' + e.message); }
+  };
   tabs.hist();
 }
 const POS_ROLE = { TOP:'top', JUNGLE:'jg', MIDDLE:'mid', BOTTOM:'adc', UTILITY:'support' };

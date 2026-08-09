@@ -160,12 +160,26 @@
     ['champ1','champ2','champ3'].forEach(k => { if (user[k]) f[k].value = CHAMP_NAME[user[k]] || user[k]; });
     if (user.avatar){ avatarData = user.avatar; $('avatar-prev').src = user.avatar; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; }
 
+    function resizeAvatar(file, cb){
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const max = 256, scale = Math.min(1, max / Math.max(img.width, img.height));
+          const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+          const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          try { cb(cv.toDataURL('image/jpeg', 0.85)); } catch { cb(reader.result); }
+        };
+        img.onerror = () => cb(reader.result);
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    }
     $('avatar-btn').addEventListener('click', () => $('avatar-input').click());
     $('avatar-input').addEventListener('change', e => {
       const file = e.target.files[0]; if (!file) return;
-      const r = new FileReader();
-      r.onload = () => { avatarData = r.result; $('avatar-prev').src = avatarData; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; };
-      r.readAsDataURL(file);
+      resizeAvatar(file, data => { avatarData = data; $('avatar-prev').src = data; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; });
     });
 
     f.addEventListener('submit', async e => {

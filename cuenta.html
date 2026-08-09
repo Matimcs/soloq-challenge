@@ -160,12 +160,27 @@
 
   // Avatar preview
   let avatarData = null;
+  // Redimensiona el avatar a máx 256px (JPEG) para no mandar fotos pesadas (evita el error 413).
+  function resizeAvatar(file, cb){
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 256, scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        try { cb(cv.toDataURL('image/jpeg', 0.85)); } catch { cb(reader.result); }
+      };
+      img.onerror = () => cb(reader.result);
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
   $('avatar-btn').addEventListener('click', () => $('avatar-input').click());
   $('avatar-input').addEventListener('change', e => {
     const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = () => { avatarData = r.result; $('avatar-prev').src = avatarData; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; };
-    r.readAsDataURL(f);
+    resizeAvatar(f, data => { avatarData = data; $('avatar-prev').src = data; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; });
   });
 
   // ⚠️ PLACEHOLDER: guarda en localStorage. La auth real (BD + hash de contraseña + sesiones) es el backend.

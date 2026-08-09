@@ -65,7 +65,7 @@ async function loadChampions(){
 const champIconUrl = id => `https://ddragon.leagueoflegends.com/cdn/${DD_VER}/img/champion/${id}.png`;
 
 const app = express();
-app.use(express.json({ limit: '3mb' }));
+app.use(express.json({ limit: '8mb' }));
 app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.header('Access-Control-Allow-Headers','Content-Type,Authorization'); res.header('Access-Control-Allow-Methods','GET,POST,OPTIONS'); if(req.method==='OPTIONS') return res.sendStatus(204); next(); });
 
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
@@ -237,7 +237,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     riotid, nickname: (u && u.nickname) || (lp && lp.nm) || riotid.split('#')[0],
     realname: u && u.realname, avatar: u && u.avatar, pos1: u && u.pos1, pos2: u && u.pos2,
     champs: u ? [u.champ1,u.champ2,u.champ3].filter(Boolean) : [], flashSlot: u && u.flash_slot,
-    isRegistered: !!u,
+    isRegistered: !!u, isAdmin: !!(u && u.is_admin),
     tier: lp && lp.tier, div: lp && lp.div, lp: lp && lp.lp, rankPos,
     w: lp ? lp.w : (stats?stats.wins:0), l: lp ? lp.l : (stats?stats.losses:0),
     form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
@@ -624,6 +624,18 @@ app.post('/api/admin/roster', auth, requireAdmin, wrap(async (req,res) => {
 app.post('/api/admin/roster/remove', auth, requireAdmin, wrap(async (req,res) => {
   await q('DELETE FROM roster WHERE riotid=$1', [((req.body && req.body.riotid) || '').trim()]);
   res.json({ ok:true });
+}));
+
+// Promover o quitar admin a un jugador registrado (solo admin).
+app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  const makeAdmin = !!(req.body && req.body.admin);
+  if (!riotid) return res.status(400).json({ error:'Falta riotid' });
+  const u = await q1('SELECT id, is_admin FROM users WHERE riotid=$1', [riotid]);
+  if (!u) return res.status(400).json({ error:'Ese jugador no tiene cuenta registrada' });
+  if (!makeAdmin && u.id === req.user.id) return res.status(400).json({ error:'No puedes quitarte el admin a ti mismo' });
+  await q('UPDATE users SET is_admin=$1 WHERE id=$2', [makeAdmin, u.id]);
+  res.json({ ok:true, isAdmin: makeAdmin });
 }));
 
 // Eliminar un jugador del ranking POR COMPLETO: borra su perfil registrado (y datos
