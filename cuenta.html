@@ -92,7 +92,10 @@
 
       <div class="sec">League of Legends</div>
       <div class="field"><label>Cuenta principal (Riot ID) <span class="req">*</span></label><input name="riotid" required placeholder="Nombre#TAG">
-        <div class="hint">Tu cuenta principal, con la que apareces en el ranking. Las smurf las agregas después en tu perfil.</div></div>
+        <div class="hint">Tu cuenta principal, con la que apareces en el ranking.</div></div>
+      <div class="field"><label>Cuentas smurf <span style="color:var(--muted)">(opcional)</span></label>
+        <div class="hint">Si tienes alguna smurf que quieres que aparezca en el ranking, agrégala aquí (formato Nombre#TAG).</div>
+        <div id="smurfs"></div></div>
       <div class="row">
         <div class="field"><label>Posición primaria <span class="req">*</span></label>
           <select name="pos1" required><option value="">—</option><option>Top</option><option>Jungla</option><option>Medio</option><option>ADC</option><option>Support</option><option>Fill</option></select></div>
@@ -185,6 +188,19 @@
     resizeAvatar(f, data => { avatarData = data; $('avatar-prev').src = data; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; });
   });
 
+  // Cuentas smurf: campos dinámicos (al rellenar el último aparece otro vacío).
+  const smurfsEl = $('smurfs');
+  function addSmurfInput(){ const i = document.createElement('input'); i.className = 'smurf-in'; i.placeholder = 'Nombre#TAG (smurf)'; i.autocomplete = 'off'; i.style.marginTop = '8px'; smurfsEl.appendChild(i); }
+  addSmurfInput();
+  smurfsEl.addEventListener('input', () => {
+    const ins = [...smurfsEl.querySelectorAll('.smurf-in')];
+    const last = ins[ins.length - 1];
+    if (last && last.value.trim()) addSmurfInput();
+  });
+  function collectSmurfs(){
+    return [...smurfsEl.querySelectorAll('.smurf-in')].map(i => i.value.trim()).filter(v => v && /^.+#.+$/.test(v));
+  }
+
   // ⚠️ PLACEHOLDER: guarda en localStorage. La auth real (BD + hash de contraseña + sesiones) es el backend.
   $('form-signup').addEventListener('submit', async e => {
     e.preventDefault();
@@ -201,7 +217,7 @@
       const res = await SQC.api('/register', { method:'POST', body:{
         email:d.email, password:d.password, nickname:d.nickname, realname:d.realname,
         riotid:d.riotid, discord:d.discord, pos1:d.pos1, pos2:d.pos2, avatar:avatarData,
-        champ1:c1, champ2:c2, champ3:c3, flashSlot:Number(d.flashSlot), team:d.team || null } });
+        champ1:c1, champ2:c2, champ3:c3, flashSlot:Number(d.flashSlot), team:d.team || null, smurfs:collectSmurfs() } });
       SQC.setToken(res.token);
       msg.className = 'msg ok'; msg.textContent = `¡Cuenta creada, ${res.user.nickname}! Redirigiendo…`;
       setTimeout(() => { window.location.href = 'blueshell.html'; }, 600);

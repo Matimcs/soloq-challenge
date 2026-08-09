@@ -99,6 +99,20 @@ app.post('/api/register', wrap(async (req,res) => {
     [b.email, hash, b.nickname, b.realname, riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, team, ADMIN_RIDS.has(riotid)]);
   // Al inscribir esta cuenta, su equipo lo decide el jugador → quita cualquier equipo sembrado a mano.
   await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [riotid]);
+  // Cuentas smurf opcionales indicadas en el registro.
+  if (Array.isArray(b.smurfs)){
+    const seen = new Set([riotid.toLowerCase()]); let n = 0;
+    for (const raw of b.smurfs){
+      const rid = (raw || '').trim();
+      if (!/^.+#.+$/.test(rid) || seen.has(rid.toLowerCase()) || n >= 8) continue;
+      seen.add(rid.toLowerCase());
+      const dup = await q1('SELECT 1 FROM users WHERE lower(riotid)=lower($1) UNION SELECT 1 FROM smurfs WHERE lower(riotid)=lower($1)', [rid]);
+      if (dup) continue;
+      await q('INSERT INTO smurfs (user_id,riotid) VALUES ($1,$2) ON CONFLICT (riotid) DO NOTHING', [u.id, rid]);
+      await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [rid]);
+      n++;
+    }
+  }
   res.json({ token: sign(u), user: publicUser(u) });
 }));
 
