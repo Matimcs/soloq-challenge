@@ -397,8 +397,8 @@
   .m-e{ width:14px; height:14px; display:block; border-radius:3px; background:rgba(255,255,255,.05); }
   .m-vs{ font-size:9px; font-weight:800; color:var(--muted-2); flex-shrink:0; }
   .m-kda{ width:150px; flex-shrink:0; }
-  .m-kda b{ font-size:13px; font-weight:700; } .m-kda .d{ color:var(--down); }
-  .m-kda span{ display:block; font-size:9.5px; color:var(--muted); }
+  .m-kda b{ font-size:13px; font-weight:700; white-space:nowrap; } .m-kda .d{ color:var(--down); }
+  .m-kda > span{ display:block; font-size:9.5px; color:var(--muted); white-space:nowrap; }
   .m-items{ display:flex; gap:2px; flex-shrink:0; }
   .m-it{ width:20px; height:20px; border-radius:4px; background:#000; }
   .m-it.e{ background:rgba(255,255,255,.05); display:inline-block; }
@@ -1113,22 +1113,27 @@ function champSquare(id){
 }
 
 // ---- Iconos DDragon extra (hechizos + runas) para el historial detallado ----
-let SPELL_BY_KEY = null, RUNE_BY_ID = null, ddMapsP = null;
+let SPELL_BY_KEY = null, RUNE_BY_ID = null, CHAMP_ID = null, ddMapsP = null;
 function loadDDMaps(){
   if (ddMapsP) return ddMapsP;
   ddMapsP = (async () => {
     try {
-      const [summ, runes] = await Promise.all([
+      const [summ, runes, champ] = await Promise.all([
         fetch(`https://ddragon.leagueoflegends.com/cdn/${DDV}/data/es_ES/summoner.json`).then(r=>r.json()).catch(()=>null),
         fetch(`https://ddragon.leagueoflegends.com/cdn/${DDV}/data/es_ES/runesReforged.json`).then(r=>r.json()).catch(()=>null),
+        fetch(`https://ddragon.leagueoflegends.com/cdn/${DDV}/data/es_ES/champion.json`).then(r=>r.json()).catch(()=>null),
       ]);
       SPELL_BY_KEY = {}; if (summ && summ.data) for (const k in summ.data){ const s = summ.data[k]; SPELL_BY_KEY[s.key] = s.id; }
       RUNE_BY_ID = {}; if (Array.isArray(runes)) runes.forEach(st => { RUNE_BY_ID[st.id] = st.icon; st.slots.forEach(sl => sl.runes.forEach(r => RUNE_BY_ID[r.id] = r.icon)); });
+      // Mapa minúsculas -> id real de DDragon (arregla casing: p.ej. FiddleSticks -> Fiddlesticks)
+      CHAMP_ID = {}; if (champ && champ.data) for (const k in champ.data){ CHAMP_ID[k.toLowerCase()] = champ.data[k].id; }
     } catch {}
-    SPELL_BY_KEY = SPELL_BY_KEY || {}; RUNE_BY_ID = RUNE_BY_ID || {};
+    SPELL_BY_KEY = SPELL_BY_KEY || {}; RUNE_BY_ID = RUNE_BY_ID || {}; CHAMP_ID = CHAMP_ID || {};
   })();
   return ddMapsP;
 }
+// URL del campeón normalizando el nombre (championName de match-v5 ≠ id DDragon en algunos).
+const champImg  = name => champUrl((CHAMP_ID && CHAMP_ID[(name||'').toLowerCase()]) || name);
 const itemUrl   = id => `https://ddragon.leagueoflegends.com/cdn/${DDV}/img/item/${id}.png`;
 const spellUrl2 = k  => (SPELL_BY_KEY && SPELL_BY_KEY[k]) ? `https://ddragon.leagueoflegends.com/cdn/${DDV}/img/spell/${SPELL_BY_KEY[k]}.png` : null;
 const runeUrl2  = id => (RUNE_BY_ID && RUNE_BY_ID[id]) ? `https://ddragon.leagueoflegends.com/cdn/img/${RUNE_BY_ID[id]}` : null;
@@ -1207,11 +1212,11 @@ function renderHist(c, data){
     const trinket = h.trinket ? `<img class="m-it trk" src="${itemUrl(h.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e trk"></span>';
     const aegis = h.aegis ? `<img class="m-aegis" src="overlay/assets/aegis.svg" title="Aegis" onerror="this.style.display='none'">` : '';
     const lp = (h.lp != null) ? `<span class="m-lp ${h.win?'up':'dn'}">${h.lp>0?'+':''}${h.lp} LP</span>` : '<span class="m-lp"></span>';
-    const opp = h.oppChampion ? `<img class="m-champ" src="${champUrl(h.oppChampion)}" onerror="this.style.visibility='hidden'">` : '<span class="m-champ e"></span>';
+    const opp = h.oppChampion ? `<img class="m-champ" src="${champImg(h.oppChampion)}" onerror="this.style.visibility='hidden'">` : '<span class="m-champ e"></span>';
     return `<div class="m-row ${h.win?'win':'loss'}">
       <div class="m-head" data-mid="${h.matchId||''}">
         <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':'Derrota'}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}</span></div>
-        <img class="m-champ" src="${champUrl(h.champion)}" onerror="this.style.visibility='hidden'">
+        <img class="m-champ" src="${champImg(h.champion)}" onerror="this.style.visibility='hidden'">
         ${spellStack(h.spells)}${runeStack(h.keystone,h.secStyle)}
         <span class="m-vs">VS</span>
         ${opp}${spellStack(h.oppSpells)}${runeStack(h.oppKeystone,h.oppSecStyle)}
@@ -1237,7 +1242,7 @@ function mbRow(p){
   const items = [...p.items.map(id => id ? `<img class="mb-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'),
     p.trinket ? `<img class="mb-it" src="${itemUrl(p.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'].join('');
   return `<div class="mb-p ${p.tracked?'trk':''}">
-    <img class="mb-champ" src="${champUrl(p.champion)}" onerror="this.style.visibility='hidden'">${spellStack(p.spells)}${runeStack(p.keystone,p.secStyle)}
+    <img class="mb-champ" src="${champImg(p.champion)}" onerror="this.style.visibility='hidden'">${spellStack(p.spells)}${runeStack(p.keystone,p.secStyle)}
     <div class="mb-info"><div class="mb-name">${p.name||''}</div><div class="mb-sub">${p.k}/${p.d}/${p.a} · ${p.cs} CS</div></div>
     <div class="mb-items">${items}</div></div>`;
 }
