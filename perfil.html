@@ -110,6 +110,8 @@
           </div></div>
         <div class="field"><label>¿En qué slot usas el Flash/Destello?</label>
           <select name="flashSlot"><option value="">—</option><option value="1">1er slot (tecla D)</option><option value="2">2do slot (tecla F)</option></select></div>
+        <div class="field"><label>Equipo de la U</label>
+          <select name="team"><option value="">No pertenezco a ninguno</option><option>Exilium</option><option>Tide</option><option>Zenith</option></select></div>
         <datalist id="champlist"></datalist>
 
         <button type="submit" class="submit">Guardar cambios</button>
@@ -168,6 +170,7 @@
     const f = $('form');
     ['nickname','realname','email','discord','riotid','main','pos1','pos2'].forEach(k => { if (f[k] != null && user[k] != null) f[k].value = user[k]; });
     if (user.flashSlot) f.flashSlot.value = user.flashSlot;
+    if (user.team) f.team.value = user.team;
     await loadChamps();
     ['champ1','champ2','champ3'].forEach(k => { if (user[k]) f[k].value = CHAMP_NAME[user[k]] || user[k]; });
     if (user.avatar){ avatarData = user.avatar; $('avatar-prev').src = user.avatar; $('avatar-prev').style.display = 'block'; $('avatar-ph').style.display = 'none'; }
@@ -205,6 +208,7 @@
         riotid:d.riotid, main:d.main, pos1:d.pos1, pos2:d.pos2, avatar:avatarData,
         champ1:c1, champ2:c2, champ3:c3 };
       if (d.flashSlot) body.flashSlot = Number(d.flashSlot);
+      body.team = d.team || null;
       if (d.password) body.password = d.password;
       try {
         const res = await SQC.api('/me/update', { method:'POST', body });

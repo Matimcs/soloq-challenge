@@ -169,6 +169,12 @@ async function init(){
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS confirmed  BOOLEAN DEFAULT false;
     ALTER TABLE events ADD COLUMN IF NOT EXISTS extra      TEXT;       -- ej. campeón aleatorio asignado
     ALTER TABLE events ADD COLUMN IF NOT EXISTS audio      TEXT;       -- audio opcional (voz) que suena al recibir la shell
+    ALTER TABLE users  ADD COLUMN IF NOT EXISTS team       TEXT;       -- equipo de la U: Exilium | Tide | Zenith (o null)
+    CREATE TABLE IF NOT EXISTS team_members (   -- equipo por cuenta (para cuentas NO registradas, seed del admin)
+      riotid     TEXT PRIMARY KEY,
+      team       TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
   `);
   console.log('✔ Esquema Postgres listo');
 }

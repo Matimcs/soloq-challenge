@@ -70,7 +70,8 @@ app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.hea
 
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
 const sign = u => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
-const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
+const TEAMS = new Set(['Exilium', 'Tide', 'Zenith']);
+const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, team:u.team || null, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!t) return res.status(401).json({ error:'No autenticado' });
@@ -90,10 +91,11 @@ app.post('/api/register', wrap(async (req,res) => {
   if (flash !== 1 && flash !== 2) return res.status(400).json({ error:'Indica en qué slot usas el Flash (1 o 2)' });
   if (CHAMP_IDS.length && ![b.champ1,b.champ2,b.champ3].every(c => CHAMP_IDS.includes(c))) return res.status(400).json({ error:'Algún campeón no existe (revisa que esté bien escrito)' });
   if (await q1('SELECT 1 FROM users WHERE email=$1', [b.email])) return res.status(409).json({ error:'Ese email ya está registrado' });
+  const team = TEAMS.has(b.team) ? b.team : null;
   const hash = await bcrypt.hash(b.password, 10);
-  const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,confirmed,is_admin)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,false,$15) RETURNING *`,
-    [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, ADMIN_RIDS.has(b.riotid)]);
+  const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,team,confirmed,is_admin)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16) RETURNING *`,
+    [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, team, ADMIN_RIDS.has(b.riotid)]);
   res.json({ token: sign(u), user: publicUser(u) });
 }));
 
@@ -117,6 +119,7 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
   for (const f of ['nickname','realname','riotid','main','discord','pos1','pos2','avatar','email','champ1','champ2','champ3'])
     if (b[f] !== undefined){ sets.push(`${f}=$${i++}`); vals.push(b[f] || null); }
   if (b.flashSlot !== undefined){ const fl = Number(b.flashSlot); if (fl === 1 || fl === 2){ sets.push(`flash_slot=$${i++}`); vals.push(fl); } }
+  if (b.team !== undefined){ sets.push(`team=$${i++}`); vals.push(TEAMS.has(b.team) ? b.team : null); }
   // Si cambian datos que el admin verifica, el perfil vuelve a quedar "por confirmar".
   const changedVerif = (b.riotid !== undefined && b.riotid !== req.user.riotid)
     || (b.champ1 !== undefined && b.champ1 !== req.user.champ1)
@@ -146,6 +149,22 @@ app.get('/api/avatars', wrap(async (req,res) => {
     list.forEach((rid, i) => out.push({ ...base, riotid:rid, label: list.length > 1 ? `Smurf ${i+1}` : 'Smurf' }));
   });
   res.json(out);
+}));
+
+// Equipo por cuenta (Exilium/Tide/Zenith) para la etiqueta del ranking. Público.
+// Mezcla: cuentas de usuarios registrados con equipo (main + smurfs) + tabla team_members.
+app.get('/api/teams', wrap(async (req,res) => {
+  const tm     = await q("SELECT riotid, team FROM team_members WHERE team IS NOT NULL AND team<>''");
+  const users  = await q("SELECT id, riotid, team FROM users WHERE team IS NOT NULL AND team<>''");
+  const smurfs = await q('SELECT user_id, riotid FROM smurfs');
+  const byUser = {}; smurfs.forEach(s => { (byUser[s.user_id] = byUser[s.user_id] || []).push(s.riotid); });
+  const map = {};
+  tm.forEach(r => { map[r.riotid.toLowerCase()] = { riotid:r.riotid, team:r.team }; });
+  users.forEach(u => {   // el equipo del usuario registrado manda para sus cuentas
+    map[u.riotid.toLowerCase()] = { riotid:u.riotid, team:u.team };
+    (byUser[u.id] || []).forEach(rid => { map[rid.toLowerCase()] = { riotid:rid, team:u.team }; });
+  });
+  res.json(Object.values(map));
 }));
 
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.

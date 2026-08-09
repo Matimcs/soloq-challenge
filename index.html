@@ -176,6 +176,10 @@
   .acc-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 6px; border-radius:5px; vertical-align:middle; }
   .acc-tag.main{ color:var(--accent); background:rgba(233,255,31,.12); border:1px solid rgba(233,255,31,.35); }
   .acc-tag.smurf{ color:var(--purple); background:rgba(192,132,252,.12); border:1px solid rgba(192,132,252,.4); }
+  .team-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 7px; border-radius:5px; vertical-align:middle; }
+  .team-tag.exilium{ color:#ff8a5c; background:rgba(255,138,92,.14); border:1px solid rgba(255,138,92,.45); }
+  .team-tag.tide{ color:#5fd6f0; background:rgba(95,214,240,.14); border:1px solid rgba(95,214,240,.45); }
+  .team-tag.zenith{ color:#ffd24a; background:rgba(255,210,74,.14); border:1px solid rgba(255,210,74,.45); }
 
   /* rol */
   .role-ico{ width:22px; height:22px; object-fit:contain; opacity:.95; vertical-align:middle; }
@@ -690,7 +694,17 @@ function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;
 
 /* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
    casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
-let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {}, NICK_BY_RID = {}, LABEL_BY_RID = {};
+let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {}, NICK_BY_RID = {}, LABEL_BY_RID = {}, TEAM_BY_RID = {};
+async function loadTeams(){
+  if (!location.protocol.startsWith('http')) return;
+  try {
+    const r = await fetch('/api/teams', { cache:'no-store' }); if (!r.ok) return;
+    const list = await r.json();
+    TEAM_BY_RID = {};
+    list.forEach(t => { if (t.riotid && t.team) TEAM_BY_RID[t.riotid.toLowerCase()] = t.team; });
+    render();
+  } catch {}
+}
 function avaSrc(rid, nm){ return AVA_BY_RID[rid] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
 // Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
 function roleFor(p){
@@ -811,7 +825,7 @@ function render(){
             <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
             ${avaHtml(p.rid, p.nm)}
             <div>
-              <div class="nm">${NICK_BY_RID[p.rid] || p.nm} ${LABEL_BY_RID[p.rid] ? `<span class="acc-tag ${LABEL_BY_RID[p.rid].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[p.rid]}</span>` : ''} ${badges}</div>
+              <div class="nm">${NICK_BY_RID[p.rid] || p.nm} ${TEAM_BY_RID[(p.rid||'').toLowerCase()] ? `<span class="team-tag ${TEAM_BY_RID[(p.rid||'').toLowerCase()].toLowerCase()}">${TEAM_BY_RID[(p.rid||'').toLowerCase()]}</span>` : ''} ${LABEL_BY_RID[p.rid] ? `<span class="acc-tag ${LABEL_BY_RID[p.rid].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[p.rid]}</span>` : ''} ${badges}</div>
               <div class="rid">${p.rid}</div>
             </div>
           </div>
@@ -1411,6 +1425,7 @@ document.getElementById('rows').addEventListener('click', e => {
 
 counts(); render(); renderLive();
 loadAvatars();
+loadTeams();
 checkEncounters();
 if (new URLSearchParams(location.search).has('demo')) setTimeout(demoEncuentro, 700);
 
