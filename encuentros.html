@@ -41,6 +41,19 @@
   .opgg{ font-size:11px; font-weight:700; color:var(--blue); border:1px solid rgba(74,163,255,.4); padding:6px 10px; border-radius:8px; }
   .empty{ color:var(--muted); font-size:14px; text-align:center; padding:50px 0; }
   .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:24px 0 40px; }
+  /* encuentros nuevos desde la última visita */
+  .card.new{ box-shadow:0 0 0 1px var(--accent), 0 0 22px rgba(233,255,31,.12); border-color:transparent; }
+  .enc-new{ font-size:9.5px; font-weight:800; letter-spacing:.08em; color:#000; background:var(--accent); padding:3px 8px; border-radius:6px; flex-shrink:0; }
+  #enc-stack{ position:fixed; right:18px; bottom:18px; z-index:9999; display:flex; flex-direction:column-reverse; gap:10px; }
+  .enc-toast{ width:320px; max-width:calc(100vw - 32px); background:linear-gradient(180deg,#111318,#0c0d11); border:1px solid rgba(255,255,255,.09);
+    border-radius:14px; overflow:hidden; box-shadow:0 14px 40px rgba(0,0,0,.55); animation:encIn .35s cubic-bezier(.2,.8,.2,1); }
+  @keyframes encIn{ from{ opacity:0; transform:translateY(10px);} to{ opacity:1; transform:none; } }
+  .et-head{ display:flex; align-items:center; gap:9px; padding:12px 14px; }
+  .et-ico{ font-size:18px; }
+  .et-txt{ flex:1; font-size:13px; font-weight:700; }
+  .et-txt small{ display:block; font-size:11px; font-weight:500; color:var(--muted); margin-top:2px; }
+  .et-x{ background:none; border:0; color:var(--muted); cursor:pointer; font-size:15px; padding:2px 4px; }
+  .et-x:hover{ color:#fff; }
 </style>
 <link rel="stylesheet" href="nav.css">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -89,7 +102,27 @@
       <span><span class="nm">${p.nm}</span> ${res}</span></a>`;
   }
 
-  function card(e){
+  // "Vistos" por usuario (localStorage): para avisar de encuentros ocurridos en su ausencia.
+  const SEEN_KEY = 'sqc_seen_enc';
+  const seenAtLoad = new Set((() => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch { return []; } })());
+  function markSeen(ids){
+    try { const s = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); ids.forEach(i => s.add(i));
+      localStorage.setItem(SEEN_KEY, JSON.stringify([...s].slice(-400))); } catch {}
+  }
+  let encToastShown = false;
+  function showEncToast(n){
+    let stack = document.getElementById('enc-stack');
+    if (!stack){ stack = document.createElement('div'); stack.id = 'enc-stack'; document.body.appendChild(stack); }
+    const el = document.createElement('div'); el.className = 'enc-toast';
+    el.innerHTML = `<div class="et-head"><span class="et-ico">🤝</span>
+      <div class="et-txt">${n} ${n===1?'encuentro nuevo':'encuentros nuevos'}<small>Ocurrieron desde tu última visita</small></div>
+      <button class="et-x" title="Cerrar">✕</button></div>`;
+    el.querySelector('.et-x').addEventListener('click', () => el.remove());
+    stack.appendChild(el);
+    setTimeout(() => el.remove(), 9000);
+  }
+
+  function card(e, isNew){
     const players = e.players || [];
     const winners = players.filter(p=>p.win), losers = players.filter(p=>!p.win);
     const rivals = winners.length && losers.length;
@@ -100,8 +133,8 @@
       sides = `<div class="side">${players.map(plHtml).join('')}</div>`;
     }
     const tag = rivals ? '<span class="tag rival">⚔ Rivales</span>' : '<span class="tag ally">🤝 Aliados</span>';
-    return `<div class="card">
-      ${tag}
+    return `<div class="card${isNew?' new':''}">
+      ${isNew?'<span class="enc-new">NUEVO</span>':''}${tag}
       <div class="sides">${sides}</div>
       <div class="meta">
         <span class="date">${fdate(e.end)}</span>
@@ -114,8 +147,12 @@
     DDV = (data && data.ddragonVersion) || DDV;
     const list = (data && Array.isArray(data.encounters)) ? data.encounters : [];
     const el = document.getElementById('enc');
-    el.innerHTML = list.length ? list.map(card).join('')
+    el.innerHTML = list.length ? list.map(e => card(e, !seenAtLoad.has(e.id))).join('')
       : '<div class="empty">Aún no hay encuentros registrados. Aparecerán cuando dos jugadores del torneo coincidan en una partida.</div>';
+    // Avisa (una vez por sesión) de los encuentros ocurridos en tu ausencia, y márcalos vistos.
+    const nuevos = list.filter(e => !seenAtLoad.has(e.id)).length;
+    if (nuevos && !encToastShown){ encToastShown = true; showEncToast(nuevos); }
+    if (list.length) markSeen(list.map(e => e.id));
   }
 
   render(window.SQC_DATA || null);

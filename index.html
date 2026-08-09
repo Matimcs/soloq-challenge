@@ -1053,6 +1053,7 @@ function showEncuentro(g){
   const names = (g.tracked || []).map(t => t.nm);
   const el = document.createElement('div');
   el.className = 'enc-toast';
+  el.dataset.gid = g.gameId;   // para poder quitarlo cuando termine la partida
   el.innerHTML =
     `<div class="enc-head">
        <span class="enc-icon">${SHELL_SVG}</span>
@@ -1076,7 +1077,13 @@ function showEncuentro(g){
 function checkEncounters(){
   const enc = LIVE_GAMES.filter(g => (g.tracked || []).length >= 2);
   const liveIds = new Set(enc.map(g => g.gameId));
-  encNotified.forEach(id => { if (!liveIds.has(id)) encNotified.delete(id); });
+  // Al terminar la partida (ya no está en vivo): quita el popup y olvida el aviso.
+  encNotified.forEach(id => {
+    if (!liveIds.has(id)){
+      encNotified.delete(id);
+      document.querySelectorAll('.enc-toast').forEach(t => { if (t.dataset.gid == id) t.remove(); });
+    }
+  });
   enc.forEach(g => { if (!encNotified.has(g.gameId)){ encNotified.add(g.gameId); showEncuentro(g); } });
 }
 /* Modo de prueba: dispara un popup de ejemplo. Úsalo con ?demo en la URL
