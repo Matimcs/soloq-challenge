@@ -117,6 +117,18 @@
       </form>
     </div>
 
+    <div class="card">
+      <h2 style="margin:0 0 4px;font-size:18px">Mis cuentas smurf</h2>
+      <div style="color:var(--muted);font-size:13px;margin-bottom:14px">Agrega tus cuentas alternativas: aparecerán en el ranking con tu nick y la etiqueta “Smurf”.</div>
+      <div id="smurf-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="smurf-riotid" placeholder="Nombre#TAG" autocomplete="off"
+          style="flex:1;min-width:180px;background:rgba(255,255,255,.04);border:1px solid var(--line-2);border-radius:10px;color:#fff;font-family:inherit;font-size:14px;padding:10px 12px">
+        <button type="button" class="file-btn" id="smurf-add">Agregar cuenta</button>
+      </div>
+      <div class="msg" id="smurf-msg"></div>
+    </div>
+
     <div class="logout-box">
       <button class="logout-btn" id="logout-btn">Cerrar sesión</button>
     </div>
@@ -204,6 +216,33 @@
     const doLogout = () => { SQC.logout(); location.href = 'index.html'; };
     $('logout-btn').addEventListener('click', doLogout);
     $('logout').addEventListener('click', doLogout);
+
+    // ===== Cuentas smurf =====
+    function smurfMsg(t, err){ const m = $('smurf-msg'); m.className = 'msg ' + (err ? 'err' : 'ok'); m.textContent = t; }
+    async function loadSmurfs(){
+      try {
+        const list = await SQC.api('/me/smurfs');
+        const el = $('smurf-list');
+        el.innerHTML = list.length
+          ? list.map(s => `<div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.03);border:1px solid var(--line-2);border-radius:10px;padding:9px 12px">
+              <span style="flex:1;font-size:14px;font-weight:600">${s.riotid}</span>
+              <span style="font-size:9px;font-weight:800;color:#c084fc;background:rgba(192,132,252,.14);border:1px solid rgba(192,132,252,.4);padding:2px 7px;border-radius:6px">SMURF</span>
+              <button type="button" class="smurf-del" data-id="${s.id}" title="Quitar" style="background:none;border:0;color:rgba(255,255,255,.4);cursor:pointer;font-size:16px">✕</button>
+            </div>`).join('')
+          : '<div style="color:var(--muted-2);font-size:13px">Aún no agregaste cuentas smurf.</div>';
+        el.querySelectorAll('.smurf-del').forEach(b => b.addEventListener('click', async () => {
+          try { await SQC.api('/me/smurfs/remove', { method:'POST', body:{ id:Number(b.dataset.id) } }); loadSmurfs(); }
+          catch (e){ smurfMsg(e.message, true); }
+        }));
+      } catch (e){}
+    }
+    $('smurf-add').addEventListener('click', async () => {
+      const riotid = $('smurf-riotid').value.trim();
+      if (!riotid){ smurfMsg('Escribe el Riot ID (Nombre#TAG)', true); return; }
+      try { await SQC.api('/me/smurfs', { method:'POST', body:{ riotid } }); $('smurf-riotid').value = ''; smurfMsg('Cuenta agregada ✓', false); loadSmurfs(); }
+      catch (e){ smurfMsg(e.message, true); }
+    });
+    loadSmurfs();
   })();
 </script>
 </body>

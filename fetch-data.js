@@ -149,6 +149,8 @@ const puuidCache = loadJSON(PUUID_FILE, {});   // "RiotId#TAG" -> puuid  (nunca 
 const rankStore  = loadJSON(RANK_FILE,  {});   // puuid -> { entry, at }
 const matchStore = loadJSON(MATCH_FILE, {});   // puuid -> { games:[{id,win,champ,end}], lastAbsLP, lpGames:[{win,delta}] }
 const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
+const REGION_FILE = path.join(CACHE_DIR, 'regions.json');
+const regionStore = loadJSON(REGION_FILE, {}); // puuid -> plataforma real (la2, br1, na1…) para league/spectator
 let REQ_COUNT = 0;                             // requests reales a Riot este ciclo
 
 async function riot(url) {
@@ -190,21 +192,34 @@ async function getPuuid(riotId) {
   return data ? data.puuid : null;
 }
 
+// Plataforma real de una cuenta (la2, br1, na1…) para consultar league/spectator en el
+// servidor correcto. Así funcionan cuentas de otras regiones (p.ej. #BR). Cacheada.
+async function regionOf(puuid) {
+  if (!puuid || puuid.length < 10) return PLATFORM;
+  if (regionStore[puuid]) return regionStore[puuid];
+  const r = await riot(`https://${CLUSTER}.api.riotgames.com/riot/account/v1/region/by-game/lol/by-puuid/${puuid}`).catch(() => null);
+  const reg = (r && r.region) ? r.region : PLATFORM;
+  regionStore[puuid] = reg;
+  return reg;
+}
+
 async function getSoloEntry(puuid) {
   if (!puuid || puuid.length < 10) return null;   // participante anonimizado
-  let entries = await riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`)
+  const plat = await regionOf(puuid);
+  let entries = await riot(`https://${plat}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`)
                   .catch(() => null);
   if (!entries) {
-    const summ = await riot(`https://${PLATFORM}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`);
+    const summ = await riot(`https://${plat}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`);
     if (summ && summ.id)
-      entries = await riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summ.id}`);
+      entries = await riot(`https://${plat}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summ.id}`);
   }
   if (!Array.isArray(entries)) return null;
   return entries.find(e => e.queueType === 'RANKED_SOLO_5x5') || null;
 }
 
 async function getSpectator(puuid) {
-  return riot(`https://${PLATFORM}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`)
+  const plat = await regionOf(puuid);
+  return riot(`https://${plat}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`)
            .catch(() => null);
 }
 
@@ -497,6 +512,7 @@ function rankText(entry) {
   fs.writeFileSync(RANK_FILE,  JSON.stringify(rankStore));
   fs.writeFileSync(MATCH_FILE, JSON.stringify(matchStore));
   fs.writeFileSync(ENC_FILE, JSON.stringify(encounterStore));
+  fs.writeFileSync(REGION_FILE, JSON.stringify(regionStore));
 
   console.log(`\n✔ ${players.length} jugadores · ${liveGames.length} live games → players.json + players.js`);
   console.log(`   Requests a Riot este ciclo: ${REQ_COUNT}`

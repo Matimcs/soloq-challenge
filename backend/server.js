@@ -133,9 +133,39 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
 }));
 
 // Avatares públicos (para el ranking y los popups del sitio). Sin auth: el leaderboard es público.
+// Devuelve una entrada por CUENTA: la main del usuario + sus smurfs, con etiqueta Main/Smurf N.
 app.get('/api/avatars', wrap(async (req,res) => {
-  const rows = await q('SELECT riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
-  res.json(rows.map(r => ({ riotid:r.riotid, nickname:r.nickname, realname:r.realname, avatar:r.avatar, pos1:r.pos1, pos2:r.pos2, main:r.main, champ1:r.champ1, champ2:r.champ2, champ3:r.champ3, flashSlot:r.flash_slot })));
+  const users = await q('SELECT id, riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
+  const smurfs = await q('SELECT user_id, riotid FROM smurfs ORDER BY id');
+  const byUser = {}; smurfs.forEach(s => { (byUser[s.user_id] = byUser[s.user_id] || []).push(s.riotid); });
+  const out = [];
+  users.forEach(u => {
+    const base = { nickname:u.nickname, realname:u.realname, avatar:u.avatar, pos1:u.pos1, pos2:u.pos2, main:u.main, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, owner:u.nickname };
+    out.push({ ...base, riotid:u.riotid, label:'Main' });
+    const list = byUser[u.id] || [];
+    list.forEach((rid, i) => out.push({ ...base, riotid:rid, label: list.length > 1 ? `Smurf ${i+1}` : 'Smurf' }));
+  });
+  res.json(out);
+}));
+
+// Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
+app.get('/api/me/smurfs', auth, wrap(async (req,res) =>
+  res.json(await q('SELECT id, riotid FROM smurfs WHERE user_id=$1 ORDER BY id', [req.user.id]))));
+app.post('/api/me/smurfs', auth, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  if (riotid.toLowerCase() === (req.user.riotid || '').toLowerCase()) return res.status(400).json({ error:'Esa ya es tu cuenta principal' });
+  const dupUser = await q1('SELECT 1 FROM users WHERE lower(riotid)=lower($1)', [riotid]);
+  const dupSmurf = await q1('SELECT 1 FROM smurfs WHERE lower(riotid)=lower($1)', [riotid]);
+  if (dupUser || dupSmurf) return res.status(400).json({ error:'Esa cuenta ya está registrada' });
+  const c = await q1('SELECT COUNT(*)::int c FROM smurfs WHERE user_id=$1', [req.user.id]);
+  if (c.c >= 8) return res.status(400).json({ error:'Máximo 8 cuentas smurf' });
+  await q('INSERT INTO smurfs (user_id,riotid) VALUES ($1,$2)', [req.user.id, riotid]);
+  res.json({ ok:true });
+}));
+app.post('/api/me/smurfs/remove', auth, wrap(async (req,res) => {
+  await q('DELETE FROM smurfs WHERE id=$1 AND user_id=$2', [Number(req.body && req.body.id), req.user.id]);
+  res.json({ ok:true });
 }));
 
 // Ficha de un jugador (para el despliegue del ranking). Todo sale de la DB, sin Riot API.
@@ -171,7 +201,12 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
   // Perfil desde la caché del ranking (players.json) + usuario registrado
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
   const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
-  const u = await q1('SELECT * FROM users WHERE riotid=$1', [riotid]);
+  let u = await q1('SELECT * FROM users WHERE riotid=$1', [riotid]);
+  let accLabel = u ? 'Main' : null;
+  if (!u){ // ¿es una cuenta smurf? -> resuelve el dueño (para nick/blueshells)
+    const s = await q1('SELECT user_id FROM smurfs WHERE lower(riotid)=lower($1)', [riotid]);
+    if (s){ u = await q1('SELECT * FROM users WHERE id=$1', [s.user_id]); accLabel = 'Smurf'; }
+  }
 
   // puuid: del ranking o de los datos crudos guardados
   let puuid = lp && lp.puuid;
@@ -237,7 +272,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     riotid, nickname: (u && u.nickname) || (lp && lp.nm) || riotid.split('#')[0],
     realname: u && u.realname, avatar: u && u.avatar, pos1: u && u.pos1, pos2: u && u.pos2,
     champs: u ? [u.champ1,u.champ2,u.champ3].filter(Boolean) : [], flashSlot: u && u.flash_slot,
-    isRegistered: !!u, isAdmin: !!(u && u.is_admin),
+    isRegistered: !!u, isAdmin: !!(u && u.is_admin), label: accLabel,
     tier: lp && lp.tier, div: lp && lp.div, lp: lp && lp.lp, rankPos,
     w: lp ? lp.w : (stats?stats.wins:0), l: lp ? lp.l : (stats?stats.losses:0),
     form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
@@ -671,11 +706,16 @@ function startEmbeddedRunner(){
   const { spawn } = require('child_process');
   const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
   const CACHE_DIR = path.join(ROOT, 'cache');
-  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json' };
+  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json' };
   // Escribe roster-extra.json (cuentas agregadas por el admin) para que fetch-data las incluya.
   const writeRoster = async () => {
-    try { const rows = await q('SELECT riotid FROM roster ORDER BY created_at');
-      fs.writeFileSync(path.join(ROOT, 'roster-extra.json'), JSON.stringify(rows.map(r=>r.riotid))); } catch {}
+    // roster manual (admin) + cuentas smurf de los jugadores → el runner las trackea.
+    try {
+      const rows = await q('SELECT riotid FROM roster ORDER BY created_at');
+      const sm   = await q('SELECT riotid FROM smurfs ORDER BY id');
+      const all  = [...new Set([...rows.map(r=>r.riotid), ...sm.map(r=>r.riotid)])];
+      fs.writeFileSync(path.join(ROOT, 'roster-extra.json'), JSON.stringify(all));
+    } catch {}
     try { const hid = await q('SELECT riotid FROM roster_hidden');
       fs.writeFileSync(path.join(ROOT, 'roster-removed.json'), JSON.stringify(hid.map(r=>r.riotid))); } catch {}
     // Reportes frescos del overlay (últimos 10 min): el runner los usa para saltarse llamadas a Riot.

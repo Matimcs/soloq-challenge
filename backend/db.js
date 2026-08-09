@@ -79,6 +79,13 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS smurfs (         -- cuentas smurf asociadas a un jugador (aparecen en el ranking)
+      id         SERIAL PRIMARY KEY,
+      user_id    INTEGER NOT NULL,
+      riotid     TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS smurfs_user_idx ON smurfs (user_id);
     CREATE TABLE IF NOT EXISTS roster_hidden (  -- cuentas eliminadas del ranking por el admin
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
