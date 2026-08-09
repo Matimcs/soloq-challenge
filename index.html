@@ -382,31 +382,32 @@
   .m-row{ border-left:3px solid var(--muted-2); background:var(--panel-2); border-radius:8px; margin-bottom:5px; overflow:hidden; }
   .m-row.win{ border-left-color:var(--up); background:rgba(52,211,153,.05); }
   .m-row.loss{ border-left-color:var(--down); background:rgba(251,113,133,.05); }
-  .m-head{ display:flex; align-items:center; gap:9px; padding:5px 10px; cursor:pointer; min-width:900px; }
+  .m-head{ display:flex; align-items:center; gap:11px; padding:9px 12px; cursor:pointer; min-width:960px; }
   .m-head:hover{ background:rgba(255,255,255,.03); }
-  .m-res{ display:flex; align-items:center; gap:6px; width:220px; flex-shrink:0; font-size:11.5px; color:var(--muted); }
+  .m-res{ display:flex; align-items:center; gap:7px; width:235px; flex-shrink:0; font-size:12.5px; color:var(--muted); }
   .m-row.win .m-res b{ color:var(--up); } .m-row.loss .m-res b{ color:var(--down-soft); }
-  .m-role{ width:18px; height:18px; flex-shrink:0; display:inline-block; }
-  .m-champ{ width:30px; height:30px; border-radius:6px; flex-shrink:0; }
+  .m-role{ width:21px; height:21px; flex-shrink:0; display:inline-block; }
+  .m-champ{ width:38px; height:38px; border-radius:7px; flex-shrink:0; }
   .m-champ.e{ background:rgba(255,255,255,.05); display:inline-block; }
   .m-sp{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
-  .m-sp img{ width:14px; height:14px; border-radius:3px; display:block; }
+  .m-sp img{ width:17px; height:17px; border-radius:4px; display:block; }
   .m-ru{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
-  .m-ru img{ width:14px; height:14px; border-radius:50%; display:block; }
+  .m-ru img{ width:17px; height:17px; border-radius:50%; display:block; }
   .m-ru .pri{ background:#000; }
-  .m-e{ width:14px; height:14px; display:block; border-radius:3px; background:rgba(255,255,255,.05); }
-  .m-vs{ font-size:9px; font-weight:800; color:var(--muted-2); flex-shrink:0; }
-  .m-kda{ width:150px; flex-shrink:0; }
-  .m-kda b{ font-size:13px; font-weight:700; white-space:nowrap; } .m-kda .d{ color:var(--down); }
-  .m-kda > span{ display:block; font-size:9.5px; color:var(--muted); white-space:nowrap; }
-  .m-items{ display:flex; gap:2px; flex-shrink:0; }
-  .m-it{ width:20px; height:20px; border-radius:4px; background:#000; }
+  .m-e{ width:17px; height:17px; display:block; border-radius:4px; background:rgba(255,255,255,.05); }
+  .m-vs{ font-size:10px; font-weight:800; color:var(--muted-2); flex-shrink:0; }
+  .m-kda{ width:165px; flex-shrink:0; }
+  .m-kda b{ font-size:15px; font-weight:700; white-space:nowrap; } .m-kda .d{ color:var(--down); }
+  .m-kda > span{ display:block; font-size:11px; color:var(--muted); white-space:nowrap; margin-top:1px; }
+  .m-items{ display:flex; gap:3px; flex-shrink:0; }
+  .m-it{ width:24px; height:24px; border-radius:5px; background:#000; }
   .m-it.e{ background:rgba(255,255,255,.05); display:inline-block; }
-  .m-it.trk{ border-radius:50%; margin-left:3px; }
-  .m-aegis{ width:22px; height:22px; flex-shrink:0; filter:drop-shadow(0 0 4px rgba(255,201,60,.4)); }
-  .m-lp{ font-size:12px; font-weight:800; flex-shrink:0; min-width:56px; text-align:right; }
+  .m-it.trk{ border-radius:50%; margin-left:4px; }
+  .m-right{ margin-left:auto; display:flex; align-items:center; justify-content:flex-end; gap:9px; flex-shrink:0; }
+  .m-aegis{ width:26px; height:26px; flex-shrink:0; filter:drop-shadow(0 0 4px rgba(255,201,60,.4)); }
+  .m-lp{ font-size:13.5px; font-weight:800; flex-shrink:0; min-width:60px; text-align:right; }
   .m-lp.up{ color:var(--up); } .m-lp.dn{ color:var(--down-soft); }
-  .m-exp{ margin-left:auto; background:rgba(255,255,255,.06); border:1px solid var(--line); color:var(--muted); width:24px; height:24px; border-radius:6px; cursor:pointer; flex-shrink:0; font-size:11px; }
+  .m-exp{ margin-left:2px; background:rgba(255,255,255,.06); border:1px solid var(--line); color:var(--muted); width:28px; height:28px; border-radius:7px; cursor:pointer; flex-shrink:0; font-size:12px; }
   .m-exp:hover{ color:#fff; background:rgba(255,255,255,.12); }
   .m-board{ border-top:1px solid var(--line); padding:10px; overflow-x:auto; }
   .mb{ display:grid; grid-template-columns:1fr 1fr; gap:12px; min-width:720px; }
@@ -1222,7 +1223,7 @@ function renderHist(c, data){
         ${opp}${spellStack(h.oppSpells)}${runeStack(h.oppKeystone,h.oppSecStyle)}
         <div class="m-kda"><b>${h.k}/<span class="d">${h.d}</span>/${h.a}</b><span>${kda} KDA · ${h.kp}% KP · ${h.cs} CS</span></div>
         <div class="m-items">${items6}${trinket}</div>
-        ${aegis}${lp}
+        <div class="m-right">${aegis}${lp}</div>
         <button class="m-exp" title="Ver partida">▾</button>
       </div>
       <div class="m-board" hidden></div>
