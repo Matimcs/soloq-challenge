@@ -65,8 +65,8 @@
     </div>
     <nav class="nav-pill">
       <a href="index.html">Ranking</a>
-      <a href="index.html#live">Live Games</a>
-      <a href="encuentros.html" class="active">Encuentros</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html" class="active">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
       <a href="normas.html">Normas</a>
       <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
@@ -102,13 +102,11 @@
       <span><span class="nm">${p.nm}</span> ${res}</span></a>`;
   }
 
-  // "Vistos" por usuario (localStorage): para avisar de encuentros ocurridos en su ausencia.
-  const SEEN_KEY = 'sqc_seen_enc';
-  const seenAtLoad = new Set((() => { try { return JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch { return []; } })());
-  function markSeen(ids){
-    try { const s = new Set(JSON.parse(localStorage.getItem(SEEN_KEY) || '[]')); ids.forEach(i => s.add(i));
-      localStorage.setItem(SEEN_KEY, JSON.stringify([...s].slice(-400))); } catch {}
-  }
+  // "Visto" por usuario (localStorage): marca de tiempo del encuentro más reciente ya visto.
+  // Robusto ante deploys/cambios de datos (no depende de IDs). Nuevo = end > lastSeen.
+  const SEEN_KEY = 'sqc_enc_lastseen';
+  const lastSeenAtLoad = (() => { try { return Number(localStorage.getItem(SEEN_KEY) || 0) || 0; } catch { return 0; } })();
+  function markSeen(maxEnd){ try { const cur = Number(localStorage.getItem(SEEN_KEY) || 0) || 0; if (maxEnd > cur) localStorage.setItem(SEEN_KEY, String(maxEnd)); } catch {} }
   let encToastShown = false;
   function showEncToast(n){
     let stack = document.getElementById('enc-stack');
@@ -147,12 +145,12 @@
     DDV = (data && data.ddragonVersion) || DDV;
     const list = (data && Array.isArray(data.encounters)) ? data.encounters : [];
     const el = document.getElementById('enc');
-    el.innerHTML = list.length ? list.map(e => card(e, !seenAtLoad.has(e.id))).join('')
+    el.innerHTML = list.length ? list.map(e => card(e, (e.end || 0) > lastSeenAtLoad)).join('')
       : '<div class="empty">Aún no hay encuentros registrados. Aparecerán cuando dos jugadores del torneo coincidan en una partida.</div>';
     // Avisa (una vez por sesión) de los encuentros ocurridos en tu ausencia, y márcalos vistos.
-    const nuevos = list.filter(e => !seenAtLoad.has(e.id)).length;
+    const nuevos = list.filter(e => (e.end || 0) > lastSeenAtLoad).length;
     if (nuevos && !encToastShown){ encToastShown = true; showEncToast(nuevos); }
-    if (list.length) markSeen(list.map(e => e.id));
+    if (list.length){ markSeen(Math.max(...list.map(e => e.end || 0))); if (window.SQC) SQC.navBadges(); }
   }
 
   render(window.SQC_DATA || null);
