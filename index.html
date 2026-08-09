@@ -377,7 +377,11 @@
   .pd-tab .pd-x{ font-size:10px; opacity:.8; }
   .pd-full{ margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); background:rgba(255,255,255,.06); border:1px solid var(--line-strong); padding:7px 12px; border-radius:8px; }
   .pd-full:hover{ color:var(--text); }
-  .pd-tabc{ padding:12px 18px 18px; }
+  .pd-tabc{ padding:12px 18px 18px; max-height:360px; overflow-y:auto; overscroll-behavior:contain; }
+  .pd-tabc::-webkit-scrollbar{ width:9px; height:9px; }
+  .pd-tabc::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.16); border-radius:6px; }
+  .pd-tabc::-webkit-scrollbar-thumb:hover{ background:rgba(255,255,255,.28); }
+  .pd-tabc::-webkit-scrollbar-track{ background:transparent; }
   /* historial compacto (una línea por partida) */
   .m-row{ border-left:3px solid var(--muted-2); background:var(--panel-2); border-radius:8px; margin-bottom:5px; overflow:hidden; }
   .m-row.win{ border-left-color:var(--up); background:rgba(52,211,153,.05); }
