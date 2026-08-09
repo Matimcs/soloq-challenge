@@ -1275,7 +1275,7 @@ function renderFullFicha(card, data, close){
     const has=a.value!=null;
     const pct=has&&a.leader&&a.leader.value?Math.max(4,Math.min(100,a.value/a.leader.value*100)):0;
     return `<div class="ff-award">
-      <div class="ff-a-top"><span class="ff-a-t">${a.title}</span><span class="ff-a-p">${a.prize||''}</span></div>
+      <div class="ff-a-top"><span class="ff-a-t">${a.title}</span></div>
       ${has?`<div class="ff-a-v">${a.value}${a.unit||''}</div><div class="ff-a-bar"><span style="width:${pct}%"></span></div>`:`<div class="ff-a-none">Sin registro</div>`}
       <div class="ff-a-b">${a.rank?`<span class="ff-a-rank">#${a.rank}<small>/${a.total}</small></span>`:'<span></span>'}${a.leader?`<span class="ff-a-lead">Líder: ${a.leader.name} - ${a.leader.value}${a.unit||''}</span>`:''}</div>
     </div>`;

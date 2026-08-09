@@ -60,7 +60,10 @@ let pgPool = null;
 async function initDB(){
   if (!process.env.DATABASE_URL) return;
   try {
-    const { Pool } = require('pg');
+    // El runner corre desde la raíz, pero 'pg' vive en backend/node_modules.
+    let Pool;
+    try { ({ Pool } = require('pg')); }
+    catch { ({ Pool } = require(path.join(__dirname, 'backend', 'node_modules', 'pg'))); }
     const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL);
     pgPool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: isLocal ? false : { rejectUnauthorized: false }, max: 3 });
     await pgPool.query(`CREATE TABLE IF NOT EXISTS match_participants (
@@ -262,6 +265,24 @@ async function updatePlayerStats(puuid, entry){
     store.games.unshift(g); fetched.push(g);
   }
   store.games = store.games.slice(0, 20);
+
+  // Backfill acotado: guarda en la DB las partidas recientes que ya conocíamos pero
+  // aún no están guardadas (p.ej. jugadas antes de arreglar la persistencia). Máx 4
+  // por jugador por ciclo → se rellena en pocos ciclos sin saturar la API.
+  if (pgPool){
+    try {
+      const recent = store.games.slice(0, 15).map(g => g.id).filter(Boolean);
+      if (recent.length){
+        const ex = await pgPool.query('SELECT match_id FROM matches WHERE match_id = ANY($1)', [recent]);
+        const have = new Set(ex.rows.map(r => r.match_id));
+        const missing = recent.filter(id => !have.has(id)).slice(0, 4);
+        for (const id of missing){
+          const m = await getMatch(id); await sleep(110);
+          if (m && m.info){ await saveParticipants(id, m.info); await saveMatch(id, m); }
+        }
+      }
+    } catch {}
+  }
 
   // ±LP: solo hacia adelante. Si apareció EXACTAMENTE 1 partida nueva, el delta de LP es de esa partida.
   const cur = absLP(entry);
