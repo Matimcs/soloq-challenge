@@ -155,14 +155,36 @@ function baseWin(w, h, x, y, show = true, focusable = false){
 }
 function defaults(){ const wa = screen.getPrimaryDisplay().workArea; const M = 16;
   return { wa, M, smallX: wa.x + wa.width - 340 - M, smallY: wa.y + M, shellX: wa.x + wa.width - 278 - M, shellY: wa.y + M + 150 }; }
+// Posición recordada (settings.pos[key]) si sigue visible en algún monitor; si no, la de por defecto.
+function posFor(key, defX, defY){
+  const p = settings.pos && settings.pos[key];
+  if (p && Number.isFinite(p.x) && Number.isFinite(p.y)){
+    const visible = screen.getAllDisplays().some(dsp => {
+      const b = dsp.bounds;
+      return p.x < b.x + b.width - 40 && p.x + 60 > b.x && p.y < b.y + b.height - 20 && p.y + 30 > b.y;
+    });
+    if (visible) return { x: Math.round(p.x), y: Math.round(p.y) };
+  }
+  return { x: defX, y: defY };
+}
+function savePos(w){
+  if (!w || !w._posKey || w.isDestroyed()) return;
+  const b = w.getBounds();
+  settings.pos = settings.pos || {};
+  settings.pos[w._posKey] = { x: b.x, y: b.y };
+  saveSettings();
+}
 function createWindows(){
   const d = defaults();
-  win = baseWin(340, 130, d.smallX, d.smallY); win.setAlwaysOnTop(true, 'screen-saver'); win.loadFile(path.join(__dirname, 'overlay.html'));
-  shellWin = baseWin(278, 150, d.shellX, d.shellY); shellWin.setAlwaysOnTop(true, 'screen-saver'); shellWin.loadFile(path.join(__dirname, 'shells.html'));
+  const sp = posFor('small', d.smallX, d.smallY);
+  win = baseWin(340, 130, sp.x, sp.y); win._posKey = 'small'; win.setAlwaysOnTop(true, 'screen-saver'); win.loadFile(path.join(__dirname, 'overlay.html'));
+  const shp = posFor('shell', d.shellX, d.shellY);
+  shellWin = baseWin(278, 150, shp.x, shp.y); shellWin._posKey = 'shell'; shellWin.setAlwaysOnTop(true, 'screen-saver'); shellWin.loadFile(path.join(__dirname, 'shells.html'));
   const BW = 1200, BH = 780;
   // El panel es ENFOCABLE (a diferencia de los overlays chicos): así se puede escribir en
   // los campos de la web (login, tickets, etc.).
-  bigWin = baseWin(BW, BH, Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2), false, true);
+  const bp = posFor('big', Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2));
+  bigWin = baseWin(BW, BH, bp.x, bp.y, false, true); bigWin._posKey = 'big';
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
   bsWin = baseWin(680, 380, Math.round(d.wa.x + (d.wa.width - 680) / 2), Math.round(d.wa.y + (d.wa.height - 380) / 2), false);
@@ -204,7 +226,7 @@ function createTray(){
 // ---- Drag / resize (dirigido a la ventana que envía) ----
 ipcMain.on('drag-start', (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w._d = { dx: mx - b.x, dy: my - b.y }; });
 ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && w._d) w.setPosition(Math.round(mx - w._d.dx), Math.round(my - w._d.dy)); });
-ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w) w._d = null; });
+ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w){ w._d = null; savePos(w); } });
 ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(50, Math.min(900, Math.round(h))) }); });
 
 // ---- Aplicar settings ----
@@ -253,8 +275,10 @@ ipcMain.on('setting', (_e, { key, value }) => {
 });
 ipcMain.on('reset-pos', () => {
   const d = defaults();
+  settings.pos = {};   // olvida las posiciones recordadas
   if (win){ win.setPosition(d.smallX, d.smallY); if (!smallShown){ settings.smallVisible = true; } }
   if (shellWin){ shellWin.setPosition(d.shellX, d.shellY); if (!shellShown){ settings.shellVisible = true; } }
+  if (bigWin){ const BW=1200, BH=780; bigWin.setPosition(Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2)); }
   saveSettings(); applyVis();
 });
 ipcMain.handle('get-settings', () => settings);
