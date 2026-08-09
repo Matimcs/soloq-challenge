@@ -706,7 +706,7 @@ function startEmbeddedRunner(){
   const { spawn } = require('child_process');
   const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
   const CACHE_DIR = path.join(ROOT, 'cache');
-  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json' };
+  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json', positions:'positions.json' };
   // Escribe roster-extra.json (cuentas agregadas por el admin) para que fetch-data las incluya.
   const writeRoster = async () => {
     // roster manual (admin) + cuentas smurf de los jugadores → el runner las trackea.

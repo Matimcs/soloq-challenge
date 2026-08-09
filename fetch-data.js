@@ -121,7 +121,9 @@ async function saveMatch(matchId, m){
   } catch (e) { /* idem */ }
 }
 
-const TIER_ORDER = { CHALLENGER:9, GRANDMASTER:8, MASTER:7, DIAMOND:6, EMERALD:5,
+// Master/GM/Challenger comparten escala de LP (ladder apex): se ordenan por LP entre sí,
+// así un Master con más LP que un GM va arriba. El resto de tiers por debajo, por tier+div.
+const TIER_ORDER = { CHALLENGER:7, GRANDMASTER:7, MASTER:7, DIAMOND:6, EMERALD:5,
                      PLATINUM:4, GOLD:3, SILVER:2, BRONZE:1, IRON:0, UNRANKED:-1 };
 const DIV_VAL = { I:4, II:3, III:2, IV:1, '':0 };
 const NO_DIVISION = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
@@ -151,7 +153,19 @@ const matchStore = loadJSON(MATCH_FILE, {});   // puuid -> { games:[{id,win,cham
 const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
 const REGION_FILE = path.join(CACHE_DIR, 'regions.json');
 const regionStore = loadJSON(REGION_FILE, {}); // puuid -> plataforma real (la2, br1, na1…) para league/spectator
+const POS_FILE = path.join(CACHE_DIR, 'positions.json');
+const posStore = loadJSON(POS_FILE, {});       // puuid -> [{t, pos}]  (historial de posición para el ±puestos 24h)
 let REQ_COUNT = 0;                             // requests reales a Riot este ciclo
+
+// Puestos subidos (+) o bajados (−) en las últimas 24h respecto a la posición actual.
+function movePos24h(snaps, curPos, now){
+  if (!Array.isArray(snaps) || !snaps.length) return 0;
+  const target = now - 24*3600*1000;
+  let ref = null;
+  for (const s of snaps) if (s.t <= target && (!ref || s.t > ref.t)) ref = s;   // el más cercano a hace 24h
+  if (!ref){ ref = snaps.reduce((a,b) => a.t < b.t ? a : b); if (now - ref.t < 3600*1000) return 0; }  // si no hay, el más viejo (≥1h)
+  return ref.pos - curPos;   // subió = más arriba = pos menor = positivo
+}
 
 async function riot(url) {
   REQ_COUNT++;
@@ -409,7 +423,17 @@ function rankText(entry) {
   // Orden del ranking y mapa de posiciones
   players.sort((a, b) => ladderValue(b) - ladderValue(a));
   const posByPuuid = new Map();
-  players.forEach((p, i) => { posByPuuid.set(p.puuid, i + 1); });
+  const nowMs = Date.now();
+  players.forEach((p, i) => {
+    const pos = i + 1;
+    posByPuuid.set(p.puuid, pos);
+    // ±puestos en 24h (respecto al historial), y registra el snapshot actual.
+    const snaps = posStore[p.puuid] || (posStore[p.puuid] = []);
+    p.move = movePos24h(snaps, pos, nowMs);
+    const last = snaps[snaps.length - 1];
+    if (!last || nowMs - last.t > 15*60*1000) snaps.push({ t: nowMs, pos });   // 1 snapshot cada ~15 min
+    posStore[p.puuid] = snaps.filter(s => nowMs - s.t < 26*3600*1000);         // poda >26h
+  });
 
   // ---- PASS 2: construir scoreboards de Live Games ----
   async function entryFor(puuid) {
@@ -513,6 +537,7 @@ function rankText(entry) {
   fs.writeFileSync(MATCH_FILE, JSON.stringify(matchStore));
   fs.writeFileSync(ENC_FILE, JSON.stringify(encounterStore));
   fs.writeFileSync(REGION_FILE, JSON.stringify(regionStore));
+  fs.writeFileSync(POS_FILE, JSON.stringify(posStore));
 
   console.log(`\n✔ ${players.length} jugadores · ${liveGames.length} live games → players.json + players.js`);
   console.log(`   Requests a Riot este ciclo: ${REQ_COUNT}`
