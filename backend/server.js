@@ -139,6 +139,8 @@ app.get('/api/avatars', wrap(async (req,res) => {
 }));
 
 // Ficha de un jugador (para el despliegue del ranking). Todo sale de la DB, sin Riot API.
+const ksOf  = p => (p && p.perks && p.perks.styles && p.perks.styles[0] && p.perks.styles[0].selections && p.perks.styles[0].selections[0] && p.perks.styles[0].selections[0].perk) || null;
+const secOf = p => (p && p.perks && p.perks.styles && p.perks.styles[1] && p.perks.styles[1].style) || null;
 function buildHistoryRow(m, puuid){
   if (!m || !m.info) return null;
   const P = m.info.participants || [];
@@ -147,8 +149,6 @@ function buildHistoryRow(m, puuid){
   const opp = P.find(p => p.teamId !== me.teamId && (p.teamPosition||'') === (me.teamPosition||'') && me.teamPosition);
   const cs = (me.totalMinionsKilled||0) + (me.neutralMinionsKilled||0);
   const dur = m.info.gameDuration || 0;
-  const ks = me.perks && me.perks.styles && me.perks.styles[0] && me.perks.styles[0].selections && me.perks.styles[0].selections[0] && me.perks.styles[0].selections[0].perk;
-  const secStyle = me.perks && me.perks.styles && me.perks.styles[1] && me.perks.styles[1].style;
   return {
     matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
     win: !!me.win, champion: me.championName, position: me.teamPosition || '',
@@ -156,9 +156,11 @@ function buildHistoryRow(m, puuid){
     kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
     kp: teamKills ? Math.round(((me.kills||0)+(me.assists||0))/teamKills*100) : 0,
     cs, csMin: dur ? +(cs/(dur/60)).toFixed(1) : 0,
-    spells: [me.summoner1Id, me.summoner2Id], keystone: ks || null, secStyle: secStyle || null,
-    items: [me.item0,me.item1,me.item2,me.item3,me.item4,me.item5,me.item6].map(x=>x||0),
-    duration: dur, end: m.info.gameEndTimestamp || 0, oppChampion: opp ? opp.championName : null,
+    spells: [me.summoner1Id, me.summoner2Id], keystone: ksOf(me), secStyle: secOf(me),
+    items: [me.item0,me.item1,me.item2,me.item3,me.item4,me.item5].map(x=>x||0), trinket: me.item6||0,
+    duration: dur, end: m.info.gameEndTimestamp || 0,
+    oppChampion: opp ? opp.championName : null, oppSpells: opp ? [opp.summoner1Id, opp.summoner2Id] : null,
+    oppKeystone: opp ? ksOf(opp) : null, oppSecStyle: opp ? secOf(opp) : null,
     doubleK: me.doubleKills||0, tripleK: me.tripleKills||0, quadraK: me.quadraKills||0, pentaK: me.pentaKills||0,
   };
 }
@@ -185,6 +187,17 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
       const byId = {}; fulls.forEach(f => byId[f.match_id] = f.data);
       history = ids.map(id => buildHistoryRow(byId[id], puuid)).filter(Boolean);
     }
+    // ±LP y aegis por partida (desde lpGames del caché), casando por 'end'.
+    try {
+      const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
+      const s = r && r.data && r.data[puuid];
+      if (s && Array.isArray(s.lpGames)){
+        const byEnd = {}; s.lpGames.forEach(g => { if (g.end) byEnd[g.end] = g; });
+        const wd = s.lpGames.filter(g => g.delta > 0).slice(0, 15).map(g => g.delta).sort((a,b)=>a-b);
+        const med = wd.length ? wd[Math.floor(wd.length/2)] : 0;
+        history.forEach(h => { const g = byEnd[h.end]; if (g){ h.lp = g.delta; h.aegis = g.delta > 0 && med > 0 && g.delta >= 1.8*med; } });
+      }
+    } catch {}
   }
 
   // Stats agregadas sobre TODO el historial guardado
@@ -230,6 +243,28 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
   };
   res.json({ profile, history, stats, blueshells, ddragonVersion: liveData && liveData.ddragonVersion });
+}));
+
+// Scoreboard completo de una partida guardada (para el desglose "tipo live games").
+app.get('/api/match/:matchId', wrap(async (req,res) => {
+  const id = (req.params.matchId || '').trim();
+  const row = await q1('SELECT data FROM matches WHERE match_id=$1', [id]);
+  if (!row || !row.data || !row.data.info) return res.status(404).json({ error:'Partida no guardada' });
+  const info = row.data.info;
+  const trackedRids = new Set(((liveData && liveData.players) || []).map(p => (p.rid||'').toLowerCase()));
+  const parts = (info.participants || []).map(p => {
+    const gn = p.riotIdGameName || p.summonerName || '', tg = p.riotIdTagline || '';
+    const rid = gn ? (tg ? `${gn}#${tg}` : gn) : '';
+    return {
+      name: gn, tag: tg, champion: p.championName, teamId: p.teamId, win: !!p.win, position: p.teamPosition || '',
+      spells: [p.summoner1Id, p.summoner2Id], keystone: ksOf(p), secStyle: secOf(p),
+      k: p.kills||0, d: p.deaths||0, a: p.assists||0, cs: (p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0),
+      items: [p.item0,p.item1,p.item2,p.item3,p.item4,p.item5].map(x=>x||0), trinket: p.item6||0,
+      tracked: rid ? trackedRids.has(rid.toLowerCase()) : false,
+    };
+  });
+  res.json({ duration: info.gameDuration||0, queueId: info.queueId,
+    blue: parts.filter(p=>p.teamId===100), red: parts.filter(p=>p.teamId===200) });
 }));
 
 // ---- Ficha COMPLETA: evolución de elo + Premios (ranking entre jugadores) + récords ----

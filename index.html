@@ -378,27 +378,49 @@
   .pd-full{ margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); background:rgba(255,255,255,.06); border:1px solid var(--line-strong); padding:7px 12px; border-radius:8px; }
   .pd-full:hover{ color:var(--text); }
   .pd-tabc{ padding:12px 18px 18px; }
-  .pd-m{ display:grid; grid-template-columns:150px 1fr 210px 1.4fr 84px; align-items:center; gap:12px; padding:10px 12px; border-radius:10px; margin-bottom:6px; border-left:3px solid var(--muted-2); background:var(--panel-2); }
-  .pd-m.win{ border-left-color:var(--up); background:rgba(52,211,153,.06); }
-  .pd-m.loss{ border-left-color:var(--down); background:rgba(251,113,133,.06); }
-  .pd-m-res b{ font-size:13px; } .pd-m.win .pd-m-res b{ color:var(--up); } .pd-m.loss .pd-m-res b{ color:var(--down-soft); }
-  .pd-m-res span{ display:block; font-size:10.5px; color:var(--muted-2); margin-top:2px; }
-  .pd-m-champ{ display:flex; align-items:center; gap:6px; }
-  .pd-champ{ width:40px; height:40px; border-radius:8px; }
-  .pd-champ.sm{ width:28px; height:28px; border-radius:6px; }
-  .pd-m-sp{ display:flex; flex-direction:column; gap:3px; }
-  .pd-spell{ width:17px; height:17px; border-radius:4px; }
-  .pd-rune{ width:17px; height:17px; border-radius:50%; background:#000; }
-  .pd-vs{ font-size:10px; color:var(--muted-2); margin:0 2px; }
-  .pd-m-kda b{ font-size:14px; font-weight:700; } .pd-m-kda .d{ color:var(--down); }
-  .pd-m-kda span{ display:block; font-size:10.5px; color:var(--muted); margin-top:2px; }
-  .pd-m-items{ display:flex; gap:3px; flex-wrap:wrap; }
-  .pd-item{ width:24px; height:24px; border-radius:5px; background:#000; }
-  .pd-item.empty{ width:24px; height:24px; border-radius:5px; background:rgba(255,255,255,.04); display:inline-block; }
-  .pd-m-lp{ text-align:right; font-size:12px; font-weight:700; }
-  .pd-m-lp .muted{ color:var(--muted-2); }
-  .pd-multi{ font-size:9px; font-weight:800; letter-spacing:.06em; color:#000; background:var(--gold); padding:2px 6px; border-radius:5px; }
-  .pd-multi.penta{ background:var(--down); color:#fff; }
+  /* historial compacto (una línea por partida) */
+  .m-row{ border-left:3px solid var(--muted-2); background:var(--panel-2); border-radius:8px; margin-bottom:5px; overflow:hidden; }
+  .m-row.win{ border-left-color:var(--up); background:rgba(52,211,153,.05); }
+  .m-row.loss{ border-left-color:var(--down); background:rgba(251,113,133,.05); }
+  .m-head{ display:flex; align-items:center; gap:9px; padding:5px 10px; cursor:pointer; min-width:900px; }
+  .m-head:hover{ background:rgba(255,255,255,.03); }
+  .m-res{ display:flex; align-items:center; gap:6px; width:220px; flex-shrink:0; font-size:11.5px; color:var(--muted); }
+  .m-row.win .m-res b{ color:var(--up); } .m-row.loss .m-res b{ color:var(--down-soft); }
+  .m-role{ width:18px; height:18px; flex-shrink:0; display:inline-block; }
+  .m-champ{ width:30px; height:30px; border-radius:6px; flex-shrink:0; }
+  .m-champ.e{ background:rgba(255,255,255,.05); display:inline-block; }
+  .m-sp{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+  .m-sp img{ width:14px; height:14px; border-radius:3px; display:block; }
+  .m-ru{ display:flex; flex-direction:column; gap:2px; flex-shrink:0; }
+  .m-ru img{ width:14px; height:14px; border-radius:50%; display:block; }
+  .m-ru .pri{ background:#000; }
+  .m-e{ width:14px; height:14px; display:block; border-radius:3px; background:rgba(255,255,255,.05); }
+  .m-vs{ font-size:9px; font-weight:800; color:var(--muted-2); flex-shrink:0; }
+  .m-kda{ width:150px; flex-shrink:0; }
+  .m-kda b{ font-size:13px; font-weight:700; } .m-kda .d{ color:var(--down); }
+  .m-kda span{ display:block; font-size:9.5px; color:var(--muted); }
+  .m-items{ display:flex; gap:2px; flex-shrink:0; }
+  .m-it{ width:20px; height:20px; border-radius:4px; background:#000; }
+  .m-it.e{ background:rgba(255,255,255,.05); display:inline-block; }
+  .m-it.trk{ border-radius:50%; margin-left:3px; }
+  .m-aegis{ width:22px; height:22px; flex-shrink:0; filter:drop-shadow(0 0 4px rgba(255,201,60,.4)); }
+  .m-lp{ font-size:12px; font-weight:800; flex-shrink:0; min-width:56px; text-align:right; }
+  .m-lp.up{ color:var(--up); } .m-lp.dn{ color:var(--down-soft); }
+  .m-exp{ margin-left:auto; background:rgba(255,255,255,.06); border:1px solid var(--line); color:var(--muted); width:24px; height:24px; border-radius:6px; cursor:pointer; flex-shrink:0; font-size:11px; }
+  .m-exp:hover{ color:#fff; background:rgba(255,255,255,.12); }
+  .m-board{ border-top:1px solid var(--line); padding:10px; overflow-x:auto; }
+  .mb{ display:grid; grid-template-columns:1fr 1fr; gap:12px; min-width:720px; }
+  .mb-sh{ font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; margin-bottom:6px; }
+  .mb-side.blue .mb-sh{ color:var(--blue); } .mb-side.red .mb-sh{ color:var(--down); }
+  .mb-p{ display:flex; align-items:center; gap:7px; padding:4px 6px; border-radius:7px; margin-bottom:3px; }
+  .mb-p.trk{ background:linear-gradient(90deg,rgba(52,211,153,.12),transparent); border:1px solid rgba(52,211,153,.4); }
+  .mb-champ{ width:28px; height:28px; border-radius:6px; flex-shrink:0; }
+  .mb-info{ flex:1; min-width:0; }
+  .mb-name{ font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mb-sub{ font-size:10px; color:var(--muted); }
+  .mb-items{ display:flex; gap:2px; flex-shrink:0; }
+  .mb-it{ width:16px; height:16px; border-radius:3px; background:#000; }
+  .mb-it.e{ background:rgba(255,255,255,.05); }
   .pd-stats{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px; }
   .pd-stat{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .pd-stat .v{ font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
@@ -1172,25 +1194,56 @@ function renderDetail(root, rid, data){
   const del = root.querySelector('[data-pd-del]'); if (del) del.onclick = () => deletePlayer(rid);
   tabs.hist();
 }
+const POS_ROLE = { TOP:'top', JUNGLE:'jg', MIDDLE:'mid', BOTTOM:'adc', UTILITY:'support' };
+function roleIco(pos){ const s = POS_ROLE[pos]; return s ? `<img class="m-role" src="overlay/assets/roles/${s}.webp" title="${pos}">` : '<span class="m-role"></span>'; }
+function spellStack(spells){ return `<div class="m-sp">${(spells||[]).map(k => spellUrl2(k) ? `<img src="${spellUrl2(k)}">` : '<span class="m-e"></span>').join('')}</div>`; }
+function runeStack(ks, sec){ return `<div class="m-ru">${runeUrl2(ks)?`<img class="pri" src="${runeUrl2(ks)}">`:'<span class="m-e"></span>'}${runeUrl2(sec)?`<img class="sec" src="${runeUrl2(sec)}">`:'<span class="m-e"></span>'}</div>`; }
 function renderHist(c, data){
   const H = data.history || [];
   if (!H.length){ c.innerHTML = `<div class="pd-empty">Aún no hay partidas guardadas. Se registran a medida que se juegan (SoloQ).</div>`; return; }
   c.innerHTML = H.map(h => {
-    const res = h.win ? 'Victoria' : 'Derrota';
-    const spells = h.spells.map(k => spellUrl2(k) ? `<img class="pd-spell" src="${spellUrl2(k)}">` : '').join('');
-    const rune = runeUrl2(h.keystone) ? `<img class="pd-rune" src="${runeUrl2(h.keystone)}">` : '';
-    const opp = h.oppChampion ? `<span class="pd-vs">vs</span><img class="pd-champ sm" src="${champUrl(h.oppChampion)}" onerror="this.style.display='none'">` : '';
-    const items = h.items.map(id => id ? `<img class="pd-item" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : `<span class="pd-item empty"></span>`).join('');
     const kda = ((h.k+h.a)/Math.max(1,h.d)).toFixed(1);
-    const multi = h.pentaK?`<span class="pd-multi penta">PENTA</span>`:h.quadraK?`<span class="pd-multi">QUADRA</span>`:h.tripleK?`<span class="pd-multi">TRIPLE</span>`:'';
-    return `<div class="pd-m ${h.win?'win':'loss'}">
-      <div class="pd-m-res"><b>${res}</b><span>${fmtDur(h.duration)} · ${fmtAgo(h.end)}</span></div>
-      <div class="pd-m-champ"><img class="pd-champ" src="${champUrl(h.champion)}" onerror="this.style.visibility='hidden'"><div class="pd-m-sp">${spells}${rune}</div>${opp}</div>
-      <div class="pd-m-kda"><b>${h.k} / <span class="d">${h.d}</span> / ${h.a}</b><span>${kda} KDA · ${h.kp}% KP · ${h.cs} CS</span></div>
-      <div class="pd-m-items">${items}</div>
-      <div class="pd-m-lp">${multi || '<span class="muted">—</span>'}</div>
+    const items6 = h.items.map(id => id ? `<img class="m-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e"></span>').join('');
+    const trinket = h.trinket ? `<img class="m-it trk" src="${itemUrl(h.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e trk"></span>';
+    const aegis = h.aegis ? `<img class="m-aegis" src="overlay/assets/aegis.svg" title="Aegis" onerror="this.style.display='none'">` : '';
+    const lp = (h.lp != null) ? `<span class="m-lp ${h.win?'up':'dn'}">${h.lp>0?'+':''}${h.lp} LP</span>` : '<span class="m-lp"></span>';
+    const opp = h.oppChampion ? `<img class="m-champ" src="${champUrl(h.oppChampion)}" onerror="this.style.visibility='hidden'">` : '<span class="m-champ e"></span>';
+    return `<div class="m-row ${h.win?'win':'loss'}">
+      <div class="m-head" data-mid="${h.matchId||''}">
+        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':'Derrota'}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}</span></div>
+        <img class="m-champ" src="${champUrl(h.champion)}" onerror="this.style.visibility='hidden'">
+        ${spellStack(h.spells)}${runeStack(h.keystone,h.secStyle)}
+        <span class="m-vs">VS</span>
+        ${opp}${spellStack(h.oppSpells)}${runeStack(h.oppKeystone,h.oppSecStyle)}
+        <div class="m-kda"><b>${h.k}/<span class="d">${h.d}</span>/${h.a}</b><span>${kda} KDA · ${h.kp}% KP · ${h.cs} CS</span></div>
+        <div class="m-items">${items6}${trinket}</div>
+        ${aegis}${lp}
+        <button class="m-exp" title="Ver partida">▾</button>
+      </div>
+      <div class="m-board" hidden></div>
     </div>`;
   }).join('');
+  c.querySelectorAll('.m-head').forEach(head => head.addEventListener('click', () => toggleMatchBoard(head)));
+}
+async function toggleMatchBoard(head){
+  const row = head.closest('.m-row'), board = row.querySelector('.m-board'), exp = row.querySelector('.m-exp'), mid = head.dataset.mid;
+  if (!board.hidden){ board.hidden = true; board.innerHTML = ''; exp.textContent = '▾'; row.classList.remove('open'); return; }
+  if (!mid){ return; }
+  board.hidden = false; row.classList.add('open'); exp.textContent = '▴'; board.innerHTML = '<div class="pd-empty sm">Cargando partida…</div>';
+  try { const r = await fetch('/api/match/' + encodeURIComponent(mid), { cache:'no-store' }); if (!r.ok) throw 0; board.innerHTML = renderMatchBoard(await r.json()); }
+  catch { board.innerHTML = '<div class="pd-empty sm">No se pudo cargar la partida.</div>'; }
+}
+function mbRow(p){
+  const items = [...p.items.map(id => id ? `<img class="mb-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'),
+    p.trinket ? `<img class="mb-it" src="${itemUrl(p.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'].join('');
+  return `<div class="mb-p ${p.tracked?'trk':''}">
+    <img class="mb-champ" src="${champUrl(p.champion)}" onerror="this.style.visibility='hidden'">${spellStack(p.spells)}${runeStack(p.keystone,p.secStyle)}
+    <div class="mb-info"><div class="mb-name">${p.name||''}</div><div class="mb-sub">${p.k}/${p.d}/${p.a} · ${p.cs} CS</div></div>
+    <div class="mb-items">${items}</div></div>`;
+}
+function renderMatchBoard(md){
+  const side = (rows,cls,label) => `<div class="mb-side ${cls}"><div class="mb-sh">${label}</div>${(rows||[]).map(mbRow).join('')}</div>`;
+  return `<div class="mb">${side(md.blue,'blue','Equipo azul')}${side(md.red,'red','Equipo rojo')}</div>`;
 }
 function renderStats(c, data){
   const s = data.stats;
