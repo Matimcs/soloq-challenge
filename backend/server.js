@@ -70,7 +70,7 @@ app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.hea
 
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
 const sign = u => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
-const TEAMS = new Set(['Exilium', 'Tide', 'Zenith']);
+const TEAMS = new Set(['Exilium', 'Tide', 'Zenith', 'Hundred Blossom']);
 const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, team:u.team || null, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -96,6 +96,8 @@ app.post('/api/register', wrap(async (req,res) => {
   const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,team,confirmed,is_admin)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16) RETURNING *`,
     [b.email, hash, b.nickname, b.realname, b.riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, team, ADMIN_RIDS.has(b.riotid)]);
+  // Al inscribir esta cuenta, su equipo lo decide el jugador → quita cualquier equipo sembrado a mano.
+  await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [b.riotid]);
   res.json({ token: sign(u), user: publicUser(u) });
 }));
 
@@ -132,6 +134,7 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
   if (!sets.length) return res.json({ user: publicUser(req.user) });
   vals.push(req.user.id);
   const u = await q1(`UPDATE users SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
+  if (u && u.riotid) await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [u.riotid]);   // su elección manda
   res.json({ user: publicUser(u) });
 }));
 
@@ -180,6 +183,7 @@ app.post('/api/me/smurfs', auth, wrap(async (req,res) => {
   const c = await q1('SELECT COUNT(*)::int c FROM smurfs WHERE user_id=$1', [req.user.id]);
   if (c.c >= 8) return res.status(400).json({ error:'Máximo 8 cuentas smurf' });
   await q('INSERT INTO smurfs (user_id,riotid) VALUES ($1,$2)', [req.user.id, riotid]);
+  await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [riotid]);   // el equipo del dueño manda para su smurf
   res.json({ ok:true });
 }));
 app.post('/api/me/smurfs/remove', auth, wrap(async (req,res) => {

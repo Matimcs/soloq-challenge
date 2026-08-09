@@ -180,6 +180,7 @@
   .team-tag.exilium{ color:#ff8a5c; background:rgba(255,138,92,.14); border:1px solid rgba(255,138,92,.45); }
   .team-tag.tide{ color:#5fd6f0; background:rgba(95,214,240,.14); border:1px solid rgba(95,214,240,.45); }
   .team-tag.zenith{ color:#ffd24a; background:rgba(255,210,74,.14); border:1px solid rgba(255,210,74,.45); }
+  .team-tag.hundred-blossom{ color:#ff86c8; background:rgba(255,134,200,.14); border:1px solid rgba(255,134,200,.45); }
 
   /* rol */
   .role-ico{ width:22px; height:22px; object-fit:contain; opacity:.95; vertical-align:middle; }
@@ -695,6 +696,10 @@ function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;
 /* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
    casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
 let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {}, NICK_BY_RID = {}, LABEL_BY_RID = {}, TEAM_BY_RID = {};
+const TEAM_ABBR = { 'Hundred Blossom':'HB' };   // nombre → etiqueta corta
+function teamSlug(t){ return (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
+function teamLabel(t){ return TEAM_ABBR[t] || t; }
+function teamTag(rid){ const t = TEAM_BY_RID[(rid||'').toLowerCase()]; return t ? `<span class="team-tag ${teamSlug(t)}" title="${t}">${teamLabel(t)}</span>` : ''; }
 async function loadTeams(){
   if (!location.protocol.startsWith('http')) return;
   try {
@@ -825,7 +830,7 @@ function render(){
             <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
             ${avaHtml(p.rid, p.nm)}
             <div>
-              <div class="nm">${NICK_BY_RID[p.rid] || p.nm} ${TEAM_BY_RID[(p.rid||'').toLowerCase()] ? `<span class="team-tag ${TEAM_BY_RID[(p.rid||'').toLowerCase()].toLowerCase()}">${TEAM_BY_RID[(p.rid||'').toLowerCase()]}</span>` : ''} ${LABEL_BY_RID[p.rid] ? `<span class="acc-tag ${LABEL_BY_RID[p.rid].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[p.rid]}</span>` : ''} ${badges}</div>
+              <div class="nm">${NICK_BY_RID[p.rid] || p.nm} ${teamTag(p.rid)} ${LABEL_BY_RID[p.rid] ? `<span class="acc-tag ${LABEL_BY_RID[p.rid].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[p.rid]}</span>` : ''} ${badges}</div>
               <div class="rid">${p.rid}</div>
             </div>
           </div>
