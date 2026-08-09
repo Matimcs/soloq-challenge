@@ -84,15 +84,15 @@ const requireAdmin = (req,res,next) => req.user.is_admin ? next() : res.status(4
 // ================= AUTH =================
 app.post('/api/register', wrap(async (req,res) => {
   const b = req.body || {};
-  for (const f of ['email','password','nickname','realname','main','discord','pos1','pos2','avatar','champ1','champ2','champ3'])
+  for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2','avatar','champ1','champ2','champ3'])
     if (!b[f]) return res.status(400).json({ error:`Falta el campo: ${f}` });
-  if (b.riotid && !/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });   // riotid opcional (modo prueba)
+  if (!/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
   const flash = Number(b.flashSlot);
   if (flash !== 1 && flash !== 2) return res.status(400).json({ error:'Indica en qué slot usas el Flash (1 o 2)' });
   if (CHAMP_IDS.length && ![b.champ1,b.champ2,b.champ3].every(c => CHAMP_IDS.includes(c))) return res.status(400).json({ error:'Algún campeón no existe (revisa que esté bien escrito)' });
   if (await q1('SELECT 1 FROM users WHERE email=$1', [b.email])) return res.status(409).json({ error:'Ese email ya está registrado' });
   const team = TEAMS.has(b.team) ? b.team : null;
-  const riotid = b.riotid || ('prueba-' + Date.now());   // riotid opcional (modo prueba): placeholder si no viene
+  const riotid = b.riotid;   // la cuenta principal del jugador (la que se trackea)
   const hash = await bcrypt.hash(b.password, 10);
   const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,team,confirmed,is_admin)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16) RETURNING *`,
