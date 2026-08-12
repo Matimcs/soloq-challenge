@@ -14,6 +14,15 @@ const { pathToFileURL } = require('url');
 const { getCreds, lcu } = require('./lcu');
 const { liveClient } = require('./liveclient');
 
+// ---- Una sola instancia ----
+// Si ya hay un overlay corriendo, esta segunda instancia se cierra al instante y le
+// pide a la primera que muestre el panel (showAll). Evita popups/atajos duplicados.
+const hasLock = app.requestSingleInstanceLock();
+if (!hasLock){ app.quit(); }
+else {
+  app.on('second-instance', () => { try { showAll(); } catch {} });
+}
+
 const ROSTER_FILE = path.join(__dirname, '..', 'players.json');
 const NO_DIV = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
 const HIGH = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
@@ -174,6 +183,10 @@ function savePos(w){
   settings.pos[w._posKey] = { x: b.x, y: b.y };
   saveSettings();
 }
+// Guarda la posición también con el evento nativo 'moved' (además del drag-end por IPC),
+// por si se pierde el mouseup al soltar sobre el juego u otra ventana. Debounced para no
+// escribir el archivo en cada píxel del arrastre.
+function trackMoves(w){ let t; w.on('moved', () => { clearTimeout(t); t = setTimeout(() => savePos(w), 350); }); }
 function createWindows(){
   const d = defaults();
   const sp = posFor('small', d.smallX, d.smallY);
@@ -186,6 +199,7 @@ function createWindows(){
   const bp = posFor('big', Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2));
   bigWin = baseWin(BW, BH, bp.x, bp.y, false, true); bigWin._posKey = 'big';
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
+  [win, shellWin, bigWin].forEach(trackMoves);   // recuerda dónde los dejaste
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
   bsWin = baseWin(680, 380, Math.round(d.wa.x + (d.wa.width - 680) / 2), Math.round(d.wa.y + (d.wa.height - 380) / 2), false);
   bsWin.setAlwaysOnTop(true, 'screen-saver'); bsWin.loadFile(path.join(__dirname, 'bs-event.html'));
@@ -433,7 +447,7 @@ async function pollMessages(){
   } catch (e) { dlog('pollMessages error: ' + (e && e.message)); }
 }
 
-app.whenReady().then(async () => {
+if (hasLock) app.whenReady().then(async () => {
   createWindows();
   createTray();
   applyOpacity(); applyAlwaysOnTop(); applyAutoLaunch();
@@ -441,8 +455,14 @@ app.whenReady().then(async () => {
   smallShown = false; win.hide();
   shellShown = false; shellWin.hide();
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }
-  const okX = globalShortcut.register('Alt+X', () => toggleAll());   // muestra/cierra TODO el overlay
-  dlog('Alt+X registrado: ' + okX + (okX ? '' : ' (¿otra app lo tomó? En juego usa modo Sin bordes/Borderless)'));
+  // Atajo para mostrar/cerrar TODO el overlay. Alt+X es el principal; si otra app (o el
+  // cliente de LoL) lo tiene tomado, el registro falla en silencio y el atajo "no funciona
+  // en juego" — por eso probamos respaldos hasta que uno quede registrado.
+  const HOTKEYS = ['Alt+X', 'Alt+Shift+X', 'Control+Shift+X', 'Control+Alt+X'];
+  let activeHotkey = null;
+  for (const acc of HOTKEYS){ if (globalShortcut.register(acc, () => toggleAll())){ activeHotkey = acc; break; } }
+  dlog('Atajo panel registrado: ' + (activeHotkey || 'NINGUNO (todos ocupados)'));
+  if (tray) tray.setToolTip('SoloQ Overlay — ' + (activeHotkey ? activeHotkey.replace('Control','Ctrl') + ' = panel' : 'sin atajo'));
   // Alt+B: probar el evento de Blue Shell recibida (ruleta si estás fuera de partida, notif si estás dentro)
   globalShortcut.register('Alt+B', () => {
     const cs = ['Sin Flash','Autofill','Campeón aleatorio','Sin pociones ni pinks','Clase de campeón aleatoria','Sin botas y sin pies veloces'];
