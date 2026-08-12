@@ -377,11 +377,14 @@ function rankText(entry) {
   // ---- PASS 1: ranking + guardar spectator crudo de cada jugador ----
   const players = [];
   const rawByPlayer = [];  // {puuid, raw}
+  const seenPuuids = new Set();   // evita duplicados (misma cuenta con distinto casing/tag)
   for (const rid of RIOT_IDS) {
     process.stdout.write(`→ ${rid} ... `);
     try {
       const puuid = await getPuuid(rid); await sleep(110);
       if (!puuid) { console.log('cuenta no encontrada'); continue; }
+      if (seenPuuids.has(puuid)) { console.log('duplicada (misma cuenta) — omitida'); continue; }
+      seenPuuids.add(puuid);
 
       // Si el overlay del jugador reportó hace poco, usamos SUS datos (0 llamadas a Riot).
       const rep = freshReport(rid);

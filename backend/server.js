@@ -91,6 +91,9 @@ app.post('/api/register', wrap(async (req,res) => {
   if (flash !== 1 && flash !== 2) return res.status(400).json({ error:'Indica en qué slot usas el Flash (1 o 2)' });
   if (CHAMP_IDS.length && ![b.champ1,b.champ2,b.champ3].every(c => CHAMP_IDS.includes(c))) return res.status(400).json({ error:'Algún campeón no existe (revisa que esté bien escrito)' });
   if (await q1('SELECT 1 FROM users WHERE email=$1', [b.email])) return res.status(409).json({ error:'Ese email ya está registrado' });
+  // Evita duplicar una cuenta ya tomada (case-insensitive: "Pancho…" == "pancho…").
+  if (await q1('SELECT 1 FROM users WHERE lower(riotid)=lower($1) UNION SELECT 1 FROM smurfs WHERE lower(riotid)=lower($1)', [b.riotid]))
+    return res.status(409).json({ error:'Ese Riot ID ya está registrado por alguien' });
   const team = TEAMS.has(b.team) ? b.team : null;
   const riotid = b.riotid;   // la cuenta principal del jugador (la que se trackea)
   const hash = await bcrypt.hash(b.password, 10);
@@ -129,6 +132,9 @@ app.get('/api/me', auth, (req,res) => res.json({ user: publicUser(req.user) }));
 app.post('/api/me/update', auth, wrap(async (req,res) => {
   const b = req.body || {};
   if (b.riotid !== undefined && !/^.+#.+$/.test(b.riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  if (b.riotid !== undefined && b.riotid.toLowerCase() !== (req.user.riotid||'').toLowerCase()
+      && await q1('SELECT 1 FROM users WHERE lower(riotid)=lower($1) AND id<>$2 UNION SELECT 1 FROM smurfs WHERE lower(riotid)=lower($1)', [b.riotid, req.user.id]))
+    return res.status(409).json({ error:'Ese Riot ID ya está tomado' });
   if (b.email){ const other = await q1('SELECT id FROM users WHERE email=$1 AND id<>$2', [b.email, req.user.id]); if (other) return res.status(409).json({ error:'Ese email ya está en uso' }); }
   if (CHAMP_IDS.length && [b.champ1,b.champ2,b.champ3].some(c => c !== undefined && c && !CHAMP_IDS.includes(c)))
     return res.status(400).json({ error:'Algún campeón no existe (revisa que esté bien escrito)' });

@@ -502,6 +502,17 @@
   .ff-r-rank{ font-size:12px; font-weight:800; color:var(--muted-2); }
   @media (max-width:760px){ .ff-stats{ grid-template-columns:repeat(3,1fr);} .ff-awards{ grid-template-columns:1fr;} .ff-recs{ grid-template-columns:repeat(2,1fr);} }
 
+  /* ===== vistas por equipos ===== */
+  tr.grp-hdr td{ background:var(--panel-2); border-bottom:1px solid var(--line-strong); font-weight:800; font-size:13px; letter-spacing:.02em; padding:10px 14px; }
+  tr.grp-hdr .grp-n{ color:var(--muted-2); font-weight:600; font-size:12px; margin-left:4px; }
+  .tr-row{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .tr-name{ font-size:15px; font-weight:800; }
+  .tr-accs{ display:flex; align-items:center; gap:-6px; }
+  .tr-acc{ display:inline-flex; margin-left:-8px; }
+  .tr-acc:first-child{ margin-left:0; }
+  .tr-acc .ava{ width:30px; height:30px; border-radius:8px; border:2px solid var(--panel); box-shadow:0 0 0 1px var(--line-strong); }
+  .tr-count{ margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); }
+
   footer{ color:var(--muted-2); font-size:12px; text-align:center; padding:40px 0 30px; }
 
   @media (max-width:860px){
@@ -579,6 +590,9 @@
         <button class="chip" data-f="low">LOW ELO <span class="n" id="c-low"></span></button>
         <button class="chip" data-f="live">LIVE <span class="n" id="c-live"></span></button>
         <button class="chip" data-f="ingame">EN PARTIDA <span class="n" id="c-ingame"></span></button>
+        <button class="chip" data-f="oneacct" title="Solo la mejor cuenta de cada jugador">1 CUENTA <span class="n" id="c-oneacct"></span></button>
+        <button class="chip" data-f="teams" title="Ranking agrupado por equipos">POR EQUIPOS</button>
+        <button class="chip" data-f="teamrank" title="Ranking de equipos (top 5 cuentas de distintos jugadores)">RANKING EQUIPOS</button>
         <span class="stats-sel">Stats: <b>OP.GG</b></span>
       </div>
 
@@ -710,10 +724,10 @@ async function loadTeams(){
     render();
   } catch {}
 }
-function avaSrc(rid, nm){ return AVA_BY_RID[rid] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
+function avaSrc(rid, nm){ return AVA_BY_RID[(rid||'').toLowerCase()] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
 // Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
 function roleFor(p){
-  const reg = ROLE_BY_RID[p.rid];
+  const reg = ROLE_BY_RID[(p.rid||'').toLowerCase()];
   if (reg) return reg;
   if (p.role && p.role !== '—' && p.role !== '–') return p.role;
   return null;
@@ -738,12 +752,13 @@ async function loadAvatars(){
     const list = await r.json();
     AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {}; USER_BY_RID = {}; NICK_BY_RID = {}; LABEL_BY_RID = {};
     list.forEach(u => {
-      USER_BY_RID[u.riotid] = u;
-      if (u.nickname) NICK_BY_RID[u.riotid] = u.nickname;   // nick del dueño (main + smurfs)
-      if (u.label) LABEL_BY_RID[u.riotid] = u.label;         // 'Main' / 'Smurf N'
-      if (u.pos1) ROLE_BY_RID[u.riotid] = u.pos1;
+      const rl = (u.riotid || '').toLowerCase();
+      USER_BY_RID[rl] = u;
+      if (u.nickname) NICK_BY_RID[rl] = u.nickname;   // nick del dueño (main + smurfs)
+      if (u.label) LABEL_BY_RID[rl] = u.label;         // 'Main' / 'Smurf N'
+      if (u.pos1) ROLE_BY_RID[rl] = u.pos1;
       if (!u.avatar) return;
-      AVA_BY_RID[u.riotid] = u.avatar;
+      AVA_BY_RID[rl] = u.avatar;
       AVA_BY_NAME[(u.riotid.split('#')[0] || '').toLowerCase()] = u.avatar;
       if (u.nickname) AVA_BY_NAME[u.nickname.toLowerCase()] = u.avatar;
     });
@@ -785,7 +800,7 @@ let sortKey = 'rank', sortDir = 'desc';
 PLAYERS.forEach((p, i) => { p.rankPos = i + 1; });
 
 function matches(p,f){
-  if(f==='all')    return true;
+  if(f==='all' || f==='oneacct')    return true;
   if(f==='high')   return HIGH_ELO.has(p.tier);
   if(f==='low')    return !HIGH_ELO.has(p.tier);
   if(f==='live')   return p.live;
@@ -805,45 +820,79 @@ const SORT_VAL = {
 
 const STAR = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85L12 3.5z"></path></svg>`;
 
+function ownerKey(p){ return NICK_BY_RID[(p.rid||'').toLowerCase()] || p.rid; }
+function teamOf(p){ return TEAM_BY_RID[(p.rid||'').toLowerCase()] || null; }
+const TIERV_ = { IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6,MASTER:7,GRANDMASTER:7,CHALLENGER:7 };
+const DIVV_ = { I:3, II:2, III:1, IV:0, '':0 };
+function absLPf(p){ if(!p.tier||p.tier==='UNRANKED') return 0; if(HIGH_ELO.has(p.tier)) return 2800+(p.lp||0); return (TIERV_[p.tier]||0)*400+(DIVV_[p.div]||0)*100+(p.lp||0); }
+
+function rowHTML(p){
+  const pos = p.rankPos;
+  const wr  = Math.round(p.w/((p.w+p.l)||1)*100);
+  const topCls = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
+  const eloCls = HIGH_ELO.has(p.tier) ? 'high' : 'low';
+  const badges = `${p.inGame?'<span class="badge-ingame">● EN PARTIDA</span>':''} ${p.live?'<span class="badge-live">LIVE</span>':''}`;
+  const rl = (p.rid||'').toLowerCase();
+  return `
+    <tr class="prow ${topCls}" data-rid="${escAttr(p.rid)}" title="Ver ficha del jugador">
+      <td class="pos-cell ${eloCls}" title="${eloCls==='high'?'High Elo':'Low Elo'}"><div class="pos"><span class="rk">${pos}</span>${moveEl(p.move)}</div></td>
+      <td><div class="player">
+        <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
+        ${avaHtml(p.rid, p.nm)}
+        <div><div class="nm">${NICK_BY_RID[rl] || p.nm} ${teamTag(p.rid)} ${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''} ${badges}</div><div class="rid">${p.rid}</div></div>
+      </div></td>
+      <td>${roleCell(p)}</td>
+      <td>${eloEl(p)}</td>
+      <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
+      <td>${sparkline(p.form)}</td>
+      <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
+      <td>${aegisEl(p.aegis)}</td>
+      <td><a class="opgg" href="${opggUrl(p.rid)}" target="_blank" rel="noopener">OP.GG</a></td>
+    </tr>`;
+}
+
+// Puntaje de equipo: mejores 5 cuentas de jugadores DISTINTOS (LP absoluto sumado).
+function teamScores(){
+  const byTeam = {}, seen = new Set();
+  for (const p of PLAYERS){ const t = teamOf(p); if (!t) continue; const k = t+'|'+ownerKey(p).toLowerCase(); if (seen.has(k)) continue; seen.add(k); (byTeam[t]=byTeam[t]||[]).push(p); }
+  return Object.entries(byTeam).map(([team,accs]) => { const top5 = accs.slice(0,5); return { team, top5, score: top5.reduce((s,p)=>s+absLPf(p),0) }; }).sort((a,b)=>b.score-a.score);
+}
+function renderTeamRank(){
+  const rows = teamScores();
+  if (!rows.length) return `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:34px">Aún no hay equipos con jugadores en el ranking.</td></tr>`;
+  return rows.map((r,i)=>{
+    const accs = r.top5.map(p=>`<span class="tr-acc" title="${(NICK_BY_RID[(p.rid||'').toLowerCase()]||p.nm)} · ${p.tier} ${p.lp} LP">${avaHtml(p.rid,p.nm)}</span>`).join('');
+    return `<tr class="${i===0?'top1':i===1?'top2':i===2?'top3':''}">
+      <td class="pos-cell high"><div class="pos"><span class="rk">${i+1}</span></div></td>
+      <td colspan="8"><div class="tr-row">
+        <span class="team-tag ${teamSlug(r.team)}" style="font-size:12px;padding:3px 10px">${teamLabel(r.team)}</span>
+        <span class="tr-name">${r.team}</span>
+        <span class="tr-accs">${accs}</span>
+        <span class="tr-count">${r.top5.length}/5 cuentas</span>
+      </div></td></tr>`;
+  }).join('');
+}
+function renderByTeams(){
+  const groups = [...teamScores().map(r=>r.team), 'Sin equipo'];
+  let html = '';
+  for (const t of groups){
+    const members = PLAYERS.filter(p => (teamOf(p) || 'Sin equipo') === t);
+    if (!members.length) continue;
+    const tagHtml = t==='Sin equipo' ? '' : `<span class="team-tag ${teamSlug(t)}">${teamLabel(t)}</span> `;
+    html += `<tr class="grp-hdr"><td colspan="9">${tagHtml}${t} <span class="grp-n">${members.length}</span></td></tr>` + members.map(rowHTML).join('');
+  }
+  return html || `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">Sin datos.</td></tr>`;
+}
+
 function render(){
   const body = document.getElementById('rows');
+  if (currentFilter === 'teamrank'){ body.innerHTML = renderTeamRank(); return; }
+  if (currentFilter === 'teams'){ body.innerHTML = renderByTeams(); return; }
+  let base = PLAYERS.filter(p => matches(p, currentFilter));
+  if (currentFilter === 'oneacct'){ const seen = new Set(); base = base.filter(p => { const k = ownerKey(p).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }); }
   const val = SORT_VAL[sortKey] || SORT_VAL.rank;
-  const list = PLAYERS.filter(p => matches(p, currentFilter)).slice().sort((a,b)=>{
-    const va = val(a), vb = val(b);
-    const cmp = (typeof va === 'string') ? va.localeCompare(vb) : va - vb;
-    return sortDir === 'asc' ? cmp : -cmp;
-  });
-
-  body.innerHTML = list.map(p=>{
-    const pos = p.rankPos;
-    const wr  = Math.round(p.w/((p.w+p.l)||1)*100);
-    const topCls = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
-    const eloCls = HIGH_ELO.has(p.tier) ? 'high' : 'low';
-    const badges = `${p.inGame?'<span class="badge-ingame">● EN PARTIDA</span>':''} ${p.live?'<span class="badge-live">LIVE</span>':''}`;
-    return `
-      <tr class="prow ${topCls}" data-rid="${escAttr(p.rid)}" title="Ver ficha del jugador">
-        <td class="pos-cell ${eloCls}" title="${eloCls==='high'?'High Elo':'Low Elo'}">
-          <div class="pos"><span class="rk">${pos}</span>${moveEl(p.move)}</div>
-        </td>
-        <td>
-          <div class="player">
-            <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
-            ${avaHtml(p.rid, p.nm)}
-            <div>
-              <div class="nm">${NICK_BY_RID[p.rid] || p.nm} ${teamTag(p.rid)} ${LABEL_BY_RID[p.rid] ? `<span class="acc-tag ${LABEL_BY_RID[p.rid].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[p.rid]}</span>` : ''} ${badges}</div>
-              <div class="rid">${p.rid}</div>
-            </div>
-          </div>
-        </td>
-        <td>${roleCell(p)}</td>
-        <td>${eloEl(p)}</td>
-        <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
-        <td>${sparkline(p.form)}</td>
-        <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
-        <td>${aegisEl(p.aegis)}</td>
-        <td><a class="opgg" href="${opggUrl(p.rid)}" target="_blank" rel="noopener">OP.GG</a></td>
-      </tr>`;
-  }).join('');
+  const list = base.slice().sort((a,b)=>{ const va=val(a), vb=val(b); const cmp=(typeof va==='string')?va.localeCompare(vb):va-vb; return sortDir==='asc'?cmp:-cmp; });
+  body.innerHTML = list.map(rowHTML).join('');
 }
 
 /* ordenar al clicar cabeceras */
@@ -869,6 +918,8 @@ function counts(){
   document.getElementById('c-low').textContent    = c('low');
   document.getElementById('c-live').textContent   = c('live');
   document.getElementById('c-ingame').textContent = c('ingame');
+  const distintos = new Set(PLAYERS.map(p => ownerKey(p).toLowerCase())).size;
+  const el = document.getElementById('c-oneacct'); if (el) el.textContent = distintos;
 }
 
 document.getElementById('filters').addEventListener('click', e=>{
