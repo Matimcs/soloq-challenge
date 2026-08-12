@@ -159,7 +159,7 @@
   if (location.protocol.startsWith('http')){
     setInterval(async () => {
       try { const r = await fetch('players.json?t=' + Date.now(), { cache:'no-store' }); if (!r.ok) return; render(await r.json()); } catch {}
-    }, 20000);
+    }, 30000);
   }
 </script>
 </body>

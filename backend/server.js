@@ -162,6 +162,7 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
 // Avatares públicos (para el ranking y los popups del sitio). Sin auth: el leaderboard es público.
 // Devuelve una entrada por CUENTA: la main del usuario + sus smurfs, con etiqueta Main/Smurf N.
 app.get('/api/avatars', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=180');   // avatares cambian poco → menos ancho de banda
   const users = await q('SELECT id, riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
   const smurfs = await q('SELECT user_id, riotid FROM smurfs ORDER BY id');
   const byUser = {}; smurfs.forEach(s => { (byUser[s.user_id] = byUser[s.user_id] || []).push(s.riotid); });
@@ -178,6 +179,7 @@ app.get('/api/avatars', wrap(async (req,res) => {
 // Equipo por cuenta (Exilium/Tide/Zenith) para la etiqueta del ranking. Público.
 // Mezcla: cuentas de usuarios registrados con equipo (main + smurfs) + tabla team_members.
 app.get('/api/teams', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=180');
   const tm     = await q("SELECT riotid, team FROM team_members WHERE team IS NOT NULL AND team<>''");
   const users  = await q("SELECT id, riotid, team FROM users WHERE team IS NOT NULL AND team<>''");
   const smurfs = await q('SELECT user_id, riotid FROM smurfs');
@@ -670,6 +672,12 @@ app.post('/api/ingest', wrap(async (req,res) => {
   res.json({ ok:true, players: data.players.length });
 }));
 // Servir el snapshot en memoria si existe (más fresco que el archivo en disco)
+// Datos mínimos para los badges de la navbar (evita bajar players.json entero en cada página).
+app.get('/api/nav-counts', (req,res) => {
+  const live = (liveData && Array.isArray(liveData.liveGames)) ? liveData.liveGames.length : 0;
+  const encEnds = (liveData && Array.isArray(liveData.encounters)) ? liveData.encounters.map(e => e.end || 0) : [];
+  res.json({ live, encEnds });
+});
 app.get('/players.json', (req,res,next) => liveData ? res.json(liveData) : next());
 app.get('/players.js',   (req,res,next) => liveData ? res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(liveData) + ';\n') : next());
 
@@ -750,7 +758,7 @@ function startEmbeddedRunner(){
   const { spawn } = require('child_process');
   const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
   const CACHE_DIR = path.join(ROOT, 'cache');
-  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json', positions:'positions.json' };
+  const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json', positions:'positions.json', ddragon:'ddragon.json' };
   // Escribe roster-extra.json (cuentas agregadas por el admin) para que fetch-data las incluya.
   const writeRoster = async () => {
     // roster manual (admin) + cuentas smurf de los jugadores → el runner las trackea.

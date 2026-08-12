@@ -182,7 +182,11 @@ async function riot(url) {
 }
 
 /* ===== Data Dragon (campeones, hechizos, runas) — sin API key ===== */
+const DD_FILE = path.join(CACHE_DIR, 'ddragon.json');
+const DD_TTL  = 12 * 60 * 60 * 1000;   // DDragon cambia poco: se cachea 12h (antes se bajaba cada ciclo → ~500KB c/2min)
 async function getDDragon() {
+  const cached = loadJSON(DD_FILE, null);
+  if (cached && cached._at && (Date.now() - cached._at) < DD_TTL && cached.champById) return cached;
   const version = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0];
   const base = `https://ddragon.leagueoflegends.com/cdn/${version}/data/en_US`;
   const [cj, sj, rr] = await Promise.all([
@@ -194,7 +198,9 @@ async function getDDragon() {
   for (const k in cj.data) { const c = cj.data[k]; champById[c.key] = { id:c.id, name:c.name }; }
   for (const k in sj.data) { const s = sj.data[k]; spellByKey[s.key] = s.id; }
   rr.forEach(st => { runeById[st.id] = st.icon; }); // icon: "perk-images/Styles/7200_Domination.png"
-  return { version, champById, spellByKey, runeById };
+  const dd = { version, champById, spellByKey, runeById, _at: Date.now() };
+  try { if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive:true }); fs.writeFileSync(DD_FILE, JSON.stringify(dd)); } catch {}
+  return dd;
 }
 
 async function getPuuid(riotId) {

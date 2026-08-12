@@ -717,7 +717,7 @@ function teamTag(rid){ const t = TEAM_BY_RID[(rid||'').toLowerCase()]; return t 
 async function loadTeams(){
   if (!location.protocol.startsWith('http')) return;
   try {
-    const r = await fetch('/api/teams', { cache:'no-store' }); if (!r.ok) return;
+    const r = await fetch('/api/teams'); if (!r.ok) return;
     const list = await r.json();
     TEAM_BY_RID = {};
     list.forEach(t => { if (t.riotid && t.team) TEAM_BY_RID[t.riotid.toLowerCase()] = t.team; });
@@ -748,7 +748,7 @@ function avaHtml(rid, nm, cls){
 async function loadAvatars(){
   if (!location.protocol.startsWith('http')) return;
   try {
-    const r = await fetch('/api/avatars', { cache:'no-store' }); if (!r.ok) return;
+    const r = await fetch('/api/avatars'); if (!r.ok) return;
     const list = await r.json();
     AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {}; USER_BY_RID = {}; NICK_BY_RID = {}; LABEL_BY_RID = {};
     list.forEach(u => {
@@ -1508,7 +1508,7 @@ if (location.protocol.startsWith('http')){
       const nd = await r.json();
       if (nd && nd.updatedAt !== (DATA && DATA.updatedAt)) applyData(nd);
     } catch {}
-  }, 20000);
+  }, 30000);
 }
 </script>
 <script src="api.js"></script>

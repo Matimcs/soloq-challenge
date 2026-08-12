@@ -59,12 +59,12 @@ window.SQC = (function(){
   // Badges rojos de la navbar (Live Games = partidas en vivo; Encuentros = nuevos sin ver).
   function setBadge(id, n){ const el = document.getElementById(id); if (!el) return; el.textContent = n > 99 ? '99+' : n; el.style.display = n > 0 ? '' : 'none'; }
   async function navBadges(data){
-    try { if (!data){ const r = await fetch('/players.json?t=' + Date.now(), { cache:'no-store' }); if (r.ok) data = await r.json(); } } catch {}
-    const live = (data && Array.isArray(data.liveGames)) ? data.liveGames.length : 0;
+    let live = 0, ends = [];
+    if (data){ live = Array.isArray(data.liveGames) ? data.liveGames.length : 0; ends = Array.isArray(data.encounters) ? data.encounters.map(e => e.end || 0) : []; }
+    else { try { const r = await fetch('/api/nav-counts'); if (r.ok){ const d = await r.json(); live = d.live || 0; ends = d.encEnds || []; } } catch {} }
     let seen = 0; try { seen = Number(localStorage.getItem('sqc_enc_lastseen') || 0) || 0; } catch {}
-    const encNew = (data && Array.isArray(data.encounters)) ? data.encounters.filter(e => (e.end || 0) > seen).length : 0;
     setBadge('nav-live-count', live);
-    setBadge('nav-enc-count', encNew);
+    setBadge('nav-enc-count', ends.filter(t => t > seen).length);
   }
 
   return { api, token, setToken, clearToken, me, logout, paintNav, mountNav, preNav, navBadges };
