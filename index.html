@@ -1308,6 +1308,7 @@ function renderDetail(root, rid, data){
       <div class="pd-actions">
         <a class="pd-opgg" href="${opggUrl(rid)}" target="_blank" rel="noopener">OP.GG</a>
         ${(isAdmin && prof.isRegistered)?`<button class="pd-adm" data-pd-adm>${prof.isAdmin?'Quitar admin':'Hacer admin'}</button>`:''}
+        ${(isAdmin && prof.isRegistered)?`<button class="pd-adm" data-pd-pass>Resetear contraseña</button>`:''}
         ${isAdmin?`<button class="pd-del" data-pd-del>Eliminar jugador</button>`:''}
       </div>
     </div>
@@ -1324,6 +1325,16 @@ function renderDetail(root, rid, data){
   root.querySelectorAll('.pd-tab').forEach(b => b.onclick = () => { root.querySelectorAll('.pd-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); tabs[b.dataset.t](); });
   root.querySelector('.pd-full').onclick = e => { e.preventDefault(); openFullFicha(rid); };
   const del = root.querySelector('[data-pd-del]'); if (del) del.onclick = () => deletePlayer(rid);
+  const pass = root.querySelector('[data-pd-pass]');
+  if (pass) pass.onclick = async () => {
+    if (!confirm(`¿Resetear la contraseña de ${prof.nickname}? Se generará una temporal.`)) return;
+    pass.disabled = true;
+    try {
+      const r = await SQC.api('/admin/reset-password', { method:'POST', body:{ riotid: rid } });
+      prompt(`Contraseña temporal para ${prof.nickname} (${r.email}).\nCópiala y pásasela; luego que la cambie desde su perfil:`, r.password);
+    } catch (e) { alert('No se pudo: ' + e.message); }
+    pass.disabled = false;
+  };
   const adm = root.querySelector('[data-pd-adm]');
   if (adm) adm.onclick = async () => {
     const makeAdmin = !prof.isAdmin;

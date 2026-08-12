@@ -725,6 +725,19 @@ app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
   res.json({ ok:true, isAdmin: makeAdmin });
 }));
 
+// Resetear la contraseña de un jugador a una temporal (solo admin). No usa correo:
+// devuelve la contraseña generada para que el admin se la pase al jugador, que luego
+// puede cambiarla desde su perfil.
+app.post('/api/admin/reset-password', auth, requireAdmin, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  if (!riotid) return res.status(400).json({ error:'Falta riotid' });
+  const u = await q1('SELECT id, email FROM users WHERE riotid=$1', [riotid]);
+  if (!u) return res.status(400).json({ error:'Ese jugador no tiene cuenta registrada' });
+  const temp = Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6);
+  await q('UPDATE users SET password_hash=$1 WHERE id=$2', [await bcrypt.hash(temp, 10), u.id]);
+  res.json({ ok:true, email: u.email, password: temp });
+}));
+
 // Eliminar un jugador del ranking POR COMPLETO: borra su perfil registrado (y datos
 // asociados), lo saca del roster manual y lo agrega a roster_hidden para que el runner
 // lo excluya aunque esté en la lista fija de RIOT_IDS.
