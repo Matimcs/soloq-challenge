@@ -512,6 +512,13 @@
   .tr-acc:first-child{ margin-left:0; }
   .tr-acc .ava{ width:30px; height:30px; border-radius:8px; border:2px solid var(--panel); box-shadow:0 0 0 1px var(--line-strong); }
   .tr-count{ margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); }
+  tr.team-row{ cursor:pointer; }
+  tr.team-row:hover{ background:rgba(255,255,255,.03); }
+  tr.team-row.open{ background:rgba(233,255,31,.04); }
+  .tr-head{ display:flex; align-items:center; gap:10px; }
+  .tr-arrow{ background:rgba(255,255,255,.06); border:1px solid var(--line); color:var(--muted); width:22px; height:22px; border-radius:6px; cursor:pointer; font-size:11px; flex-shrink:0; }
+  .tr-arrow:hover{ color:#fff; background:rgba(255,255,255,.12); }
+  tr.prow.team-member td.pos-cell{ box-shadow:inset 6px 0 0 rgba(255,255,255,.06); }
 
   footer{ color:var(--muted-2); font-size:12px; text-align:center; padding:40px 0 30px; }
 
@@ -826,7 +833,7 @@ const TIERV_ = { IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6,
 const DIVV_ = { I:3, II:2, III:1, IV:0, '':0 };
 function absLPf(p){ if(!p.tier||p.tier==='UNRANKED') return 0; if(HIGH_ELO.has(p.tier)) return 2800+(p.lp||0); return (TIERV_[p.tier]||0)*400+(DIVV_[p.div]||0)*100+(p.lp||0); }
 
-function rowHTML(p){
+function rowHTML(p, extraCls='', extraAttr=''){
   const pos = p.rankPos;
   const wr  = Math.round(p.w/((p.w+p.l)||1)*100);
   const topCls = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
@@ -834,7 +841,7 @@ function rowHTML(p){
   const badges = `${p.inGame?'<span class="badge-ingame">● EN PARTIDA</span>':''} ${p.live?'<span class="badge-live">LIVE</span>':''}`;
   const rl = (p.rid||'').toLowerCase();
   return `
-    <tr class="prow ${topCls}" data-rid="${escAttr(p.rid)}" title="Ver ficha del jugador">
+    <tr class="prow ${topCls} ${extraCls}" data-rid="${escAttr(p.rid)}" ${extraAttr} title="Ver ficha del jugador">
       <td class="pos-cell ${eloCls}" title="${eloCls==='high'?'High Elo':'Low Elo'}"><div class="pos"><span class="rk">${pos}</span>${moveEl(p.move)}</div></td>
       <td><div class="player">
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
@@ -857,20 +864,51 @@ function teamScores(){
   for (const p of PLAYERS){ const t = teamOf(p); if (!t) continue; const k = t+'|'+ownerKey(p).toLowerCase(); if (seen.has(k)) continue; seen.add(k); (byTeam[t]=byTeam[t]||[]).push(p); }
   return Object.entries(byTeam).map(([team,accs]) => { const top5 = accs.slice(0,5); return { team, top5, score: top5.reduce((s,p)=>s+absLPf(p),0) }; }).sort((a,b)=>b.score-a.score);
 }
+// Elo (tier/div/lp) a partir de un LP absoluto promedio (inverso de absLPf).
+function eloFromAbs(abs){
+  abs = Math.max(0, Math.round(abs));
+  if (abs >= 2800) return { tier:'MASTER', div:'', lp: abs-2800 };
+  const TN = ['IRON','BRONZE','SILVER','GOLD','PLATINUM','EMERALD','DIAMOND'];
+  const DN = ['IV','III','II','I'];
+  const ti = Math.min(6, Math.floor(abs/400)), rem = abs - ti*400;
+  const di = Math.min(3, Math.floor(rem/100));
+  return { tier: TN[ti], div: DN[di], lp: rem - di*100 };
+}
 function renderTeamRank(){
   const rows = teamScores();
   if (!rows.length) return `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:34px">Aún no hay equipos con jugadores en el ranking.</td></tr>`;
   return rows.map((r,i)=>{
-    const accs = r.top5.map(p=>`<span class="tr-acc" title="${(NICK_BY_RID[(p.rid||'').toLowerCase()]||p.nm)} · ${p.tier} ${p.lp} LP">${avaHtml(p.rid,p.nm)}</span>`).join('');
-    return `<tr class="${i===0?'top1':i===1?'top2':i===2?'top3':''}">
+    const team = r.team, slug = teamSlug(team);
+    const all = PLAYERS.filter(p => teamOf(p) === team);              // todas las cuentas del equipo
+    const w = all.reduce((s,p)=>s+(p.w||0),0), l = all.reduce((s,p)=>s+(p.l||0),0);
+    const wr = (w+l) ? Math.round(w/(w+l)*100) : 0;
+    const avgAbs = r.top5.length ? r.top5.reduce((s,p)=>s+absLPf(p),0)/r.top5.length : 0;
+    const eloD = eloFromAbs(avgAbs);
+    const form30 = all.flatMap(p => p.form || []).slice(-30);         // racha combinada, últimas 30
+    const rids = r.top5.map(p => p.rid);
+    const multi = 'https://op.gg/lol/multisearch/las?summoners=' + encodeURIComponent(rids.join(','));
+    const avatars = r.top5.map(p=>`<span class="tr-acc" title="${(NICK_BY_RID[(p.rid||'').toLowerCase()]||p.nm)} · ${p.tier} ${p.lp} LP">${avaHtml(p.rid,p.nm)}</span>`).join('');
+    const summary = `<tr class="team-row ${i===0?'top1':i===1?'top2':i===2?'top3':''}" data-team="${slug}">
       <td class="pos-cell high"><div class="pos"><span class="rk">${i+1}</span></div></td>
-      <td colspan="8"><div class="tr-row">
-        <span class="team-tag ${teamSlug(r.team)}" style="font-size:12px;padding:3px 10px">${teamLabel(r.team)}</span>
-        <span class="tr-name">${r.team}</span>
-        <span class="tr-accs">${accs}</span>
-        <span class="tr-count">${r.top5.length}/5 cuentas</span>
-      </div></td></tr>`;
+      <td><div class="tr-head"><button class="tr-arrow" aria-label="Desplegar">▸</button><span class="team-tag ${slug}" style="font-size:11px;padding:3px 9px">${teamLabel(team)}</span><span class="tr-name">${team}</span><span class="tr-accs">${avatars}</span></div></td>
+      <td></td>
+      <td>${eloEl({ tier:eloD.tier, div:eloD.div, lp:eloD.lp })}</td>
+      <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${w}V · ${l}D</div></div></td>
+      <td>${sparkline(form30)}</td>
+      <td></td>
+      <td></td>
+      <td><a class="opgg" href="${multi}" target="_blank" rel="noopener" onclick="event.stopPropagation()">OP.GG</a></td>
+    </tr>`;
+    const members = all.map(p => rowHTML(p, 'team-member', `data-tm="${slug}" style="display:none"`)).join('');
+    return summary + members;
   }).join('');
+}
+// Desplegar/ocultar los miembros de un equipo en el ranking de equipos.
+function toggleTeamMembers(teamRow){
+  const slug = teamRow.dataset.team;
+  const open = teamRow.classList.toggle('open');
+  document.querySelectorAll(`.team-member[data-tm="${slug}"]`).forEach(r => { r.style.display = open ? '' : 'none'; });
+  const arr = teamRow.querySelector('.tr-arrow'); if (arr) arr.textContent = open ? '▾' : '▸';
 }
 function renderByTeams(){
   const groups = [...teamScores().map(r=>r.team), 'Sin equipo'];
@@ -1471,6 +1509,7 @@ async function deletePlayer(rid){
 // Click en una fila del ranking -> despliega la ficha del jugador (como op.gg).
 document.getElementById('rows').addEventListener('click', e => {
   if (e.target.closest('a, .fav')) return;   // no interferir con OP.GG ni el botón de favorito
+  const teamRow = e.target.closest('tr.team-row'); if (teamRow){ toggleTeamMembers(teamRow); return; }
   const tr = e.target.closest('tr.prow'); if (!tr || !tr.dataset.rid) return;
   togglePlayerDetail(tr, tr.dataset.rid);
 });
