@@ -585,12 +585,12 @@
       </div>
 
       <div class="filters" id="filters">
-        <button class="chip active" data-f="all">TODOS <span class="n" id="c-all"></span></button>
+        <button class="chip active" data-f="oneacct" title="Solo la mejor cuenta de cada jugador">1 CUENTA <span class="n" id="c-oneacct"></span></button>
+        <button class="chip" data-f="all">TODOS <span class="n" id="c-all"></span></button>
         <button class="chip" data-f="high">HIGH ELO <span class="n" id="c-high"></span></button>
         <button class="chip" data-f="low">LOW ELO <span class="n" id="c-low"></span></button>
         <button class="chip" data-f="live">LIVE <span class="n" id="c-live"></span></button>
         <button class="chip" data-f="ingame">EN PARTIDA <span class="n" id="c-ingame"></span></button>
-        <button class="chip" data-f="oneacct" title="Solo la mejor cuenta de cada jugador">1 CUENTA <span class="n" id="c-oneacct"></span></button>
         <button class="chip" data-f="teams" title="Ranking agrupado por equipos">POR EQUIPOS</button>
         <button class="chip" data-f="teamrank" title="Ranking de equipos (top 5 cuentas de distintos jugadores)">RANKING EQUIPOS</button>
         <span class="stats-sel">Stats: <b>OP.GG</b></span>
@@ -793,7 +793,7 @@ function aegisEl(n){
 }
 
 /* ===== render + ordenamiento ===== */
-let currentFilter = 'all';
+let currentFilter = 'oneacct';   // por defecto: solo la mejor cuenta de cada jugador
 let sortKey = 'rank', sortDir = 'desc';
 
 // Posición fija en la ladder (PLAYERS ya viene ordenado por elo desde el backend)
