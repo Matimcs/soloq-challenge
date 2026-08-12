@@ -884,7 +884,9 @@ function renderTeamRank(){
     const wr = (w+l) ? Math.round(w/(w+l)*100) : 0;
     const avgAbs = r.top5.length ? r.top5.reduce((s,p)=>s+absLPf(p),0)/r.top5.length : 0;
     const eloD = eloFromAbs(avgAbs);
-    const form30 = all.flatMap(p => p.form || []).slice(-30);         // racha combinada, últimas 30
+    // Racha combinada: todas las partidas de los miembros ordenadas por fecha, últimas 30.
+    const form30 = all.flatMap(p => (p.formT && p.formT.length) ? p.formT : (p.form||[]).map(w=>({w, t:0})))
+      .sort((a,b) => (a.t||0) - (b.t||0)).slice(-30).map(g => g.w);
     const rids = r.top5.map(p => p.rid);
     const multi = 'https://op.gg/lol/multisearch/las?summoners=' + encodeURIComponent(rids.join(','));
     const avatars = r.top5.map(p=>`<span class="tr-acc" title="${(NICK_BY_RID[(p.rid||'').toLowerCase()]||p.nm)} · ${p.tier} ${p.lp} LP">${avaHtml(p.rid,p.nm)}</span>`).join('');

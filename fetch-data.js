@@ -333,6 +333,7 @@ async function updatePlayerStats(puuid, entry){
 
   // Métricas para el frontend
   const form = store.games.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
+  const formT = store.games.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
   // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
   const posCount = {};
   store.games.forEach(g => { if (g.pos) posCount[g.pos] = (posCount[g.pos] || 0) + 1; });
@@ -346,7 +347,7 @@ async function updatePlayerStats(puuid, entry){
   const baseA = median(win15);
   const isAegis = d => baseA && d >= 1.8 * baseA;
   return {
-    form,
+    form, formT,
     role: mainPos ? (ROLE_LBL[mainPos] || null) : null,
     // ±LP: la última victoria/derrota NORMAL (la victoria se toma sin aegis, que
     // es ~el doble). El aegis se cuenta aparte.
@@ -421,7 +422,7 @@ function rankText(entry) {
         w: entry ? entry.wins : 0, l: entry ? entry.losses : 0,
         inGame: !!soloRaw, hotStreak: entry ? !!entry.hotStreak : false,
         game: soloRaw ? { queue: 'Ranked SoloQ' } : null,
-        form: stats.form, up: stats.up, down: stats.down, aegis: stats.aegis,
+        form: stats.form, formT: stats.formT, up: stats.up, down: stats.down, aegis: stats.aegis,
         session: stats.session, recent: stats.recent,
       });
       if (soloRaw) rawByPlayer.push({ puuid, raw: soloRaw });
