@@ -136,7 +136,7 @@
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
     document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
     $('p-'+b.dataset.t).classList.add('active');
-    if (b.dataset.t==='elo' && DATA) drawChart();
+    if (b.dataset.t==='elo' && DATA){ drawChart(); drawAvgChart(); }
   });
 
   // ---- TOPS ----
@@ -180,8 +180,37 @@
         <h3>EVOLUCIÓN DE ELO</h3><div class="cap">Clic en un nombre para ocultarlo</div>
         <svg id="elo-svg" viewBox="0 0 1000 380" preserveAspectRatio="none"></svg>
         <div class="legend" id="elo-legend"></div>
+      </div>
+      <div class="chartwrap">
+        <h3>ELO PROMEDIO DEL RANKING</h3><div class="cap" id="avg-cap">Promedio del elo de todos los jugadores a lo largo del tiempo</div>
+        <svg id="avg-svg" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
       </div>`;
-    drawChart();
+    drawChart(); drawAvgChart();
+  }
+  function eloTierLabel(abs){
+    abs = Math.round(abs);
+    if (abs >= 2800) return 'Master ' + (abs-2800) + ' LP';
+    const TN=['Iron','Bronze','Silver','Gold','Plat','Emerald','Diamond'], DN=['IV','III','II','I'];
+    const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100));
+    return TN[ti]+' '+DN[di]+' '+(rem-di*100)+' LP';
+  }
+  function drawAvgChart(){
+    const svg = $('avg-svg'); if (!svg || !DATA) return;
+    const pts = (DATA.elo.avgSeries||[]).filter(p => p.lp!=null);
+    if (pts.length < 2){ svg.innerHTML=''; return; }
+    const W=1000,H=300,PL=40,PR=12,PT=12,PB=22;
+    let tMin=Infinity,tMax=-Infinity,yMin=Infinity,yMax=-Infinity;
+    pts.forEach(p=>{ tMin=Math.min(tMin,p.t); tMax=Math.max(tMax,p.t); yMin=Math.min(yMin,p.lp); yMax=Math.max(yMax,p.lp); });
+    yMin=Math.max(0,yMin-80); yMax+=80;
+    const X=t=>PL+(tMax===tMin?0:(t-tMin)/(tMax-tMin))*(W-PL-PR);
+    const Y=v=>PT+(1-(v-yMin)/((yMax-yMin)||1))*(H-PT-PB);
+    const ticks=[{v:0,l:'I4'},{v:400,l:'B'},{v:800,l:'S'},{v:1200,l:'G'},{v:1600,l:'P'},{v:2000,l:'E'},{v:2400,l:'D'},{v:2800,l:'M+'}];
+    const g=ticks.filter(k=>k.v>=yMin&&k.v<=yMax).map(k=>`<line x1="${PL}" y1="${Y(k.v).toFixed(1)}" x2="${W-PR}" y2="${Y(k.v).toFixed(1)}" stroke="rgba(255,255,255,.06)"/><text x="4" y="${(Y(k.v)+3).toFixed(1)}" fill="rgba(255,255,255,.38)" font-size="10">${k.l}</text>`).join('');
+    const line=pts.map((p,j)=>(j?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ');
+    const area=`M${X(pts[0].t).toFixed(1)} ${Y(yMin).toFixed(1)} `+pts.map(p=>'L'+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ')+` L${X(pts[pts.length-1].t).toFixed(1)} ${Y(yMin).toFixed(1)} Z`;
+    svg.innerHTML = g + `<path d="${area}" fill="rgba(233,255,31,.08)"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
+    const last = pts[pts.length-1];
+    const cap = $('avg-cap'); if (cap) cap.textContent = `Promedio actual: ${eloTierLabel(last.lp)} · ${last.n} jugadores`;
   }
   const hidden = new Set();
   const PALETTE = ['#e9ff1f','#4aa3ff','#fb7185','#34d399','#c084fc','#ffd24a','#f472b6','#22d3ee','#a3e635','#fb923c','#818cf8','#f87171'];

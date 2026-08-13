@@ -977,7 +977,22 @@ app.get('/api/stats', wrap(async (req, res) => {
   const subidones = days.filter(d => d.net > 0).sort((a, b) => b.net - a.net).slice(0, 8);
   const bajones = days.filter(d => d.net < 0).sort((a, b) => a.net - b.net).slice(0, 8);
 
-  STATS_CACHE.data = { tops, elo: { subidones, bajones, series }, coincidencias: { count: coincCount, verdugos, duelos, duosBest, duosWorst, historial } };
+  // Elo PROMEDIO de todo el ranking en el tiempo: en cada día se toma el elo (absLP) de
+  // cada jugador vigente ese día (último punto conocido ≤ día) y se promedian.
+  let avgSeries = [];
+  if (series.length){
+    const sers = series.map(s => s.points.slice().sort((a, b) => a.t - b.t));
+    let tMin = Infinity, tMax = -Infinity;
+    sers.forEach(pts => pts.forEach(p => { if (p.t < tMin) tMin = p.t; if (p.t > tMax) tMax = p.t; }));
+    const DAY = 86400000, start = Math.floor(tMin / DAY) * DAY;
+    for (let t = start; t <= tMax + DAY; t += DAY){
+      let sum = 0, n = 0;
+      for (const pts of sers){ let val = null; for (const p of pts){ if (p.t <= t) val = p.lp; else break; } if (val != null){ sum += val; n++; } }
+      if (n) avgSeries.push({ t, lp: Math.round(sum / n), n });
+    }
+  }
+
+  STATS_CACHE.data = { tops, elo: { subidones, bajones, series, avgSeries }, coincidencias: { count: coincCount, verdugos, duelos, duosBest, duosWorst, historial } };
   STATS_CACHE.at = Date.now();
   res.json(STATS_CACHE.data);
 }));
