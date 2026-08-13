@@ -1500,20 +1500,22 @@ function renderFullFicha(card, data, close){
   const st=data.stats; const f1=v=>(Math.round(v*10)/10).toFixed(1); const f2=v=>(Math.round(v*100)/100).toFixed(2);
   const nfmt=v=>Math.round(v).toLocaleString('es-CL');
   const roleLbl={TOP:'Top',JUNGLE:'Jungla',MIDDLE:'Medio',BOTTOM:'ADC',UTILITY:'Support','—':'—'};
+  const R = (st && st.ranks) || {};
+  const rc = k => R[k] ? `<div class="k" style="color:var(--accent);font-weight:700">#${R[k].rank} de ${R[k].total}</div>` : '';
   const statsHTML = st ? `
-    <div class="ff-sec"><div class="ff-sec-t">Estadísticas · ${st.games} partidas guardadas</div>
+    <div class="ff-sec"><div class="ff-sec-t">Estadísticas · ${st.games} partidas guardadas <span style="color:var(--muted);font-weight:500">· puesto vs. todos</span></div>
       <div class="ff-stats">
-        <div class="ff-s"><div class="v lime">${f2(st.kda)}</div><div class="k">KDA</div></div>
+        <div class="ff-s"><div class="v lime">${f2(st.kda)}</div><div class="k">KDA</div>${rc('kda')}</div>
         <div class="ff-s"><div class="v">${f1(st.kills)} / ${f1(st.deaths)} / ${f1(st.assists)}</div><div class="k">K/D/A prom.</div></div>
-        <div class="ff-s"><div class="v">${f2(st.csmin)}</div><div class="k">CS/min (sin sup)</div></div>
-        <div class="ff-s"><div class="v">${nfmt(st.damage)}</div><div class="k">Daño a camp. prom.</div></div>
-        <div class="ff-s"><div class="v">${nfmt(st.gold)}</div><div class="k">Oro prom.</div></div>
-        <div class="ff-s"><div class="v">${f1(st.vision)}</div><div class="k">Visión prom.</div></div>
-        <div class="ff-s"><div class="v">${st.pentas}</div><div class="k">Pentakills</div></div>
-        <div class="ff-s"><div class="v">${st.firstBloods}</div><div class="k">First bloods</div></div>
-        <div class="ff-s"><div class="v">${st.maxKills}</div><div class="k">Máx kills</div></div>
-        <div class="ff-s"><div class="v">${st.maxCs}</div><div class="k">Máx CS</div></div>
-        <div class="ff-s"><div class="v">${nfmt(st.maxDamage)}</div><div class="k">Máx daño</div></div>
+        <div class="ff-s"><div class="v">${f2(st.csmin)}</div><div class="k">CS/min (sin sup)</div>${rc('csmin')}</div>
+        <div class="ff-s"><div class="v">${nfmt(st.damage)}</div><div class="k">Daño a camp. prom.</div>${rc('damage')}</div>
+        <div class="ff-s"><div class="v">${nfmt(st.gold)}</div><div class="k">Oro prom.</div>${rc('gold')}</div>
+        <div class="ff-s"><div class="v">${f1(st.vision)}</div><div class="k">Visión prom.</div>${rc('vision')}</div>
+        <div class="ff-s"><div class="v">${st.pentas}</div><div class="k">Pentakills</div>${rc('pentas')}</div>
+        <div class="ff-s"><div class="v">${st.firstBloods}</div><div class="k">First bloods</div>${rc('firstBloods')}</div>
+        <div class="ff-s"><div class="v">${st.maxKills}</div><div class="k">Máx kills</div>${rc('maxKills')}</div>
+        <div class="ff-s"><div class="v">${st.maxCs}</div><div class="k">Máx CS</div>${rc('maxCs')}</div>
+        <div class="ff-s"><div class="v">${nfmt(st.maxDamage)}</div><div class="k">Máx daño</div>${rc('maxDamage')}</div>
       </div>
     </div>
     <div class="ff-sec"><div class="ff-sec-t">Campeones más jugados</div>

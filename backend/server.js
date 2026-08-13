@@ -492,6 +492,31 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
     }
   }
 
+  // Puesto en CADA estadística respecto a TODOS los jugadores del torneo (por puuid).
+  if (stats && puuid){
+    const NS = "upper(coalesce(position,'')) NOT IN ('UTILITY','SUPPORT')";
+    const all = await q(`
+      SELECT puuid, sum(kills) k, sum(deaths) d, sum(assists) asi, count(*) games,
+             avg(kills) kk, avg(deaths) dd, avg(assists) aa, avg(damage) dmg, avg(gold) gold, avg(vision) vis,
+             sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
+             sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
+             max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
+      FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' GROUP BY puuid`);
+    const rows2 = all.map(r => ({ puuid: r.puuid,
+      kda: (+r.k + +r.asi) / Math.max(1, +r.d), kills: +r.kk || 0, deaths: +r.dd || 0, assists: +r.aa || 0,
+      csmin: +r.dur_ns > 0 ? +r.cs_ns / (+r.dur_ns / 60) : null,
+      damage: +r.dmg || 0, gold: +r.gold || 0, vision: +r.vis || 0, pentas: +r.pentas || 0, firstBloods: +r.fb || 0,
+      maxKills: +r.maxk || 0, maxCs: +r.maxcs || 0, maxDamage: +r.maxdmg || 0 }));
+    const rankOf = key => {
+      const vals = rows2.filter(x => x[key] != null).sort((a, b) => b[key] - a[key]);
+      const idx = vals.findIndex(x => x.puuid === puuid);
+      return idx >= 0 ? { rank: idx + 1, total: vals.length } : null;
+    };
+    stats.ranks = {};
+    ['kda','kills','deaths','assists','csmin','damage','gold','vision','pentas','firstBloods','maxKills','maxCs','maxDamage']
+      .forEach(k => { stats.ranks[k] = rankOf(k); });
+  }
+
   const w = lp ? lp.w : 0, l = lp ? lp.l : 0, tot = w+l;
   res.json({
     profile: { riotid, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:u&&u.realname, avatar:u&&u.avatar,
