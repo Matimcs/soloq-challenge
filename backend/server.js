@@ -814,8 +814,8 @@ app.get('/api/stats', wrap(async (req, res) => {
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
       const A = ps[i], B = ps[j];
       const key = [A.rid, B.rid].sort(); const kk = key.join('|');
-      const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0 });
-      if (A.team === B.team) { dd.together++; continue; }     // aliados: no es duelo
+      const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0, tw: 0 });
+      if (A.team === B.team) { dd.together++; if (A.win) dd.tw++; continue; }   // aliados (dúo): guarda V/D juntos
       const dec = A.win !== B.win; if (!dec) continue;         // debe haber ganador/perdedor
       const winner = A.win ? A : B;
       verd[A.rid] = verd[A.rid] || { wins: 0, duels: 0 }; verd[B.rid] = verd[B.rid] || { wins: 0, duels: 0 };
@@ -830,6 +830,13 @@ app.get('/api/stats', wrap(async (req, res) => {
   const duelos = Object.values(duel).filter(d => d.aw + d.bw > 0)
     .map(d => ({ a: { rid: d.a, ...nmeta(d.a) }, b: { rid: d.b, ...nmeta(d.b) }, aw: d.aw, bw: d.bw, together: d.together }))
     .sort((x, y) => (y.aw + y.bw) - (x.aw + x.bw)).slice(0, 30);
+
+  // Mejores / peores dúos: parejas que jugaron en el MISMO equipo, por winrate (mín. 2 partidas).
+  const MINDUO = 2;
+  const duosAll = Object.values(duel).filter(d => d.together >= MINDUO)
+    .map(d => ({ a: { rid: d.a, ...nmeta(d.a) }, b: { rid: d.b, ...nmeta(d.b) }, games: d.together, wins: d.tw, wr: Math.round(d.tw / d.together * 100) }));
+  const duosBest = duosAll.slice().sort((x, y) => y.wr - x.wr || y.games - x.games).slice(0, 8);
+  const duosWorst = duosAll.slice().sort((x, y) => x.wr - y.wr || y.games - x.games).slice(0, 8);
 
   // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60.
   let historial = [];
@@ -861,7 +868,7 @@ app.get('/api/stats', wrap(async (req, res) => {
   const subidones = days.filter(d => d.net > 0).sort((a, b) => b.net - a.net).slice(0, 8);
   const bajones = days.filter(d => d.net < 0).sort((a, b) => a.net - b.net).slice(0, 8);
 
-  STATS_CACHE.data = { tops, elo: { subidones, bajones, series }, coincidencias: { count: coincCount, verdugos, duelos, historial } };
+  STATS_CACHE.data = { tops, elo: { subidones, bajones, series }, coincidencias: { count: coincCount, verdugos, duelos, duosBest, duosWorst, historial } };
   STATS_CACHE.at = Date.now();
   res.json(STATS_CACHE.data);
 }));

@@ -232,12 +232,18 @@
     const duel = (c.duelos||[]).map(d => `<div class="duel">
       <span>${esc(d.a.nm)}</span><span class="score">${d.aw}–${d.bw}</span><span>${esc(d.b.nm)}</span>
       ${d.together?`<span class="tg">${d.together} en el mismo equipo</span>`:''}</div>`).join('');
+    const duoRows = arr => (arr||[]).map((d,i) => `<div class="rowl">
+      <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+      <div class="meta"><div class="nm">${esc(d.a.nm)} <span style="color:var(--muted-2)">+</span> ${esc(d.b.nm)}</div><div class="games">${d.games} juntos · ${d.wins}V ${d.games-d.wins}D</div></div>
+      <div class="val">${d.wr}%</div></div>`).join('');
     const hist = (c.historial||[]).slice(0,20).map(encCard).join('');
     $('p-coinc').innerHTML = `
       <div class="kpi"><b>${c.count||0}</b> coincidencias registradas — cuando dos o más participantes caen en la misma partida.</div>
       <div class="grid">
         <div class="card"><h3>VERDUGOS DEL TORNEO</h3><div class="cap">Más victorias contra otros participantes</div>${verd||'<div class="empty">Sin datos</div>'}</div>
         <div class="card"><h3>DUELOS</h3><div class="cap">Cara a cara acumulado (solo en equipos contrarios)</div>${duel||'<div class="empty">Sin datos</div>'}</div>
+        <div class="card"><h3>MEJORES DÚOS</h3><div class="cap">Mejor winrate en el mismo equipo (mín. 2 partidas)</div>${duoRows(c.duosBest)||'<div class="empty">Sin datos</div>'}</div>
+        <div class="card"><h3>PEORES DÚOS</h3><div class="cap">Peor winrate en el mismo equipo (mín. 2 partidas)</div>${duoRows(c.duosWorst)||'<div class="empty">Sin datos</div>'}</div>
       </div>
       <div class="subh">Historial de coincidencias — últimas partidas compartidas</div>
       <div class="enc">${hist||'<div class="empty">Sin coincidencias aún</div>'}</div>`;
