@@ -176,7 +176,12 @@ function posFor(key, defX, defY){
   }
   return { x: defX, y: defY };
 }
+// No persistir posiciones hasta que se hayan RESTAURADO las guardadas (evita que, al
+// arrancar con el PC —cuando los monitores aún no están listos— un 'moved' espurio
+// sobrescriba la buena posición con la de por defecto).
+let posReady = false;
 function savePos(w){
+  if (!posReady) return;
   if (!w || !w._posKey || w.isDestroyed()) return;
   const b = w.getBounds();
   settings.pos = settings.pos || {};
@@ -187,6 +192,29 @@ function savePos(w){
 // por si se pierde el mouseup al soltar sobre el juego u otra ventana. Debounced para no
 // escribir el archivo en cada píxel del arrastre.
 function trackMoves(w){ let t; w.on('moved', () => { clearTimeout(t); t = setTimeout(() => savePos(w), 350); }); }
+// Deja un punto dentro de algún monitor: si ya es visible lo respeta; si no (monitor
+// desconectado) lo mete al área de trabajo primaria en vez de mandarlo a la esquina.
+function clampToDisplays(x, y, w = 60, h = 30){
+  const vis = screen.getAllDisplays().some(d => { const b = d.workArea;
+    return x < b.x + b.width - 40 && x + w > b.x && y < b.y + b.height - 20 && y + h > b.y; });
+  if (vis) return { x: Math.round(x), y: Math.round(y) };
+  const wa = screen.getPrimaryDisplay().workArea;
+  return { x: Math.round(Math.min(Math.max(x, wa.x), wa.x + wa.width - w)),
+           y: Math.round(Math.min(Math.max(y, wa.y), wa.y + wa.height - h)) };
+}
+// Reaplica las posiciones guardadas a cada ventana. Se llama tras el arranque (cuando los
+// monitores ya están listos) y cuando cambia la configuración de pantallas.
+function restorePositions(){
+  for (const [w, key] of [[win, 'small'], [shellWin, 'shell'], [bigWin, 'big']]){
+    if (!w || w.isDestroyed()) continue;
+    const p = settings.pos && settings.pos[key];
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)){
+      const pt = clampToDisplays(p.x, p.y);
+      const b = w.getBounds();
+      if (b.x !== pt.x || b.y !== pt.y) w.setPosition(pt.x, pt.y);
+    }
+  }
+}
 function createWindows(){
   const d = defaults();
   const sp = posFor('small', d.smallX, d.smallY);
@@ -454,6 +482,14 @@ if (hasLock) app.whenReady().then(async () => {
   // Arranca oculto (aún no estás en partida). applyVis los mostrará al entrar a una SoloQ.
   smallShown = false; win.hide();
   shellShown = false; shellWin.hide();
+  // Restaura las posiciones guardadas cuando los monitores ya están listos (al reiniciar el
+  // PC la app arranca antes de que Windows reporte las pantallas → sin esto se iban al
+  // default). Recién ahí se habilita el guardado, para no pisar la posición buena.
+  const doRestore = () => restorePositions();
+  setTimeout(() => { restorePositions(); posReady = true; }, 1500);
+  screen.on('display-metrics-changed', doRestore);
+  screen.on('display-added', doRestore);
+  screen.on('display-removed', doRestore);
   try { DD = await loadDDragon(); } catch (e) { console.error('DDragon falló:', e.message); }
   // Atajo para mostrar/cerrar TODO el overlay. Alt+X es el principal; si otra app (o el
   // cliente de LoL) lo tiene tomado, el registro falla en silencio y el atajo "no funciona
