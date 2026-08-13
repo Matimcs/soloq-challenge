@@ -453,13 +453,52 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
     return { key:a.key, title:a.title, value:r.value!=null?f(r.value):null, rank:r.rank, total:r.total };
   });
 
+  // Estadísticas agregadas del jugador — TODO desde match_participants (datos ya extraídos
+  // de las partidas), sin gastar ni una llamada a la Riot API.
+  let stats = null;
+  if (puuid){
+    const NS = "upper(coalesce(position,'')) NOT IN ('UTILITY','SUPPORT')";
+    const a = await q1(`
+      SELECT count(*) games, count(*) FILTER (WHERE win) wins,
+             avg(kills) kk, avg(deaths) dd, avg(assists) aa,
+             sum(kills) k, sum(deaths) d, sum(assists) asi,
+             avg(damage) dmg, avg(gold) gold, avg(vision) vis, avg(cs) cs_all,
+             sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
+             sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
+             max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
+      FROM match_participants WHERE puuid=$1`, [puuid]);
+    const champs = await q(`
+      SELECT champion, count(*) games, count(*) FILTER (WHERE win) wins,
+             avg(kills) k, avg(deaths) d, avg(assists) a
+      FROM match_participants WHERE puuid=$1 AND coalesce(champion,'')<>''
+      GROUP BY champion ORDER BY games DESC, wins DESC LIMIT 8`, [puuid]);
+    const roles = await q(`
+      SELECT coalesce(nullif(position,''),'—') pos, count(*) games, count(*) FILTER (WHERE win) wins
+      FROM match_participants WHERE puuid=$1 GROUP BY 1 ORDER BY games DESC`, [puuid]);
+    if (a && +a.games > 0){
+      const g = +a.games;
+      stats = {
+        games: g, wins: +a.wins, winrate: Math.round(+a.wins / g * 100),
+        kills: +a.kk || 0, deaths: +a.dd || 0, assists: +a.aa || 0,
+        kda: (+a.k + +a.asi) / Math.max(1, +a.d),
+        csmin: +a.dur_ns > 0 ? +a.cs_ns / (+a.dur_ns / 60) : 0, avgCs: +a.cs_all || 0,
+        damage: Math.round(+a.dmg || 0), gold: Math.round(+a.gold || 0), vision: Math.round((+a.vis || 0) * 10) / 10,
+        pentas: +a.pentas || 0, firstBloods: +a.fb || 0,
+        maxKills: +a.maxk || 0, maxCs: +a.maxcs || 0, maxDamage: +a.maxdmg || 0,
+        champions: champs.map(c => ({ champion: c.champion, games: +c.games, wins: +c.wins,
+          winrate: Math.round(+c.wins / +c.games * 100), kda: (+c.k + +c.a) / Math.max(1, +c.d) })),
+        roles: roles.map(r => ({ pos: r.pos, games: +r.games, wins: +r.wins, winrate: Math.round(+r.wins / +r.games * 100) })),
+      };
+    }
+  }
+
   const w = lp ? lp.w : 0, l = lp ? lp.l : 0, tot = w+l;
   res.json({
     profile: { riotid, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:u&&u.realname, avatar:u&&u.avatar,
       tier:lp&&lp.tier, div:lp&&lp.div, lp:lp&&lp.lp, rankPos, role:(u&&u.pos1)||(lp&&lp.role),
       elo: lp && ['MASTER','GRANDMASTER','CHALLENGER'].includes(lp.tier) ? 'High Elo' : 'Low Elo',
       w, l, winrate: tot?Math.round(w/tot*100):0 },
-    eloSeries, premios, records,
+    eloSeries, premios, records, stats,
   });
 }));
 
