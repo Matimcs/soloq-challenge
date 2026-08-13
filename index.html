@@ -177,7 +177,8 @@
   .acc-tag.main{ color:var(--accent); background:rgba(233,255,31,.12); border:1px solid rgba(233,255,31,.35); }
   .acc-tag.smurf{ color:var(--purple); background:rgba(192,132,252,.12); border:1px solid rgba(192,132,252,.4); }
   .team-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 7px; border-radius:5px; vertical-align:middle; display:inline-block; }
-  .p-tags{ margin-top:3px; display:flex; gap:5px; flex-wrap:wrap; }
+  .tag-stack{ display:inline-flex; flex-direction:column; gap:3px; align-items:flex-start; vertical-align:middle; }
+  .tag-stack:empty{ display:none; }
   .team-tag.exilium{ color:#ff8a5c; background:rgba(255,138,92,.14); border:1px solid rgba(255,138,92,.45); }
   .team-tag.tide{ color:#5fd6f0; background:rgba(95,214,240,.14); border:1px solid rgba(95,214,240,.45); }
   .team-tag.zenith{ color:#ffd24a; background:rgba(255,210,74,.14); border:1px solid rgba(255,210,74,.45); }
@@ -847,7 +848,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
       <td><div class="player">
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
         ${avaHtml(p.rid, p.nm)}
-        <div><div class="nm">${NICK_BY_RID[rl] || p.nm} ${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''} ${badges}</div><div class="rid">${p.rid}</div>${teamTag(p.rid) ? `<div class="p-tags">${teamTag(p.rid)}</div>` : ''}</div>
+        <div><div class="nm">${NICK_BY_RID[rl] || p.nm} <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}</span> ${badges}</div><div class="rid">${p.rid}</div></div>
       </div></td>
       <td>${roleCell(p)}</td>
       <td>${eloEl(p)}</td>
