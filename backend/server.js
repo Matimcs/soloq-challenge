@@ -866,6 +866,38 @@ app.get('/api/stats', wrap(async (req, res) => {
   res.json(STATS_CACHE.data);
 }));
 
+// ---- Encuentros (aliados Y rivales) desde match_participants ----
+// Se reconstruye del historial COMPLETO guardado (no de la ventana de 20 partidas en
+// memoria), así se detectan también los cruces como rivales, no solo los dúos. SoloQ.
+const ENC_CACHE = { at: 0, data: null };
+app.get('/api/encounters', wrap(async (req, res) => {
+  if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 60000) return res.json(ENC_CACHE.data);
+  // Nickname del torneo por cuenta (para mostrar el nick, no el summoner name).
+  const meta = {};
+  try {
+    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
+    (snap.players || []).forEach(p => { meta[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
+  } catch {}
+  const rows = await q(`
+    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win,
+           max(team_id) team, max(champion) champ, max(game_end) gend
+    FROM match_participants
+    WHERE is_tournament=true AND riotid IS NOT NULL
+      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true
+                       GROUP BY match_id HAVING count(distinct lower(riotid)) >= 2)
+    GROUP BY match_id, lower(riotid)`);
+  const byMatch = {};
+  for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  const encounters = Object.entries(byMatch).map(([id, ps]) => ({
+    id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
+    players: ps.map(p => ({ nm: meta[p.rid] || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })),
+  })).filter(e => e.players.length >= 2)
+    .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 100);
+  ENC_CACHE.data = { encounters };
+  ENC_CACHE.at = Date.now();
+  res.json(ENC_CACHE.data);
+}));
+
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 

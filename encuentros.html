@@ -153,13 +153,18 @@
     if (list.length){ markSeen(Math.max(...list.map(e => e.end || 0))); if (window.SQC) SQC.navBadges(); }
   }
 
+  // Los encuentros ahora salen de /api/encounters (reconstruido del historial COMPLETO
+  // en la DB, con equipo y resultado reales) → detecta aliados Y rivales, no solo dúos.
+  // Se pinta primero el snapshot cacheado para no ver vacío, y luego se refresca del API.
+  async function loadEnc(){
+    try { const r = await fetch('/api/encounters', { cache:'no-store' }); if (!r.ok) return;
+      const d = await r.json(); render({ encounters: d.encounters || [], ddragonVersion: DDV }); } catch {}
+  }
   render(window.SQC_DATA || null);
   SQC.preNav(); SQC.mountNav();
-
   if (location.protocol.startsWith('http')){
-    setInterval(async () => {
-      try { const r = await fetch('players.json?t=' + Date.now(), { cache:'no-store' }); if (!r.ok) return; render(await r.json()); } catch {}
-    }, 30000);
+    loadEnc();
+    setInterval(loadEnc, 30000);
   }
 </script>
 </body>
