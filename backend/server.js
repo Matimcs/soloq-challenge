@@ -758,6 +758,114 @@ app.post('/api/admin/player/remove', auth, requireAdmin, wrap(async (req,res) =>
   res.json({ ok:true });
 }));
 
+// ---- Estadísticas globales del torneo (TOPS / ELO / COINCIDENCIAS) ----
+// Todo se calcula desde match_participants (datos crudos de cada partida de cada
+// jugador del torneo) + los ±LP guardados en fetch_cache. Cache 60s.
+const STATS_CACHE = { at: 0, data: null };
+app.get('/api/stats', wrap(async (req, res) => {
+  if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 60000) return res.json(STATS_CACHE.data);
+
+  // Meta por cuenta (nick, tier, HIGH/LOW, posición, absLP actual) desde el ranking en vivo.
+  const meta = {};
+  try {
+    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
+    (snap.players || []).forEach((p, i) => {
+      const high = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(p.tier);
+      meta[(p.rid || '').toLowerCase()] = {
+        nm: p.nm || (p.rid || '').split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1,
+        abs: absLPof(p.tier, p.div, p.lp),
+      };
+    });
+  } catch {}
+
+  // ---- TOPS: agregado por cuenta de torneo ----
+  const agg = await q(`
+    SELECT lower(riotid) rid, max(name) nm,
+           sum(coalesce(kills,0)) k, sum(coalesce(deaths,0)) d, sum(coalesce(assists,0)) a,
+           sum(coalesce(cs,0)) cs, sum(coalesce(duration,0)) dur, count(*) games
+    FROM match_participants
+    WHERE is_tournament=true AND riotid IS NOT NULL
+    GROUP BY lower(riotid)`);
+  const rowsA = agg.map(r => {
+    const m = meta[r.rid] || {};
+    const k = +r.k, d = +r.d, a = +r.a, cs = +r.cs, dur = +r.dur, games = +r.games;
+    return { rid: r.rid, nm: m.nm || r.nm, tier: m.tier || 'UNRANKED', high: !!m.high, pos: m.pos || null, games,
+      k, d, a, csmin: dur > 0 ? cs / (dur / 60) : 0, kda: (k + a) / Math.max(1, d) };
+  });
+  const topN = (key, n = 5, minGames = 0) => rowsA.filter(x => x.games >= minGames)
+    .sort((x, y) => y[key] - x[key]).slice(0, n)
+    .map(x => ({ rid: x.rid, nm: x.nm, tier: x.tier, high: x.high, pos: x.pos, games: x.games, value: x[key] }));
+  const tops = { kills: topN('k'), deaths: topN('d'), assists: topN('a'), csmin: topN('csmin', 5, 10), kda: topN('kda', 5, 10) };
+
+  // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
+  const encRows = await q(`
+    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win, max(team_id) team
+    FROM match_participants
+    WHERE is_tournament=true AND riotid IS NOT NULL
+      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true
+                       GROUP BY match_id HAVING count(distinct lower(riotid)) >= 2)
+    GROUP BY match_id, lower(riotid)`);
+  const byMatch = {};
+  for (const r of encRows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  const verd = {}, duel = {};
+  let coincCount = 0;
+  for (const mid in byMatch) {
+    const ps = byMatch[mid]; if (ps.length < 2) continue; coincCount++;
+    for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+      const A = ps[i], B = ps[j];
+      const key = [A.rid, B.rid].sort(); const kk = key.join('|');
+      const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0 });
+      if (A.team === B.team) { dd.together++; continue; }     // aliados: no es duelo
+      const dec = A.win !== B.win; if (!dec) continue;         // debe haber ganador/perdedor
+      const winner = A.win ? A : B;
+      verd[A.rid] = verd[A.rid] || { wins: 0, duels: 0 }; verd[B.rid] = verd[B.rid] || { wins: 0, duels: 0 };
+      verd[A.rid].duels++; verd[B.rid].duels++; verd[winner.rid].wins++;
+      if (winner.rid === dd.a) dd.aw++; else dd.bw++;
+    }
+  }
+  const nmeta = rid => { const m = meta[rid] || {}; return { nm: m.nm || rid.split('#')[0], high: !!m.high }; };
+  const verdugos = Object.entries(verd).map(([rid, s]) => ({ rid, ...nmeta(rid), wins: s.wins, duels: s.duels,
+      wr: s.duels ? Math.round(s.wins / s.duels * 100) : 0 }))
+    .sort((a, b) => b.wins - a.wins || b.wr - a.wr).slice(0, 12);
+  const duelos = Object.values(duel).filter(d => d.aw + d.bw > 0)
+    .map(d => ({ a: { rid: d.a, ...nmeta(d.a) }, b: { rid: d.b, ...nmeta(d.b) }, aw: d.aw, bw: d.bw, together: d.together }))
+    .sort((x, y) => (y.aw + y.bw) - (x.aw + x.bw)).slice(0, 30);
+
+  // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60.
+  let historial = [];
+  try { const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); historial = snap.encounters || []; } catch {}
+
+  // ---- ELO: subidones/bajones por día + serie de evolución (desde ±LP guardados) ----
+  const p2r = {};
+  const pr = await q(`SELECT DISTINCT puuid, lower(riotid) rid FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`);
+  for (const r of pr) if (!p2r[r.puuid]) p2r[r.puuid] = r.rid;
+  const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
+  const store = (mc && mc.data) || {};
+  const dayAcc = {}, series = [];
+  const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
+  for (const puuid in store) {
+    const rid = p2r[puuid]; if (!rid) continue;
+    const m = meta[rid]; if (!m) continue;
+    const s = store[puuid]; const lg = (s && Array.isArray(s.lpGames) ? s.lpGames : []).filter(g => g.end);
+    // Serie: reconstruye absLP hacia atrás desde el actual.
+    if (m.abs != null && lg.length) {
+      let abs = m.abs; const pts = [{ t: Date.now(), lp: abs }];
+      for (const g of lg) { abs -= (g.delta || 0); pts.push({ t: g.end, lp: abs }); }
+      series.push({ rid, nm: m.nm, high: !!m.high, points: pts.reverse() });
+    }
+    // Subidones/bajones: neto de ±LP por día.
+    for (const g of lg) { const dk = dayKey(g.end); const key = rid + '|' + dk;
+      (dayAcc[key] = dayAcc[key] || { rid, nm: m.nm, high: !!m.high, day: dk, net: 0 }).net += (g.delta || 0); }
+  }
+  const days = Object.values(dayAcc);
+  const subidones = days.filter(d => d.net > 0).sort((a, b) => b.net - a.net).slice(0, 8);
+  const bajones = days.filter(d => d.net < 0).sort((a, b) => a.net - b.net).slice(0, 8);
+
+  STATS_CACHE.data = { tops, elo: { subidones, bajones, series }, coincidencias: { count: coincCount, verdugos, duelos, historial } };
+  STATS_CACHE.at = Date.now();
+  res.json(STATS_CACHE.data);
+}));
+
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 

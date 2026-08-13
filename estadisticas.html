@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Estadísticas</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 20px; }
+  .brand b span{ color:var(--accent); }
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:20px; }
+
+  /* Tabs */
+  .tabs{ display:flex; gap:8px; border-bottom:1px solid var(--line); margin-bottom:22px; flex-wrap:wrap; }
+  .tab{ background:none; border:0; color:var(--muted); font-family:inherit; font-size:13px; font-weight:800; letter-spacing:.06em;
+    padding:11px 14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab:hover{ color:#fff; }
+  .tab.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .panel{ display:none; } .panel.active{ display:block; }
+
+  /* Cards */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .card h3{ font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--accent); }
+  .card .cap{ font-size:11px; color:var(--muted-2); margin:2px 0 12px; }
+  .rowl{ display:flex; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--line); }
+  .rowl:first-of-type{ border-top:0; }
+  .rk{ width:20px; text-align:center; font-size:13px; font-weight:800; color:var(--muted); flex-shrink:0; }
+  .rk.t1{ color:var(--gold); } .rk.t2{ color:#d7dde3; } .rk.t3{ color:#e0a878; }
+  .nm{ font-size:14px; font-weight:700; }
+  .elo-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 6px; border-radius:5px; margin-left:6px; vertical-align:middle; }
+  .elo-tag.high{ color:var(--accent); background:rgba(233,255,31,.12); border:1px solid rgba(233,255,31,.35); }
+  .elo-tag.low{ color:var(--blue); background:rgba(74,163,255,.12); border:1px solid rgba(74,163,255,.35); }
+  .games{ font-size:11px; color:var(--muted-2); }
+  .val{ margin-left:auto; font-size:16px; font-weight:800; color:#fff; }
+  .meta{ display:flex; flex-direction:column; min-width:0; }
+
+  /* ELO: subidones/bajones */
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:640px){ .two{ grid-template-columns:1fr; } }
+  .day{ font-size:11px; color:var(--muted-2); }
+  .net{ margin-left:auto; font-size:15px; font-weight:800; }
+  .net.up{ color:var(--up); } .net.down{ color:var(--down); }
+
+  /* Chart */
+  .chartwrap{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:14px; overflow:hidden; }
+  .chartwrap h3{ font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--accent); }
+  .chartwrap .cap{ font-size:11px; color:var(--muted-2); margin:2px 0 10px; }
+  #elo-svg{ width:100%; height:380px; display:block; }
+  .legend{ display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:12px; }
+  .lg{ font-size:11px; color:var(--muted); cursor:pointer; padding:2px 7px; border-radius:6px; border:1px solid var(--line); user-select:none; }
+  .lg .dot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+  .lg.off{ opacity:.35; text-decoration:line-through; }
+
+  /* Coincidencias */
+  .kpi{ font-size:12px; color:var(--muted); margin-bottom:16px; }
+  .kpi b{ color:var(--accent); font-size:15px; }
+  .duel{ display:flex; align-items:center; gap:10px; padding:9px 0; border-top:1px solid var(--line); font-size:13px; }
+  .duel:first-of-type{ border-top:0; }
+  .duel .score{ font-weight:800; color:#fff; }
+  .duel .tg{ margin-left:auto; font-size:11px; color:var(--muted-2); }
+  .enc{ display:flex; flex-direction:column; gap:10px; }
+  .encc{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .encc .tag{ font-size:10px; font-weight:800; letter-spacing:.06em; padding:3px 8px; border-radius:6px; flex-shrink:0; }
+  .encc .tag.rival{ background:rgba(251,113,133,.14); color:var(--down); border:1px solid rgba(251,113,133,.4); }
+  .encc .tag.ally{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .encc .side{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .encc .p{ font-size:13px; font-weight:700; } .encc .p .res{ font-size:10px; font-weight:800; margin-left:4px; }
+  .encc .p .res.w{ color:var(--up); } .encc .p .res.l{ color:var(--down); }
+  .encc .vs{ font-size:11px; font-weight:800; color:var(--muted-2); }
+  .encc .date{ margin-left:auto; font-size:11px; color:var(--muted-2); }
+  .empty{ color:var(--muted); font-size:14px; text-align:center; padding:40px 0; }
+  .loading{ color:var(--muted); font-size:14px; text-align:center; padding:60px 0; }
+  .subh{ font-size:15px; font-weight:700; margin:26px 0 12px; }
+</style>
+<link rel="stylesheet" href="nav.css">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html" class="active">Estadísticas</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Estadísticas</h1>
+    <div class="sub">Records del torneo, evolución de elo y coincidencias entre participantes.</div>
+
+    <div class="tabs">
+      <button class="tab active" data-t="tops">TOPS</button>
+      <button class="tab" data-t="elo">ELO</button>
+      <button class="tab" data-t="coinc">COINCIDENCIAS</button>
+    </div>
+
+    <div class="panel active" id="p-tops"><div class="loading">Cargando estadísticas…</div></div>
+    <div class="panel" id="p-elo"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-coinc"><div class="loading">Cargando…</div></div>
+  </main>
+
+<script src="players.js"></script>
+<script src="api.js"></script>
+<script>
+  let DATA = null;
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const eloTag = high => `<span class="elo-tag ${high?'high':'low'}">${high?'HIGH ELO':'LOW ELO'}</span>`;
+  const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+  const fday  = s => { try { const [y,m,d]=s.split('-'); return new Date(y,m-1,d).toLocaleDateString('es-CL',{day:'2-digit',month:'short'}); } catch { return s; } }
+
+  // ---- Tabs ----
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+    $('p-'+b.dataset.t).classList.add('active');
+    if (b.dataset.t==='elo' && DATA) drawChart();
+  });
+
+  // ---- TOPS ----
+  function topCard(title, cap, list, fmt){
+    const rows = (list||[]).map((p,i) => `
+      <div class="rowl">
+        <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+        <div class="meta"><div class="nm">${esc(p.nm)}${eloTag(p.high)}</div><div class="games">${p.games} partidas</div></div>
+        <div class="val">${fmt(p.value)}</div>
+      </div>`).join('');
+    return `<div class="card"><h3>${title}</h3><div class="cap">${cap}</div>${rows||'<div class="empty">Sin datos</div>'}</div>`;
+  }
+  function renderTops(){
+    const t = DATA.tops;
+    const int = v => Math.round(v).toLocaleString('es-CL');
+    const dec = v => (Math.round(v*100)/100).toFixed(2);
+    $('p-tops').innerHTML = `<div class="grid">
+      ${topCard('KILLS','Más asesinatos', t.kills, int)}
+      ${topCard('MUERTES','Más veces eliminado', t.deaths, int)}
+      ${topCard('ASISTENCIAS','Más asistencias', t.assists, int)}
+      ${topCard('CS / MIN','Farmeo por minuto (mín. 10 partidas)', t.csmin, dec)}
+      ${topCard('KDA','(Kills + Asistencias) / Muertes (mín. 10 partidas)', t.kda, dec)}
+    </div>`;
+  }
+
+  // ---- ELO ----
+  function renderElo(){
+    const e = DATA.elo;
+    const col = (title, arr, cls, sign) => `<div class="card"><h3>${title}</h3><div class="cap">Diferencia de elo respecto al día anterior</div>${
+      (arr||[]).map((d,i) => `<div class="rowl">
+        <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+        <div class="meta"><div class="nm">${esc(d.nm)}${eloTag(d.high)}</div><div class="day">${fday(d.day)}</div></div>
+        <div class="net ${cls}">${sign}${Math.abs(d.net)}</div>
+      </div>`).join('') || '<div class="empty">Sin datos</div>'}</div>`;
+    $('p-elo').innerHTML = `
+      <div class="subh">Mejores días — quién más elo ganó (o perdió) en un solo día</div>
+      <div class="two">${col('SUBIDONES', e.subidones, 'up', '+')}${col('BAJONES', e.bajones, 'down', '−')}</div>
+      <div class="chartwrap">
+        <h3>EVOLUCIÓN DE ELO</h3><div class="cap">Clic en un nombre para ocultarlo</div>
+        <svg id="elo-svg" viewBox="0 0 1000 380" preserveAspectRatio="none"></svg>
+        <div class="legend" id="elo-legend"></div>
+      </div>`;
+    drawChart();
+  }
+  const hidden = new Set();
+  const PALETTE = ['#e9ff1f','#4aa3ff','#fb7185','#34d399','#c084fc','#ffd24a','#f472b6','#22d3ee','#a3e635','#fb923c','#818cf8','#f87171'];
+  function drawChart(){
+    const svg = $('elo-svg'); if (!svg || !DATA) return;
+    const series = (DATA.elo.series||[]).filter(s => s.points && s.points.length>=2);
+    if (!series.length){ svg.innerHTML=''; $('elo-legend').innerHTML='<div class="empty">Sin datos de evolución</div>'; return; }
+    const W=1000, H=380, PL=40, PR=12, PT=12, PB=22;
+    let tMin=Infinity,tMax=-Infinity,yMin=Infinity,yMax=-Infinity;
+    series.forEach(s => s.points.forEach(p => { tMin=Math.min(tMin,p.t); tMax=Math.max(tMax,p.t); yMin=Math.min(yMin,p.lp); yMax=Math.max(yMax,p.lp); }));
+    yMin=Math.max(0,yMin-100); yMax+=100;
+    const X = t => PL + (tMax===tMin?0:(t-tMin)/(tMax-tMin))*(W-PL-PR);
+    const Y = v => PT + (1-(v-yMin)/((yMax-yMin)||1))*(H-PT-PB);
+    // Gridlines de tier
+    const ticks=[{v:0,l:'I4'},{v:400,l:'B'},{v:800,l:'S'},{v:1200,l:'G'},{v:1600,l:'P'},{v:2000,l:'E'},{v:2400,l:'D'},{v:2800,l:'M+'}];
+    let g = ticks.filter(k=>k.v>=yMin&&k.v<=yMax).map(k =>
+      `<line x1="${PL}" y1="${Y(k.v).toFixed(1)}" x2="${W-PR}" y2="${Y(k.v).toFixed(1)}" stroke="rgba(255,255,255,.06)"/>`+
+      `<text x="4" y="${(Y(k.v)+3).toFixed(1)}" fill="rgba(255,255,255,.38)" font-size="10">${k.l}</text>`).join('');
+    let paths = series.map((s,i) => {
+      if (hidden.has(s.rid)) return '';
+      const c = PALETTE[i%PALETTE.length];
+      const d = s.points.map((p,j) => (j?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ');
+      return `<path d="${d}" fill="none" stroke="${c}" stroke-width="1.5" opacity=".9"/>`;
+    }).join('');
+    svg.innerHTML = g + paths;
+    $('elo-legend').innerHTML = series.map((s,i) =>
+      `<span class="lg ${hidden.has(s.rid)?'off':''}" data-rid="${esc(s.rid)}"><span class="dot" style="background:${PALETTE[i%PALETTE.length]}"></span>${esc(s.nm)}</span>`).join('');
+    $('elo-legend').querySelectorAll('.lg').forEach(el => el.onclick = () => {
+      const r = el.dataset.rid; hidden.has(r)?hidden.delete(r):hidden.add(r); drawChart();
+    });
+  }
+
+  // ---- COINCIDENCIAS ----
+  function encCard(e){
+    const ps = e.players||[]; const win = ps.filter(p=>p.win), lose = ps.filter(p=>!p.win);
+    const rivals = win.length && lose.length;
+    const p = x => `<span class="p">${esc(x.nm)}<span class="res ${x.win?'w':'l'}">${x.win?'G':'P'}</span></span>`;
+    const body = rivals
+      ? `<div class="side">${win.map(p).join('')}</div><span class="vs">VS</span><div class="side">${lose.map(p).join('')}</div>`
+      : `<div class="side">${ps.map(p).join('')}</div>`;
+    return `<div class="encc">${rivals?'<span class="tag rival">⚔ Enfrentados</span>':'<span class="tag ally">🤝 Mismo equipo</span>'}
+      ${body}<span class="date">${fdate(e.end)}</span></div>`;
+  }
+  function renderCoinc(){
+    const c = DATA.coincidencias;
+    const verd = (c.verdugos||[]).map((v,i) => `<div class="rowl">
+      <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+      <div class="meta"><div class="nm">${esc(v.nm)}${eloTag(v.high)}</div><div class="games">${v.duels} duelos · ${v.wr}% ganados</div></div>
+      <div class="val">${v.wins}<span style="font-size:10px;color:var(--muted);font-weight:700"> V</span></div></div>`).join('');
+    const duel = (c.duelos||[]).map(d => `<div class="duel">
+      <span>${esc(d.a.nm)}</span><span class="score">${d.aw}–${d.bw}</span><span>${esc(d.b.nm)}</span>
+      ${d.together?`<span class="tg">${d.together} en el mismo equipo</span>`:''}</div>`).join('');
+    const hist = (c.historial||[]).slice(0,20).map(encCard).join('');
+    $('p-coinc').innerHTML = `
+      <div class="kpi"><b>${c.count||0}</b> coincidencias registradas — cuando dos o más participantes caen en la misma partida.</div>
+      <div class="grid">
+        <div class="card"><h3>VERDUGOS DEL TORNEO</h3><div class="cap">Más victorias contra otros participantes</div>${verd||'<div class="empty">Sin datos</div>'}</div>
+        <div class="card"><h3>DUELOS</h3><div class="cap">Cara a cara acumulado (solo en equipos contrarios)</div>${duel||'<div class="empty">Sin datos</div>'}</div>
+      </div>
+      <div class="subh">Historial de coincidencias — últimas partidas compartidas</div>
+      <div class="enc">${hist||'<div class="empty">Sin coincidencias aún</div>'}</div>`;
+  }
+
+  async function load(){
+    try {
+      const r = await fetch('/api/stats', { cache:'no-store' });
+      if (!r.ok) throw new Error('HTTP '+r.status);
+      DATA = await r.json();
+      renderTops(); renderElo(); renderCoinc();
+    } catch (e) {
+      $('p-tops').innerHTML = '<div class="empty">No se pudieron cargar las estadísticas.<br><small>'+esc(e.message)+'</small></div>';
+    }
+  }
+
+  SQC.preNav(); SQC.mountNav();
+  load();
+</script>
+</body>
+</html>
