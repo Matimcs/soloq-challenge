@@ -532,8 +532,11 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
              sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
              max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
       FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' GROUP BY puuid`);
+    // Si abres una cuenta ALTA → te rankea solo entre las cuentas altas (una por jugador).
+    // Si abres una cuenta BAJA (smurf excluida) → te rankea entre el TOTAL de cuentas.
+    const meExcluded = exclude.has(riotid.toLowerCase());
     const rows2 = all
-      .filter(r => r.puuid === puuid || !exclude.has(r.rid))   // mantiene al jugador actual siempre
+      .filter(r => meExcluded || !exclude.has(r.rid))
       .map(r => { const dur = +r.dur_all || 0, pm = s => dur > 0 ? s / (dur / 60) : 0; return { puuid: r.puuid,
       kda: (+r.k + +r.asi) / Math.max(1, +r.d), kills: +r.kk || 0, deaths: +r.dd || 0, assists: +r.aa || 0,
       csmin: +r.dur_ns > 0 ? +r.cs_ns / (+r.dur_ns / 60) : null,
