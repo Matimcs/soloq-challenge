@@ -420,6 +420,32 @@ function rankBy(players, getFn, puuid){
   const mine = idx >= 0 ? scored[idx].v : null;
   return { value:mine, rank: idx>=0 ? idx+1 : null, total, leader };
 }
+// Cuentas a EXCLUIR de las stats por jugador: de cada jugador REGISTRADO con varias
+// cuentas (main + smurfs), se cuenta solo la MÁS ALTA; las demás se excluyen. Las cuentas
+// inscritas SIN dueño registrado no se excluyen (cuentan como su propia "cuenta más alta").
+async function excludedSmurfRids(){
+  const absByRid = {};
+  try {
+    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
+    (snap.players || []).forEach(p => { absByRid[(p.rid || '').toLowerCase()] = absLPof(p.tier, p.div, p.lp) || 0; });
+  } catch {}
+  const owner = {};
+  try {
+    for (const u of await q("SELECT id, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''"))
+      (owner['u' + u.id] = owner['u' + u.id] || []).push(u.rid);
+    for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''"))
+      (owner['u' + s.user_id] = owner['u' + s.user_id] || []).push(s.rid);
+  } catch {}
+  const exclude = new Set();
+  for (const o in owner){
+    const rids = [...new Set(owner[o])];
+    if (rids.length < 2) continue;
+    rids.sort((a, b) => (absByRid[b] || 0) - (absByRid[a] || 0));   // más alta primero
+    rids.slice(1).forEach(r => exclude.add(r));                      // todas menos la más alta
+  }
+  return exclude;
+}
+
 app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
@@ -496,15 +522,19 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   // Puesto en CADA estadística respecto a TODOS los jugadores del torneo (por puuid).
   if (stats && puuid){
     const NS = "upper(coalesce(position,'')) NOT IN ('UTILITY','SUPPORT')";
+    const exclude = await excludedSmurfRids();   // rankea por jugador (cuenta más alta), no por cuenta
     const all = await q(`
-      SELECT puuid, sum(kills) k, sum(deaths) d, sum(assists) asi, count(*) games,
+      SELECT puuid, lower((array_agg(riotid ORDER BY game_end DESC NULLS LAST))[1]) rid,
+             sum(kills) k, sum(deaths) d, sum(assists) asi, count(*) games,
              avg(kills) kk, avg(deaths) dd, avg(assists) aa,
              sum(coalesce(damage,0)) dmg_sum, sum(coalesce(gold,0)) gold_sum, sum(coalesce(vision,0)) vis_sum, sum(coalesce(duration,0)) dur_all,
              sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
              sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
              max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
       FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' GROUP BY puuid`);
-    const rows2 = all.map(r => { const dur = +r.dur_all || 0, pm = s => dur > 0 ? s / (dur / 60) : 0; return { puuid: r.puuid,
+    const rows2 = all
+      .filter(r => r.puuid === puuid || !exclude.has(r.rid))   // mantiene al jugador actual siempre
+      .map(r => { const dur = +r.dur_all || 0, pm = s => dur > 0 ? s / (dur / 60) : 0; return { puuid: r.puuid,
       kda: (+r.k + +r.asi) / Math.max(1, +r.d), kills: +r.kk || 0, deaths: +r.dd || 0, assists: +r.aa || 0,
       csmin: +r.dur_ns > 0 ? +r.cs_ns / (+r.dur_ns / 60) : null,
       damage: pm(+r.dmg_sum), gold: pm(+r.gold_sum), vision: pm(+r.vis_sum), pentas: +r.pentas || 0, firstBloods: +r.fb || 0,
@@ -857,7 +887,8 @@ app.get('/api/stats', wrap(async (req, res) => {
     FROM match_participants
     WHERE is_tournament=true AND riotid IS NOT NULL
     GROUP BY lower(riotid)`);
-  const rowsA = agg.map(r => {
+  const exclude = await excludedSmurfRids();   // solo la cuenta más alta de cada jugador registrado
+  const rowsA = agg.filter(r => !exclude.has(r.rid)).map(r => {
     const m = meta[r.rid] || {};
     const k = +r.k, d = +r.d, a = +r.a, games = +r.games;
     const csNs = +r.cs_ns || 0, durNs = +r.dur_ns || 0, gamesNs = +r.games_ns || 0, durAll = +r.dur_all || 0;
