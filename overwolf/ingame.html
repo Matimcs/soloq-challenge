@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{
+    --bg:#0b0c10; --line:rgba(255,255,255,.10); --text:#fff; --muted:rgba(255,255,255,.55);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185;
+    --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ background:transparent; font-family:var(--font); color:var(--text); user-select:none; overflow:hidden; }
+  .card{ position:relative; width:344px; margin:8px; border-radius:14px; overflow:hidden;
+    background:linear-gradient(180deg,#12131a,#0b0c10); border:1px solid var(--line);
+    box-shadow:0 12px 34px rgba(0,0,0,.55); }
+  .drag{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--line); cursor:move; }
+  .drag img{ width:18px; height:18px; border-radius:4px; }
+  .drag .t{ font-size:11px; font-weight:800; letter-spacing:.04em; }
+  .drag .t span{ color:var(--accent); }
+  .drag .x{ margin-left:auto; cursor:pointer; color:var(--muted); font-size:13px; font-weight:800; padding:2px 4px; }
+  .drag .x:hover{ color:#fff; }
+  .body{ padding:11px 12px; }
+  .row1{ display:flex; align-items:baseline; gap:8px; }
+  .pos{ font-size:22px; font-weight:800; color:var(--accent); line-height:1; }
+  .nk{ font-size:15px; font-weight:700; }
+  .elo{ margin-left:auto; font-size:12px; font-weight:700; color:var(--muted); }
+  .row2{ display:flex; gap:14px; margin-top:9px; }
+  .stat{ font-size:11px; color:var(--muted); }
+  .stat b{ display:block; font-size:14px; color:#fff; font-weight:700; margin-top:1px; }
+  .stat .g{ color:var(--up); } .stat .r{ color:var(--down); }
+  .target{ margin-top:10px; padding-top:9px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+  .target b{ color:#fff; } .target .lp{ color:var(--accent); font-weight:800; }
+  /* Config inicial */
+  .cfg{ padding:14px 12px; }
+  .cfg p{ font-size:12px; color:var(--muted); margin-bottom:8px; }
+  .cfg input{ width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--line);
+    background:#0b0c10; color:#fff; font-size:13px; font-family:inherit; }
+  .cfg button{ margin-top:8px; width:100%; padding:8px; border:0; border-radius:8px; cursor:pointer;
+    background:var(--accent); color:#000; font-weight:800; font-size:13px; }
+  .err{ color:var(--down); font-size:11px; margin-top:6px; }
+  .muted{ color:var(--muted); font-size:11px; }
+  .gear{ cursor:pointer; }
+</style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="drag" id="drag">
+      <img src="icons/icon.png" alt="">
+      <div class="t">SoloQ <span>Challenge</span></div>
+      <div class="x" id="gear" title="Cambiar Riot ID">⚙</div>
+      <div class="x" id="close" title="Cerrar (Alt+X)">✕</div>
+    </div>
+    <div id="content"></div>
+  </div>
+<script src="ingame.js"></script>
+</body>
+</html>
