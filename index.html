@@ -848,7 +848,8 @@ function rowHTML(p, extraCls='', extraAttr=''){
       <td><div class="player">
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
         ${avaHtml(p.rid, p.nm)}
-        <div><div class="nm">${NICK_BY_RID[rl] || p.nm} <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}</span> ${badges}</div><div class="rid">${p.rid}</div></div>
+        <div><div class="nm">${NICK_BY_RID[rl] || p.nm} ${badges}</div><div class="rid">${p.rid}</div></div>
+        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}</span>
       </div></td>
       <td>${roleCell(p)}</td>
       <td>${eloEl(p)}</td>
