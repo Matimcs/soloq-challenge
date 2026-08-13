@@ -462,7 +462,8 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
       SELECT count(*) games, count(*) FILTER (WHERE win) wins,
              avg(kills) kk, avg(deaths) dd, avg(assists) aa,
              sum(kills) k, sum(deaths) d, sum(assists) asi,
-             avg(damage) dmg, avg(gold) gold, avg(vision) vis, avg(cs) cs_all,
+             sum(coalesce(damage,0)) dmg_sum, sum(coalesce(gold,0)) gold_sum, sum(coalesce(vision,0)) vis_sum,
+             sum(coalesce(duration,0)) dur_all, avg(cs) cs_all,
              sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
              sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
              max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
@@ -476,13 +477,13 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
       SELECT coalesce(nullif(position,''),'—') pos, count(*) games, count(*) FILTER (WHERE win) wins
       FROM match_participants WHERE puuid=$1 GROUP BY 1 ORDER BY games DESC`, [puuid]);
     if (a && +a.games > 0){
-      const g = +a.games;
+      const g = +a.games, durAll = +a.dur_all || 0, perMin = s => durAll > 0 ? s / (durAll / 60) : 0;
       stats = {
         games: g, wins: +a.wins, winrate: Math.round(+a.wins / g * 100),
         kills: +a.kk || 0, deaths: +a.dd || 0, assists: +a.aa || 0,
         kda: (+a.k + +a.asi) / Math.max(1, +a.d),
         csmin: +a.dur_ns > 0 ? +a.cs_ns / (+a.dur_ns / 60) : 0, avgCs: +a.cs_all || 0,
-        damage: Math.round(+a.dmg || 0), gold: Math.round(+a.gold || 0), vision: Math.round((+a.vis || 0) * 10) / 10,
+        damage: perMin(+a.dmg_sum), gold: perMin(+a.gold_sum), vision: perMin(+a.vis_sum),
         pentas: +a.pentas || 0, firstBloods: +a.fb || 0,
         maxKills: +a.maxk || 0, maxCs: +a.maxcs || 0, maxDamage: +a.maxdmg || 0,
         champions: champs.map(c => ({ champion: c.champion, games: +c.games, wins: +c.wins,
@@ -497,16 +498,17 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
     const NS = "upper(coalesce(position,'')) NOT IN ('UTILITY','SUPPORT')";
     const all = await q(`
       SELECT puuid, sum(kills) k, sum(deaths) d, sum(assists) asi, count(*) games,
-             avg(kills) kk, avg(deaths) dd, avg(assists) aa, avg(damage) dmg, avg(gold) gold, avg(vision) vis,
+             avg(kills) kk, avg(deaths) dd, avg(assists) aa,
+             sum(coalesce(damage,0)) dmg_sum, sum(coalesce(gold,0)) gold_sum, sum(coalesce(vision,0)) vis_sum, sum(coalesce(duration,0)) dur_all,
              sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
              sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
              max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
       FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' GROUP BY puuid`);
-    const rows2 = all.map(r => ({ puuid: r.puuid,
+    const rows2 = all.map(r => { const dur = +r.dur_all || 0, pm = s => dur > 0 ? s / (dur / 60) : 0; return { puuid: r.puuid,
       kda: (+r.k + +r.asi) / Math.max(1, +r.d), kills: +r.kk || 0, deaths: +r.dd || 0, assists: +r.aa || 0,
       csmin: +r.dur_ns > 0 ? +r.cs_ns / (+r.dur_ns / 60) : null,
-      damage: +r.dmg || 0, gold: +r.gold || 0, vision: +r.vis || 0, pentas: +r.pentas || 0, firstBloods: +r.fb || 0,
-      maxKills: +r.maxk || 0, maxCs: +r.maxcs || 0, maxDamage: +r.maxdmg || 0 }));
+      damage: pm(+r.dmg_sum), gold: pm(+r.gold_sum), vision: pm(+r.vis_sum), pentas: +r.pentas || 0, firstBloods: +r.fb || 0,
+      maxKills: +r.maxk || 0, maxCs: +r.maxcs || 0, maxDamage: +r.maxdmg || 0 }; });
     const rankOf = key => {
       const vals = rows2.filter(x => x[key] != null).sort((a, b) => b[key] - a[key]);
       const idx = vals.findIndex(x => x.puuid === puuid);
@@ -848,6 +850,7 @@ app.get('/api/stats', wrap(async (req, res) => {
   const agg = await q(`
     SELECT lower(riotid) rid, max(name) nm,
            sum(coalesce(kills,0)) k, sum(coalesce(deaths,0)) d, sum(coalesce(assists,0)) a, count(*) games,
+           sum(coalesce(gold,0)) gold_sum, sum(coalesce(duration,0)) dur_all,
            sum(coalesce(cs,0))       FILTER (WHERE ${NS}) cs_ns,
            sum(coalesce(duration,0)) FILTER (WHERE ${NS}) dur_ns,
            count(*)                  FILTER (WHERE ${NS}) games_ns
@@ -857,16 +860,17 @@ app.get('/api/stats', wrap(async (req, res) => {
   const rowsA = agg.map(r => {
     const m = meta[r.rid] || {};
     const k = +r.k, d = +r.d, a = +r.a, games = +r.games;
-    const csNs = +r.cs_ns || 0, durNs = +r.dur_ns || 0, gamesNs = +r.games_ns || 0;
+    const csNs = +r.cs_ns || 0, durNs = +r.dur_ns || 0, gamesNs = +r.games_ns || 0, durAll = +r.dur_all || 0;
     return { rid: r.rid, nm: m.nm || r.nm, tier: m.tier || 'UNRANKED', high: !!m.high, pos: m.pos || null, games, gamesNs,
       kavg: games ? k / games : 0, davg: games ? d / games : 0, aavg: games ? a / games : 0,
-      csmin: durNs > 0 ? csNs / (durNs / 60) : 0, kda: (k + a) / Math.max(1, d) };
+      csmin: durNs > 0 ? csNs / (durNs / 60) : 0, goldmin: durAll > 0 ? (+r.gold_sum) / (durAll / 60) : 0,
+      kda: (k + a) / Math.max(1, d) };
   });
   const topN = (key, n = 5, minGames = 0, gf = 'games') => rowsA.filter(x => x[gf] >= minGames)
     .sort((x, y) => y[key] - x[key]).slice(0, n)
     .map(x => ({ rid: x.rid, nm: x.nm, tier: x.tier, high: x.high, pos: x.pos, games: x[gf], value: x[key] }));
   const tops = { kills: topN('kavg', 5, 10), deaths: topN('davg', 5, 10), assists: topN('aavg', 5, 10),
-    csmin: topN('csmin', 5, 10, 'gamesNs'), kda: topN('kda', 5, 10) };
+    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10) };
 
   // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
   const encRows = await q(`

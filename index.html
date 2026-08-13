@@ -1506,11 +1506,11 @@ function renderFullFicha(card, data, close){
     <div class="ff-sec"><div class="ff-sec-t">Estadísticas · ${st.games} partidas guardadas <span style="color:var(--muted);font-weight:500">· puesto vs. todos</span></div>
       <div class="ff-stats">
         <div class="ff-s"><div class="v lime">${f2(st.kda)}</div><div class="k">KDA</div>${rc('kda')}</div>
-        <div class="ff-s"><div class="v">${f1(st.kills)} / ${f1(st.deaths)} / ${f1(st.assists)}</div><div class="k">K/D/A prom.</div></div>
+        <div class="ff-s"><div class="v" style="white-space:nowrap;font-size:15px">${f1(st.kills)} / ${f1(st.deaths)} / ${f1(st.assists)}</div><div class="k">K/D/A prom.</div></div>
         <div class="ff-s"><div class="v">${f2(st.csmin)}</div><div class="k">CS/min (sin sup)</div>${rc('csmin')}</div>
-        <div class="ff-s"><div class="v">${nfmt(st.damage)}</div><div class="k">Daño a camp. prom.</div>${rc('damage')}</div>
-        <div class="ff-s"><div class="v">${nfmt(st.gold)}</div><div class="k">Oro prom.</div>${rc('gold')}</div>
-        <div class="ff-s"><div class="v">${f1(st.vision)}</div><div class="k">Visión prom.</div>${rc('vision')}</div>
+        <div class="ff-s"><div class="v">${nfmt(st.damage)}</div><div class="k">Daño/min</div>${rc('damage')}</div>
+        <div class="ff-s"><div class="v">${nfmt(st.gold)}</div><div class="k">Oro/min</div>${rc('gold')}</div>
+        <div class="ff-s"><div class="v">${f2(st.vision)}</div><div class="k">Visión/min</div>${rc('vision')}</div>
         <div class="ff-s"><div class="v">${st.pentas}</div><div class="k">Pentakills</div>${rc('pentas')}</div>
         <div class="ff-s"><div class="v">${st.firstBloods}</div><div class="k">First bloods</div>${rc('firstBloods')}</div>
         <div class="ff-s"><div class="v">${st.maxKills}</div><div class="k">Máx kills</div>${rc('maxKills')}</div>
