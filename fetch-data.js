@@ -120,6 +120,18 @@ async function saveMatch(matchId, m){
       [matchId, JSON.stringify(m), m.info.gameEndTimestamp || 0]);
   } catch (e) { /* idem */ }
 }
+// Auto-corrección: is_tournament se estampa al GUARDAR (con ON CONFLICT DO NOTHING,
+// nunca se corrige). Si un jugador se registró DESPUÉS de que se guardó una partida
+// suya, su fila quedó is_tournament=false y no aparece en encuentros/duelos. Esto
+// re-marca en cada ciclo todas las filas cuyo riotid ya es del torneo. Barato (1 query).
+async function reflagTournament(){
+  if (!pgPool || !TOURNAMENT_SET.size) return;
+  try {
+    await pgPool.query(
+      `UPDATE match_participants SET is_tournament=true
+       WHERE is_tournament=false AND lower(riotid) = ANY($1)`, [[...TOURNAMENT_SET]]);
+  } catch (e) { /* no romper el runner por un fallo de escritura */ }
+}
 
 // Master/GM/Challenger comparten escala de LP (ladder apex): se ordenan por LP entre sí,
 // así un Master con más LP que un GM va arriba. El resto de tiers por debajo, por tier+div.
@@ -380,6 +392,7 @@ function rankText(entry) {
 
   const rankCache = new Map();  // puuid -> entry (para no repetir lookups)
   const trackedByPuuid = new Map();
+  await reflagTournament();     // corrige is_tournament de partidas ya guardadas (jugadores registrados después)
 
   // ---- PASS 1: ranking + guardar spectator crudo de cada jugador ----
   const players = [];
