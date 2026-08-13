@@ -779,23 +779,30 @@ app.get('/api/stats', wrap(async (req, res) => {
   } catch {}
 
   // ---- TOPS: agregado por cuenta de torneo ----
+  // CS/min excluye el rol support (UTILITY). Kills/muertes/asistencias van PROMEDIADAS por partida.
+  const NS = "upper(coalesce(position,'')) NOT IN ('UTILITY','SUPPORT')";  // "no support"
   const agg = await q(`
     SELECT lower(riotid) rid, max(name) nm,
-           sum(coalesce(kills,0)) k, sum(coalesce(deaths,0)) d, sum(coalesce(assists,0)) a,
-           sum(coalesce(cs,0)) cs, sum(coalesce(duration,0)) dur, count(*) games
+           sum(coalesce(kills,0)) k, sum(coalesce(deaths,0)) d, sum(coalesce(assists,0)) a, count(*) games,
+           sum(coalesce(cs,0))       FILTER (WHERE ${NS}) cs_ns,
+           sum(coalesce(duration,0)) FILTER (WHERE ${NS}) dur_ns,
+           count(*)                  FILTER (WHERE ${NS}) games_ns
     FROM match_participants
     WHERE is_tournament=true AND riotid IS NOT NULL
     GROUP BY lower(riotid)`);
   const rowsA = agg.map(r => {
     const m = meta[r.rid] || {};
-    const k = +r.k, d = +r.d, a = +r.a, cs = +r.cs, dur = +r.dur, games = +r.games;
-    return { rid: r.rid, nm: m.nm || r.nm, tier: m.tier || 'UNRANKED', high: !!m.high, pos: m.pos || null, games,
-      k, d, a, csmin: dur > 0 ? cs / (dur / 60) : 0, kda: (k + a) / Math.max(1, d) };
+    const k = +r.k, d = +r.d, a = +r.a, games = +r.games;
+    const csNs = +r.cs_ns || 0, durNs = +r.dur_ns || 0, gamesNs = +r.games_ns || 0;
+    return { rid: r.rid, nm: m.nm || r.nm, tier: m.tier || 'UNRANKED', high: !!m.high, pos: m.pos || null, games, gamesNs,
+      kavg: games ? k / games : 0, davg: games ? d / games : 0, aavg: games ? a / games : 0,
+      csmin: durNs > 0 ? csNs / (durNs / 60) : 0, kda: (k + a) / Math.max(1, d) };
   });
-  const topN = (key, n = 5, minGames = 0) => rowsA.filter(x => x.games >= minGames)
+  const topN = (key, n = 5, minGames = 0, gf = 'games') => rowsA.filter(x => x[gf] >= minGames)
     .sort((x, y) => y[key] - x[key]).slice(0, n)
-    .map(x => ({ rid: x.rid, nm: x.nm, tier: x.tier, high: x.high, pos: x.pos, games: x.games, value: x[key] }));
-  const tops = { kills: topN('k'), deaths: topN('d'), assists: topN('a'), csmin: topN('csmin', 5, 10), kda: topN('kda', 5, 10) };
+    .map(x => ({ rid: x.rid, nm: x.nm, tier: x.tier, high: x.high, pos: x.pos, games: x[gf], value: x[key] }));
+  const tops = { kills: topN('kavg', 5, 10), deaths: topN('davg', 5, 10), assists: topN('aavg', 5, 10),
+    csmin: topN('csmin', 5, 10, 'gamesNs'), kda: topN('kda', 5, 10) };
 
   // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
   const encRows = await q(`
