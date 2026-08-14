@@ -1029,6 +1029,9 @@ app.get('/api/encounters', wrap(async (req, res) => {
   res.json(ENC_CACHE.data);
 }));
 
+// Health-check ultra liviano (para UptimeRobot / monitoreo): responde "ok" sin tocar la DB.
+app.get('/ping', (_req, res) => res.type('text').send('ok'));
+
 // ---- Sitio estático ----
 app.use(express.static(ROOT));
 
