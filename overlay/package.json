@@ -1,7 +1,8 @@
 {
   "name": "sqc-overlay",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "SoloQ Challenge overlay (sin Overwolf) — Electron + APIs locales de Riot",
+  "author": "SoloQ Chile",
   "main": "main.js",
   "scripts": {
     "prestart": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\"",
@@ -33,7 +34,8 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "assets/icon.ico"
     },
     "nsis": {
       "oneClick": true,
