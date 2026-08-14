@@ -333,11 +333,21 @@ async function updatePlayerStats(puuid, entry){
 
   // ±LP: solo hacia adelante. Si apareció EXACTAMENTE 1 partida nueva, el delta de LP es de esa partida.
   const cur = absLP(entry);
+  // Aegis PERMANENTE (acumulativo): un aegis = victoria de ~doble LP (≥1.8× el LP típico
+  // reciente). El contador se seedea UNA vez desde el historial disponible (lpGames) y luego
+  // solo se incrementa con cada nueva victoria de doble-LP → nunca se "borra" al jugar más.
+  const aegisBase = () => median(store.lpGames.filter(g => g.delta > 0).map(g => g.delta).slice(0, 15));
+  if (store.aegisTotal == null) {
+    const b = aegisBase();
+    store.aegisTotal = b ? store.lpGames.filter(g => g.delta > 0 && g.delta >= 1.8 * b).length : 0;
+  }
   if (cur != null && store.lastAbsLP != null && fetched.length === 1) {
     const delta = cur - store.lastAbsLP;
     if (Math.abs(delta) <= 100) {                // descarta saltos raros (promo de tier, decay, reset)
       store.lpGames.unshift({ win: fetched[0].win, delta, end: fetched[0].end });
       store.lpGames = store.lpGames.slice(0, 40);
+      const b = aegisBase();
+      if (delta > 0 && b && delta >= 1.8 * b) store.aegisTotal++;   // nueva victoria doble-LP → +1 permanente
     }
   }
   if (cur != null) store.lastAbsLP = cur;
@@ -365,7 +375,7 @@ async function updatePlayerStats(puuid, entry){
     // es ~el doble). El aegis se cuenta aparte.
     up:   winD.length  ? (winD.find(d => !isAegis(d)) ?? winD[0]) : null,
     down: lossD.length ? lossD[0] : null,
-    aegis: win15.filter(isAegis).length,                             // aegis de las últimas 15
+    aegis: store.aegisTotal || 0,                                    // aegis PERMANENTE (acumulado)
     session: computeSession(store.games, store.lpGames),
     recent: store.games.slice(0, 5).map(g => ({ win: g.win, champ: g.champ })),   // últimas 5 (borde + campeón)
   };
