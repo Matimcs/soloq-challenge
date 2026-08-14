@@ -30,9 +30,7 @@ const HIGH = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
 //   { "riotApiKey": "RGAPI-...", "backend": "https://...onrender.com" }
 function loadConfig(){ try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch { return {}; } }
 const CONFIG = loadConfig();
-const KEY = process.env.RIOT_API_KEY || CONFIG.riotApiKey || null;
 const BACKEND = (process.env.SQC_BACKEND || CONFIG.backend || 'https://soloq-challenge-em9q.onrender.com').replace(/\/+$/, '');
-const PLATFORM = 'la2', CLUSTER = 'americas';
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Catálogo Blue Shell -> nombre de archivo de imagen en /assets/shells/<slug>.png
@@ -74,7 +72,7 @@ function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(se
 let DEBUG_LOG; try { DEBUG_LOG = path.join(app.getPath('userData'), 'overlay-debug.log'); } catch { DEBUG_LOG = path.join(__dirname, 'overlay-debug.log'); }
 function dlog(m){ try { fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} }
 
-let DD = null, cachedMatchup = null, myApiPuuid = null, myRidForShells = null;
+let DD = null, myRidForShells = null;
 const OVERLAY_START = Date.now();
 let shownShellIds = new Set(Array.isArray(settings.shownShellIds) ? settings.shownShellIds : []);
 let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shownMsgIds  : []);
@@ -102,58 +100,9 @@ async function loadDDragon(){
   for (const k in summ.data){ const s = summ.data[k]; spellByKey[s.key] = s.id; }
   return { ver, runeById, champById, spellByKey };
 }
-async function leagueByPuuid(puuid){
-  if (!KEY || !puuid || puuid.length < 10) return null;
-  try { const r = await fetch(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`, { headers: { 'X-Riot-Token': KEY } });
-    if (!r.ok) return null; const arr = await r.json();
-    return Array.isArray(arr) ? arr.find(e => e.queueType === 'RANKED_SOLO_5x5') : null; } catch { return null; }
-}
-async function spectator(puuid){
-  if (!KEY) return null;
-  try { const r = await fetch(`https://${PLATFORM}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`, { headers: { 'X-Riot-Token': KEY } }); return r.ok ? r.json() : null; } catch { return null; }
-}
-const TIER_LABEL = { CHALLENGER:'Challenger', GRANDMASTER:'Grandmaster', MASTER:'Master', DIAMOND:'Diamond', EMERALD:'Emerald', PLATINUM:'Platinum', GOLD:'Gold', SILVER:'Silver', BRONZE:'Bronze', IRON:'Iron' };
-function rankText(entry){
-  if (!entry) return { tier:'UNRANKED', label:'Unranked' };
-  const tier = entry.tier; const div = NO_DIV.has(tier) ? '' : ' ' + entry.rank;
-  return { tier, label: `${TIER_LABEL[tier] || tier}${div} · ${entry.leaguePoints} LP` };
-}
-async function accountPuuid(gameName, tagLine){
-  if (!KEY) return null;
-  try { const r = await fetch(`https://${CLUSTER}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`, { headers: { 'X-Riot-Token': KEY } });
-    return r.ok ? (await r.json()).puuid : null; } catch { return null; }
-}
-// Devuelve una partida con el MISMO formato que el Live Games de la web.
-async function buildMatchup(spec, myPuuid, roster){
-  const rosterByRid = new Map((roster.players || []).map((p, i) => [p.rid, i + 1]));
-  const rows = { 100: [], 200: [] };
-  for (const p of spec.participants){
-    const ks = p.perks && p.perks.perkIds && p.perks.perkIds[0];
-    const entry = await leagueByPuuid(p.puuid); await sleep(120);
-    const rid = p.riotId || ''; const h = rid.indexOf('#');
-    const gn = h >= 0 ? rid.slice(0, h) : rid, tg = h >= 0 ? rid.slice(h + 1) : '';
-    const pos = rosterByRid.get(rid) || null; const rt = rankText(entry);
-    (rows[p.teamId] || (rows[p.teamId] = [])).push({
-      championImg: DD.champById[p.championId] && DD.champById[p.championId].id,
-      champion: (DD.champById[p.championId] && DD.champById[p.championId].name) || '',
-      spell1: DD.spellByKey[p.spell1Id] || null, spell2: DD.spellByKey[p.spell2Id] || null,
-      runeIcon: DD.runeById[ks] && DD.runeById[ks].icon,
-      name: gn, tag: tg, tier: rt.tier, rankLabel: rt.label,
-      tracked: !!pos, position: pos, isMe: p.puuid === myPuuid,
-    });
-  }
-  const bans = { 100: [], 200: [] };
-  (spec.bannedChampions || []).forEach(b => { if (b.championId > 0 && bans[b.teamId]) bans[b.teamId].push(DD.champById[b.championId] && DD.champById[b.championId].id); });
-  const blue = rows[100] || [], red = rows[200] || [];
-  const tracked = [...blue, ...red].filter(r => r.tracked);
-  const mainTier = tracked[0] ? tracked[0].tier : 'UNRANKED';
-  return {
-    elo: HIGH.has(mainTier) ? 'HIGH ELO' : 'LOW ELO',
-    gameStartTime: spec.gameStartTime || 0, gameLength: spec.gameLength || 0,
-    blue, red, bansBlue: bans[100], bansRed: bans[200],
-    tracked: tracked.map(r => ({ nm: r.name, position: r.position })),
-  };
-}
+// El scoreboard in-game (matchup de los 10 jugadores con sus rangos) se ELIMINÓ a
+// propósito: era lo único que usaba la Riot API key DENTRO del exe. Para eso, quien
+// quiera, que use una app aparte tipo Porofessor. La web ya tiene Live Games igual.
 
 // ---- Ventanas ----
 let win, shellWin, bigWin, bsWin, msgWin, audioWin;
@@ -386,22 +335,6 @@ async function poll(){
 
       lastInGame = inSoloQ;
       reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
-      if (inSoloQ && DD && KEY && me && me.gameName){
-        if (!myApiPuuid) myApiPuuid = await accountPuuid(me.gameName, me.tagLine);
-        if (!cachedMatchup && myApiPuuid){
-          const spec = await spectator(myApiPuuid);
-          if (spec && spec.gameQueueConfigId === 420) cachedMatchup = await buildMatchup(spec, myApiPuuid, roster);
-        }
-        payload.matchup = cachedMatchup;
-        if (cachedMatchup){
-          const mySide = cachedMatchup.blue.some(r => r.isMe) ? cachedMatchup.blue : cachedMatchup.red;
-          payload.challengeInGame = [...cachedMatchup.blue, ...cachedMatchup.red]
-            .filter(r => r.tracked && !r.isMe)
-            .map(r => ({ name: r.name, ally: mySide.includes(r) }));
-        }
-      } else {
-        cachedMatchup = null;
-      }
     } else { lastInGame = false; }
   } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; }
 
@@ -507,7 +440,7 @@ if (hasLock) app.whenReady().then(async () => {
     const extra = castigo === 'Campeón aleatorio' ? 'Yuumi' : castigo === 'Clase de campeón aleatoria' ? 'Tank' : null;
     showBlueShellEvent({ castigo, from: 'Prueba', extra });
   });
-  console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.' + (KEY ? '' : '  (sin Riot key: rango/runas deshabilitados)'));
+  console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.');
   await refreshRoster();
   poll();
   setInterval(poll, 3000);
