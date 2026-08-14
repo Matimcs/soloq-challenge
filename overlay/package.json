@@ -1,14 +1,19 @@
 {
   "name": "sqc-overlay",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "SoloQ Challenge overlay (sin Overwolf) — Electron + APIs locales de Riot",
   "main": "main.js",
   "scripts": {
     "prestart": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\"",
     "start": "electron .",
     "predist": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\"",
-    "dist": "electron-builder --win portable",
+    "dist": "electron-builder --win nsis",
+    "prepublish-app": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\"",
+    "publish-app": "node -e \"require('fs').copyFileSync('../roulette.js','roulette.js')\" && electron-builder --win nsis --publish always",
     "probe": "node probe.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "electron": "^31.0.0",
@@ -20,11 +25,21 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Matimcs",
+        "repo": "soloq-challenge"
+      }
+    ],
     "win": {
-      "target": "portable"
+      "target": "nsis"
     },
-    "portable": {
-      "artifactName": "SoloQ Overlay.exe"
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "artifactName": "SoloQ-Overlay-Setup-${version}.${ext}"
     }
   }
 }

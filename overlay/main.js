@@ -13,6 +13,7 @@ const fs = require('fs');
 const { pathToFileURL } = require('url');
 const { getCreds, lcu } = require('./lcu');
 const { liveClient } = require('./liveclient');
+const { autoUpdater } = require('electron-updater');
 
 // ---- Una sola instancia ----
 // Si ya hay un overlay corriendo, esta segunda instancia se cierra al instante y le
@@ -206,6 +207,9 @@ function createTray(){
       { label: 'Mostrar todo (Alt+X)', click: () => showAll() },
       { label: 'Cerrar overlay', click: () => hideAll() },
       { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
+      { type: 'separator' },
+      { label: 'Buscar actualizaciones', click: () => { try { autoUpdater.checkForUpdatesAndNotify(); } catch {} } },
+      { label: 'Instalar actualización y reiniciar', click: () => { try { autoUpdater.quitAndInstall(); } catch {} } },
       { type: 'separator' },
       { label: 'Salir', click: () => app.quit() },
     ]));
@@ -461,6 +465,22 @@ if (hasLock) app.whenReady().then(async () => {
     const extra = castigo === 'Campeón aleatorio' ? 'Yuumi' : castigo === 'Clase de campeón aleatoria' ? 'Tank' : null;
     showBlueShellEvent({ castigo, from: 'Prueba', extra });
   });
+  // ---- Auto-actualización (electron-updater vía GitHub Releases público) ----
+  // Solo en el .exe empaquetado. Chequea al arrancar y cada 6h; descarga sola la versión
+  // nueva y la instala al cerrar/reiniciar. No necesita token (el repo/releases es público).
+  if (app.isPackaged){
+    try {
+      autoUpdater.autoDownload = true;
+      autoUpdater.on('update-available', i => dlog('update disponible: ' + (i && i.version)));
+      autoUpdater.on('update-not-available', () => dlog('sin updates'));
+      autoUpdater.on('download-progress', p => dlog('descargando update: ' + Math.round(p.percent) + '%'));
+      autoUpdater.on('update-downloaded', i => { dlog('update descargada: ' + (i && i.version) + ' (se instala al reiniciar)');
+        if (tray) tray.setToolTip('SoloQ Overlay — actualización lista (se instala al reiniciar)'); });
+      autoUpdater.on('error', e => dlog('updater error: ' + (e && e.message)));
+      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
+      setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 3600 * 1000);
+    } catch (e) { dlog('updater init: ' + (e && e.message)); }
+  }
   console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.');
   await refreshRoster();
   poll();
