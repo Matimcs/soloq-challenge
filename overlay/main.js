@@ -335,6 +335,27 @@ async function poll(){
 
       lastInGame = inSoloQ;
       reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
+
+      // ¿Hay jugadores del torneo en tu partida? Se detecta con la Live Client Data API
+      // (local, en 127.0.0.1:2999, SIN Riot key) cruzando los 10 con el roster. Aliado/rival
+      // según el equipo respecto al tuyo. Solo responde cuando ya estás dentro del juego.
+      if (inSoloQ){
+        try {
+          const live = await liveClient();
+          const all = live && Array.isArray(live.allPlayers) ? live.allPlayers : null;
+          if (all){
+            const ridOf = p => (p.riotId || p.summonerName || '').toLowerCase();
+            const meId = ((live.activePlayer && (live.activePlayer.riotId || live.activePlayer.summonerName)) || myRid || '').toLowerCase();
+            const meP = all.find(p => ridOf(p) === meId);
+            const myTeam = meP ? meP.team : null;
+            const rosterNick = {};
+            (roster.players || []).forEach(p => { rosterNick[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
+            payload.challengeInGame = all
+              .filter(p => { const r = ridOf(p); return r && r !== meId && rosterNick[r] !== undefined; })
+              .map(p => ({ name: rosterNick[ridOf(p)], ally: myTeam != null && p.team === myTeam }));
+          }
+        } catch {}
+      }
     } else { lastInGame = false; }
   } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; }
 
