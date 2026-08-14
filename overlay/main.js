@@ -107,9 +107,13 @@ async function loadDDragon(){
 
 // ---- Ventanas ----
 let win, shellWin, bigWin, bsWin, msgWin, audioWin;
-function baseWin(w, h, x, y, show = true, focusable = false){
+function baseWin(w, h, x, y, show = true, focusable = false, opaque = false){
+  // opaque=true: ventana NO transparente (fondo sólido). El panel (que embebe la web en un
+  // iframe) debe ser opaco: en Windows, una ventana transparente renderiza en NEGRO el
+  // contenido remoto de un iframe (bug de compositing de Electron/Chromium).
   return new BrowserWindow({ width: w, height: h, x, y, show,
-    frame: false, transparent: true, resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable, hasShadow: false,
+    frame: false, transparent: !opaque, backgroundColor: opaque ? '#0b0b0b' : undefined,
+    resizable: false, alwaysOnTop: true, skipTaskbar: true, focusable, hasShadow: false,
     webPreferences: { nodeIntegration: true, contextIsolation: false } });
 }
 function defaults(){ const wa = screen.getPrimaryDisplay().workArea; const M = 16;
@@ -175,7 +179,7 @@ function createWindows(){
   // El panel es ENFOCABLE (a diferencia de los overlays chicos): así se puede escribir en
   // los campos de la web (login, tickets, etc.).
   const bp = posFor('big', Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2));
-  bigWin = baseWin(BW, BH, bp.x, bp.y, false, true); bigWin._posKey = 'big';
+  bigWin = baseWin(BW, BH, bp.x, bp.y, false, true, true); bigWin._posKey = 'big';   // opaco (iframe web)
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
   [win, shellWin, bigWin].forEach(trackMoves);   // recuerda dónde los dejaste
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
