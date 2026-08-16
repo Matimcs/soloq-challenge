@@ -1042,7 +1042,14 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 
 // ---- Sitio estático ----
-app.use(express.static(ROOT));
+app.use(express.static(ROOT, {
+  setHeaders(res, filePath){
+    // players.json/js cacheables ~20s: Cloudflare sirve la mayoría de los polls desde el
+    // borde (1 fetch al origen cada ~20s en vez de 1 por cliente) → baja mucho la banda.
+    // El ranking igual se actualiza cada ~2 min, así que ~20s de "atraso" es imperceptible.
+    if (/players\.(json|js)$/.test(filePath)) res.setHeader('Cache-Control', 'public, max-age=20');
+  }
+}));
 
 // ---- Runner embebido (opcional) ----
 // Si RIOT_API_KEY está en el entorno, el propio server actualiza el ranking

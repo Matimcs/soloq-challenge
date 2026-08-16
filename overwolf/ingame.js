@@ -76,7 +76,7 @@ async function load(){
   if (!rid) return renderConfig();
   renderMsg('Cargando…');
   try {
-    const r = await fetch(`${BACKEND}/players.json?t=${Date.now()}`, { cache:'no-store' });
+    const r = await fetch(`${BACKEND}/players.json`);   // URL estable → cacheable
     if (!r.ok) return renderMsg('No se pudo conectar al servidor.');
     const data = await r.json();
     const players = (data && data.players) || [];

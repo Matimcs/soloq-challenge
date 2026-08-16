@@ -1602,7 +1602,7 @@ function applyData(nd){
 if (location.protocol.startsWith('http')){
   setInterval(async () => {
     try {
-      const r = await fetch('players.json?t=' + Date.now(), { cache: 'no-store' });
+      const r = await fetch('players.json');   // URL estable + cacheable (Cloudflare la sirve del borde ~20s)
       if (!r.ok) return;
       const nd = await r.json();
       if (nd && nd.updatedAt !== (DATA && DATA.updatedAt)) applyData(nd);

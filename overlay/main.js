@@ -31,7 +31,7 @@ const HIGH = new Set(['MASTER', 'GRANDMASTER', 'CHALLENGER']);
 //   { "riotApiKey": "RGAPI-...", "backend": "https://...onrender.com" }
 function loadConfig(){ try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'config.json'), 'utf8')); } catch { return {}; } }
 const CONFIG = loadConfig();
-const BACKEND = (process.env.SQC_BACKEND || CONFIG.backend || 'https://soloq-challenge-em9q.onrender.com').replace(/\/+$/, '');
+const BACKEND = (process.env.SQC_BACKEND || CONFIG.backend || 'https://soloquchile.cl').replace(/\/+$/, '');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 // Catálogo Blue Shell -> nombre de archivo de imagen en /assets/shells/<slug>.png
@@ -82,7 +82,7 @@ let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shown
 // así el .exe es independiente y usa datos frescos de la nube.
 let rosterCache = { players: [] };
 async function refreshRoster(){
-  try { const r = await fetch(`${BACKEND}/players.json?t=${Date.now()}`); if (r.ok) rosterCache = await r.json(); } catch {}
+  try { const r = await fetch(`${BACKEND}/players.json`); if (r.ok) rosterCache = await r.json(); } catch {}   // URL estable → cacheable en Cloudflare
 }
 function loadRoster(){ return rosterCache; }
 
