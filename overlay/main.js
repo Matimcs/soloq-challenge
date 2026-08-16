@@ -65,7 +65,7 @@ function absLP(p){ if(!p) return 0; if(HIGH.has(p.tier)) return 2800 + (p.lp||0)
 // En el .exe empaquetado __dirname es de solo lectura → guardar en la carpeta de datos del usuario.
 let SETTINGS_FILE;
 try { SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json'); } catch { SETTINGS_FILE = path.join(__dirname, 'settings.json'); }
-let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: true, alwaysOnTop: true, volume: 0.8, voiceVolume: 0.9, autoLaunch: true };
+let settings = { smallVisible: true, shellVisible: true, opacity: 1, hideOutOfGame: true, alwaysOnTop: true, volume: 0.8, voiceVolume: 0.9, autoLaunch: true, locked: true };
 try { Object.assign(settings, JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'))); } catch {}
 function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings)); } catch {} }
 
@@ -231,6 +231,10 @@ ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.s
 // ---- Aplicar settings ----
 function applyOpacity(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
 function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
+// Candado: cuando está bloqueado, la tarjeta de standing y el popup de Blue Shells son
+// "click-through" (el mouse los atraviesa hacia el juego), así no los mueves sin querer al
+// jugar. Al desbloquear (ajustes) vuelven a ser arrastrables para reposicionarlos.
+function applyLock(){ [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked, { forward: true }); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
@@ -267,6 +271,7 @@ function applyAutoLaunch(){
 ipcMain.on('setting', (_e, { key, value }) => {
   settings[key] = value; saveSettings();
   if (key === 'opacity') applyOpacity();
+  else if (key === 'locked') applyLock();
   else if (key === 'alwaysOnTop') applyAlwaysOnTop();
   else if (key === 'autoLaunch') applyAutoLaunch();
   else if (key === 'volume') { /* se aplica en el próximo evento de Blue Shell */ }
@@ -440,7 +445,7 @@ async function pollMessages(){
 if (hasLock) app.whenReady().then(async () => {
   createWindows();
   createTray();
-  applyOpacity(); applyAlwaysOnTop(); applyAutoLaunch();
+  applyOpacity(); applyAlwaysOnTop(); applyAutoLaunch(); applyLock();
   // Arranca oculto (aún no estás en partida). applyVis los mostrará al entrar a una SoloQ.
   smallShown = false; win.hide();
   shellShown = false; shellWin.hide();
