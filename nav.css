@@ -64,6 +64,15 @@ header .nav{ display:grid; grid-template-columns:1fr minmax(0,auto) 1fr; align-i
 .logout-link{ background:none; border:none; color:var(--muted); font-family:var(--font); font-size:13px; font-weight:600; cursor:pointer; flex-shrink:0; }
 .logout-link:hover{ color:#fff; }
 
+/* Botón "Descargar app" (overlay) para jugadores registrados — lo inyecta api.js. */
+.download-pill{
+  display:inline-flex; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap; text-decoration:none;
+  font-family:var(--font); font-weight:800; font-size:13px;
+  color:var(--accent); background:rgba(233,255,31,.10); border:1px solid rgba(233,255,31,.45);
+  padding:9px 15px; border-radius:999px; cursor:pointer;
+}
+.download-pill:hover{ background:rgba(233,255,31,.18); }
+
 @media (max-width:1000px){
   header .nav{ height:102px; gap:14px; }
   .brand img{ height:84px; }

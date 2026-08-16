@@ -29,6 +29,16 @@ window.SQC = (function(){
     const acc = g('nav-account'), logout = g('logout');
     if (user){
       ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
+      // Botón "Descargar app" (overlay) para jugadores con sesión — se inyecta en la navbar.
+      const nr = document.querySelector('.nav-right');
+      if (nr && !g('nav-download')){
+        const dl = document.createElement('a');
+        dl.id = 'nav-download'; dl.className = 'download-pill';
+        dl.href = 'https://github.com/Matimcs/soloq-challenge/releases/latest';
+        dl.target = '_blank'; dl.rel = 'noopener'; dl.title = 'Descargar el overlay de escritorio';
+        dl.textContent = '⬇ Descargar app';
+        nr.insertBefore(dl, nr.firstChild);
+      }
       if (user.isAdmin){ const a = g('nav-admin'); if (a) a.style.display = ''; localStorage.setItem('sqc_admin','1'); }
       else localStorage.removeItem('sqc_admin');
       // Cachea el perfil para pintar la píldora al instante en la próxima página (sin flash).
@@ -44,6 +54,7 @@ window.SQC = (function(){
     } else {
       if (acc){ acc.className = 'login-pill'; acc.href = 'cuenta.html'; acc.textContent = 'Iniciar sesión'; }
       if (logout) logout.style.display = 'none';
+      const dl = g('nav-download'); if (dl) dl.remove();
       localStorage.removeItem('sqc_user');
     }
   }
