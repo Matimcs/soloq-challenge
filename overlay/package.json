@@ -1,6 +1,6 @@
 {
   "name": "sqc-overlay",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "SoloQ Challenge overlay (sin Overwolf) — Electron + APIs locales de Riot",
   "author": "SoloQ Chile",
   "main": "main.js",
@@ -49,7 +49,7 @@
       "installerHeaderIcon": "assets/icon.ico",
       "installerSidebar": "assets/installer-sidebar.bmp",
       "uninstallerSidebar": "assets/installer-sidebar.bmp",
-      "artifactName": "SoloQ-Overlay-Setup-${version}.${ext}"
+      "artifactName": "SoloQ-Overlay-Setup.${ext}"
     }
   }
 }

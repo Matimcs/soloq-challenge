@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Descargar app</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#7dd3fc; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.06), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:960px; margin:0 auto; padding:0 20px; }
+  .brand b span{ color:var(--accent); }
+
+  .hero{ text-align:center; padding:14px 0 8px; }
+  .beta{ display:inline-flex; align-items:center; gap:7px; font-size:11px; font-weight:800; letter-spacing:.06em;
+    color:var(--gold); background:rgba(255,210,74,.12); border:1px solid rgba(255,210,74,.4); padding:5px 12px; border-radius:999px; margin-bottom:16px; }
+  h1{ font-size:40px; letter-spacing:-.02em; line-height:1.05; }
+  h1 em{ font-style:italic; color:var(--accent); }
+  .lead{ color:var(--muted); font-size:16px; max-width:620px; margin:14px auto 0; line-height:1.5; }
+
+  .dl-card{ margin:28px auto; max-width:560px; background:linear-gradient(180deg,#12131a,#0b0c10); border:1px solid var(--line);
+    border-radius:18px; padding:26px 24px; text-align:center; box-shadow:0 18px 50px rgba(0,0,0,.5); }
+  .dl-card .os{ display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px; color:var(--muted); margin-bottom:16px; }
+  .dl-btn{ display:inline-flex; align-items:center; gap:10px; background:var(--accent); color:#000; font-weight:800; font-size:17px;
+    padding:15px 30px; border-radius:12px; cursor:pointer; border:none; transition:filter .15s; }
+  .dl-btn:hover{ filter:brightness(1.06); }
+  .dl-sub{ font-size:12px; color:var(--muted-2); margin-top:12px; }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; margin:22px 0; }
+  .feat{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+  .feat .ic{ font-size:22px; }
+  .feat h3{ font-size:14px; font-weight:700; margin:8px 0 5px; }
+  .feat p{ font-size:13px; color:var(--muted); line-height:1.45; }
+
+  .sec{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin:16px 0; }
+  .sec h2{ font-size:15px; font-weight:700; margin-bottom:12px; }
+  .sec ol, .sec ul{ margin:0; padding-left:20px; color:var(--muted); font-size:13.5px; line-height:1.7; }
+  .sec b{ color:var(--text); }
+  .warn{ border-color:rgba(255,210,74,.35); background:rgba(255,210,74,.05); }
+  .warn h2{ color:var(--gold); }
+  .note{ font-size:11.5px; color:var(--muted-2); text-align:center; margin:26px 0 44px; }
+</style>
+<link rel="stylesheet" href="nav.css">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div class="beta">⚗ EN FASE DE PRUEBA (BETA)</div>
+      <h1>El <em>overlay</em> de SoloQ Challenge</h1>
+      <p class="lead">Una app de escritorio que te muestra tu puesto del torneo en vivo mientras juegas, sin tener que abrir la web. Se instala una vez y se actualiza sola.</p>
+    </div>
+
+    <div class="dl-card">
+      <div class="os">🪟 Para Windows 10 / 11</div>
+      <a class="dl-btn" id="dl" href="https://github.com/Matimcs/soloq-challenge/releases/latest/download/SoloQ-Overlay-Setup.exe">⬇ Descargar para Windows</a>
+      <div class="dl-sub">Instalador · ~100 MB · gratis</div>
+    </div>
+
+    <div class="grid">
+      <div class="feat"><div class="ic">📊</div><h3>Tu standing en vivo</h3><p>Tu puesto, elo, racha y cuánto LP te falta para pasar al de arriba — como una tarjeta flotante encima del juego.</p></div>
+      <div class="feat"><div class="ic">⚔</div><h3>Quién del torneo está en tu partida</h3><p>Detecta si estás jugando con o contra otros participantes y te lo marca (aliado / rival).</p></div>
+      <div class="feat"><div class="ic">🐢</div><h3>Blue Shells y avisos</h3><p>Te llegan los castigos y mensajes del torneo directo al overlay, con sonido.</p></div>
+      <div class="feat"><div class="ic">🔄</div><h3>Se actualiza sola</h3><p>La instalas una vez. Las nuevas versiones se descargan e instalan solas — sin volver a bajar nada.</p></div>
+    </div>
+
+    <div class="sec">
+      <h2>Requisitos</h2>
+      <ul>
+        <li><b>Windows 10 u 11.</b></li>
+        <li><b>League of Legends</b> instalado (el overlay se activa cuando abres el juego).</li>
+        <li>Tu <b>cuenta del torneo</b> logueada en LoL (te detecta solo, no hay que configurar nada).</li>
+      </ul>
+    </div>
+
+    <div class="sec warn">
+      <h2>⚠️ Está en beta — dos cosas a tener en cuenta</h2>
+      <ol>
+        <li>Al abrir el instalador, Windows puede mostrar <b>"Windows protegió tu PC"</b> (porque la app aún no está firmada). Haz clic en <b>"Más información" → "Ejecutar de todas formas"</b>. Es seguro.</li>
+        <li>Es una versión de prueba: puede tener detalles por pulir. Si algo falla, avísale a un admin.</li>
+      </ol>
+    </div>
+
+    <div class="sec">
+      <h2>Cómo usarla</h2>
+      <ol>
+        <li>Descarga e instala (una sola vez).</li>
+        <li>Ábrela y abre <b>League of Legends</b>. La tarjeta aparece sola.</li>
+        <li><b>Alt + X</b> muestra/oculta el panel. El ⚙ de ajustes te deja mover u ocultar cosas.</li>
+      </ol>
+    </div>
+
+    <div class="note">Descarga alojada en GitHub. La app es solo para los participantes del SoloQ Challenge.</div>
+  </main>
+
+<script src="players.js"></script>
+<script src="api.js"></script>
+<script>
+  SQC.preNav(); SQC.mountNav();
+  // Pequeño feedback al hacer clic (la descarga la maneja el navegador vía GitHub).
+  document.getElementById('dl').addEventListener('click', () => {
+    const b = document.getElementById('dl');
+    setTimeout(() => { b.innerHTML = '⬇ Descargando…'; setTimeout(() => b.innerHTML = '⬇ Descargar para Windows', 4000); }, 50);
+  });
+</script>
+</body>
+</html>

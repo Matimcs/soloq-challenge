@@ -34,8 +34,8 @@ window.SQC = (function(){
       if (nr && !g('nav-download')){
         const dl = document.createElement('a');
         dl.id = 'nav-download'; dl.className = 'download-pill';
-        dl.href = 'https://github.com/Matimcs/soloq-challenge/releases/latest';
-        dl.target = '_blank'; dl.rel = 'noopener'; dl.title = 'Descargar el overlay de escritorio';
+        dl.href = 'descargar.html';
+        dl.title = 'Descargar el overlay de escritorio';
         dl.textContent = '⬇ Descargar app';
         nr.insertBefore(dl, nr.firstChild);
       }
