@@ -777,8 +777,9 @@ app.get('/api/nav-counts', (req,res) => {
   const encEnds = (liveData && Array.isArray(liveData.encounters)) ? liveData.encounters.map(e => e.end || 0) : [];
   res.json({ live, encEnds });
 });
-app.get('/players.json', (req,res,next) => liveData ? res.json(liveData) : next());
-app.get('/players.js',   (req,res,next) => liveData ? res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(liveData) + ';\n') : next());
+// Cacheables ~20s (para que Cloudflare los sirva del borde y baje la banda de Render).
+app.get('/players.json', (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'public, max-age=20'); res.json(liveData); });
+app.get('/players.js',   (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'public, max-age=20'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(liveData) + ';\n'); });
 
 // ================= DROP DIARIO =================
 // Reto que lanza la organización; el primero que lo cumpla se lleva la Blue Shell.
