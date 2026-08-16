@@ -1029,6 +1029,15 @@ app.get('/api/encounters', wrap(async (req, res) => {
   res.json(ENC_CACHE.data);
 }));
 
+// Admin: quién está usando el overlay (desde overlay_reports — cada overlay con LoL abierto
+// reporta ~1/min). min_ago pequeño = lo tiene corriendo ahora.
+app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) => {
+  const rows = await q(`SELECT riotid, in_game,
+     round(EXTRACT(EPOCH FROM (now()-updated_at))/60)::int AS min_ago
+     FROM overlay_reports ORDER BY updated_at DESC`);
+  res.json(rows.map(r => ({ riotid: r.riotid, inGame: !!r.in_game, minAgo: Number(r.min_ago) })));
+}));
+
 // Health-check ultra liviano (para UptimeRobot / monitoreo): responde "ok" sin tocar la DB.
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 

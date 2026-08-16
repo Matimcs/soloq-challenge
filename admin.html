@@ -98,6 +98,13 @@
       <div id="drop-current" class="empty" style="margin-top:10px">Sin drop activo.</div>
     </div>
 
+    <!-- Uso del overlay -->
+    <div class="box">
+      <h2>Overlay — quién lo está usando <span class="n" id="ov-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Cuentas que han abierto LoL con el overlay corriendo (reportan solas cada ~1 min). "Activo ahora" = lo tienen abierto en este momento.</div>
+      <div class="list" id="ov-list"></div>
+    </div>
+
     <!-- Agregar cuenta al ranking -->
     <div class="box">
       <h2>Agregar cuenta al ranking <span class="n" id="rt-count"></span></h2>
@@ -228,6 +235,18 @@
       }));
     }
 
+    // ---- Uso del overlay ----
+    const agoTxt = m => m<=3 ? '🟢 activo ahora' : (m<60 ? `hace ${m} min` : (m<1440 ? `hace ${Math.round(m/60)} h` : `hace ${Math.round(m/1440)} d`));
+    async function renderOverlay(){
+      let list; try { list = await SQC.api('/admin/overlay-usage'); } catch(e){ return; }
+      $('ov-count').textContent = `(${list.length})`;
+      $('ov-list').innerHTML = list.length ? list.map(u=>`
+        <div class="item"><div class="info">
+          <div class="t">${u.riotid} ${u.inGame?'<span class="badge on" style="margin-left:6px">EN PARTIDA</span>':''}</div>
+          <div class="s">${agoTxt(u.minAgo)}</div></div></div>`).join('')
+        : '<div class="empty">Nadie ha usado el overlay todavía.</div>';
+    }
+
     // ---- Drop diario ----
     async function renderDrop(){
       const d = await SQC.api('/admin/drop');
@@ -352,7 +371,8 @@
     $('msg-send').addEventListener('click', sendMsg);
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
-    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers();
+    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
+    setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
   })();
 </script>
 </body>
