@@ -234,7 +234,10 @@ function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w =>
 // Candado: cuando está bloqueado, la tarjeta de standing y el popup de Blue Shells son
 // "click-through" (el mouse los atraviesa hacia el juego), así no los mueves sin querer al
 // jugar. Al desbloquear (ajustes) vuelven a ser arrastrables para reposicionarlos.
-function applyLock(){ [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked, { forward: true }); }); }
+// OJO: sin { forward:true }. Ese "forward" reenvía TODOS los eventos de mouse y hace que el
+// cursor se trabe/freezee cada pocos segundos en Windows (bug conocido de Electron). No hace
+// falta: las tarjetas son solo informativas (no necesitan hover). Bloqueado = click-through puro.
+function applyLock(){ [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
