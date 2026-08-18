@@ -1598,16 +1598,18 @@ function applyData(nd){
   if (window.SQC) SQC.navBadges(nd);
 }
 
-// Solo sobre http/https (file:// no permite fetch). Re-lee players.json cada 20s.
+// Solo sobre http/https (file:// no permite fetch). Re-lee players.json (cacheable ~20s).
 if (location.protocol.startsWith('http')){
-  setInterval(async () => {
+  const pull = async () => {
     try {
       const r = await fetch('players.json');   // URL estable + cacheable (Cloudflare la sirve del borde ~20s)
       if (!r.ok) return;
       const nd = await r.json();
       if (nd && nd.updatedAt !== (DATA && DATA.updatedAt)) applyData(nd);
     } catch {}
-  }, 30000);
+  };
+  pull();                    // inmediato al cargar (no espera 30s) → live games frescos de una
+  setInterval(pull, 30000);
 }
 </script>
 <script src="api.js"></script>

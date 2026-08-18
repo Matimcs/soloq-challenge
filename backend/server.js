@@ -777,9 +777,12 @@ app.get('/api/nav-counts', (req,res) => {
   const encEnds = (liveData && Array.isArray(liveData.encounters)) ? liveData.encounters.map(e => e.end || 0) : [];
   res.json({ live, encEnds });
 });
-// Cacheables ~20s (para que Cloudflare los sirva del borde y baje la banda de Render).
+// players.json (el que se consulta cada 30s por polling): cacheable ~20s → Cloudflare lo
+// sirve del borde y baja la banda. players.js es la carga INICIAL de cada página (script tag):
+// SIN caché, así el primer render nunca sale con un snapshot viejo (evita cronómetros de live
+// games inflados al abrir). Cargar players.js fresco 1 vez por página es despreciable.
 app.get('/players.json', (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'public, max-age=20'); res.json(liveData); });
-app.get('/players.js',   (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'public, max-age=20'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(liveData) + ';\n'); });
+app.get('/players.js',   (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(liveData) + ';\n'); });
 
 // ================= DROP DIARIO =================
 // Reto que lanza la organización; el primero que lo cumpla se lleva la Blue Shell.
@@ -1048,7 +1051,8 @@ app.use(express.static(ROOT, {
     // players.json/js cacheables ~20s: Cloudflare sirve la mayoría de los polls desde el
     // borde (1 fetch al origen cada ~20s en vez de 1 por cliente) → baja mucho la banda.
     // El ranking igual se actualiza cada ~2 min, así que ~20s de "atraso" es imperceptible.
-    if (/players\.(json|js)$/.test(filePath)) res.setHeader('Cache-Control', 'public, max-age=20');
+    if (/players\.json$/.test(filePath)) res.setHeader('Cache-Control', 'public, max-age=20');
+    else if (/players\.js$/.test(filePath)) res.setHeader('Cache-Control', 'no-store');   // carga inicial: siempre fresca
   }
 }));
 
