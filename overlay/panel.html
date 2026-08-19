@@ -52,7 +52,7 @@
       <label class="opt col"><span>Volumen (efectos / ruleta) <b id="s-vol-val"></b></span><input type="range" id="s-vol" min="0" max="100"></label>
       <label class="opt col"><span>Volumen de mensajes de voz <b id="s-vvol-val"></b></span><input type="range" id="s-vvol" min="0" max="100"></label>
       <button class="sbtn" id="s-reset">Reponer posiciones</button>
-      <div class="snote">Los cambios se guardan automáticamente. La página se carga en vivo desde el servidor.</div>
+      <div class="snote">Los cambios se guardan automáticamente. La página se carga en vivo desde el servidor.<br>SoloQ Overlay <span id="s-version">—</span></div>
     </div>
   </div>
 
@@ -60,6 +60,7 @@
   const { ipcRenderer } = require('electron');
   const $ = id => document.getElementById(id);
   const settingsEl = $('settings');
+  ipcRenderer.invoke('get-version').then(v => { const el = $('s-version'); if (el) el.textContent = 'v' + v; }).catch(() => {});
   async function openSettings(){
     const s = await ipcRenderer.invoke('get-settings');
     $('s-small').checked=!!s.smallVisible; $('s-shell').checked=!!s.shellVisible;
