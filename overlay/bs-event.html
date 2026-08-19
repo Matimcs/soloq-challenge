@@ -18,9 +18,9 @@
   .nc{ font-size:14px; font-weight:800; color:#fff; margin-top:2px; }
 
   /* Barra para MOVER la ruleta (arriba, por encima del overlay de la ruleta) */
-  .dragbar{ display:none; position:fixed; top:0; left:0; right:0; height:30px; z-index:100002;
-    align-items:center; gap:8px; padding:0 8px 0 10px; cursor:move;
-    background:rgba(10,11,15,.9); border-bottom:1px solid rgba(255,255,255,.08); }
+  .dragbar{ display:none; position:fixed; top:0; left:0; right:0; height:26px; z-index:100002;
+    align-items:center; gap:8px; padding:0 6px 0 8px; cursor:move;
+    background:rgba(10,11,15,.42); border-bottom:1px solid rgba(255,255,255,.05); }
   .dragbar img{ width:18px; height:18px; border-radius:4px; }
   .db-t{ font-size:12px; font-weight:800; color:var(--accent); }
   .db-hint{ font-size:10px; color:rgba(255,255,255,.4); margin-left:6px; }
@@ -36,9 +36,10 @@
 
   /* Ruleta MINIMAL en el overlay: sin backdrop oscuro ni marco — solo la rueda (+ resultado),
      para no tapar pantalla. Fondo transparente, sin borde/sombra/padding, sin título/hint. */
-  .sqcr-overlay{ background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; padding-top:30px; }
+  .sqcr-overlay{ background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; padding-top:26px; }
   .sqcr-box{ background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; width:520px !important; }
   .sqcr-title, .sqcr-sub, .sqcr-hint{ display:none !important; }
+  .sqcr-track{ background:rgba(10,11,15,.38) !important; border-color:rgba(255,255,255,.05) !important; }   /* fondo más transparente */
 </style>
 </head>
 <body>
@@ -47,9 +48,8 @@
     <div><div class="nt" id="nt"></div><div class="nc" id="nc"></div></div>
   </div>
 
-  <div class="dragbar" id="dragbar">
-    <img src="assets/logo.png" alt=""><span class="db-t">Blue Shell</span>
-    <span class="db-hint">arrastra para mover · esquina ↘ para redimensionar</span>
+  <div class="dragbar" id="dragbar" title="Arrastra para mover · esquina ↘ para redimensionar">
+    <img src="assets/logo.png" alt="">
     <button class="db-x" id="db-x" title="Cerrar">✕</button>
   </div>
   <div class="grip" id="grip" title="Redimensionar"></div>
@@ -73,7 +73,7 @@
     const bw = box.offsetWidth || 520, bh = box.offsetHeight || 210;
     const s = Math.min(window.innerWidth / (bw + 24), (window.innerHeight - 30) / (bh + 24));
     box.style.transformOrigin = 'center center';
-    box.style.transform = 'scale(' + Math.max(0.35, Math.min(2.5, s)) + ')';
+    box.style.transform = 'scale(' + Math.max(0.2, Math.min(2.5, s)) + ')';
   }
   window.addEventListener('resize', fitBox);
 
@@ -106,8 +106,11 @@
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
         SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio, champIcon: ev.champIcon, champName: ev.champ,
           title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
-        setChrome(true); fitBox(); requestAnimationFrame(fitBox);   // barra/grip + escala a la ventana
-        setTimeout(done, 12000);   // auto-cierre de respaldo
+        setChrome(true);
+        // Re-escala en varios momentos (el layout/imagenes tardan un frame) para que no salga cortada.
+        [0, 120, 300, 700].forEach(t => setTimeout(fitBox, t));
+        document.querySelectorAll('.sqcr-box img').forEach(img => { if (!img.complete) img.addEventListener('load', fitBox, { once: true }); });
+        setTimeout(done, 9000);   // auto-cierre de respaldo
       });
     } else {
       // En partida: notificación pequeña en la esquina (sin ruleta, sin mover/resize).
