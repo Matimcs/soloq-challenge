@@ -521,7 +521,7 @@ if (hasLock) app.whenReady().then(async () => {
       autoUpdater.on('error', e => { dlog('updater error: ' + (e && e.message));
         if (updManual){ showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); } updManual = false; });
       checkUpdates(false);
-      setInterval(() => checkUpdates(false), 6 * 3600 * 1000);
+      setInterval(() => checkUpdates(false), 15 * 60 * 1000);   // revisa cada 15 min (beta: updates frecuentes)
     } catch (e) { dlog('updater init: ' + (e && e.message)); }
   }
   console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.');
