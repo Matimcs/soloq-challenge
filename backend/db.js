@@ -161,6 +161,9 @@ async function init(){
       castigo_wins INTEGER DEFAULT 0,           -- victorias jugando con castigo (hacia "5 con castigo")
       updated_at  TIMESTAMPTZ DEFAULT now()
     );
+    -- Progreso POR CUENTA (main + smurfs): { riotid: {last_end, streak, champ_wins, castigo_wins} }.
+    -- Así el granter otorga shells por logros hechos en cualquier cuenta del jugador, no solo la main.
+    ALTER TABLE shell_progress ADD COLUMN IF NOT EXISTS accounts JSONB DEFAULT '{}';
     -- Columnas nuevas (perfil): 3 campeones más jugados, slot del Flash, confirmación del admin.
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ1     TEXT;
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS champ2     TEXT;
