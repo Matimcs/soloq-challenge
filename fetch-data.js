@@ -331,23 +331,33 @@ async function updatePlayerStats(puuid, entry){
     } catch {}
   }
 
-  // ±LP: solo hacia adelante. Si apareció EXACTAMENTE 1 partida nueva, el delta de LP es de esa partida.
+  // ±LP: solo hacia adelante. El delta de una partida = cambio de LP entre ciclos. OJO: Riot
+  // tarda 1-2 min en actualizar el LP tras terminar la partida, así que al DETECTAR la partida
+  // el delta suele salir 0 (el LP no propagó todavía). Si lo guardáramos como 0 quedaría mal
+  // para siempre (era el bug del ±LP de sesión). Solución: marcar esa partida como PENDIENTE y
+  // confirmar el delta real en el ciclo siguiente, cuando el LP ya cambió.
   const cur = absLP(entry);
-  // Aegis PERMANENTE (acumulativo): un aegis = victoria de ~doble LP (≥1.8× el LP típico
-  // reciente). El contador se seedea UNA vez desde el historial disponible (lpGames) y luego
-  // solo se incrementa con cada nueva victoria de doble-LP → nunca se "borra" al jugar más.
+  // Aegis PERMANENTE (acumulativo): un aegis = victoria de ~doble LP (≥1.8× el LP típico reciente).
   const aegisBase = () => median(store.lpGames.filter(g => g.delta > 0).map(g => g.delta).slice(0, 15));
+  const countAegis = d => { const b = aegisBase(); if (d > 0 && b && d >= 1.8 * b) store.aegisTotal = (store.aegisTotal || 0) + 1; };
   if (store.aegisTotal == null) {
     const b = aegisBase();
     store.aegisTotal = b ? store.lpGames.filter(g => g.delta > 0 && g.delta >= 1.8 * b).length : 0;
   }
-  if (cur != null && store.lastAbsLP != null && fetched.length === 1) {
-    const delta = cur - store.lastAbsLP;
-    if (Math.abs(delta) <= 100) {                // descarta saltos raros (promo de tier, decay, reset)
-      store.lpGames.unshift({ win: fetched[0].win, delta, end: fetched[0].end });
-      store.lpGames = store.lpGames.slice(0, 40);
-      const b = aegisBase();
-      if (delta > 0 && b && delta >= 1.8 * b) store.aegisTotal++;   // nueva victoria doble-LP → +1 permanente
+  if (cur != null && store.lastAbsLP != null) {
+    // 1) Confirmar el delta PENDIENTE del ciclo anterior (ahora que el LP ya se movió).
+    if (store.lpGames[0] && store.lpGames[0].pending) {
+      const d = cur - store.lastAbsLP;
+      if (d !== 0 && Math.abs(d) <= 100) { store.lpGames[0].delta = d; delete store.lpGames[0].pending; countAegis(d); store.lastAbsLP = cur; }
+    }
+    // 2) Partida nueva (exactamente 1). Si el LP aún no propagó (delta 0) → queda pendiente.
+    if (fetched.length === 1) {
+      const delta = cur - store.lastAbsLP;
+      if (Math.abs(delta) <= 100) {              // descarta saltos raros (promo de tier, decay, reset)
+        if (delta === 0) store.lpGames.unshift({ win: fetched[0].win, delta: 0, end: fetched[0].end, pending: true });
+        else { store.lpGames.unshift({ win: fetched[0].win, delta, end: fetched[0].end }); countAegis(delta); }
+        store.lpGames = store.lpGames.slice(0, 40);
+      }
     }
   }
   if (cur != null) store.lastAbsLP = cur;
