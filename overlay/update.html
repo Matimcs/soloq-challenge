@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  html,body{ margin:0; background:transparent; overflow:hidden; user-select:none;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif; color:#fff; }
+  .card{ margin:8px; padding:12px 14px; border-radius:14px;
+    background:linear-gradient(180deg,#12131a,#0b0c10); border:1px solid rgba(255,255,255,.1);
+    box-shadow:0 12px 34px rgba(0,0,0,.55); }
+  .row{ display:flex; align-items:center; gap:10px; }
+  .row img{ width:22px; height:22px; border-radius:5px; }
+  .t{ font-size:13px; font-weight:800; letter-spacing:.02em; }
+  .t span{ color:#e9ff1f; }
+  .s{ font-size:11.5px; color:rgba(255,255,255,.62); margin-top:2px; }
+  .bar{ height:6px; background:rgba(255,255,255,.08); border-radius:4px; margin-top:10px; overflow:hidden; display:none; }
+  .bar > span{ display:block; height:100%; width:0; background:#e9ff1f; transition:width .2s; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="row">
+      <img src="assets/logo.png" alt="">
+      <div><div class="t">SoloQ <span>Challenge</span></div><div class="s" id="s">Buscando actualización…</div></div>
+    </div>
+    <div class="bar" id="barwrap"><span id="bar"></span></div>
+  </div>
+<script>
+  const { ipcRenderer } = require('electron');
+  ipcRenderer.on('upd', (_e, d) => {
+    document.getElementById('s').textContent = d.text || '';
+    const bw = document.getElementById('barwrap'), b = document.getElementById('bar');
+    if (d.pct != null){ bw.style.display = 'block'; b.style.width = Math.max(0, Math.min(100, d.pct)) + '%'; }
+    else { bw.style.display = 'none'; }
+  });
+</script>
+</body>
+</html>

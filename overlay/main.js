@@ -106,7 +106,7 @@ async function loadDDragon(){
 // quiera, que use una app aparte tipo Porofessor. La web ya tiene Live Games igual.
 
 // ---- Ventanas ----
-let win, shellWin, bigWin, bsWin, msgWin, audioWin;
+let win, shellWin, bigWin, bsWin, msgWin, audioWin, updWin;
 function baseWin(w, h, x, y, show = true, focusable = false, opaque = false){
   // opaque=true: ventana NO transparente (fondo sólido). El panel (que embebe la web en un
   // iframe) debe ser opaco: en Windows, una ventana transparente renderiza en NEGRO el
@@ -193,7 +193,22 @@ function createWindows(){
   audioWin = new BrowserWindow({ show:false, width:200, height:120, frame:false, skipTaskbar:true, focusable:false,
     webPreferences:{ nodeIntegration:true, contextIsolation:false } });
   audioWin.loadFile(path.join(__dirname, 'audio.html'));
+  // Ventana VISIBLE de actualización (abajo-derecha): muestra el progreso del auto-update.
+  const UW = 320, UH = 100;
+  updWin = baseWin(UW, UH, d.wa.x + d.wa.width - UW - 16, d.wa.y + d.wa.height - UH - 46, false);
+  updWin.setAlwaysOnTop(true, 'screen-saver'); updWin.loadFile(path.join(__dirname, 'update.html'));
 }
+// Muestra/actualiza la ventana de actualización. text = línea de estado; pct = % (o null = sin barra).
+function showUpd(text, pct){
+  if (!updWin || updWin.isDestroyed()) return;
+  if (!updWin.isVisible()) updWin.showInactive();
+  updWin.webContents.send('upd', { text, pct });
+}
+function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); }
+// Chequeo de actualización. manual=true (desde la bandeja) muestra también "ya estás al día"
+// o el error; el automático solo aparece si hay algo que descargar.
+let updManual = false;
+function checkUpdates(manual){ if (!app.isPackaged) return; updManual = !!manual; try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
 function playVoice(dataUrl){
   if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
 }
@@ -212,7 +227,7 @@ function createTray(){
       { label: 'Cerrar overlay', click: () => hideAll() },
       { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
       { type: 'separator' },
-      { label: 'Buscar actualizaciones', click: () => { try { autoUpdater.checkForUpdatesAndNotify(); } catch {} } },
+      { label: 'Buscar actualizaciones', click: () => checkUpdates(true) },
       { label: 'Instalar actualización y reiniciar', click: () => { try { autoUpdater.quitAndInstall(); } catch {} } },
       { type: 'separator' },
       { label: 'Salir', click: () => app.quit() },
@@ -477,20 +492,26 @@ if (hasLock) app.whenReady().then(async () => {
     const extra = castigo === 'Campeón aleatorio' ? 'Yuumi' : castigo === 'Clase de campeón aleatoria' ? 'Tank' : null;
     showBlueShellEvent({ castigo, from: 'Prueba', extra });
   });
-  // ---- Auto-actualización (electron-updater vía GitHub Releases público) ----
-  // Solo en el .exe empaquetado. Chequea al arrancar y cada 6h; descarga sola la versión
-  // nueva y la instala al cerrar/reiniciar. No necesita token (el repo/releases es público).
+  // ---- Auto-actualización VISIBLE (electron-updater vía GitHub Releases público) ----
+  // Muestra el progreso en una ventana (no en 2do plano) e instala apenas termina de bajar.
   if (app.isPackaged){
     try {
       autoUpdater.autoDownload = true;
-      autoUpdater.on('update-available', i => dlog('update disponible: ' + (i && i.version)));
-      autoUpdater.on('update-not-available', () => dlog('sin updates'));
-      autoUpdater.on('download-progress', p => dlog('descargando update: ' + Math.round(p.percent) + '%'));
-      autoUpdater.on('update-downloaded', i => { dlog('update descargada: ' + (i && i.version) + ' (se instala al reiniciar)');
-        if (tray) tray.setToolTip('SoloQ Overlay — actualización lista (se instala al reiniciar)'); });
-      autoUpdater.on('error', e => dlog('updater error: ' + (e && e.message)));
-      autoUpdater.checkForUpdatesAndNotify().catch(() => {});
-      setInterval(() => autoUpdater.checkForUpdates().catch(() => {}), 6 * 3600 * 1000);
+      autoUpdater.autoInstallOnAppQuit = true;
+      autoUpdater.on('checking-for-update', () => { if (updManual) showUpd('Buscando actualización…', null); });
+      autoUpdater.on('update-available', i => { dlog('update disponible: ' + (i && i.version));
+        showUpd('Actualización ' + (i && i.version ? 'v' + i.version : '') + ' — descargando…', 0); });
+      autoUpdater.on('update-not-available', () => { dlog('sin updates');
+        if (updManual){ showUpd('Ya tienes la última versión ✓', null); setTimeout(hideUpd, 4000); } updManual = false; });
+      autoUpdater.on('download-progress', p => showUpd('Descargando actualización… ' + Math.round(p.percent) + '%', p.percent));
+      autoUpdater.on('update-downloaded', i => { dlog('update descargada: ' + (i && i.version));
+        showUpd('Actualización lista — reiniciando…', 100);
+        setTimeout(() => { try { autoUpdater.quitAndInstall(); }
+          catch (e){ dlog('quitAndInstall: ' + (e && e.message)); showUpd('Listo. Cierra y abre la app para aplicar la actualización.', null); } }, 2500); });
+      autoUpdater.on('error', e => { dlog('updater error: ' + (e && e.message));
+        if (updManual){ showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); } updManual = false; });
+      checkUpdates(false);
+      setInterval(() => checkUpdates(false), 6 * 3600 * 1000);
     } catch (e) { dlog('updater init: ' + (e && e.message)); }
   }
   console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.');
