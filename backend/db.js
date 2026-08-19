@@ -178,6 +178,15 @@ async function init(){
       team       TEXT,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+
+    -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
+    -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
+    -- porque se conecta como 'postgres' (bypassrls). Idempotente y cubre tablas futuras.
+    DO $$ DECLARE t text; BEGIN
+      FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+      END LOOP;
+    END $$;
   `);
   console.log('✔ Esquema Postgres listo');
 }
