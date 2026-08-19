@@ -593,23 +593,32 @@ app.post('/api/admin/message', auth, requireAdmin, wrap(async (req,res) => {
   res.json({ ok:true });
 }));
 // El overlay sondea sus mensajes recientes (últimos 5 min) por Riot ID. Sin auth (solo lectura de lo propio).
+// Resuelve un Riot ID (cuenta MAIN o SMURF) al id del jugador dueño. Así el overlay recibe
+// shells/mensajes del jugador estés logueado en la main o en cualquiera de tus smurfs.
+async function ownerIdByRiotid(riotid){
+  const u = await q1('SELECT id FROM users WHERE lower(riotid)=lower($1)', [riotid]);
+  if (u) return u.id;
+  const s = await q1('SELECT user_id AS id FROM smurfs WHERE lower(riotid)=lower($1)', [riotid]);
+  return s ? s.id : null;
+}
+
 app.get('/api/overlay/messages', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
   if (!riotid) return res.json([]);
-  const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
-  if (!u) return res.json([]);
+  const uid = await ownerIdByRiotid(riotid);
+  if (!uid) return res.json([]);
   res.json(await q(`SELECT id, text, audio, created_at FROM admin_messages
-    WHERE user_id=$1 AND created_at > now() - interval '5 minutes' ORDER BY id ASC LIMIT 10`, [u.id]));
+    WHERE user_id=$1 AND created_at > now() - interval '5 minutes' ORDER BY id ASC LIMIT 10`, [uid]));
 }));
 
 // Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
 app.get('/api/overlay/shells', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
   if (!riotid) return res.json([]);
-  const u = await q1('SELECT id FROM users WHERE riotid=$1', [riotid]);
-  if (!u) return res.json([]);
+  const uid = await ownerIdByRiotid(riotid);
+  if (!uid) return res.json([]);
   res.json(await q(`SELECT id, castigo, other AS "from", estado, extra, audio, created_at FROM events
-    WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [u.id]));
+    WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [uid]));
 }));
 
 // ================= PARTICIPANTES =================
