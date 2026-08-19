@@ -34,9 +34,11 @@
       linear-gradient(135deg, transparent 50%, rgba(233,255,31,.55) 50%, rgba(233,255,31,.55) 60%, transparent 60%,
       transparent 72%, rgba(233,255,31,.55) 72%, rgba(233,255,31,.55) 82%, transparent 82%); }
 
-  /* La ruleta (roulette.js) se centra en la ventana; la escalamos con la ventana. */
-  .sqcr-overlay{ padding-top:30px; }
-  .sqcr-box{ width:680px !important; }
+  /* Ruleta MINIMAL en el overlay: sin backdrop oscuro ni marco — solo la rueda (+ resultado),
+     para no tapar pantalla. Fondo transparente, sin borde/sombra/padding, sin título/hint. */
+  .sqcr-overlay{ background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; padding-top:30px; }
+  .sqcr-box{ background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; width:520px !important; }
+  .sqcr-title, .sqcr-sub, .sqcr-hint{ display:none !important; }
 </style>
 </head>
 <body>
@@ -67,9 +69,11 @@
   // Escala la ruleta para que ocupe la ventana (mantiene proporción y queda centrada).
   function fitBox(){
     const box = document.querySelector('.sqcr-box'); if (!box) return;
-    const s = Math.min(window.innerWidth / 720, (window.innerHeight - 30) / 470);
+    box.style.transform = 'none';                      // resetea para medir el tamaño natural
+    const bw = box.offsetWidth || 520, bh = box.offsetHeight || 210;
+    const s = Math.min(window.innerWidth / (bw + 24), (window.innerHeight - 30) / (bh + 24));
     box.style.transformOrigin = 'center center';
-    box.style.transform = 'scale(' + Math.max(0.35, Math.min(2.2, s)) + ')';
+    box.style.transform = 'scale(' + Math.max(0.35, Math.min(2.5, s)) + ')';
   }
   window.addEventListener('resize', fitBox);
 

@@ -410,7 +410,7 @@ function showBlueShellEvent(s){
   if (mode === 'roulette'){
     // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado por defecto.
     const sp = (settings.pos && settings.pos.bs) || {};
-    const W = Number.isFinite(sp.w) ? sp.w : 720, H = Number.isFinite(sp.h) ? sp.h : 440;
+    const W = Number.isFinite(sp.w) ? sp.w : 560, H = Number.isFinite(sp.h) ? sp.h : 320;
     const pos = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), Math.round(d.wa.y + (d.wa.height - H) / 2));
     bsWin.setBounds({ x: pos.x, y: pos.y, width: W, height: H });
   } else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
