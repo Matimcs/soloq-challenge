@@ -309,6 +309,7 @@ ipcMain.on('reset-pos', () => {
 });
 ipcMain.handle('get-settings', () => settings);
 ipcMain.handle('get-version', () => { try { return app.getVersion(); } catch { return '?'; } });
+ipcMain.on('check-updates', () => checkUpdates(true));   // botón "Buscar actualizaciones" del panel
 ipcMain.on('close-all', () => hideAll());   // botón ✕ del panel
 
 // Reporta a la nube el rango del jugador (sacado del cliente vía LCU, GRATIS) y si está en
