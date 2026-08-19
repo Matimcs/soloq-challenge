@@ -202,6 +202,7 @@ function createWindows(){
 // Muestra/actualiza la ventana de actualización. text = línea de estado; pct = % (o null = sin barra).
 function showUpd(text, pct){
   if (!updWin || updWin.isDestroyed()) return;
+  if (lastInGame && !updManual) return;   // no molestar con avisos de update durante la partida
   if (!updWin.isVisible()) updWin.showInactive();
   updWin.webContents.send('upd', { text, pct });
 }
@@ -210,6 +211,16 @@ function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); }
 // o el error; el automático solo aparece si hay algo que descargar.
 let updManual = false;
 function checkUpdates(manual){ if (!app.isPackaged) return; updManual = !!manual; try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
+// Instala la actualización SIN abrir el instalador (modo silencioso) y relanza la app sola.
+// No interrumpe si estás en partida: espera a que termines (lo reintenta el interval).
+let updateReady = false;
+function tryInstall(){
+  if (!updateReady || lastInGame) return;   // en partida: se instalará al terminar (o al cerrar la app)
+  updateReady = false;
+  showUpd('Actualizando…', 100);
+  try { autoUpdater.quitAndInstall(true, true); }   // (isSilent, isForceRunAfter): sin ventana de instalador + relanza
+  catch (e){ dlog('quitAndInstall: ' + (e && e.message)); }
+}
 function playVoice(dataUrl){
   if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
 }
@@ -229,7 +240,7 @@ function createTray(){
       { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
       { type: 'separator' },
       { label: 'Buscar actualizaciones', click: () => checkUpdates(true) },
-      { label: 'Instalar actualización y reiniciar', click: () => { try { autoUpdater.quitAndInstall(); } catch {} } },
+      { label: 'Instalar actualización y reiniciar', click: () => { try { autoUpdater.quitAndInstall(true, true); } catch {} } },
       { type: 'separator' },
       { label: 'Salir', click: () => app.quit() },
     ]));
@@ -410,7 +421,7 @@ function showBlueShellEvent(s){
   if (mode === 'roulette'){
     // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado por defecto.
     const sp = (settings.pos && settings.pos.bs) || {};
-    const W = Number.isFinite(sp.w) ? sp.w : 560, H = Number.isFinite(sp.h) ? sp.h : 320;
+    const W = Number.isFinite(sp.w) ? sp.w : 540, H = Number.isFinite(sp.h) ? sp.h : 230;
     const pos = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), Math.round(d.wa.y + (d.wa.height - H) / 2));
     bsWin.setBounds({ x: pos.x, y: pos.y, width: W, height: H });
   } else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
@@ -516,13 +527,13 @@ if (hasLock) app.whenReady().then(async () => {
         if (updManual){ showUpd('Ya tienes la última versión ✓', null); setTimeout(hideUpd, 4000); } updManual = false; });
       autoUpdater.on('download-progress', p => showUpd('Descargando actualización… ' + Math.round(p.percent) + '%', p.percent));
       autoUpdater.on('update-downloaded', i => { dlog('update descargada: ' + (i && i.version));
-        showUpd('Actualización lista — reiniciando…', 100);
-        setTimeout(() => { try { autoUpdater.quitAndInstall(); }
-          catch (e){ dlog('quitAndInstall: ' + (e && e.message)); showUpd('Listo. Cierra y abre la app para aplicar la actualización.', null); } }, 2500); });
+        updateReady = true;
+        setTimeout(tryInstall, 2500); });
       autoUpdater.on('error', e => { dlog('updater error: ' + (e && e.message));
         if (updManual){ showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); } updManual = false; });
       checkUpdates(false);
       setInterval(() => checkUpdates(false), 15 * 60 * 1000);   // revisa cada 15 min (beta: updates frecuentes)
+      setInterval(tryInstall, 8000);   // si quedó una update lista y ya saliste de la partida, la instala sola
     } catch (e) { dlog('updater init: ' + (e && e.message)); }
   }
   console.log('✔ Overlay listo. Alt+X = panel · Alt+B = probar Blue Shell.');

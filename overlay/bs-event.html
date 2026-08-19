@@ -17,17 +17,6 @@
   .nt b{ color:var(--accent); }
   .nc{ font-size:14px; font-weight:800; color:#fff; margin-top:2px; }
 
-  /* Barra para MOVER la ruleta (arriba, por encima del overlay de la ruleta) */
-  .dragbar{ display:none; position:fixed; top:0; left:0; right:0; height:26px; z-index:100002;
-    align-items:center; gap:8px; padding:0 6px 0 8px; cursor:move;
-    background:rgba(10,11,15,.42); border-bottom:1px solid rgba(255,255,255,.05); }
-  .dragbar img{ width:18px; height:18px; border-radius:4px; }
-  .db-t{ font-size:12px; font-weight:800; color:var(--accent); }
-  .db-hint{ font-size:10px; color:rgba(255,255,255,.4); margin-left:6px; }
-  .db-x{ margin-left:auto; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); color:#fff;
-    width:22px; height:22px; border-radius:6px; cursor:pointer; font-size:12px; line-height:1; }
-  .db-x:hover{ background:rgba(251,113,133,.3); border-color:rgba(251,113,133,.5); }
-
   /* Grip para REDIMENSIONAR (esquina inferior derecha) */
   .grip{ display:none; position:fixed; right:0; bottom:0; width:20px; height:20px; z-index:100002;
     cursor:nwse-resize; background:
@@ -36,7 +25,7 @@
 
   /* Ruleta MINIMAL en el overlay: sin backdrop oscuro ni marco — solo la rueda (+ resultado),
      para no tapar pantalla. Fondo transparente, sin borde/sombra/padding, sin título/hint. */
-  .sqcr-overlay{ background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; padding-top:26px; }
+  .sqcr-overlay{ background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
   .sqcr-box{ background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; width:520px !important; }
   .sqcr-title, .sqcr-sub, .sqcr-hint{ display:none !important; }
   .sqcr-track{ background:rgba(10,11,15,.38) !important; border-color:rgba(255,255,255,.05) !important; }   /* fondo más transparente */
@@ -48,10 +37,6 @@
     <div><div class="nt" id="nt"></div><div class="nc" id="nc"></div></div>
   </div>
 
-  <div class="dragbar" id="dragbar" title="Arrastra para mover · esquina ↘ para redimensionar">
-    <img src="assets/logo.png" alt="">
-    <button class="db-x" id="db-x" title="Cerrar">✕</button>
-  </div>
   <div class="grip" id="grip" title="Redimensionar"></div>
 
 <script src="roulette.js"></script>
@@ -62,36 +47,48 @@
   const AUDIO = 'assets/Roulette Sound.mp3';
   const IMG = 'assets/shells/';
 
-  // Muestra/oculta la barra de mover + el grip (solo en modo ruleta).
-  function setChrome(on){ $('dragbar').style.display = on ? 'flex' : 'none'; $('grip').style.display = on ? 'block' : 'none'; }
+  // Muestra/oculta el grip de redimensionar (solo en modo ruleta).
+  function setChrome(on){ $('grip').style.display = on ? 'block' : 'none'; }
   const done = () => { setChrome(false); ipcRenderer.send('bs-done'); };
 
   // Escala la ruleta para que ocupe la ventana (mantiene proporción y queda centrada).
   function fitBox(){
     const box = document.querySelector('.sqcr-box'); if (!box) return;
     box.style.transform = 'none';                      // resetea para medir el tamaño natural
-    const bw = box.offsetWidth || 520, bh = box.offsetHeight || 210;
-    const s = Math.min(window.innerWidth / (bw + 24), (window.innerHeight - 30) / (bh + 24));
+    const bw = box.offsetWidth || 520, bh = box.offsetHeight || 200;
+    const s = Math.min(window.innerWidth / (bw + 16), window.innerHeight / (bh + 16));
     box.style.transformOrigin = 'center center';
     box.style.transform = 'scale(' + Math.max(0.2, Math.min(2.5, s)) + ')';
   }
   window.addEventListener('resize', fitBox);
 
-  // ---- Mover (barra de arriba) ----
-  let dg = false;
-  $('dragbar').addEventListener('mousedown', e => { if (e.target.id === 'db-x') return; dg = true; ipcRenderer.send('drag-start', { mx:e.screenX, my:e.screenY }); e.preventDefault(); });
-  $('db-x').addEventListener('click', done);
+  // ---- Mover: se arrastra la propia ruleta (sin barra). Distingue click (cerrar) de arrastre (mover). ----
+  let dg = null;              // { sx, sy, moved } mientras se arrastra
+  let rz = null;             // { x, y, w, h } mientras se redimensiona
+  let swallowClick = false;  // si venías arrastrando, no dejes que el click cierre la ruleta
+  document.addEventListener('mousedown', e => {
+    if (e.button !== 0) return;
+    if (e.target.closest('#grip')) return;         // el grip maneja su propio resize
+    if (!e.target.closest('.sqcr-box')) return;    // fuera de la ruleta: deja pasar (cerrar)
+    dg = { sx:e.screenX, sy:e.screenY, moved:false };
+    ipcRenderer.send('drag-start', { mx:e.screenX, my:e.screenY });
+  });
   // ---- Redimensionar (grip esquina) ----
-  let rz = null;
   $('grip').addEventListener('mousedown', e => { rz = { x:e.screenX, y:e.screenY, w:window.innerWidth, h:window.innerHeight }; e.preventDefault(); e.stopPropagation(); });
   window.addEventListener('mousemove', e => {
-    if (dg) ipcRenderer.send('drag-move', { mx:e.screenX, my:e.screenY });
-    else if (rz) ipcRenderer.send('bs-resize', { w: rz.w + (e.screenX - rz.x), h: rz.h + (e.screenY - rz.y) });
+    if (dg){
+      if (!dg.moved && Math.abs(e.screenX - dg.sx) + Math.abs(e.screenY - dg.sy) > 4) dg.moved = true;
+      if (dg.moved) ipcRenderer.send('drag-move', { mx:e.screenX, my:e.screenY });
+    } else if (rz){
+      ipcRenderer.send('bs-resize', { w: rz.w + (e.screenX - rz.x), h: rz.h + (e.screenY - rz.y) });
+    }
   });
   window.addEventListener('mouseup', () => {
-    if (dg){ dg = false; ipcRenderer.send('drag-end'); }
+    if (dg){ ipcRenderer.send('drag-end'); if (dg.moved){ swallowClick = true; setTimeout(() => { swallowClick = false; }, 60); } dg = null; }
     if (rz){ rz = null; ipcRenderer.send('bs-resize-end'); }
   });
+  // Bloquea el click de cierre si el mouseup venía de un arrastre (fase de captura, antes que el overlay).
+  window.addEventListener('click', e => { if (swallowClick){ swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
 
   ipcRenderer.on('bs-event', (_e, ev) => {
     setChrome(false);
