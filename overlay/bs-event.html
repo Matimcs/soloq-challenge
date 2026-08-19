@@ -16,6 +16,27 @@
   .nt{ font-size:12px; color:rgba(255,255,255,.75); }
   .nt b{ color:var(--accent); }
   .nc{ font-size:14px; font-weight:800; color:#fff; margin-top:2px; }
+
+  /* Barra para MOVER la ruleta (arriba, por encima del overlay de la ruleta) */
+  .dragbar{ display:none; position:fixed; top:0; left:0; right:0; height:30px; z-index:100002;
+    align-items:center; gap:8px; padding:0 8px 0 10px; cursor:move;
+    background:rgba(10,11,15,.9); border-bottom:1px solid rgba(255,255,255,.08); }
+  .dragbar img{ width:18px; height:18px; border-radius:4px; }
+  .db-t{ font-size:12px; font-weight:800; color:var(--accent); }
+  .db-hint{ font-size:10px; color:rgba(255,255,255,.4); margin-left:6px; }
+  .db-x{ margin-left:auto; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); color:#fff;
+    width:22px; height:22px; border-radius:6px; cursor:pointer; font-size:12px; line-height:1; }
+  .db-x:hover{ background:rgba(251,113,133,.3); border-color:rgba(251,113,133,.5); }
+
+  /* Grip para REDIMENSIONAR (esquina inferior derecha) */
+  .grip{ display:none; position:fixed; right:0; bottom:0; width:20px; height:20px; z-index:100002;
+    cursor:nwse-resize; background:
+      linear-gradient(135deg, transparent 50%, rgba(233,255,31,.55) 50%, rgba(233,255,31,.55) 60%, transparent 60%,
+      transparent 72%, rgba(233,255,31,.55) 72%, rgba(233,255,31,.55) 82%, transparent 82%); }
+
+  /* La ruleta (roulette.js) se centra en la ventana; la escalamos con la ventana. */
+  .sqcr-overlay{ padding-top:30px; }
+  .sqcr-box{ width:680px !important; }
 </style>
 </head>
 <body>
@@ -24,15 +45,52 @@
     <div><div class="nt" id="nt"></div><div class="nc" id="nc"></div></div>
   </div>
 
+  <div class="dragbar" id="dragbar">
+    <img src="assets/logo.png" alt=""><span class="db-t">Blue Shell</span>
+    <span class="db-hint">arrastra para mover · esquina ↘ para redimensionar</span>
+    <button class="db-x" id="db-x" title="Cerrar">✕</button>
+  </div>
+  <div class="grip" id="grip" title="Redimensionar"></div>
+
 <script src="roulette.js"></script>
 <script>
   const { ipcRenderer } = require('electron');
+  const $ = id => document.getElementById(id);
   const SLUG = { 'Sin tus 3 campeones más jugados':'sin-3-campeones','Una partida con Yuumi':'yuumi','Campeón aleatorio':'campeon-aleatorio','Sin Flash':'sin-flash','Autofill':'autofill','Sin botas y sin pies veloces':'sin-botas','Hechizos cambiados':'hechizos-cambiados','Sin pociones ni pinks':'sin-pociones','Sin objetos completos hasta min 15':'sin-objetos-min15','Reverse':'reverse','Clase de campeón aleatoria':'clase-campeon' };
   const AUDIO = 'assets/Roulette Sound.mp3';
   const IMG = 'assets/shells/';
-  const done = () => ipcRenderer.send('bs-done');
+
+  // Muestra/oculta la barra de mover + el grip (solo en modo ruleta).
+  function setChrome(on){ $('dragbar').style.display = on ? 'flex' : 'none'; $('grip').style.display = on ? 'block' : 'none'; }
+  const done = () => { setChrome(false); ipcRenderer.send('bs-done'); };
+
+  // Escala la ruleta para que ocupe la ventana (mantiene proporción y queda centrada).
+  function fitBox(){
+    const box = document.querySelector('.sqcr-box'); if (!box) return;
+    const s = Math.min(window.innerWidth / 720, (window.innerHeight - 30) / 470);
+    box.style.transformOrigin = 'center center';
+    box.style.transform = 'scale(' + Math.max(0.35, Math.min(2.2, s)) + ')';
+  }
+  window.addEventListener('resize', fitBox);
+
+  // ---- Mover (barra de arriba) ----
+  let dg = false;
+  $('dragbar').addEventListener('mousedown', e => { if (e.target.id === 'db-x') return; dg = true; ipcRenderer.send('drag-start', { mx:e.screenX, my:e.screenY }); e.preventDefault(); });
+  $('db-x').addEventListener('click', done);
+  // ---- Redimensionar (grip esquina) ----
+  let rz = null;
+  $('grip').addEventListener('mousedown', e => { rz = { x:e.screenX, y:e.screenY, w:window.innerWidth, h:window.innerHeight }; e.preventDefault(); e.stopPropagation(); });
+  window.addEventListener('mousemove', e => {
+    if (dg) ipcRenderer.send('drag-move', { mx:e.screenX, my:e.screenY });
+    else if (rz) ipcRenderer.send('bs-resize', { w: rz.w + (e.screenX - rz.x), h: rz.h + (e.screenY - rz.y) });
+  });
+  window.addEventListener('mouseup', () => {
+    if (dg){ dg = false; ipcRenderer.send('drag-end'); }
+    if (rz){ rz = null; ipcRenderer.send('bs-resize-end'); }
+  });
 
   ipcRenderer.on('bs-event', (_e, ev) => {
+    setChrome(false);
     const from = ev.from || 'Alguien', castigo = ev.castigo || 'Reverse';
     const audio = new Audio(AUDIO); audio.preload = 'auto';
     audio.volume = (ev.volume != null) ? Math.max(0, Math.min(1, ev.volume)) : 0.8;
@@ -44,17 +102,18 @@
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
         SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio, champIcon: ev.champIcon, champName: ev.champ,
           title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
+        setChrome(true); fitBox(); requestAnimationFrame(fitBox);   // barra/grip + escala a la ventana
         setTimeout(done, 12000);   // auto-cierre de respaldo
       });
     } else {
-      // En partida: precarga el audio (sin cubrir la pantalla), arranca el sonido y al seg 4.14 la notificación pequeña.
+      // En partida: notificación pequeña en la esquina (sin ruleta, sin mover/resize).
       SQCRoulette.waitAudio(audio).then(() => {
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
         setTimeout(() => {
-          document.getElementById('ni').src = IMG + (SLUG[castigo] || 'reverse') + '.png';
-          document.getElementById('nt').innerHTML = '🛡 <b>' + from + '</b> te lanzó una Blue Shell';
-          document.getElementById('nc').textContent = castigo + (ev.champ ? ' — ' + ev.champ : '');
-          document.getElementById('notif').style.display = 'flex';
+          $('ni').src = IMG + (SLUG[castigo] || 'reverse') + '.png';
+          $('nt').innerHTML = '🛡 <b>' + from + '</b> te lanzó una Blue Shell';
+          $('nc').textContent = castigo + (ev.champ ? ' — ' + ev.champ : '');
+          $('notif').style.display = 'flex';
         }, 4140);
         setTimeout(done, 4140 + 7000);   // se cierra sola ~7s después de aparecer
       });

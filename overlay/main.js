@@ -139,7 +139,7 @@ function savePos(w){
   if (!w || !w._posKey || w.isDestroyed()) return;
   const b = w.getBounds();
   settings.pos = settings.pos || {};
-  settings.pos[w._posKey] = { x: b.x, y: b.y };
+  settings.pos[w._posKey] = { x: b.x, y: b.y, w: b.width, h: b.height };   // w/h se usa para la ruleta (bs)
   saveSettings();
 }
 // Guarda la posición también con el evento nativo 'moved' (además del drag-end por IPC),
@@ -183,7 +183,8 @@ function createWindows(){
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
   [win, shellWin, bigWin].forEach(trackMoves);   // recuerda dónde los dejaste
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
-  bsWin = baseWin(680, 380, Math.round(d.wa.x + (d.wa.width - 680) / 2), Math.round(d.wa.y + (d.wa.height - 380) / 2), false);
+  bsWin = baseWin(720, 440, Math.round(d.wa.x + (d.wa.width - 720) / 2), Math.round(d.wa.y + (d.wa.height - 440) / 2), false);
+  bsWin._posKey = 'bs'; bsWin.setResizable(true);   // ruleta movible + redimensionable (mín. lo limita el grip)
   bsWin.setAlwaysOnTop(true, 'screen-saver'); bsWin.loadFile(path.join(__dirname, 'bs-event.html'));
   // Notificación de mensaje del admin (abajo-centro): texto y/o voz.
   const MW = 460, MH = 104;
@@ -242,6 +243,9 @@ ipcMain.on('drag-start', (e, { mx, my }) => { const w = BrowserWindow.fromWebCon
 ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && w._d) w.setPosition(Math.round(mx - w._d.dx), Math.round(my - w._d.dy)); });
 ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w){ w._d = null; savePos(w); } });
 ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(50, Math.min(900, Math.round(h))) }); });
+// Redimensionado de la ruleta (grip esquina): fija ancho/alto manteniendo la posición.
+ipcMain.on('bs-resize',     (e, { w, h }) => { const win = BrowserWindow.fromWebContents(e.sender); if (!win) return; const b = win.getBounds(); win.setBounds({ x: b.x, y: b.y, width: Math.max(320, Math.round(w)), height: Math.max(220, Math.round(h)) }); });
+ipcMain.on('bs-resize-end', (e) => { const win = BrowserWindow.fromWebContents(e.sender); if (win) savePos(win); });   // guarda tamaño elegido
 
 // ---- Aplicar settings ----
 function applyOpacity(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
@@ -402,8 +406,13 @@ function showBlueShellEvent(s){
   const d = defaults();
   const mode = lastInGame ? 'notif' : 'roulette';
   dlog(`showBlueShellEvent: ${s.from} → ${s.castigo} (${mode})`);
-  if (mode === 'roulette'){ const W = 680, H = 380; bsWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - W) / 2), y: Math.round(d.wa.y + (d.wa.height - H) / 2), width: W, height: H }); }
-  else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
+  if (mode === 'roulette'){
+    // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado por defecto.
+    const sp = (settings.pos && settings.pos.bs) || {};
+    const W = Number.isFinite(sp.w) ? sp.w : 720, H = Number.isFinite(sp.h) ? sp.h : 440;
+    const pos = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), Math.round(d.wa.y + (d.wa.height - H) / 2));
+    bsWin.setBounds({ x: pos.x, y: pos.y, width: W, height: H });
+  } else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
   bsWin.showInactive();
   // "Campeón aleatorio" -> icono del campeón. "Clase de campeón aleatoria" -> etiqueta en español (sin icono).
   const isChamp = s.castigo === 'Campeón aleatorio';
