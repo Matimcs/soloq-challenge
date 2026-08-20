@@ -255,7 +255,7 @@ ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebCon
 ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w){ w._d = null; savePos(w); } });
 ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(50, Math.min(900, Math.round(h))) }); });
 // Redimensionado de la ruleta (grip esquina): fija ancho/alto manteniendo la posición.
-ipcMain.on('bs-resize',     (e, { w, h }) => { const win = BrowserWindow.fromWebContents(e.sender); if (!win) return; const b = win.getBounds(); win.setBounds({ x: b.x, y: b.y, width: Math.max(320, Math.round(w)), height: Math.max(220, Math.round(h)) }); });
+ipcMain.on('bs-resize',     (e, { w, h }) => { const win = BrowserWindow.fromWebContents(e.sender); if (!win) return; const b = win.getBounds(); win.setBounds({ x: b.x, y: b.y, width: Math.max(300, Math.round(w)), height: Math.max(130, Math.round(h)) }); });
 ipcMain.on('bs-resize-end', (e) => { const win = BrowserWindow.fromWebContents(e.sender); if (win) savePos(win); });   // guarda tamaño elegido
 
 // ---- Aplicar settings ----
@@ -421,7 +421,10 @@ function showBlueShellEvent(s){
   if (mode === 'roulette'){
     // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado por defecto.
     const sp = (settings.pos && settings.pos.bs) || {};
-    const W = Number.isFinite(sp.w) ? sp.w : 540, H = Number.isFinite(sp.h) ? sp.h : 230;
+    // Descarta tamaños guardados de versiones viejas (ruleta con espacio muerto): si la altura
+    // guardada es grande, usa el nuevo tamaño ceñido en vez de respetar el viejo.
+    const stale = Number.isFinite(sp.h) && sp.h > 190;
+    const W = (!stale && Number.isFinite(sp.w)) ? sp.w : 540, H = (!stale && Number.isFinite(sp.h)) ? sp.h : 156;
     const pos = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), Math.round(d.wa.y + (d.wa.height - H) / 2));
     bsWin.setBounds({ x: pos.x, y: pos.y, width: W, height: H });
   } else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
