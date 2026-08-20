@@ -52,7 +52,15 @@
 
   // Muestra/oculta el grip de redimensionar (solo en modo ruleta).
   function setChrome(on){ $('grip').style.display = on ? 'block' : 'none'; }
-  const done = () => { setChrome(false); ipcRenderer.send('bs-done'); };
+  // Borra CUALQUIER ruleta que haya quedado en el DOM (el auto-cierre por timeout no la quitaba)
+  // y detiene su audio, para que la siguiente Blue Shell no se dibuje encima de la anterior.
+  let curAudio = null;
+  function cleanupRoulette(){
+    document.querySelectorAll('.sqcr-overlay').forEach(el => el.remove());
+    $('notif').style.display = 'none';
+    if (curAudio){ try { curAudio.pause(); } catch(e){} curAudio = null; }
+  }
+  const done = () => { cleanupRoulette(); setChrome(false); ipcRenderer.send('bs-done'); };
 
   // Escala la ruleta para que ocupe la ventana (mantiene proporción y queda centrada).
   function fitBox(){
@@ -94,9 +102,10 @@
   window.addEventListener('click', e => { if (swallowClick){ swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
 
   ipcRenderer.on('bs-event', (_e, ev) => {
+    cleanupRoulette();   // borra cualquier ruleta/notif anterior que haya quedado
     setChrome(false);
     const from = ev.from || 'Alguien', castigo = ev.castigo || 'Reverse';
-    const audio = new Audio(AUDIO); audio.preload = 'auto';
+    const audio = new Audio(AUDIO); audio.preload = 'auto'; curAudio = audio;
     audio.volume = (ev.volume != null) ? Math.max(0, Math.min(1, ev.volume)) : 0.8;
     if (ev.mode === 'roulette'){
       // Fuera de partida: precarga TODO (círculo de carga) y arranca audio+ruleta juntos.
