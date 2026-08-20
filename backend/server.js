@@ -825,6 +825,46 @@ app.post('/api/admin/roster/remove', auth, requireAdmin, wrap(async (req,res) =>
   res.json({ ok:true });
 }));
 
+// ---- Equipos (solo admin): asignar / cambiar / quitar el equipo de una cuenta ----
+// Lista las asignaciones actuales, marcando el origen (jugador registrado / smurf / sembrada).
+app.get('/api/admin/teams', auth, requireAdmin, wrap(async (req,res) => {
+  const users  = await q("SELECT id, nickname, riotid, team FROM users WHERE team IS NOT NULL AND team<>'' ORDER BY team, nickname");
+  const smurfs = await q('SELECT user_id, riotid FROM smurfs');
+  const tm     = await q("SELECT riotid, team FROM team_members WHERE team IS NOT NULL AND team<>'' ORDER BY team, riotid");
+  const byUser = {}; smurfs.forEach(s => { (byUser[s.user_id] = byUser[s.user_id] || []).push(s.riotid); });
+  const rows = [];
+  users.forEach(u => {
+    rows.push({ riotid:u.riotid, team:u.team, source:'user', nickname:u.nickname });
+    (byUser[u.id] || []).forEach(rid => rows.push({ riotid:rid, team:u.team, source:'smurf', nickname:u.nickname }));
+  });
+  tm.forEach(r => rows.push({ riotid:r.riotid, team:r.team, source:'seed' }));
+  res.json({ teams:[...TEAMS], rows });
+}));
+// Asigna el equipo de una cuenta. team vacío/nulo => la deja sin equipo.
+//  - Si es la cuenta principal de un registrado -> users.team (aplica a él y sus smurfs).
+//  - Si es una smurf de un registrado -> cambia el equipo del DUEÑO (su equipo manda para todas sus cuentas).
+//  - Si NO está registrada -> tabla team_members (seed).
+app.post('/api/admin/team', auth, requireAdmin, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  const raw = (req.body && req.body.team) || '';
+  const team = TEAMS.has(raw) ? raw : null;   // null => quitar equipo
+  const asUser = await q1('SELECT id, nickname FROM users WHERE lower(riotid)=lower($1)', [riotid]);
+  if (asUser){
+    await q('UPDATE users SET team=$1 WHERE id=$2', [team, asUser.id]);
+    await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [riotid]);
+    return res.json({ ok:true, scope:'user', team, nickname:asUser.nickname });
+  }
+  const asSmurf = await q1(`SELECT s.user_id, u.nickname FROM smurfs s JOIN users u ON u.id=s.user_id WHERE lower(s.riotid)=lower($1)`, [riotid]);
+  if (asSmurf){
+    await q('UPDATE users SET team=$1 WHERE id=$2', [team, asSmurf.user_id]);
+    return res.json({ ok:true, scope:'owner', team, nickname:asSmurf.nickname });
+  }
+  await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [riotid]);   // evita duplicados por mayúsculas
+  if (team) await q('INSERT INTO team_members (riotid, team) VALUES ($1,$2)', [riotid, team]);
+  res.json({ ok:true, scope:'seed', team });
+}));
+
 // Promover o quitar admin a un jugador registrado (solo admin).
 app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
   const riotid = ((req.body && req.body.riotid) || '').trim();

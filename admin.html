@@ -116,6 +116,18 @@
       <div class="list" id="rt-list" style="margin-top:12px"></div>
     </div>
 
+    <!-- Equipos -->
+    <div class="box">
+      <h2>Equipos <span class="n" id="tm-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Asigna o cambia el equipo de una cuenta (registrada o no). Para un jugador registrado, su equipo aplica a todas sus cuentas (main + smurfs). Se refleja en el ranking tras unos minutos.</div>
+      <div class="drop-row">
+        <input type="text" id="tm-riotid" placeholder="Riot ID (Nombre#TAG)">
+        <select id="tm-team"></select>
+        <button class="btn btn-accent" id="tm-add">Asignar</button>
+      </div>
+      <div class="list" id="tm-list" style="margin-top:12px"></div>
+    </div>
+
     <!-- Perfiles por confirmar -->
     <div class="box">
       <h2>Perfiles por confirmar <span class="n" id="cf-count"></span></h2>
@@ -290,6 +302,39 @@
       catch(e){ toast(e.message); }
     });
 
+    // ---- Equipos ----
+    const TEAM_OPTS = ['Exilium','Tide','Zenith','Hundred Blossom'];
+    async function renderTeams(){
+      const data = await SQC.api('/admin/teams');
+      const rows = data.rows || [], teams = data.teams || TEAM_OPTS;
+      $('tm-team').innerHTML = '<option value="">— Sin equipo —</option>' + teams.map(t=>`<option>${t}</option>`).join('');
+      $('tm-count').textContent = `(${rows.length})`;
+      const srcLabel = { user:'registrado', smurf:'smurf', seed:'sembrada' };
+      $('tm-list').innerHTML = rows.length ? rows.map(r=>`
+        <div class="item"><div class="info"><div class="t">${r.riotid}${r.nickname?` · ${r.nickname}`:''}</div>
+          <div class="s">${r.team} · ${srcLabel[r.source]||r.source}</div></div>
+          <div class="acts"><select class="tm-change" data-rid="${r.riotid}">
+            <option value="">— Sin equipo —</option>
+            ${teams.map(t=>`<option${t===r.team?' selected':''}>${t}</option>`).join('')}
+          </select></div></div>`).join('')
+        : '<div class="empty">Nadie tiene equipo asignado todavía.</div>';
+      $('tm-list').querySelectorAll('.tm-change').forEach(sel=>sel.addEventListener('change',async()=>{
+        try { await SQC.api('/admin/team',{method:'POST',body:{ riotid:sel.dataset.rid, team:sel.value }});
+          toast(sel.value ? `Equipo actualizado: ${sel.value}` : 'Equipo quitado'); renderTeams(); }
+        catch(e){ toast(e.message); renderTeams(); }
+      }));
+    }
+    $('tm-add').addEventListener('click', async () => {
+      const riotid = $('tm-riotid').value.trim();
+      if (!/^.+#.+$/.test(riotid)){ toast('Formato Nombre#TAG'); return; }
+      try { const r = await SQC.api('/admin/team', {method:'POST', body:{ riotid, team:$('tm-team').value }});
+        $('tm-riotid').value='';
+        let msg = r.team ? `Asignado a ${r.team}` : 'Cuenta dejada sin equipo';
+        if (r.scope==='owner') msg += ` (aplica a todas las cuentas de ${r.nickname})`;
+        toast(msg); renderTeams(); }
+      catch(e){ toast(e.message); }
+    });
+
     // ---- Penalizaciones ----
     const CASTIGOS = ['Sin tus 3 campeones más jugados','Una partida con Yuumi','Campeón aleatorio','Sin Flash','Autofill','Sin botas y sin pies veloces','Hechizos cambiados','Sin pociones ni pinks','Sin objetos completos hasta min 15','Reverse','Clase de campeón aleatoria'];
     async function renderPen(){
@@ -371,7 +416,7 @@
     $('msg-send').addEventListener('click', sendMsg);
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
-    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
+    renderConfirm(); renderDrop(); renderRoster(); renderTeams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
     setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
   })();
 </script>
