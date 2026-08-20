@@ -383,6 +383,15 @@
   .pd-adm{ background:rgba(192,132,252,.14); border:1px solid rgba(192,132,252,.45); color:var(--purple); font-family:var(--font); font-size:11px; font-weight:700; padding:7px 12px; border-radius:8px; cursor:pointer; }
   .pd-adm:hover{ background:rgba(192,132,252,.26); }
   .pd-adm:disabled{ opacity:.5; cursor:default; }
+  /* Panel de selección de equipo(s) en la ficha (admin) */
+  .pd-teams{ flex-basis:100%; margin:12px 0 2px; padding:12px 14px; border:1px solid rgba(192,132,252,.35); border-radius:10px; background:rgba(192,132,252,.06); }
+  .pd-teams[hidden]{ display:none; }
+  .pd-teams-t{ font-size:12px; font-weight:800; color:#fff; margin-bottom:10px; }
+  .pd-teams-note{ font-size:11px; font-weight:600; color:var(--muted); }
+  .pd-teams-list{ display:flex; flex-wrap:wrap; gap:8px 16px; }
+  .pd-tck{ display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); cursor:pointer; }
+  .pd-tck input{ width:15px; height:15px; accent-color:var(--purple); cursor:pointer; }
+  .pd-teams-actions{ margin-top:12px; }
   .pd-tabs{ display:flex; align-items:center; gap:8px; padding:12px 18px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
   .pd-tab{ background:none; border:0; border-bottom:2px solid transparent; color:var(--muted); font-family:var(--font); font-size:13px; font-weight:700; padding:8px 12px; cursor:pointer; border-radius:8px 8px 0 0; }
   .pd-tab:hover{ color:var(--text); }
@@ -722,18 +731,19 @@ function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;
 
 /* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
    casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
-let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {}, NICK_BY_RID = {}, LABEL_BY_RID = {}, TEAM_BY_RID = {};
+let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {}, NICK_BY_RID = {}, LABEL_BY_RID = {}, TEAMS_BY_RID = {};
 const TEAM_ABBR = { 'Hundred Blossom':'HB' };   // nombre → etiqueta corta
 function teamSlug(t){ return (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function teamLabel(t){ return TEAM_ABBR[t] || t; }
-function teamTag(rid){ const t = TEAM_BY_RID[(rid||'').toLowerCase()]; return t ? `<span class="team-tag ${teamSlug(t)}" title="${t}">${teamLabel(t)}</span>` : ''; }
-async function loadTeams(){
+function teamsOf(rid){ return TEAMS_BY_RID[(rid||'').toLowerCase()] || []; }   // un jugador puede tener varios
+function teamTag(rid){ return teamsOf(rid).map(t => `<span class="team-tag ${teamSlug(t)}" title="${t}">${teamLabel(t)}</span>`).join(''); }
+async function loadTeams(fresh){
   if (!location.protocol.startsWith('http')) return;
   try {
-    const r = await fetch('/api/teams'); if (!r.ok) return;
+    const r = await fetch('/api/teams' + (fresh ? '?t=' + Date.now() : ''), fresh ? { cache:'no-store' } : undefined); if (!r.ok) return;
     const list = await r.json();
-    TEAM_BY_RID = {};
-    list.forEach(t => { if (t.riotid && t.team) TEAM_BY_RID[t.riotid.toLowerCase()] = t.team; });
+    TEAMS_BY_RID = {};
+    list.forEach(t => { if (t.riotid && Array.isArray(t.teams) && t.teams.length) TEAMS_BY_RID[t.riotid.toLowerCase()] = t.teams; });
     render();
   } catch {}
 }
@@ -834,7 +844,6 @@ const SORT_VAL = {
 const STAR = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85L12 3.5z"></path></svg>`;
 
 function ownerKey(p){ return NICK_BY_RID[(p.rid||'').toLowerCase()] || p.rid; }
-function teamOf(p){ return TEAM_BY_RID[(p.rid||'').toLowerCase()] || null; }
 const TIERV_ = { IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6,MASTER:7,GRANDMASTER:7,CHALLENGER:7 };
 const DIVV_ = { I:3, II:2, III:1, IV:0, '':0 };
 function absLPf(p){ if(!p.tier||p.tier==='UNRANKED') return 0; if(HIGH_ELO.has(p.tier)) return 2800+(p.lp||0); return (TIERV_[p.tier]||0)*400+(DIVV_[p.div]||0)*100+(p.lp||0); }
@@ -869,7 +878,9 @@ function rowHTML(p, extraCls='', extraAttr=''){
 // Puntaje de equipo: mejores 5 cuentas de jugadores DISTINTOS (LP absoluto sumado).
 function teamScores(){
   const byTeam = {}, seen = new Set();
-  for (const p of PLAYERS){ const t = teamOf(p); if (!t) continue; const k = t+'|'+ownerKey(p).toLowerCase(); if (seen.has(k)) continue; seen.add(k); (byTeam[t]=byTeam[t]||[]).push(p); }
+  for (const p of PLAYERS){ for (const t of teamsOf(p.rid)){   // cuenta en CADA equipo del jugador
+    const k = t+'|'+ownerKey(p).toLowerCase(); if (seen.has(k)) continue; seen.add(k); (byTeam[t]=byTeam[t]||[]).push(p);
+  } }
   return Object.entries(byTeam).map(([team,accs]) => { const top5 = accs.slice(0,5); return { team, top5, score: top5.reduce((s,p)=>s+absLPf(p),0) }; }).sort((a,b)=>b.score-a.score);
 }
 // Elo (tier/div/lp) a partir de un LP absoluto promedio (inverso de absLPf).
@@ -887,7 +898,7 @@ function renderTeamRank(){
   if (!rows.length) return `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:34px">Aún no hay equipos con jugadores en el ranking.</td></tr>`;
   return rows.map((r,i)=>{
     const team = r.team, slug = teamSlug(team);
-    const all = PLAYERS.filter(p => teamOf(p) === team);              // todas las cuentas del equipo
+    const all = PLAYERS.filter(p => teamsOf(p.rid).includes(team));   // todas las cuentas del equipo
     const w = all.reduce((s,p)=>s+(p.w||0),0), l = all.reduce((s,p)=>s+(p.l||0),0);
     const wr = (w+l) ? Math.round(w/(w+l)*100) : 0;
     const avgAbs = r.top5.length ? r.top5.reduce((s,p)=>s+absLPf(p),0)/r.top5.length : 0;
@@ -924,7 +935,7 @@ function renderByTeams(){
   const groups = [...teamScores().map(r=>r.team), 'Sin equipo'];
   let html = '';
   for (const t of groups){
-    const members = PLAYERS.filter(p => (teamOf(p) || 'Sin equipo') === t);
+    const members = t==='Sin equipo' ? PLAYERS.filter(p => !teamsOf(p.rid).length) : PLAYERS.filter(p => teamsOf(p.rid).includes(t));
     if (!members.length) continue;
     const tagHtml = t==='Sin equipo' ? '' : `<span class="team-tag ${teamSlug(t)}">${teamLabel(t)}</span> `;
     html += `<tr class="grp-hdr"><td colspan="9">${tagHtml}${t} <span class="grp-n">${members.length}</span></td></tr>` + members.map(rowHTML).join('');
@@ -1315,10 +1326,12 @@ function renderDetail(root, rid, data){
       <div class="pd-mini">${prof.aegis?aegisEl(prof.aegis):''}</div>
       <div class="pd-actions">
         <a class="pd-opgg" href="${opggUrl(rid)}" target="_blank" rel="noopener">OP.GG</a>
+        ${isAdmin?`<button class="pd-adm" data-pd-teams>Seleccionar equipo</button>`:''}
         ${(isAdmin && prof.isRegistered)?`<button class="pd-adm" data-pd-adm>${prof.isAdmin?'Quitar admin':'Hacer admin'}</button>`:''}
         ${(isAdmin && prof.isRegistered)?`<button class="pd-adm" data-pd-pass>Resetear contraseña</button>`:''}
         ${isAdmin?`<button class="pd-del" data-pd-del>Eliminar jugador</button>`:''}
       </div>
+      ${isAdmin?`<div class="pd-teams" data-pd-teams-panel hidden></div>`:''}
     </div>
     <div class="pd-tabs">
       <button class="pd-tab active" data-t="hist">Historial</button>
@@ -1353,6 +1366,30 @@ function renderDetail(root, rid, data){
       const r = await fetch('/api/player/' + encodeURIComponent(rid), { cache:'no-store' });
       renderDetail(root, rid, await r.json());   // refresca la ficha con el nuevo estado
     } catch (e) { adm.disabled = false; alert('No se pudo: ' + e.message); }
+  };
+  // Seleccionar equipo(s): despliega checkboxes con los equipos del jugador (multi-equipo).
+  const tmBtn = root.querySelector('[data-pd-teams]');
+  const tmPanel = root.querySelector('[data-pd-teams-panel]');
+  if (tmBtn && tmPanel) tmBtn.onclick = async () => {
+    if (!tmPanel.hidden){ tmPanel.hidden = true; return; }
+    tmBtn.disabled = true;
+    try {
+      const d = await SQC.api('/admin/teams/' + encodeURIComponent(rid));
+      tmPanel.innerHTML =
+        `<div class="pd-teams-t">Equipos de ${prof.nickname} <span class="pd-teams-note">(aplica a todas sus cuentas)</span></div>`
+        + `<div class="pd-teams-list">` + d.teams.map(t =>
+            `<label class="pd-tck"><input type="checkbox" value="${escAttr(t)}" ${d.selected.includes(t)?'checked':''}><span class="team-tag ${teamSlug(t)}">${teamLabel(t)}</span> ${t}</label>`).join('') + `</div>`
+        + `<div class="pd-teams-actions"><button class="pd-adm" data-tsave>Guardar</button></div>`;
+      tmPanel.hidden = false;
+      tmPanel.querySelector('[data-tsave]').onclick = async (ev) => {
+        const teams = [...tmPanel.querySelectorAll('input:checked')].map(i => i.value);
+        ev.target.disabled = true;
+        try { await SQC.api('/admin/teams/' + encodeURIComponent(rid), { method:'POST', body:{ teams } });
+          tmPanel.hidden = true; loadTeams(true);   // refresca las etiquetas del ranking (sin caché)
+        } catch (e) { ev.target.disabled = false; alert('No se pudo: ' + e.message); }
+      };
+    } catch (e) { alert('No se pudo: ' + e.message); }
+    tmBtn.disabled = false;
   };
   tabs.hist();
 }

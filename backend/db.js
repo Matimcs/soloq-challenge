@@ -173,11 +173,25 @@ async function init(){
     ALTER TABLE events ADD COLUMN IF NOT EXISTS extra      TEXT;       -- ej. campeón aleatorio asignado
     ALTER TABLE events ADD COLUMN IF NOT EXISTS audio      TEXT;       -- audio opcional (voz) que suena al recibir la shell
     ALTER TABLE users  ADD COLUMN IF NOT EXISTS team       TEXT;       -- equipo de la U: Exilium | Tide | Zenith (o null)
-    CREATE TABLE IF NOT EXISTS team_members (   -- equipo por cuenta (para cuentas NO registradas, seed del admin)
-      riotid     TEXT PRIMARY KEY,
+    CREATE TABLE IF NOT EXISTS team_members (   -- equipo(s) por cuenta; ahora un jugador puede tener varios
+      riotid     TEXT,
       team       TEXT,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Multi-equipo: la PK pasa de (riotid) a (riotid, team) para permitir varios equipos por cuenta.
+    DELETE FROM team_members WHERE team IS NULL OR team='';
+    DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='team_members'::regclass AND contype='p' AND array_length(conkey,1)=1) THEN
+        ALTER TABLE team_members DROP CONSTRAINT team_members_pkey;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='team_members'::regclass AND contype='p') THEN
+        ALTER TABLE team_members ADD PRIMARY KEY (riotid, team);
+      END IF;
+    END $$;
+    -- Pasa los equipos elegidos por los jugadores (users.team) a team_members (fuente única del display).
+    INSERT INTO team_members (riotid, team)
+      SELECT riotid, team FROM users WHERE team IS NOT NULL AND team<>''
+      ON CONFLICT (riotid, team) DO NOTHING;
 
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
