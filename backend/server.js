@@ -994,34 +994,49 @@ app.get('/api/stats', wrap(async (req, res) => {
     GROUP BY match_id, lower(riotid)`);
   const byMatch = {};
   for (const r of encRows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  // Jugador real por cuenta: agrupa la main + smurfs REGISTRADOS de una persona, para que sus
+  // distintas cuentas cuenten como el MISMO jugador (verdugos/duelos/dúos). Las cuentas no
+  // registradas quedan como jugadores propios (no sabemos de quién son).
+  const uRows = await q('SELECT id, nickname, lower(riotid) rid FROM users WHERE riotid IS NOT NULL');
+  const sRows = await q('SELECT user_id, lower(riotid) rid FROM smurfs WHERE riotid IS NOT NULL');
+  const ridOwner = {}, ownerNick = {};
+  uRows.forEach(u => { ridOwner[u.rid] = 'u' + u.id; ownerNick['u' + u.id] = u.nickname; });
+  sRows.forEach(s => { ridOwner[s.rid] = 'u' + s.user_id; });
+  const pkeyOf = rid => ridOwner[rid] || rid;   // clave de JUGADOR (no de cuenta)
+  const repRid = {};   // clave de jugador -> rid representativo (para tier/high y OP.GG)
   const verd = {}, duel = {};
   let coincCount = 0;
   for (const mid in byMatch) {
     const ps = byMatch[mid]; if (ps.length < 2) continue; coincCount++;
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
       const A = ps[i], B = ps[j];
-      const key = [A.rid, B.rid].sort(); const kk = key.join('|');
+      const pa = pkeyOf(A.rid), pb = pkeyOf(B.rid);
+      if (pa === pb) continue;   // dos cuentas de la misma persona: no es dúo ni duelo
+      if (!repRid[pa]) repRid[pa] = A.rid; if (!repRid[pb]) repRid[pb] = B.rid;
+      const key = [pa, pb].sort(); const kk = key.join('|');
       const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0, tw: 0 });
       if (A.team === B.team) { dd.together++; if (A.win) dd.tw++; continue; }   // aliados (dúo): guarda V/D juntos
       const dec = A.win !== B.win; if (!dec) continue;         // debe haber ganador/perdedor
-      const winner = A.win ? A : B;
-      verd[A.rid] = verd[A.rid] || { wins: 0, duels: 0 }; verd[B.rid] = verd[B.rid] || { wins: 0, duels: 0 };
-      verd[A.rid].duels++; verd[B.rid].duels++; verd[winner.rid].wins++;
-      if (winner.rid === dd.a) dd.aw++; else dd.bw++;
+      const winner = A.win ? A : B; const wKey = pkeyOf(winner.rid);
+      verd[pa] = verd[pa] || { wins: 0, duels: 0 }; verd[pb] = verd[pb] || { wins: 0, duels: 0 };
+      verd[pa].duels++; verd[pb].duels++; verd[wKey].wins++;
+      if (wKey === dd.a) dd.aw++; else dd.bw++;
     }
   }
-  const nmeta = rid => { const m = meta[rid] || {}; return { nm: m.nm || rid.split('#')[0], high: !!m.high }; };
-  const verdugos = Object.entries(verd).map(([rid, s]) => ({ rid, ...nmeta(rid), wins: s.wins, duels: s.duels,
+  // Meta de un JUGADOR: nick del registrado (o nombre de la cuenta si no está registrada) + tier/high.
+  const pmeta = pkey => { const rid = repRid[pkey] || pkey; const m = meta[rid] || {};
+    return { rid, nm: ownerNick[pkey] || m.nm || rid.split('#')[0], high: !!m.high }; };
+  const verdugos = Object.entries(verd).map(([pkey, s]) => ({ ...pmeta(pkey), wins: s.wins, duels: s.duels,
       wr: s.duels ? Math.round(s.wins / s.duels * 100) : 0 }))
     .sort((a, b) => b.wins - a.wins || b.wr - a.wr).slice(0, 12);
   const duelos = Object.values(duel).filter(d => d.aw + d.bw > 0)
-    .map(d => ({ a: { rid: d.a, ...nmeta(d.a) }, b: { rid: d.b, ...nmeta(d.b) }, aw: d.aw, bw: d.bw, together: d.together }))
+    .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), aw: d.aw, bw: d.bw, together: d.together }))
     .sort((x, y) => (y.aw + y.bw) - (x.aw + x.bw)).slice(0, 30);
 
   // Mejores / peores dúos: parejas que jugaron en el MISMO equipo, por winrate (mín. 2 partidas).
   const MINDUO = 2;
   const duosAll = Object.values(duel).filter(d => d.together >= MINDUO)
-    .map(d => ({ a: { rid: d.a, ...nmeta(d.a) }, b: { rid: d.b, ...nmeta(d.b) }, games: d.together, wins: d.tw, wr: Math.round(d.tw / d.together * 100) }));
+    .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), games: d.together, wins: d.tw, wr: Math.round(d.tw / d.together * 100) }));
   const duosBest = duosAll.slice().sort((x, y) => y.wr - x.wr || y.games - x.games).slice(0, 8);
   const duosWorst = duosAll.slice().sort((x, y) => x.wr - y.wr || y.games - x.games).slice(0, 8);
 
