@@ -30,6 +30,38 @@ const ADMIN_RIDS = new Set(['SionAntisionista#SAS', 'SKT T1 seiya157#LAS']);
 const REPORT_SECRET = process.env.REPORT_SECRET || null;
 const ROOT = path.join(__dirname, '..');
 
+// ---- Anti-egress (Supabase) ----
+// El gran blob de ±LP/historial (fetch_cache id='matches') lo mantiene el runner EMBEBIDO
+// (mismo proceso) en cache/matches.json. Leerlo del disco local en cada request evita
+// bajarlo de Supabase (eran varios MB por cada apertura de ficha / cada /api/stats).
+let _mcCache = { at: 0, data: null };
+function localMatchesCache(){
+  if (Date.now() - _mcCache.at < 15000) return _mcCache.data;   // relee del disco máx. cada 15s
+  try { _mcCache = { at: Date.now(), data: JSON.parse(fs.readFileSync(path.join(ROOT, 'cache', 'matches.json'), 'utf8')) }; }
+  catch { _mcCache = { at: Date.now(), data: null }; }
+  return _mcCache.data;
+}
+// Devuelve el historial (games/lpGames) de un puuid: primero del disco local; si no está
+// (runner deshabilitado), cae a Supabase una vez.
+async function playerMatchCache(puuid){
+  let d = localMatchesCache();
+  if (!d){ const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); d = r && r.data; }
+  return d && d[puuid];
+}
+// Blobs de partidas (JSON de Riot): INMUTABLES → se cachean en memoria (acotado) para no
+// re-bajarlos de Supabase. Solo consulta la DB por los ids que aún no están en memoria.
+const MATCH_BLOBS = new Map();   // match_id -> data
+async function matchBlobs(ids){
+  const out = {}; const missing = [];
+  for (const id of ids){ if (MATCH_BLOBS.has(id)) out[id] = MATCH_BLOBS.get(id); else missing.push(id); }
+  if (missing.length){
+    const rows = await q('SELECT match_id, data FROM matches WHERE match_id = ANY($1)', [missing]);
+    rows.forEach(r => { MATCH_BLOBS.set(r.match_id, r.data); out[r.match_id] = r.data; });
+    if (MATCH_BLOBS.size > 3000){ let drop = MATCH_BLOBS.size - 3000; for (const k of MATCH_BLOBS.keys()){ if (drop-- <= 0) break; MATCH_BLOBS.delete(k); } }
+  }
+  return out;
+}
+
 const SHELLS = [
   { name:'Sin tus 3 campeones más jugados', w:17 }, { name:'Una partida con Yuumi', w:11 },
   { name:'Campeón aleatorio', w:11 }, { name:'Sin Flash', w:11 }, { name:'Autofill', w:11 },
@@ -248,6 +280,7 @@ function buildHistoryRow(m, puuid){
 app.get('/api/player/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();   // Express ya decodifica el parámetro
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
+  res.set('Cache-Control', 'public, max-age=90');   // ficha: Cloudflare la sirve del borde ~90s
 
   // Perfil desde la caché del ranking (players.json) + usuario registrado
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
@@ -269,14 +302,12 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     const parts = await q('SELECT match_id FROM match_participants WHERE puuid=$1 ORDER BY game_end DESC NULLS LAST LIMIT 15', [puuid]);
     const ids = parts.map(p => p.match_id);
     if (ids.length){
-      const fulls = await q('SELECT match_id, data FROM matches WHERE match_id = ANY($1)', [ids]);
-      const byId = {}; fulls.forEach(f => byId[f.match_id] = f.data);
+      const byId = await matchBlobs(ids);   // blobs inmutables: caché en memoria (no re-baja de Supabase)
       history = ids.map(id => buildHistoryRow(byId[id], puuid)).filter(Boolean);
     }
-    // ±LP y aegis por partida (desde lpGames del caché), casando por 'end'.
+    // ±LP y aegis por partida (desde lpGames del caché local del runner), casando por 'end'.
     try {
-      const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
-      const s = r && r.data && r.data[puuid];
+      const s = await playerMatchCache(puuid);
       if (s && Array.isArray(s.lpGames)){
         const byEnd = {}; s.lpGames.forEach(g => { if (g.end) byEnd[g.end] = g; });
         const wd = s.lpGames.filter(g => g.delta > 0).slice(0, 15).map(g => g.delta).sort((a,b)=>a-b);
@@ -334,9 +365,10 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
 // Scoreboard completo de una partida guardada (para el desglose "tipo live games").
 app.get('/api/match/:matchId', wrap(async (req,res) => {
   const id = (req.params.matchId || '').trim();
-  const row = await q1('SELECT data FROM matches WHERE match_id=$1', [id]);
-  if (!row || !row.data || !row.data.info) return res.status(404).json({ error:'Partida no guardada' });
-  const info = row.data.info;
+  const blob = (await matchBlobs([id]))[id];   // caché en memoria (partida inmutable)
+  if (!blob || !blob.info) return res.status(404).json({ error:'Partida no guardada' });
+  res.set('Cache-Control', 'public, max-age=86400, immutable');   // el JSON no cambia → Cloudflare lo cachea
+  const info = blob.info;
   const trackedRids = new Set(((liveData && liveData.players) || []).map(p => (p.rid||'').toLowerCase()));
   const parts = (info.participants || []).map(p => {
     const gn = p.riotIdGameName || p.summonerName || '', tg = p.riotIdTagline || '';
@@ -453,6 +485,7 @@ async function excludedSmurfRids(){
 
 app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();
+  res.set('Cache-Control', 'public, max-age=90');   // ficha completa: Cloudflare la sirve del borde ~90s
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
   const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
   const u = await q1('SELECT nickname, realname, avatar, pos1 FROM users WHERE riotid=$1', [riotid]);
@@ -464,8 +497,7 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   const curAbs = lp ? absLPof(lp.tier, lp.div, lp.lp) : null;
   if (puuid && curAbs != null){
     try {
-      const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
-      const s = r && r.data && r.data[puuid];
+      const s = await playerMatchCache(puuid);
       if (s && Array.isArray(s.lpGames)){
         const lg = s.lpGames.filter(g => g.end);
         let abs = curAbs; const pts = [{ t:Date.now(), lp:abs }];
@@ -907,6 +939,7 @@ app.post('/api/admin/player/remove', auth, requireAdmin, wrap(async (req,res) =>
 // jugador del torneo) + los ±LP guardados en fetch_cache. Cache 60s.
 const STATS_CACHE = { at: 0, data: null };
 app.get('/api/stats', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60');   // Cloudflare lo sirve del borde (menos hits al origen)
   if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 60000) return res.json(STATS_CACHE.data);
 
   // Meta por cuenta (nick, tier, HIGH/LOW, posición, absLP actual) desde el ranking en vivo.
@@ -1000,8 +1033,8 @@ app.get('/api/stats', wrap(async (req, res) => {
   const p2r = {};
   const pr = await q(`SELECT DISTINCT puuid, lower(riotid) rid FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`);
   for (const r of pr) if (!p2r[r.puuid]) p2r[r.puuid] = r.rid;
-  const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
-  const store = (mc && mc.data) || {};
+  let store = localMatchesCache();   // del disco local (runner embebido); evita bajar el blob de Supabase
+  if (!store){ const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); store = (mc && mc.data) || {}; }
   const dayAcc = {}, series = [];
   const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
   for (const puuid in store) {
@@ -1047,6 +1080,7 @@ app.get('/api/stats', wrap(async (req, res) => {
 // memoria), así se detectan también los cruces como rivales, no solo los dúos. SoloQ.
 const ENC_CACHE = { at: 0, data: null };
 app.get('/api/encounters', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60');   // Cloudflare lo sirve del borde
   if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 60000) return res.json(ENC_CACHE.data);
   // Nickname del torneo por cuenta (para mostrar el nick, no el summoner name).
   const meta = {};
