@@ -994,12 +994,17 @@ app.get('/api/stats', wrap(async (req, res) => {
     GROUP BY match_id, lower(riotid)`);
   const byMatch = {};
   for (const r of encRows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  // Identidad de jugador por cuenta: las cuentas de un mismo jugador (main + smurfs, o cuentas
+  // duplicadas por puuid) comparten el nick mostrado. Así NO se cuentan dúos/duelos "consigo
+  // mismo" (p.ej. maio#azir + maio#bard → ambos "Maio").
+  const playerId = rid => ('nm:' + (((meta[rid] && meta[rid].nm) || rid.split('#')[0] || rid) + '').toLowerCase());
   const verd = {}, duel = {};
   let coincCount = 0;
   for (const mid in byMatch) {
     const ps = byMatch[mid]; if (ps.length < 2) continue; coincCount++;
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
       const A = ps[i], B = ps[j];
+      if (playerId(A.rid) === playerId(B.rid)) continue;   // misma persona (varias cuentas): no es dúo ni duelo
       const key = [A.rid, B.rid].sort(); const kk = key.join('|');
       const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0, tw: 0 });
       if (A.team === B.team) { dd.together++; if (A.win) dd.tw++; continue; }   // aliados (dúo): guarda V/D juntos
