@@ -942,24 +942,43 @@ app.get('/api/stats', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=60');   // Cloudflare lo sirve del borde (menos hits al origen)
   if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 60000) return res.json(STATS_CACHE.data);
 
-  // Meta por cuenta (nick, tier, HIGH/LOW, posición, absLP actual) desde el ranking en vivo.
-  const meta = {};
+  // ---- Identidad de CUENTA por PUUID (consolida renombres) + JUGADOR (dueño) ----
+  // El puuid no cambia aunque cambie el Riot ID, así una cuenta renombrada cuenta como una sola.
+  let snapPlayers = [];
+  try { snapPlayers = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')).players || []; } catch {}
+  const metaByAcct = {};   // acct(puuid|rid) -> { nm, tier, high, pos, abs, rid }
+  snapPlayers.forEach((p, i) => {
+    const rid = (p.rid || '').toLowerCase(); const acct = p.puuid || rid;
+    const high = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(p.tier);
+    if (!metaByAcct[acct]) metaByAcct[acct] = { nm: p.nm || rid.split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1, abs: absLPof(p.tier, p.div, p.lp) || 0, rid };
+  });
+  // rid (incluye nombres VIEJOS) -> acct(puuid), desde el historial crudo.
+  const acctByRid = {};
+  try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) acctByRid[r.rid] = r.puuid; } catch {}
+  const acctOf = rid => acctByRid[rid] || rid;
+  // Jugador (dueño) por cuenta: main + smurfs registrados → user id; + nick del jugador.
+  const puuidOwner = {}, ownerNick = {};
   try {
-    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
-    (snap.players || []).forEach((p, i) => {
-      const high = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(p.tier);
-      meta[(p.rid || '').toLowerCase()] = {
-        nm: p.nm || (p.rid || '').split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1,
-        abs: absLPof(p.tier, p.div, p.lp),
-      };
-    });
+    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ puuidOwner[acctOf(u.rid)] = 'u' + u.id; ownerNick['u' + u.id] = (u.nickname || '').trim(); }
+    for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u' + s.user_id;
   } catch {}
+  const playerOf = acct => puuidOwner[acct] || acct;   // jugador (dueño) del acct
+  // Excluir de TOPS las cuentas secundarias de un jugador (solo cuenta la más alta).
+  const ownerAccts = {};
+  for (const acct in puuidOwner) (ownerAccts[puuidOwner[acct]] = ownerAccts[puuidOwner[acct]] || []).push(acct);
+  const excludeAcct = new Set();
+  for (const o in ownerAccts){ const accts = [...new Set(ownerAccts[o])]; if (accts.length < 2) continue;
+    accts.sort((a, b) => ((metaByAcct[b] && metaByAcct[b].abs) || 0) - ((metaByAcct[a] && metaByAcct[a].abs) || 0));
+    accts.slice(1).forEach(a => excludeAcct.add(a)); }
 
-  // ---- TOPS: agregado por cuenta de torneo ----
+  // ---- TOPS: agregado por CUENTA (consolidada por puuid) ----
   // CS/min excluye el rol support (UTILITY). Kills/muertes/asistencias van PROMEDIADAS por partida.
   const NS = "upper(coalesce(position,'')) NOT IN ('UTILITY','SUPPORT')";  // "no support"
+  const ACCT = "COALESCE(NULLIF(puuid,''), lower(riotid))";
   const agg = await q(`
-    SELECT lower(riotid) rid, max(name) nm,
+    SELECT ${ACCT} acct,
+           (array_agg(lower(riotid) ORDER BY game_end DESC NULLS LAST))[1] rid,
+           (array_agg(name       ORDER BY game_end DESC NULLS LAST))[1] nm,
            sum(coalesce(kills,0)) k, sum(coalesce(deaths,0)) d, sum(coalesce(assists,0)) a, count(*) games,
            sum(coalesce(gold,0)) gold_sum, sum(coalesce(duration,0)) dur_all,
            sum(coalesce(cs,0))       FILTER (WHERE ${NS}) cs_ns,
@@ -967,13 +986,12 @@ app.get('/api/stats', wrap(async (req, res) => {
            count(*)                  FILTER (WHERE ${NS}) games_ns
     FROM match_participants
     WHERE is_tournament=true AND riotid IS NOT NULL
-    GROUP BY lower(riotid)`);
-  const exclude = await excludedSmurfRids();   // solo la cuenta más alta de cada jugador registrado
-  const rowsA = agg.filter(r => !exclude.has(r.rid)).map(r => {
-    const m = meta[r.rid] || {};
+    GROUP BY ${ACCT}`);
+  const rowsA = agg.filter(r => !excludeAcct.has(r.acct)).map(r => {
+    const m = metaByAcct[r.acct] || {};
     const k = +r.k, d = +r.d, a = +r.a, games = +r.games;
     const csNs = +r.cs_ns || 0, durNs = +r.dur_ns || 0, gamesNs = +r.games_ns || 0, durAll = +r.dur_all || 0;
-    return { rid: r.rid, nm: m.nm || r.nm, tier: m.tier || 'UNRANKED', high: !!m.high, pos: m.pos || null, games, gamesNs,
+    return { rid: m.rid || r.rid, nm: m.nm || r.nm, tier: m.tier || 'UNRANKED', high: !!m.high, pos: m.pos || null, games, gamesNs,
       kavg: games ? k / games : 0, davg: games ? d / games : 0, aavg: games ? a / games : 0,
       csmin: durNs > 0 ? csNs / (durNs / 60) : 0, goldmin: durAll > 0 ? (+r.gold_sum) / (durAll / 60) : 0,
       kda: (k + a) / Math.max(1, d) };
@@ -985,46 +1003,42 @@ app.get('/api/stats', wrap(async (req, res) => {
     csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10) };
 
   // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
+  // Identidad por CUENTA = puuid (consolida renombres) y por JUGADOR = dueño (main+smurfs).
   const encRows = await q(`
-    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win, max(team_id) team
+    SELECT match_id, ${ACCT} acct,
+           (array_agg(lower(riotid) ORDER BY game_end DESC NULLS LAST))[1] rid,
+           (array_agg(name       ORDER BY game_end DESC NULLS LAST))[1] nm,
+           bool_or(win) win, max(team_id) team
     FROM match_participants
     WHERE is_tournament=true AND riotid IS NOT NULL
       AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true
-                       GROUP BY match_id HAVING count(distinct lower(riotid)) >= 2)
-    GROUP BY match_id, lower(riotid)`);
+                       GROUP BY match_id HAVING count(distinct ${ACCT}) >= 2)
+    GROUP BY match_id, ${ACCT}`);
   const byMatch = {};
   for (const r of encRows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
-  // Jugador real por cuenta: agrupa la main + smurfs REGISTRADOS de una persona, para que sus
-  // distintas cuentas cuenten como el MISMO jugador (verdugos/duelos/dúos). Las cuentas no
-  // registradas quedan como jugadores propios (no sabemos de quién son).
-  const uRows = await q('SELECT id, nickname, lower(riotid) rid FROM users WHERE riotid IS NOT NULL');
-  const sRows = await q('SELECT user_id, lower(riotid) rid FROM smurfs WHERE riotid IS NOT NULL');
-  const ridOwner = {}, ownerNick = {};
-  uRows.forEach(u => { ridOwner[u.rid] = 'u' + u.id; ownerNick['u' + u.id] = u.nickname; });
-  sRows.forEach(s => { ridOwner[s.rid] = 'u' + s.user_id; });
-  const pkeyOf = rid => ridOwner[rid] || rid;   // clave de JUGADOR (no de cuenta)
-  const repRid = {};   // clave de jugador -> rid representativo (para tier/high y OP.GG)
+  const repRid = {}, repAcct = {};   // clave de jugador -> rid/acct representativo (para nick/tier/OP.GG)
   const verd = {}, duel = {};
   let coincCount = 0;
   for (const mid in byMatch) {
     const ps = byMatch[mid]; if (ps.length < 2) continue; coincCount++;
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
       const A = ps[i], B = ps[j];
-      const pa = pkeyOf(A.rid), pb = pkeyOf(B.rid);
+      const pa = playerOf(A.acct), pb = playerOf(B.acct);
       if (pa === pb) continue;   // dos cuentas de la misma persona: no es dúo ni duelo
-      if (!repRid[pa]) repRid[pa] = A.rid; if (!repRid[pb]) repRid[pb] = B.rid;
+      if (!repRid[pa]){ repRid[pa] = A.rid; repAcct[pa] = A.acct; }
+      if (!repRid[pb]){ repRid[pb] = B.rid; repAcct[pb] = B.acct; }
       const key = [pa, pb].sort(); const kk = key.join('|');
       const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0, tw: 0 });
       if (A.team === B.team) { dd.together++; if (A.win) dd.tw++; continue; }   // aliados (dúo): guarda V/D juntos
       const dec = A.win !== B.win; if (!dec) continue;         // debe haber ganador/perdedor
-      const winner = A.win ? A : B; const wKey = pkeyOf(winner.rid);
+      const winner = A.win ? A : B; const wKey = playerOf(winner.acct);
       verd[pa] = verd[pa] || { wins: 0, duels: 0 }; verd[pb] = verd[pb] || { wins: 0, duels: 0 };
       verd[pa].duels++; verd[pb].duels++; verd[wKey].wins++;
       if (wKey === dd.a) dd.aw++; else dd.bw++;
     }
   }
   // Meta de un JUGADOR: nick del registrado (o nombre de la cuenta si no está registrada) + tier/high.
-  const pmeta = pkey => { const rid = repRid[pkey] || pkey; const m = meta[rid] || {};
+  const pmeta = pkey => { const rid = repRid[pkey] || pkey; const m = metaByAcct[repAcct[pkey]] || {};
     return { rid, nm: ownerNick[pkey] || m.nm || rid.split('#')[0], high: !!m.high }; };
   const verdugos = Object.entries(verd).map(([pkey, s]) => ({ ...pmeta(pkey), wins: s.wins, duels: s.duels,
       wr: s.duels ? Math.round(s.wins / s.duels * 100) : 0 }))
@@ -1045,16 +1059,14 @@ app.get('/api/stats', wrap(async (req, res) => {
   try { const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); historial = snap.encounters || []; } catch {}
 
   // ---- ELO: subidones/bajones por día + serie de evolución (desde ±LP guardados) ----
-  const p2r = {};
-  const pr = await q(`SELECT DISTINCT puuid, lower(riotid) rid FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`);
-  for (const r of pr) if (!p2r[r.puuid]) p2r[r.puuid] = r.rid;
+  // El caché de ±LP ya está keyeado por puuid (consolidado por cuenta); la meta también.
   let store = localMatchesCache();   // del disco local (runner embebido); evita bajar el blob de Supabase
   if (!store){ const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); store = (mc && mc.data) || {}; }
   const dayAcc = {}, series = [];
   const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
   for (const puuid in store) {
-    const rid = p2r[puuid]; if (!rid) continue;
-    const m = meta[rid]; if (!m) continue;
+    const m = metaByAcct[puuid]; if (!m) continue;
+    const rid = m.rid || puuid;
     const s = store[puuid]; const lg = (s && Array.isArray(s.lpGames) ? s.lpGames : []).filter(g => g.end);
     // Serie: reconstruye absLP hacia atrás desde el actual.
     if (m.abs != null && lg.length) {
@@ -1237,6 +1249,49 @@ function startEmbeddedRunner(){
   })();
 }
 
+// ---- Auto-detección de cambios de nombre (renames) ----
+// El PUUID de una cuenta de Riot NO cambia aunque el jugador cambie su Riot ID. Cada ~30 min
+// consultamos el nombre actual de cada cuenta registrada por su puuid y, si cambió, actualizamos
+// el Riot ID guardado (jugadores, smurfs, roster y equipos). El historial ya se consolida por puuid.
+async function accountByPuuid(puuid, KEY){
+  try {
+    const r = await fetch(`https://americas.api.riotgames.com/riot/account/v1/accounts/by-puuid/${encodeURIComponent(puuid)}`, { headers: { 'X-Riot-Token': KEY } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return (j && j.gameName) ? (j.gameName + '#' + j.tagLine) : null;
+  } catch { return null; }
+}
+async function applyRename(w, newRid){
+  const oldRid = w.rid;
+  try {
+    if (w.kind === 'user')   await q('UPDATE users  SET riotid=$1 WHERE id=$2', [newRid, w.id]);
+    if (w.kind === 'smurf')  await q('UPDATE smurfs SET riotid=$1 WHERE id=$2', [newRid, w.id]);
+    if (w.kind === 'roster') await q('UPDATE roster SET riotid=$1 WHERE lower(riotid)=lower($2)', [newRid, oldRid]);
+    // Equipos: mueve las filas al nombre nuevo evitando choque de PK (riotid,team).
+    await q('DELETE FROM team_members WHERE lower(riotid)=lower($1) AND team IN (SELECT team FROM team_members WHERE lower(riotid)=lower($2))', [newRid, oldRid]);
+    await q('UPDATE team_members SET riotid=$1 WHERE lower(riotid)=lower($2)', [newRid, oldRid]);
+    console.log(`↻ rename detectado: ${oldRid} → ${newRid} (${w.kind})`);
+  } catch (e){ console.error('applyRename:', e.message); }
+}
+async function detectRenames(){
+  const KEY = process.env.RIOT_API_KEY; if (!KEY) return;
+  const watch = [];
+  for (const u of await q("SELECT id, riotid FROM users  WHERE coalesce(riotid,'')<>''")) watch.push({ kind:'user',   id:u.id, rid:u.riotid });
+  for (const s of await q("SELECT id, riotid FROM smurfs WHERE coalesce(riotid,'')<>''")) watch.push({ kind:'smurf',  id:s.id, rid:s.riotid });
+  for (const r of await q("SELECT riotid    FROM roster WHERE coalesce(riotid,'')<>''")) watch.push({ kind:'roster',          rid:r.riotid });
+  // puuid por rid desde el historial crudo (sin gastar llamadas a Riot para resolver).
+  const rid2puuid = {};
+  for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) rid2puuid[r.rid] = r.puuid;
+  for (const w of watch){
+    const puuid = rid2puuid[(w.rid || '').toLowerCase()]; if (!puuid) continue;
+    const cur = await accountByPuuid(puuid, KEY);
+    await new Promise(r => setTimeout(r, 120));   // suave con el rate limit de Riot
+    if (!cur) continue;
+    if (cur.toLowerCase() === (w.rid || '').toLowerCase()) continue;   // sin cambios
+    await applyRename(w, cur);
+  }
+}
+
 init()
   .then(() => app.listen(PORT, () => {
     console.log(`✔ Backend + web en http://localhost:${PORT}`);
@@ -1252,6 +1307,10 @@ init()
       const GRANT_MS = (Number(process.env.GRANTER_SEC) || 300) * 1000;
       setTimeout(grant, 45000);
       setInterval(grant, GRANT_MS);
+      // Auto-detección de cambios de nombre (cada 30 min).
+      const renames = () => detectRenames().catch(e => console.error('renames:', e.message));
+      setTimeout(renames, 90000);
+      setInterval(renames, 30 * 60 * 1000);
     }
   }))
   .catch(e => { console.error('❌ No se pudo conectar a la base de datos:', e.message); process.exit(1); });
