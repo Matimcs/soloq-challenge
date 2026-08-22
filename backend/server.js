@@ -946,16 +946,16 @@ app.get('/api/stats', wrap(async (req, res) => {
   // El puuid no cambia aunque cambie el Riot ID, así una cuenta renombrada cuenta como una sola.
   let snapPlayers = [];
   try { snapPlayers = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')).players || []; } catch {}
-  const metaByAcct = {};   // acct(puuid|rid) -> { nm, tier, high, pos, abs, rid }
-  snapPlayers.forEach((p, i) => {
-    const rid = (p.rid || '').toLowerCase(); const acct = p.puuid || rid;
-    const high = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(p.tier);
-    if (!metaByAcct[acct]) metaByAcct[acct] = { nm: p.nm || rid.split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1, abs: absLPof(p.tier, p.div, p.lp) || 0, rid };
-  });
   // rid (incluye nombres VIEJOS) -> acct(puuid), desde el historial crudo.
   const acctByRid = {};
   try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) acctByRid[r.rid] = r.puuid; } catch {}
   const acctOf = rid => acctByRid[rid] || rid;
+  const metaByAcct = {};   // acct(puuid|rid) -> { nm, tier, high, pos, abs, rid }
+  snapPlayers.forEach((p, i) => {
+    const rid = (p.rid || '').toLowerCase(); const acct = acctByRid[rid] || p.puuid || rid;   // mismo acct que las agregaciones
+    const high = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(p.tier);
+    if (!metaByAcct[acct]) metaByAcct[acct] = { nm: p.nm || rid.split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1, abs: absLPof(p.tier, p.div, p.lp) || 0, rid };
+  });
   // Jugador (dueño) por cuenta: main + smurfs registrados → user id; + nick del jugador.
   const puuidOwner = {}, ownerNick = {};
   try {
