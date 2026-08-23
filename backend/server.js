@@ -1278,10 +1278,18 @@ function startEmbeddedRunner(){
 
   console.log(`▶ Runner embebido activo — actualiza el ranking cada ${INTERVAL / 1000}s`);
   (async () => {
+    // Muestra de inmediato el ÚLTIMO ranking bueno (guardado en DB), para no servir el
+    // players.json viejo del repo durante los ~2-3 min del primer ciclo tras un redeploy.
+    try { const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data) liveData = row.data; } catch {}
     await loadCache();   // restaura el historial ±LP/aegis persistido
     for (;;){
       const t = Date.now();
-      try { await writeRoster(); await runOnce(); await saveCache(); liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); }
+      try {
+        await writeRoster(); await runOnce(); await saveCache();
+        liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
+        // Persiste el ranking recién construido para el próximo arranque (redeploy sin ranking viejo).
+        try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(liveData)]); } catch {}
+      }
       catch (e){ console.error('Runner embebido:', e.message); }
       await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));
     }
