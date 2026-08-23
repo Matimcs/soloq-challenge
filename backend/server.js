@@ -1090,8 +1090,10 @@ app.get('/api/stats', wrap(async (req, res) => {
     if (r.win) o.l++; else o.w++;                            // ganó el contrincante => perdimos nosotros
   }
   const oppArr = Object.values(opp).filter(o => (o.w + o.l) >= 2);   // solo rivales enfrentados ≥2 veces
-  const rivalesBest  = oppArr.slice().sort((a, b) => b.w - a.w || (b.w + b.l) - (a.w + a.l)).slice(0, 15);
-  const rivalesWorst = oppArr.slice().sort((a, b) => b.l - a.l || (b.w + b.l) - (a.w + a.l)).slice(0, 15);
+  // Mejores: más victorias; en empate, primero al que MENOS le hemos perdido.
+  const rivalesBest  = oppArr.slice().sort((a, b) => b.w - a.w || a.l - b.l).slice(0, 15);
+  // Peores: más derrotas; en empate, primero al que MENOS le hemos ganado.
+  const rivalesWorst = oppArr.slice().sort((a, b) => b.l - a.l || a.w - b.w).slice(0, 15);
 
   // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60.
   let historial = [];
