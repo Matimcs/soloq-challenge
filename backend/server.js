@@ -1193,7 +1193,16 @@ app.get('/api/_dbg', wrap(async (_req, res) => {
   const local = localMatchesCache();
   let dbN = null; try { const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); dbN = Object.keys((mc && mc.data) || {}).length; } catch {}
   let fileExists = false, fileKeys = null; try { const raw = fs.readFileSync(path.join(ROOT, 'cache', 'matches.json'), 'utf8'); fileExists = true; fileKeys = Object.keys(JSON.parse(raw)).length; } catch {}
-  res.json({ localNull: local === null, localKeys: local ? Object.keys(local).length : 0, dbKeys: dbN, fileExists, fileKeys, hasKey: !!process.env.RIOT_API_KEY });
+  // Replica la resolución del ELO para ver dónde se pierden los puuids.
+  let snap = []; try { snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')).players || []; } catch {}
+  const acctByRid = {};
+  try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) acctByRid[r.rid] = r.puuid; } catch {}
+  const metaByAcct = {};
+  snap.forEach(p => { const rid = (p.rid || '').toLowerCase(); const acct = acctByRid[rid] || p.puuid || rid; if (!metaByAcct[acct]) metaByAcct[acct] = 1; });
+  const store = local || {};
+  let inMeta = 0; for (const k in store) if (metaByAcct[k]) inMeta++;
+  res.json({ localNull: local === null, localKeys: local ? Object.keys(local).length : 0, dbKeys: dbN, fileExists, fileKeys, hasKey: !!process.env.RIOT_API_KEY,
+    snapPlayers: snap.length, snapWithPuuid: snap.filter(p => p.puuid).length, acctByRidN: Object.keys(acctByRid).length, storeInMeta: inMeta });
 }));
 
 // Health-check ultra liviano (para UptimeRobot / monitoreo): responde "ok" sin tocar la DB.
