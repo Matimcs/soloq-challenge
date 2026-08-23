@@ -1106,6 +1106,7 @@ app.get('/api/stats', wrap(async (req, res) => {
   const dayAcc = {}, series = [];
   const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
   for (const puuid in store) {
+    if (excludeAcct.has(puuid)) continue;   // solo la cuenta más alta de cada jugador (excluye smurfs)
     const m = metaByAcct[puuid]; if (!m) continue;
     const rid = m.rid || puuid;
     const s = store[puuid]; const lg = (s && Array.isArray(s.lpGames) ? s.lpGames : []).filter(g => g.end);

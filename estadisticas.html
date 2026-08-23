@@ -16,6 +16,7 @@
   body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
   a{ color:inherit; text-decoration:none; }
   .wrap{ max-width:1080px; margin:0 auto; padding:0 20px; }
+  main.wrap{ padding-bottom:64px; }   /* aire al final de la página */
   .brand b span{ color:var(--accent); }
   h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
   .sub{ color:var(--muted); font-size:14px; margin-bottom:20px; }
@@ -53,10 +54,19 @@
   .net.up{ color:var(--up); } .net.down{ color:var(--down); }
 
   /* Chart */
-  .chartwrap{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:14px; overflow:hidden; }
+  .chartwrap{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:14px; }
   .chartwrap h3{ font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--accent); }
   .chartwrap .cap{ font-size:11px; color:var(--muted-2); margin:2px 0 10px; }
   #elo-svg{ width:100%; height:380px; display:block; }
+  /* Chart de elo promedio con hover interactivo */
+  .avg-chart{ position:relative; }
+  .avg-chart svg{ width:100%; display:block; cursor:crosshair; }
+  .avg-guide{ position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.28); pointer-events:none; display:none; transform:translateX(-.5px); }
+  .avg-dot{ position:absolute; width:10px; height:10px; border-radius:50%; background:var(--accent); border:1.5px solid #000; pointer-events:none; display:none; transform:translate(-50%,-50%); box-shadow:0 0 8px rgba(233,255,31,.6); }
+  .avg-tip{ position:absolute; pointer-events:none; background:rgba(12,13,17,.96); border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; font-weight:700; color:#fff; text-align:center; transform:translate(-50%,calc(-100% - 10px)); white-space:nowrap; z-index:5; display:none; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .avg-tip .d{ color:var(--muted); font-size:10px; font-weight:600; }
+  .avg-tip b{ color:var(--accent); }
+  .avg-date{ position:absolute; bottom:3px; pointer-events:none; transform:translateX(-50%); font-size:10px; font-weight:800; color:#000; background:var(--accent); padding:1px 6px; border-radius:4px; display:none; white-space:nowrap; }
   .legend{ display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:12px; }
   .lg{ font-size:11px; color:var(--muted); cursor:pointer; padding:2px 7px; border-radius:6px; border:1px solid var(--line); user-select:none; }
   .lg .dot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
@@ -185,7 +195,13 @@
       </div>
       <div class="chartwrap">
         <h3>ELO PROMEDIO DEL RANKING</h3><div class="cap" id="avg-cap">Promedio del elo de todos los jugadores a lo largo del tiempo</div>
-        <svg id="avg-svg" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
+        <div class="avg-chart" id="avg-chart">
+          <svg id="avg-svg" viewBox="0 0 1000 300" preserveAspectRatio="none"></svg>
+          <div class="avg-guide" id="avg-guide"></div>
+          <div class="avg-dot" id="avg-dot"></div>
+          <div class="avg-tip" id="avg-tip"></div>
+          <div class="avg-date" id="avg-date"></div>
+        </div>
       </div>`;
     drawChart(); drawAvgChart();
   }
@@ -212,7 +228,34 @@
     const area=`M${X(pts[0].t).toFixed(1)} ${Y(yMin).toFixed(1)} `+pts.map(p=>'L'+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ')+` L${X(pts[pts.length-1].t).toFixed(1)} ${Y(yMin).toFixed(1)} Z`;
     svg.innerHTML = g + `<path d="${area}" fill="rgba(233,255,31,.08)"/><path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2"/>`;
     const last = pts[pts.length-1];
-    const cap = $('avg-cap'); if (cap) cap.textContent = `Promedio actual: ${eloTierLabel(last.lp)} · ${last.n} jugadores`;
+    const cap = $('avg-cap'); if (cap) cap.textContent = `Promedio actual: ${eloTierLabel(last.lp)} · ${last.n} jugadores · pasa el mouse para ver por fecha`;
+    // Datos para el hover interactivo.
+    const box = $('avg-chart');
+    if (box){
+      box._avg = { pts, W, H, PL, PR, X, Y, tMin, tMax };
+      if (!box._hoverBound){ box._hoverBound = true;
+        box.addEventListener('mousemove', avgHover);
+        box.addEventListener('mouseleave', avgHideHover);
+      }
+    }
+  }
+  function avgHideHover(){ ['avg-guide','avg-dot','avg-tip','avg-date'].forEach(id=>{ const el=$(id); if(el) el.style.display='none'; }); }
+  function avgHover(e){
+    const box=$('avg-chart'), d=box&&box._avg; if(!d) return;
+    const svg=$('avg-svg'), rect=svg.getBoundingClientRect(); if(!rect.width) return;
+    const vbX=(e.clientX-rect.left)/rect.width*d.W;
+    const span=(d.W-d.PL-d.PR)||1, frac=Math.max(0,Math.min(1,(vbX-d.PL)/span));
+    const t=d.tMin+frac*(d.tMax-d.tMin);
+    let best=d.pts[0],bd=Infinity; for(const p of d.pts){ const dd=Math.abs(p.t-t); if(dd<bd){bd=dd;best=p;} }
+    const px=d.X(best.t)/d.W*rect.width, py=d.Y(best.lp)/d.H*rect.height;
+    const dstr=new Date(best.t).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'2-digit'});
+    const dot=$('avg-dot'), guide=$('avg-guide'), tip=$('avg-tip'), dl=$('avg-date');
+    if(guide){ guide.style.display='block'; guide.style.left=px+'px'; }
+    if(dot){ dot.style.display='block'; dot.style.left=px+'px'; dot.style.top=py+'px'; }
+    if(tip){ tip.style.display='block'; tip.style.left=px+'px'; tip.style.top=py+'px';
+      tip.style.transform = py>80 ? 'translate(-50%,calc(-100% - 12px))' : 'translate(-50%,12px)';
+      tip.innerHTML=`<div class="d">${dstr}</div><b>${eloTierLabel(best.lp)}</b><div class="d">${best.n} jugadores</div>`; }
+    if(dl){ dl.style.display='block'; dl.style.left=px+'px'; dl.textContent=dstr; }
   }
   const hidden = new Set();
   const PALETTE = ['#e9ff1f','#4aa3ff','#fb7185','#34d399','#c084fc','#ffd24a','#f472b6','#22d3ee','#a3e635','#fb923c','#818cf8','#f87171'];
