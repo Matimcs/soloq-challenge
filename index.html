@@ -664,7 +664,6 @@
           <button class="lf" data-lf="low">LOW ELO</button>
         </div>
       </div>
-      <div id="live-streams"></div>
       <div id="live-games"></div>
       <div id="live-empty" class="live-empty" style="display:none">
         Nadie del challenge está en partida en este momento.
@@ -1117,16 +1116,16 @@ function streamEmbed(url){
     const u = new URL(url); const host = u.hostname.replace(/^www\./,''); const parent = location.hostname;
     const parts = u.pathname.split('/').filter(Boolean);
     if (host==='twitch.tv' || host==='m.twitch.tv'){
-      if (parts[0]==='videos' && parts[1]) return `https://player.twitch.tv/?video=${encodeURIComponent(parts[1])}&parent=${parent}&autoplay=false`;
-      if (parts[0]) return `https://player.twitch.tv/?channel=${encodeURIComponent(parts[0])}&parent=${parent}&autoplay=false&muted=true`;
+      if (parts[0]==='videos' && parts[1]) return `https://player.twitch.tv/?video=${encodeURIComponent(parts[1])}&parent=${parent}&autoplay=true&muted=true`;
+      if (parts[0]) return `https://player.twitch.tv/?channel=${encodeURIComponent(parts[0])}&parent=${parent}&autoplay=true&muted=true`;
     }
     if (host==='player.twitch.tv') return url + (url.includes('parent=')?'':`&parent=${parent}`);
     if (host==='youtube.com' || host==='youtube-nocookie.com'){
-      const v = u.searchParams.get('v'); if (v) return `https://www.youtube.com/embed/${encodeURIComponent(v)}`;
-      if (parts[0]==='live' && parts[1]) return `https://www.youtube.com/embed/${encodeURIComponent(parts[1])}`;
+      const v = u.searchParams.get('v'); if (v) return `https://www.youtube.com/embed/${encodeURIComponent(v)}?autoplay=1&mute=1`;
+      if (parts[0]==='live' && parts[1]) return `https://www.youtube.com/embed/${encodeURIComponent(parts[1])}?autoplay=1&mute=1`;
       if (parts[0]==='embed' && parts[1]) return url;
     }
-    if (host==='youtu.be' && parts[0]) return `https://www.youtube.com/embed/${encodeURIComponent(parts[0])}`;
+    if (host==='youtu.be' && parts[0]) return `https://www.youtube.com/embed/${encodeURIComponent(parts[0])}?autoplay=1&mute=1`;
     if (host==='kick.com' && parts[0]) return `https://player.kick.com/${encodeURIComponent(parts[0])}`;
   }catch{}
   return null;
@@ -1145,25 +1144,13 @@ function fillHeroStream(list){
   if(views) views.innerHTML = `<a href="${escAttr(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">● en vivo ↗</a>`;
 }
 async function loadStreams(){
-  const wrap = document.getElementById('live-streams');
   try{
     const r = await fetch('/api/streams'); if(!r.ok) return;
     const list = await r.json();
     const sig = JSON.stringify(list.map(s=>s.id+'|'+s.url+'|'+(s.label||'')));
-    if (sig === _streamSig) return;   // sin cambios: no recargar los reproductores
+    if (sig === _streamSig) return;   // sin cambios: no recargar el reproductor
     _streamSig = sig;
-    fillHeroStream(list);             // recuadro del hero (stream principal)
-    if(!wrap) return;
-    if(!list.length){ wrap.innerHTML=''; return; }
-    wrap.innerHTML = `<div class="streams-h">📺 Transmisiones en vivo</div><div class="streams-grid">` + list.map(s=>{
-      const emb = streamEmbed(s.url);
-      const lbl = escAttr(s.label || streamLabel(s.url));
-      const open = `<a href="${escAttr(s.url)}" target="_blank" rel="noopener">Abrir ↗</a>`;
-      const body = emb
-        ? `<div class="stream-embed"><iframe src="${escAttr(emb)}" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" scrolling="no"></iframe></div>`
-        : `<div class="stream-embed nofit"><a href="${escAttr(s.url)}" target="_blank" rel="noopener">Ver transmisión ↗</a></div>`;
-      return `<div class="stream-card"><div class="stream-top"><span class="st-lbl">${lbl}</span>${open}</div>${body}</div>`;
-    }).join('') + `</div>`;
+    fillHeroStream(list);             // stream principal en el recuadro del hero
   }catch{}
 }
 loadStreams(); setInterval(loadStreams, 60000);

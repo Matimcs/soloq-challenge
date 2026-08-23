@@ -41,7 +41,12 @@
   .btn-ok{ background:rgba(52,211,153,.16); color:var(--up); border:1px solid rgba(52,211,153,.45); }
   .btn-no{ background:rgba(251,113,133,.14); color:var(--down); border:1px solid rgba(251,113,133,.45); }
 
-  .list{ display:flex; flex-direction:column; gap:8px; }
+  /* Cada recuadro muestra ~5 filas; el resto se scrollea dentro. */
+  .list{ display:flex; flex-direction:column; gap:8px; max-height:296px; overflow-y:auto; }
+  .list::-webkit-scrollbar, .scrollbox::-webkit-scrollbar{ width:8px; }
+  .list::-webkit-scrollbar-thumb, .scrollbox::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.14); border-radius:8px; }
+  .scrollbox{ max-height:300px; overflow-y:auto; }
+  .scrollbox thead th{ position:sticky; top:0; background:var(--panel); z-index:1; }
   .item{ display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; }
   .item img{ width:30px; height:30px; object-fit:contain; flex-shrink:0; }
   .item .info{ flex:1; min-width:0; }
@@ -151,7 +156,7 @@
     <!-- Participantes -->
     <div class="box">
       <h2>Participantes <span class="n" id="pt-count"></span></h2>
-      <table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table>
+      <div class="scrollbox"><table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table></div>
     </div>
 
     <!-- Penalizaciones -->
