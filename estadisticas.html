@@ -114,11 +114,13 @@
       <button class="tab active" data-t="tops">TOPS</button>
       <button class="tab" data-t="elo">ELO</button>
       <button class="tab" data-t="coinc">COINCIDENCIAS</button>
+      <button class="tab" data-t="rivales">CONTRINCANTES</button>
     </div>
 
     <div class="panel active" id="p-tops"><div class="loading">Cargando estadísticas…</div></div>
     <div class="panel" id="p-elo"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-coinc"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-rivales"><div class="loading">Cargando…</div></div>
   </main>
 
 <script src="players.js"></script>
@@ -280,12 +282,34 @@
       <div class="enc">${hist||'<div class="empty">Sin coincidencias aún</div>'}</div>`;
   }
 
+  // ---- CONTRINCANTES (rivales ajenos al torneo) ----
+  function rivalRow(o, i, metric){
+    const big = metric==='w' ? o.w : o.l;
+    const opgg = o.rid ? `https://op.gg/lol/summoners/las/${encodeURIComponent(String(o.rid).replace('#','-'))}` : null;
+    const name = opgg ? `<a href="${opgg}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none">${esc(o.nm)}</a>` : esc(o.nm);
+    return `<div class="rowl">
+      <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+      <div class="meta"><div class="nm">${name}</div><div class="games">${o.w}V · ${o.l}D</div></div>
+      <div class="val" style="color:${metric==='w'?'var(--up)':'var(--down)'}">${big}<span style="font-size:10px;color:var(--muted);font-weight:700"> ${metric==='w'?'V':'D'}</span></div></div>`;
+  }
+  function renderRivales(){
+    const c = DATA.contrincantes || {};
+    const best  = (c.best ||[]).map((o,i)=>rivalRow(o,i,'w')).join('');
+    const worst = (c.worst||[]).map((o,i)=>rivalRow(o,i,'l')).join('');
+    $('p-rivales').innerHTML = `
+      <div class="kpi">Rivales <b>ajenos al SoloQ Chile</b> que más veces enfrentamos (mín. 2 partidas). Son partidas ganadas/perdidas contra ellos, no porcentaje.</div>
+      <div class="grid">
+        <div class="card"><h3>MEJORES CONTRINCANTES</h3><div class="cap">A los que más les hemos ganado</div>${best||'<div class="empty">Sin datos</div>'}</div>
+        <div class="card"><h3>PEORES CONTRINCANTES</h3><div class="cap">Los que más nos han ganado</div>${worst||'<div class="empty">Sin datos</div>'}</div>
+      </div>`;
+  }
+
   async function load(){
     try {
       const r = await fetch('/api/stats', { cache:'no-store' });
       if (!r.ok) throw new Error('HTTP '+r.status);
       DATA = await r.json();
-      renderTops(); renderElo(); renderCoinc();
+      renderTops(); renderElo(); renderCoinc(); renderRivales();
     } catch (e) {
       $('p-tops').innerHTML = '<div class="empty">No se pudieron cargar las estadísticas.<br><small>'+esc(e.message)+'</small></div>';
     }

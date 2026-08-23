@@ -1054,6 +1054,28 @@ app.get('/api/stats', wrap(async (req, res) => {
   const duosBest = duosAll.slice().sort((x, y) => y.wr - x.wr || y.games - x.games).slice(0, 8);
   const duosWorst = duosAll.slice().sort((x, y) => x.wr - y.wr || y.games - x.games).slice(0, 8);
 
+  // ---- CONTRINCANTES externos: rivales AJENOS al torneo, por victorias/derrotas nuestras ----
+  // Cada partida guardada trae los 10 jugadores; los que NO son del torneo son "contrincantes".
+  // Si su equipo perdió, nosotros les ganamos (w++); si ganó, nos ganaron (l++).
+  const partRows = await q(`
+    SELECT match_id, team_id, puuid, max(name) nm, max(lower(riotid)) rid, bool_or(win) win, bool_or(is_tournament) is_t
+    FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY match_id, team_id, puuid`);
+  const tournPuuids = new Set(), teamHasTourn = {};
+  for (const r of partRows) if (r.is_t){ tournPuuids.add(r.puuid); (teamHasTourn[r.match_id] = teamHasTourn[r.match_id] || {})[r.team_id] = true; }
+  const opp = {};   // puuid contrincante -> { nm, rid, w, l }
+  for (const r of partRows){
+    if (tournPuuids.has(r.puuid)) continue;                 // es del torneo, no es contrincante externo
+    const tt = teamHasTourn[r.match_id]; if (!tt) continue;
+    const oppTeam = r.team_id === 100 ? 200 : 100;
+    if (!tt[oppTeam]) continue;                              // no hubo alguien del torneo enfrentándolo
+    const o = opp[r.puuid] || (opp[r.puuid] = { nm: r.nm, rid: r.rid, w: 0, l: 0 });
+    if (r.nm) o.nm = r.nm; if (r.rid) o.rid = r.rid;
+    if (r.win) o.l++; else o.w++;                            // ganó el contrincante => perdimos nosotros
+  }
+  const oppArr = Object.values(opp).filter(o => (o.w + o.l) >= 2);   // solo rivales enfrentados ≥2 veces
+  const rivalesBest  = oppArr.slice().sort((a, b) => b.w - a.w || (b.w + b.l) - (a.w + a.l)).slice(0, 15);
+  const rivalesWorst = oppArr.slice().sort((a, b) => b.l - a.l || (b.w + b.l) - (a.w + a.l)).slice(0, 15);
+
   // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60.
   let historial = [];
   try { const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); historial = snap.encounters || []; } catch {}
@@ -1097,7 +1119,7 @@ app.get('/api/stats', wrap(async (req, res) => {
     }
   }
 
-  STATS_CACHE.data = { tops, elo: { subidones, bajones, series, avgSeries }, coincidencias: { count: coincCount, verdugos, duelos, duosBest, duosWorst, historial } };
+  STATS_CACHE.data = { tops, elo: { subidones, bajones, series, avgSeries }, coincidencias: { count: coincCount, verdugos, duelos, duosBest, duosWorst, historial }, contrincantes: { best: rivalesBest, worst: rivalesWorst } };
   STATS_CACHE.at = Date.now();
   res.json(STATS_CACHE.data);
 }));
