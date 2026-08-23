@@ -80,8 +80,7 @@ const MAX_SHELLS = 3;
 function rollShell(){ const t = SHELLS.reduce((a,s)=>a+s.w,0); let r = Math.random()*t; for (const s of SHELLS){ if ((r-=s.w)<=0) return s.name; } return SHELLS[0].name; }
 function reverseChance(pos){ return (pos && pos<=5) ? pos : 15; }
 function ladderPos(riotid){
-  try { const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
-    const i = (d.players||[]).findIndex(p => p.rid === riotid); return i >= 0 ? i+1 : null; } catch { return null; }
+  const i = (liveSnapshot().players||[]).findIndex(p => p.rid === riotid); return i >= 0 ? i+1 : null;
 }
 
 // Lista de campeones (Data Dragon): para validar los del registro y sortear el "Campeón aleatorio".
@@ -464,10 +463,7 @@ function rankBy(players, getFn, puuid){
 // inscritas SIN dueño registrado no se excluyen (cuentan como su propia "cuenta más alta").
 async function excludedSmurfRids(){
   const absByRid = {};
-  try {
-    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
-    (snap.players || []).forEach(p => { absByRid[(p.rid || '').toLowerCase()] = absLPof(p.tier, p.div, p.lp) || 0; });
-  } catch {}
+  (liveSnapshot().players || []).forEach(p => { absByRid[(p.rid || '').toLowerCase()] = absLPof(p.tier, p.div, p.lp) || 0; });
   const owner = {};
   try {
     for (const u of await q("SELECT id, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''"))
@@ -806,6 +802,12 @@ app.post('/api/admin/confirm', auth, requireAdmin, wrap(async (req,res) => {
 // El runner local (con la Riot key) empuja aquí players.json para mantener
 // vivo el ranking del sitio online. Protegido por INGEST_SECRET.
 let liveData = null;   // último snapshot en memoria (sobrevive a discos efímeros)
+// Snapshot del ranking: SIEMPRE de memoria (liveData). Cae al disco solo si aún no hay memoria
+// (evita leer un players.json de disco vacío/viejo cuando el runner no lo escribió este arranque).
+function liveSnapshot(){
+  if (liveData && Array.isArray(liveData.players)) return liveData;
+  try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { return { players: [], encounters: [] }; }
+}
 app.post('/api/ingest', wrap(async (req,res) => {
   if (!process.env.INGEST_SECRET) return res.status(503).json({ error:'Ingesta deshabilitada (falta INGEST_SECRET)' });
   if ((req.headers['x-ingest-secret'] || '') !== process.env.INGEST_SECRET) return res.status(401).json({ error:'Secreto inválido' });
@@ -963,8 +965,7 @@ app.get('/api/stats', wrap(async (req, res) => {
 
   // ---- Identidad de CUENTA por PUUID (consolida renombres) + JUGADOR (dueño) ----
   // El puuid no cambia aunque cambie el Riot ID, así una cuenta renombrada cuenta como una sola.
-  let snapPlayers = [];
-  try { snapPlayers = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')).players || []; } catch {}
+  const snapPlayers = liveSnapshot().players || [];
   // rid (incluye nombres VIEJOS) -> acct(puuid), desde el historial crudo.
   const acctByRid = {};
   try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) acctByRid[r.rid] = r.puuid; } catch {}
@@ -1098,8 +1099,7 @@ app.get('/api/stats', wrap(async (req, res) => {
   const rivalesWorst = oppArr.slice().sort((a, b) => b.l - a.l || a.w - b.w).slice(0, 15);
 
   // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60.
-  let historial = [];
-  try { const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); historial = snap.encounters || []; } catch {}
+  const historial = liveSnapshot().encounters || [];
 
   // ---- ELO: subidones/bajones por día + serie de evolución (desde ±LP guardados) ----
   // El caché de ±LP ya está keyeado por puuid (consolidado por cuenta); la meta también.
@@ -1155,10 +1155,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
   if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 60000) return res.json(ENC_CACHE.data);
   // Nickname del torneo por cuenta (para mostrar el nick, no el summoner name).
   const meta = {};
-  try {
-    const snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
-    (snap.players || []).forEach(p => { meta[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
-  } catch {}
+  (liveSnapshot().players || []).forEach(p => { meta[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
   const rows = await q(`
     SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win,
            max(team_id) team, max(champion) champ, max(game_end) gend
@@ -1186,23 +1183,6 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
      round(EXTRACT(EPOCH FROM (now()-updated_at))/60)::int AS min_ago
      FROM overlay_reports ORDER BY updated_at DESC`);
   res.json(rows.map(r => ({ riotid: r.riotid, inGame: !!r.in_game, minAgo: Number(r.min_ago) })));
-}));
-
-// Diagnóstico temporal del caché de ±LP (para depurar ELO vacío).
-app.get('/api/_dbg', wrap(async (_req, res) => {
-  const local = localMatchesCache();
-  let dbN = null; try { const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); dbN = Object.keys((mc && mc.data) || {}).length; } catch {}
-  let fileExists = false, fileKeys = null; try { const raw = fs.readFileSync(path.join(ROOT, 'cache', 'matches.json'), 'utf8'); fileExists = true; fileKeys = Object.keys(JSON.parse(raw)).length; } catch {}
-  // Replica la resolución del ELO para ver dónde se pierden los puuids.
-  let snap = []; try { snap = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')).players || []; } catch {}
-  const acctByRid = {};
-  try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) acctByRid[r.rid] = r.puuid; } catch {}
-  const metaByAcct = {};
-  snap.forEach(p => { const rid = (p.rid || '').toLowerCase(); const acct = acctByRid[rid] || p.puuid || rid; if (!metaByAcct[acct]) metaByAcct[acct] = 1; });
-  const store = local || {};
-  let inMeta = 0; for (const k in store) if (metaByAcct[k]) inMeta++;
-  res.json({ localNull: local === null, localKeys: local ? Object.keys(local).length : 0, dbKeys: dbN, fileExists, fileKeys, hasKey: !!process.env.RIOT_API_KEY,
-    snapPlayers: snap.length, snapWithPuuid: snap.filter(p => p.puuid).length, acctByRidN: Object.keys(acctByRid).length, storeInMeta: inMeta });
 }));
 
 // Health-check ultra liviano (para UptimeRobot / monitoreo): responde "ok" sin tocar la DB.
