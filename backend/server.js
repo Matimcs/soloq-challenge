@@ -37,7 +37,9 @@ const ROOT = path.join(__dirname, '..');
 let _mcCache = { at: 0, data: null };
 function localMatchesCache(){
   if (Date.now() - _mcCache.at < 15000) return _mcCache.data;   // relee del disco máx. cada 15s
-  try { _mcCache = { at: Date.now(), data: JSON.parse(fs.readFileSync(path.join(ROOT, 'cache', 'matches.json'), 'utf8')) }; }
+  try { const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'cache', 'matches.json'), 'utf8'));
+    _mcCache = { at: Date.now(), data: (d && Object.keys(d).length) ? d : null };   // vacío => null (cae al fallback de DB)
+  }
   catch { _mcCache = { at: Date.now(), data: null }; }
   return _mcCache.data;
 }
