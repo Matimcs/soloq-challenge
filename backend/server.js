@@ -1188,6 +1188,14 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
   res.json(rows.map(r => ({ riotid: r.riotid, inGame: !!r.in_game, minAgo: Number(r.min_ago) })));
 }));
 
+// Diagnóstico temporal del caché de ±LP (para depurar ELO vacío).
+app.get('/api/_dbg', wrap(async (_req, res) => {
+  const local = localMatchesCache();
+  let dbN = null; try { const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); dbN = Object.keys((mc && mc.data) || {}).length; } catch {}
+  let fileExists = false, fileKeys = null; try { const raw = fs.readFileSync(path.join(ROOT, 'cache', 'matches.json'), 'utf8'); fileExists = true; fileKeys = Object.keys(JSON.parse(raw)).length; } catch {}
+  res.json({ localNull: local === null, localKeys: local ? Object.keys(local).length : 0, dbKeys: dbN, fileExists, fileKeys, hasKey: !!process.env.RIOT_API_KEY });
+}));
+
 // Health-check ultra liviano (para UptimeRobot / monitoreo): responde "ok" sin tocar la DB.
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 
