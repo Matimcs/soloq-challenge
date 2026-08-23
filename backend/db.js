@@ -193,6 +193,14 @@ async function init(){
       SELECT riotid, team FROM users WHERE team IS NOT NULL AND team<>''
       ON CONFLICT (riotid, team) DO NOTHING;
 
+    -- Transmisiones en vivo (streams) que el admin agrega a mano para verlas embebidas en la web.
+    CREATE TABLE IF NOT EXISTS streams (
+      id         SERIAL PRIMARY KEY,
+      url        TEXT NOT NULL,
+      label      TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
     -- porque se conecta como 'postgres' (bypassrls). Idempotente y cubre tablas futuras.

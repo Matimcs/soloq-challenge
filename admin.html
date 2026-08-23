@@ -116,6 +116,18 @@
       <div class="list" id="rt-list" style="margin-top:12px"></div>
     </div>
 
+    <!-- Transmisiones en vivo -->
+    <div class="box">
+      <h2>Transmisiones en vivo <span class="n" id="st-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Pega el link de un stream (Twitch o YouTube) y aparecerá embebido en la web, en "Live Games". Ej: https://www.twitch.tv/elunderesports</div>
+      <div class="drop-row">
+        <input type="text" id="st-url" placeholder="Link del stream (https://www.twitch.tv/...)">
+        <input type="text" id="st-label" placeholder="Etiqueta opcional (ej: HB vs Zenith)">
+        <button class="btn btn-accent" id="st-add">Agregar</button>
+      </div>
+      <div class="list" id="st-list" style="margin-top:12px"></div>
+    </div>
+
     <!-- Perfiles por confirmar -->
     <div class="box">
       <h2>Perfiles por confirmar <span class="n" id="cf-count"></span></h2>
@@ -290,6 +302,25 @@
       catch(e){ toast(e.message); }
     });
 
+    // ---- Transmisiones ----
+    async function renderStreams(){
+      const list = await SQC.api('/streams');
+      $('st-count').textContent = `(${list.length})`;
+      $('st-list').innerHTML = list.length ? list.map(s=>`
+        <div class="item"><div class="info"><div class="t">${s.label ? s.label : s.url}</div><div class="s">${s.label ? s.url : ''}</div></div>
+          <div class="acts"><button class="btn btn-no" data-id="${s.id}">Quitar</button></div></div>`).join('')
+        : '<div class="empty">No hay transmisiones activas.</div>';
+      $('st-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/streams/remove',{method:'POST',body:{id:Number(b.dataset.id)}}); toast('Transmisión quitada'); renderStreams(); } catch(e){ toast(e.message); }
+      }));
+    }
+    $('st-add').addEventListener('click', async () => {
+      const url = $('st-url').value.trim();
+      if (!/^https?:\/\/.+/i.test(url)){ toast('Pega un link válido (https://...)'); return; }
+      try { await SQC.api('/admin/streams', {method:'POST', body:{ url, label: $('st-label').value.trim() }}); $('st-url').value=''; $('st-label').value=''; toast('Transmisión agregada'); renderStreams(); }
+      catch(e){ toast(e.message); }
+    });
+
     // ---- Penalizaciones ----
     const CASTIGOS = ['Sin tus 3 campeones más jugados','Una partida con Yuumi','Campeón aleatorio','Sin Flash','Autofill','Sin botas y sin pies veloces','Hechizos cambiados','Sin pociones ni pinks','Sin objetos completos hasta min 15','Reverse','Clase de campeón aleatoria'];
     async function renderPen(){
@@ -371,7 +402,7 @@
     $('msg-send').addEventListener('click', sendMsg);
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
-    renderConfirm(); renderDrop(); renderRoster(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
+    renderConfirm(); renderDrop(); renderRoster(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
     setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
   })();
 </script>

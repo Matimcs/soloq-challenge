@@ -848,6 +848,23 @@ app.post('/api/admin/drop/close', auth, requireAdmin, wrap(async (req,res) => {
   res.json({ ok:true });
 }));
 
+// ================= STREAMS (transmisiones agregadas a mano por el admin) =================
+app.get('/api/streams', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=15');
+  res.json(await q('SELECT id, url, label FROM streams ORDER BY id DESC'));
+}));
+app.post('/api/admin/streams', auth, requireAdmin, wrap(async (req,res) => {
+  const url = ((req.body && req.body.url) || '').trim();
+  const label = ((req.body && req.body.label) || '').trim() || null;
+  if (!/^https?:\/\/.+/i.test(url)) return res.status(400).json({ error:'URL inválida (debe empezar con http)' });
+  await q('INSERT INTO streams (url, label) VALUES ($1, $2)', [url, label]);
+  res.json({ ok:true });
+}));
+app.post('/api/admin/streams/remove', auth, requireAdmin, wrap(async (req,res) => {
+  await q('DELETE FROM streams WHERE id=$1', [Number(req.body && req.body.id)]);
+  res.json({ ok:true });
+}));
+
 // ================= ROSTER (cuentas agregadas a mano) =================
 app.get('/api/admin/roster', auth, requireAdmin, wrap(async (req,res) =>
   res.json(await q('SELECT riotid, created_at FROM roster ORDER BY created_at DESC'))));
