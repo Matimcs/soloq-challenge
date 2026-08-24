@@ -286,10 +286,14 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
   // Perfil desde la caché del ranking (players.json) + usuario registrado
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
   const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
-  let u = await q1('SELECT * FROM users WHERE riotid=$1', [riotid]);
+  // Normaliza el Riot ID (colapsa espacios pegados al '#') para tolerar cuentas con nombres
+  // que traen un espacio raro (ej. "SHR UZI #LAS1" vs "SHR UZI#LAS1" como se registró).
+  const NORMR = "replace(replace(lower(riotid),' #','#'),'# ','#')";
+  const nr = riotid.toLowerCase().replace(/\s*#\s*/, '#');
+  let u = await q1(`SELECT * FROM users WHERE ${NORMR}=$1`, [nr]);
   let accLabel = u ? 'Main' : null;
   if (!u){ // ¿es una cuenta smurf? -> resuelve el dueño (para nick/blueshells)
-    const s = await q1('SELECT user_id FROM smurfs WHERE lower(riotid)=lower($1)', [riotid]);
+    const s = await q1(`SELECT user_id FROM smurfs WHERE ${NORMR}=$1`, [nr]);
     if (s){ u = await q1('SELECT * FROM users WHERE id=$1', [s.user_id]); accLabel = 'Smurf'; }
   }
 
