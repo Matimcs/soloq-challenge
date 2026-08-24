@@ -223,17 +223,15 @@ async function getCutoffs() {
   try { const c = JSON.parse(fs.readFileSync(CUTOFF_FILE, 'utf8'));
     if (c && Date.now() - (c.at || 0) < CUTOFF_TTL) return { gm: c.gm, chall: c.chall }; } catch {}
   const Q = 'RANKED_SOLO_5x5';
+  // Corte = LP mínimo de cada liga: Challenger = top 200 (el mínimo es el puesto 200);
+  // Grandmaster = top 700 (el mínimo de la liga GM es el puesto 700).
+  const minLP = lg => (lg && Array.isArray(lg.entries) && lg.entries.length) ? Math.min(...lg.entries.map(e => e.leaguePoints || 0)) : null;
   try {
     const [ch, gm] = await Promise.all([
       riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/${Q}`).catch(() => null),
       riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/grandmasterleagues/by-queue/${Q}`).catch(() => null),
     ]);
-    // Junta TODO el pool apex (Chall + GM) ordenado por LP desc. Corte = LP del puesto N,
-    // por LP independiente del rango asignado (como lpcutoff): 200 = Challenger, 500 = GM.
-    const pool = [...(ch && ch.entries || []), ...(gm && gm.entries || [])]
-      .map(e => e.leaguePoints || 0).sort((a, b) => b - a);
-    const at = n => pool.length >= n ? pool[n - 1] : null;
-    const res = { chall: at(200), gm: at(500), n: pool.length, at: Date.now() };
+    const res = { chall: minLP(ch), gm: minLP(gm), at: Date.now() };
     if (res.chall == null && res.gm == null) throw new Error('sin datos de liga');
     try { fs.writeFileSync(CUTOFF_FILE, JSON.stringify(res)); } catch {}
     return { gm: res.gm, chall: res.chall };
