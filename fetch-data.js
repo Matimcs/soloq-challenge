@@ -215,6 +215,30 @@ async function getDDragon() {
   return dd;
 }
 
+/* ===== LP de corte de Grandmaster y Challenger (league-v4). Cacheado 15 min: 2 llamadas cada
+   ~15 min como mucho, no cada ciclo. El corte = LP mínimo entre los jugadores de esa liga. ===== */
+const CUTOFF_FILE = path.join(CACHE_DIR, 'cutoffs.json');
+const CUTOFF_TTL  = 15 * 60 * 1000;
+async function getCutoffs() {
+  try { const c = JSON.parse(fs.readFileSync(CUTOFF_FILE, 'utf8'));
+    if (c && Date.now() - (c.at || 0) < CUTOFF_TTL) return { gm: c.gm, chall: c.chall }; } catch {}
+  const Q = 'RANKED_SOLO_5x5';
+  const minLP = lg => (lg && Array.isArray(lg.entries) && lg.entries.length) ? Math.min(...lg.entries.map(e => e.leaguePoints || 0)) : null;
+  try {
+    const [ch, gm] = await Promise.all([
+      riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/${Q}`).catch(() => null),
+      riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/grandmasterleagues/by-queue/${Q}`).catch(() => null),
+    ]);
+    const res = { chall: minLP(ch), gm: minLP(gm), at: Date.now() };
+    if (res.chall == null && res.gm == null) throw new Error('sin datos de liga');
+    try { fs.writeFileSync(CUTOFF_FILE, JSON.stringify(res)); } catch {}
+    return { gm: res.gm, chall: res.chall };
+  } catch {
+    try { const c = JSON.parse(fs.readFileSync(CUTOFF_FILE, 'utf8')); return { gm: c.gm, chall: c.chall }; } catch {}
+    return { gm: null, chall: null };
+  }
+}
+
 async function getPuuid(riotId) {
   if (puuidCache[riotId]) return puuidCache[riotId];   // ya resuelto antes → 0 requests
   const [name, tag] = riotId.split('#');
@@ -563,9 +587,10 @@ function rankText(entry) {
   for (const k in encounterStore) delete encounterStore[k];
   encList.forEach(e => { encounterStore[e.id] = e; });
 
+  const cutoffs = await getCutoffs();   // { gm, chall } — LP de corte apex, cacheado 15 min
   const out = {
     updatedAt: new Date().toISOString(), region: 'LAS',
-    ddragonVersion: DD.version, players, liveGames, encounters: encList,
+    ddragonVersion: DD.version, players, liveGames, encounters: encList, cutoffs,
   };
   fs.writeFileSync(path.join(__dirname, 'players.json'), JSON.stringify(out, null, 2), 'utf8');
   fs.writeFileSync(path.join(__dirname, 'players.js'),

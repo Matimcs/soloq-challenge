@@ -118,6 +118,11 @@
   .rank-head h2{ font-size:24px; letter-spacing:-.02em; margin:0; }
   .rank-head .updated{ font-size:12px; color:var(--muted-2); }
   .rank-head .updated b{ color:var(--up); font-weight:600; }
+  .cutoffs{ display:flex; align-items:center; gap:8px; }
+  .cut{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:800; padding:4px 9px; border-radius:7px; white-space:nowrap; }
+  .cut .lbl{ font-size:9px; font-weight:800; letter-spacing:.06em; opacity:.85; }
+  .cut.chall{ color:#f4c95d; background:rgba(244,201,93,.1); border:1px solid rgba(244,201,93,.4); }
+  .cut.gm{ color:#e0555a; background:rgba(224,85,90,.1); border:1px solid rgba(224,85,90,.4); }
 
   .filters{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
   .chip{
@@ -612,6 +617,10 @@
     <section id="ranking">
       <div class="rank-head">
         <h2>Ranking</h2>
+        <div class="cutoffs" id="cutoffs" style="display:none">
+          <span class="cut chall" title="LP de corte para entrar a Challenger"><span class="lbl">CHALL</span><b id="cut-chall">—</b></span>
+          <span class="cut gm" title="LP de corte para entrar a Grandmaster"><span class="lbl">GM</span><b id="cut-gm">—</b></span>
+        </div>
         <div style="display:flex; align-items:center; gap:14px; margin-left:auto; flex-wrap:wrap;">
           <a href="normas.html" style="font-size:13px; font-weight:700; color:var(--accent); border:1px solid rgba(233,255,31,.35); background:rgba(233,255,31,.08); padding:7px 13px; border-radius:8px; white-space:nowrap;">Normas →</a>
           <a href="blueshell.html" style="font-size:13px; font-weight:700; color:var(--blue); border:1px solid rgba(74,163,255,.35); padding:7px 13px; border-radius:8px; white-space:nowrap;">Normas Blue Shell →</a>
@@ -1690,8 +1699,20 @@ function applyData(nd){
   }
   counts(); render(); renderLive();
   checkEncounters();
+  paintCutoffs(nd);
   if (window.SQC) SQC.navBadges(nd);
 }
+// LP de corte apex (GM / Challenger) junto al título del ranking.
+function paintCutoffs(data){
+  const box = document.getElementById('cutoffs'); if (!box) return;
+  const c = data && data.cutoffs;
+  const ch = (c && c.chall != null) ? c.chall : null, gm = (c && c.gm != null) ? c.gm : null;
+  if (ch == null && gm == null){ box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  document.getElementById('cut-chall').textContent = ch != null ? ch + ' LP' : '—';
+  document.getElementById('cut-gm').textContent = gm != null ? gm + ' LP' : '—';
+}
+paintCutoffs(DATA);
 
 // Solo sobre http/https (file:// no permite fetch). Re-lee players.json (cacheable ~20s).
 if (location.protocol.startsWith('http')){
