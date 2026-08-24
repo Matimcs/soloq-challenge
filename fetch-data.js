@@ -224,13 +224,16 @@ async function getCutoffs() {
     if (c && Date.now() - (c.at || 0) < CUTOFF_TTL) return { gm: c.gm, chall: c.chall }; } catch {}
   const Q = 'RANKED_SOLO_5x5';
   try {
-    const [ch, gm] = await Promise.all([
+    // Se incluye Master porque un Master en ascenso puede tener MÁS LP que los GM más bajos
+    // (Riot tarda en promoverlo); si no, el corte del puesto 700 sale más bajo del real.
+    const [ch, gm, ma] = await Promise.all([
       riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/${Q}`).catch(() => null),
       riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/grandmasterleagues/by-queue/${Q}`).catch(() => null),
+      riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/masterleagues/by-queue/${Q}`).catch(() => null),
     ]);
-    // Corte VIVO = LP del jugador en el puesto N ordenando TODO el pool apex por LP. Así se
-    // ignoran los rezagados de la liga GM (que aún no fueron demotados). 200 = Challenger, 700 = GM.
-    const pool = [...(ch && ch.entries || []), ...(gm && gm.entries || [])]
+    // Corte VIVO = LP del jugador en el puesto N ordenando TODO el pool apex por LP.
+    // 200 = Challenger, 700 = Grandmaster.
+    const pool = [...(ch && ch.entries || []), ...(gm && gm.entries || []), ...(ma && ma.entries || [])]
       .map(e => e.leaguePoints || 0).sort((a, b) => b - a);
     const at = n => pool.length >= n ? pool[n - 1] : (pool.length ? pool[pool.length - 1] : null);
     const res = { chall: at(200), gm: at(700), n: pool.length, at: Date.now() };
