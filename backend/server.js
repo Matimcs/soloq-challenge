@@ -421,7 +421,7 @@ const RECORDS = [
 // Agregados por jugador del torneo (cache 60s: es global, igual para todos).
 let LB_CACHE = { at:0, players:[] };
 async function leaderboardPlayers(){
-  if (Date.now() - LB_CACHE.at < 60000) return LB_CACHE.players;
+  if (Date.now() - LB_CACHE.at < 180000) return LB_CACHE.players;
   const rows = await q(`SELECT puuid, riotid, name, champion, win, kills, deaths, assists, cs, gold, damage, vision, penta, duration, game_end
     FROM match_participants WHERE is_tournament=true`);
   const byP = {};
@@ -960,8 +960,8 @@ app.post('/api/admin/player/remove', auth, requireAdmin, wrap(async (req,res) =>
 // jugador del torneo) + los ±LP guardados en fetch_cache. Cache 60s.
 const STATS_CACHE = { at: 0, data: null };
 app.get('/api/stats', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60');   // Cloudflare lo sirve del borde (menos hits al origen)
-  if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 60000) return res.json(STATS_CACHE.data);
+  res.set('Cache-Control', 'public, max-age=180');   // Cloudflare lo sirve del borde (menos hits al origen)
+  if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 180000) return res.json(STATS_CACHE.data);
 
   // ---- Identidad de CUENTA por PUUID (consolida renombres) + JUGADOR (dueño) ----
   // El puuid no cambia aunque cambie el Riot ID, así una cuenta renombrada cuenta como una sola.
@@ -1163,8 +1163,8 @@ app.get('/api/stats', wrap(async (req, res) => {
 // memoria), así se detectan también los cruces como rivales, no solo los dúos. SoloQ.
 const ENC_CACHE = { at: 0, data: null };
 app.get('/api/encounters', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60');   // Cloudflare lo sirve del borde
-  if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 60000) return res.json(ENC_CACHE.data);
+  res.set('Cache-Control', 'public, max-age=180');   // Cloudflare lo sirve del borde
+  if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 180000) return res.json(ENC_CACHE.data);
   // Nickname del torneo por cuenta (para mostrar el nick, no el summoner name).
   const meta = {};
   (liveSnapshot().players || []).forEach(p => { meta[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
@@ -1191,8 +1191,8 @@ app.get('/api/encounters', wrap(async (req, res) => {
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
 app.get('/api/records', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=60');
-  if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 60000) return res.json(RECORDS_CACHE.data);
+  res.set('Cache-Control', 'public, max-age=180');
+  if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 180000) return res.json(RECORDS_CACHE.data);
   // puuid -> Riot ID actual + nick (para OP.GG correcto aunque la cuenta se haya renombrado).
   const players = liveSnapshot().players || [];
   const ridByPuuid = {}, nickByRid = {};
