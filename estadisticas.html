@@ -141,12 +141,14 @@
       <button class="tab" data-t="elo">ELO</button>
       <button class="tab" data-t="coinc">COINCIDENCIAS</button>
       <button class="tab" data-t="rivales">CONTRINCANTES</button>
+      <button class="tab" data-t="records">RÉCORDS</button>
     </div>
 
     <div class="panel active" id="p-tops"><div class="loading">Cargando estadísticas…</div></div>
     <div class="panel" id="p-elo"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-coinc"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rivales"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-records"><div class="loading">Cargando…</div></div>
   </main>
 
 <script src="players.js"></script>
@@ -165,7 +167,44 @@
     document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
     $('p-'+b.dataset.t).classList.add('active');
     if (b.dataset.t==='elo' && DATA){ drawChart(); drawAvgChart(); }
+    if (b.dataset.t==='records'){ loadRecords(); }
   });
+
+  // ---- RÉCORDS ----
+  let RECORDS = null;
+  async function loadRecords(){
+    if (RECORDS){ renderRecords(); return; }
+    try { const r = await fetch('/api/records', { cache:'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status); RECORDS = await r.json(); renderRecords(); }
+    catch(e){ $('p-records').innerHTML = '<div class="empty">No se pudieron cargar los récords.<br><small>'+esc(e.message)+'</small></div>'; }
+  }
+  function recRow(r, i, detail, value, opggOn){
+    const opgg = (opggOn && r.rid) ? ` · <a href="https://op.gg/lol/summoners/las/${encodeURIComponent(String(r.rid).replace('#','-'))}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">OP.GG ↗</a>` : '';
+    return `<div class="rowl"><div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+      <div class="meta"><div class="nm">${esc(r.nm)}</div><div class="games">${detail}${opgg}</div></div>
+      <div class="val">${value}</div></div>`;
+  }
+  function recCard(title, cap, list, detailFn, valueFn, opggOn=true){
+    const rows = (list||[]).map((r,i)=>recRow(r,i,detailFn(r),valueFn(r),opggOn)).join('');
+    return `<div class="card"><h3>${title}</h3><div class="cap">${cap}</div>${rows||'<div class="empty">Sin datos</div>'}</div>`;
+  }
+  function renderRecords(){
+    const R = RECORDS || {};
+    const kdaLine = r => `${r.k}/${r.d}/${r.a} · ${esc(r.champ)}`;
+    const cLine   = r => `${esc(r.champ)} · ${r.k}/${r.d}/${r.a}`;
+    const cmMin   = r => `${esc(r.champ)} · ${r.durMin} min`;
+    $('p-records').innerHTML = `<div class="grid">`
+      + recCard('MEJOR KDA', 'Mayor KDA en una partida (empate: menos muertes)', R.kdaBest, kdaLine, r=>r.kda)
+      + recCard('PEOR KDA', 'Menor KDA en una partida (empate: más muertes)', R.kdaWorst, kdaLine, r=>r.kda)
+      + recCard('MÁS KILLS', 'Más asesinatos en una sola partida', R.kills, cLine, r=>r.k)
+      + recCard('MÁS MUERTES', 'Más muertes en una sola partida', R.deaths, cLine, r=>r.d)
+      + recCard('MÁS ASISTENCIAS', 'Más asistencias en una sola partida', R.assists, cLine, r=>r.a)
+      + recCard('MÁS CS', 'Más súbditos en una sola partida', R.cs, cmMin, r=>r.cs)
+      + recCard('MÁS VISIÓN', 'Mayor puntuación de visión en una partida', R.vision, cmMin, r=>r.vis)
+      + recCard('PARTIDA MÁS LARGA', 'Mayor duración de partida', R.duration, cLine, r=>`${r.durMin} min`)
+      + recCard('RACHA DE VICTORIAS', 'Más victorias seguidas', R.winStreak, ()=>'seguidas', r=>r.value, false)
+      + recCard('RACHA DE DERROTAS', 'Más derrotas seguidas', R.loseStreak, ()=>'seguidas', r=>r.value, false)
+      + `</div>`;
+  }
 
   // ---- TOPS ----
   function topCard(title, cap, list, fmt){
