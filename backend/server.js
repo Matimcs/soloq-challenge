@@ -1182,7 +1182,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
     id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
     players: ps.map(p => ({ nm: meta[p.rid] || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })),
   })).filter(e => e.players.length >= 2)
-    .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 100);
+    .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 400);   // historial completo (antes se cortaba en 100)
   ENC_CACHE.data = { encounters };
   ENC_CACHE.at = Date.now();
   res.json(ENC_CACHE.data);
