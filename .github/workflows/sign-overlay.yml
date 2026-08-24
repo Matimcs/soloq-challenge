@@ -53,7 +53,7 @@ jobs:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: "9bc4aeac-fe5e-41c1-8df9-c491a2198f4c"
           project-slug: "SoloQ_Overlay"
-          signing-policy-slug: "test-signing"   # VERIFICA en SignPath el slug real de la policy "Test signing"
+          signing-policy-slug: "test_signing"
           github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
           wait-for-completion: true
           output-artifact-directory: overlay/dist-signed
