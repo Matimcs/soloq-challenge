@@ -1266,11 +1266,12 @@ function startEmbeddedRunner(){
   const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json', positions:'positions.json', ddragon:'ddragon.json' };
   // Escribe roster-extra.json (cuentas agregadas por el admin) para que fetch-data las incluya.
   const writeRoster = async () => {
-    // roster manual (admin) + cuentas smurf de los jugadores → el runner las trackea.
+    // Cuentas a trackear: mains de jugadores REGISTRADOS + sus smurfs + roster manual (admin).
     try {
+      const us   = await q("SELECT riotid FROM users  WHERE coalesce(riotid,'')<>''");
       const rows = await q('SELECT riotid FROM roster ORDER BY created_at');
       const sm   = await q('SELECT riotid FROM smurfs ORDER BY id');
-      const all  = [...new Set([...rows.map(r=>r.riotid), ...sm.map(r=>r.riotid)])];
+      const all  = [...new Set([...us.map(r=>r.riotid), ...rows.map(r=>r.riotid), ...sm.map(r=>r.riotid)])];
       fs.writeFileSync(path.join(ROOT, 'roster-extra.json'), JSON.stringify(all));
     } catch {}
     try { const hid = await q('SELECT riotid FROM roster_hidden');

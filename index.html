@@ -754,10 +754,13 @@ function escAttr(s){ return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;
 /* Avatares registrados (perfil del usuario). Se cargan de /api/avatars y se
    casan con el ranking por Riot ID y con las partidas en vivo por nombre. */
 let AVA_BY_RID = {}, AVA_BY_NAME = {}, ROLE_BY_RID = {}, USER_BY_RID = {}, NICK_BY_RID = {}, LABEL_BY_RID = {}, TEAMS_BY_RID = {};
+// Normaliza un Riot ID para hacer match: minúsculas + colapsa espacios pegados al '#'
+// (algunas cuentas tienen espacios raros, ej. "SHR UZI #LAS1" vs "SHR UZI#LAS1").
+const nrid = rid => (rid || '').toLowerCase().replace(/\s*#\s*/, '#');
 const TEAM_ABBR = { 'Hundred Blossom':'HB' };   // nombre → etiqueta corta
 function teamSlug(t){ return (t||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''); }
 function teamLabel(t){ return TEAM_ABBR[t] || t; }
-function teamsOf(rid){ return TEAMS_BY_RID[(rid||'').toLowerCase()] || []; }   // un jugador puede tener varios
+function teamsOf(rid){ return TEAMS_BY_RID[nrid(rid)] || []; }   // un jugador puede tener varios
 function teamTag(rid){ return teamsOf(rid).map(t => `<span class="team-tag ${teamSlug(t)}" title="${t}">${teamLabel(t)}</span>`).join(''); }
 async function loadTeams(fresh){
   if (!location.protocol.startsWith('http')) return;
@@ -765,14 +768,14 @@ async function loadTeams(fresh){
     const r = await fetch('/api/teams' + (fresh ? '?t=' + Date.now() : ''), fresh ? { cache:'no-store' } : undefined); if (!r.ok) return;
     const list = await r.json();
     TEAMS_BY_RID = {};
-    list.forEach(t => { if (t.riotid && Array.isArray(t.teams) && t.teams.length) TEAMS_BY_RID[t.riotid.toLowerCase()] = t.teams; });
+    list.forEach(t => { if (t.riotid && Array.isArray(t.teams) && t.teams.length) TEAMS_BY_RID[nrid(t.riotid)] = t.teams; });
     render();
   } catch {}
 }
-function avaSrc(rid, nm){ return AVA_BY_RID[(rid||'').toLowerCase()] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
+function avaSrc(rid, nm){ return AVA_BY_RID[nrid(rid)] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
 // Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
 function roleFor(p){
-  const reg = ROLE_BY_RID[(p.rid||'').toLowerCase()];
+  const reg = ROLE_BY_RID[nrid(p.rid)];
   if (reg) return reg;
   if (p.role && p.role !== '—' && p.role !== '–') return p.role;
   return null;
@@ -797,7 +800,7 @@ async function loadAvatars(){
     const list = await r.json();
     AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {}; USER_BY_RID = {}; NICK_BY_RID = {}; LABEL_BY_RID = {};
     list.forEach(u => {
-      const rl = (u.riotid || '').toLowerCase();
+      const rl = nrid(u.riotid);
       USER_BY_RID[rl] = u;
       if (u.nickname) NICK_BY_RID[rl] = u.nickname;   // nick del dueño (main + smurfs)
       if (u.label) LABEL_BY_RID[rl] = u.label;         // 'Main' / 'Smurf N'
@@ -865,7 +868,7 @@ const SORT_VAL = {
 
 const STAR = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85L12 3.5z"></path></svg>`;
 
-function ownerKey(p){ return NICK_BY_RID[(p.rid||'').toLowerCase()] || p.rid; }
+function ownerKey(p){ return NICK_BY_RID[nrid(p.rid)] || p.rid; }
 const TIERV_ = { IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6,MASTER:7,GRANDMASTER:7,CHALLENGER:7 };
 const DIVV_ = { I:3, II:2, III:1, IV:0, '':0 };
 function absLPf(p){ if(!p.tier||p.tier==='UNRANKED') return 0; if(HIGH_ELO.has(p.tier)) return 2800+(p.lp||0); return (TIERV_[p.tier]||0)*400+(DIVV_[p.div]||0)*100+(p.lp||0); }
@@ -876,7 +879,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
   const topCls = pos===1?'top1':pos===2?'top2':pos===3?'top3':'';
   const eloCls = HIGH_ELO.has(p.tier) ? 'high' : 'low';
   const badges = `${p.inGame?'<span class="badge-ingame">● EN PARTIDA</span>':''} ${p.live?'<span class="badge-live">LIVE</span>':''}`;
-  const rl = (p.rid||'').toLowerCase();
+  const rl = nrid(p.rid);
   return `
     <tr class="prow ${topCls} ${extraCls}" data-rid="${escAttr(p.rid)}" ${extraAttr} title="Ver ficha del jugador">
       <td class="pos-cell ${eloCls}" title="${eloCls==='high'?'High Elo':'Low Elo'}"><div class="pos"><span class="rk">${pos}</span>${moveEl(p.move)}</div></td>
@@ -930,7 +933,7 @@ function renderTeamRank(){
       .sort((a,b) => (a.t||0) - (b.t||0)).slice(-30).map(g => g.w);
     const rids = r.top5.map(p => p.rid);
     const multi = 'https://op.gg/lol/multisearch/las?summoners=' + encodeURIComponent(rids.join(','));
-    const avatars = r.top5.map(p=>`<span class="tr-acc" title="${(NICK_BY_RID[(p.rid||'').toLowerCase()]||p.nm)} · ${p.tier} ${p.lp} LP">${avaHtml(p.rid,p.nm)}</span>`).join('');
+    const avatars = r.top5.map(p=>`<span class="tr-acc" title="${(NICK_BY_RID[nrid(p.rid)]||p.nm)} · ${p.tier} ${p.lp} LP">${avaHtml(p.rid,p.nm)}</span>`).join('');
     const summary = `<tr class="team-row ${i===0?'top1':i===1?'top2':i===2?'top3':''}" data-team="${slug}">
       <td class="pos-cell high"><div class="pos"><span class="rk">${i+1}</span></div></td>
       <td><div class="tr-head"><button class="tr-arrow" aria-label="Desplegar">▸</button><span class="team-tag ${slug}" style="font-size:11px;padding:3px 9px">${teamLabel(team)}</span><span class="tr-name">${team}</span><span class="tr-accs">${avatars}</span></div></td>
