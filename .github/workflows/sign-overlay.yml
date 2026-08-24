@@ -38,33 +38,33 @@ jobs:
           node -e "require('fs').copyFileSync('../roulette.js','roulette.js')"
           npx electron-builder --win nsis --publish never
 
-      - name: Subir instalador sin firmar (para enviarlo a SignPath)
-        id: unsigned
-        uses: actions/upload-artifact@v4
-        with:
-          name: overlay-unsigned
-          path: overlay/dist/SoloQ-Overlay-Setup.exe
+      # Firma DIRECTA vía la API de SignPath (módulo PowerShell), sin el connector de GitHub
+      # (el connector exige un "Trusted Build System" configurado; la API directa solo requiere
+      # el API token de un submitter, que es tu caso). Empaqueta el .exe en zip para que calce
+      # con la Artifact Configuration (zip -> pe-file) del proyecto.
+      - name: Firmar con SignPath (API directa)
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          Compress-Archive -Path overlay/dist/SoloQ-Overlay-Setup.exe -DestinationPath overlay/dist/artifact.zip -Force
+          Install-Module -Name SignPath -Scope CurrentUser -Force
+          Submit-SigningRequest `
+            -InputArtifactPath  "overlay/dist/artifact.zip" `
+            -ApiToken           $env:SIGNPATH_API_TOKEN `
+            -OrganizationId     "9bc4aeac-fe5e-41c1-8df9-c491a2198f4c" `
+            -ProjectSlug        "SoloQ_Overlay" `
+            -SigningPolicySlug  "test_signing" `
+            -OutputArtifactPath "overlay/dist/signed.zip" `
+            -WaitForCompletion
+          Expand-Archive -Path overlay/dist/signed.zip -DestinationPath overlay/dist/signed -Force
+          Copy-Item overlay/dist/signed/SoloQ-Overlay-Setup.exe overlay/dist/SoloQ-Overlay-Setup.exe -Force
 
-      # Envía el .exe a SignPath, espera la firma y descarga el firmado a dist-signed/.
-      # Revisa los nombres de inputs en la doc de SignPath por si tu versión difiere.
-      - name: Firmar con SignPath
-        uses: signpath/github-action-submit-signing-request@v1
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: "9bc4aeac-fe5e-41c1-8df9-c491a2198f4c"
-          project-slug: "SoloQ_Overlay"
-          signing-policy-slug: "test_signing"
-          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: overlay/dist-signed
-
-      # Reemplaza el exe por el firmado y RECALCULA latest.yml (hash + tamaño) para que la
-      # auto-actualización (electron-updater) no falle por checksum. Quita el blockmap (se hace
-      # descarga completa; funciona igual).
-      - name: Reemplazar por el firmado y arreglar latest.yml
+      # RECALCULA latest.yml (hash + tamaño) para que la auto-actualización (electron-updater) no
+      # falle por checksum. Quita el blockmap (se hace descarga completa; funciona igual).
+      - name: Arreglar latest.yml
         shell: pwsh
         run: |
-          Copy-Item overlay/dist-signed/SoloQ-Overlay-Setup.exe overlay/dist/SoloQ-Overlay-Setup.exe -Force
           $exe   = "overlay/dist/SoloQ-Overlay-Setup.exe"
           $sha   = [Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([IO.File]::ReadAllBytes($exe)))
           $size  = (Get-Item $exe).Length
