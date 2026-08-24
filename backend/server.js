@@ -1105,6 +1105,11 @@ app.get('/api/stats', wrap(async (req, res) => {
   // El caché de ±LP ya está keyeado por puuid (consolidado por cuenta); la meta también.
   let store = localMatchesCache();   // del disco local (runner embebido); evita bajar el blob de Supabase
   if (!store){ const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); store = (mc && mc.data) || {}; }
+  // Partidas guardadas por cuenta (win/loss). Riot NO da el LP histórico, así que la curva se
+  // reconstruye desde aquí: LP exacto donde el runner lo capturó (lpGames), estimado por V/D si no.
+  const gamesByPuuid = {};
+  for (const g of await q("SELECT puuid, game_end, win FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND game_end IS NOT NULL ORDER BY game_end ASC"))
+    (gamesByPuuid[g.puuid] = gamesByPuuid[g.puuid] || []).push({ t: Number(g.game_end), win: !!g.win });
   const dayAcc = {}, series = [];
   const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
   for (const puuid in store) {
@@ -1112,14 +1117,21 @@ app.get('/api/stats', wrap(async (req, res) => {
     const m = metaByAcct[puuid]; if (!m) continue;
     const rid = m.rid || puuid;
     const s = store[puuid]; const lg = (s && Array.isArray(s.lpGames) ? s.lpGames : []).filter(g => g.end);
+    const deltaByEnd = {}; lg.forEach(g => { deltaByEnd[g.end] = g.delta || 0; });
+    const known = lg.map(g => Math.abs(g.delta || 0)).filter(x => x > 0).sort((a, b) => a - b);
+    const STEP = known.length ? known[Math.floor(known.length / 2)] : 20;   // paso estimado (mediana de |Δ| conocidos)
+    const gs = gamesByPuuid[puuid] || [];
+    // Δ por partida: exacto si lo capturamos, si no estimado por victoria/derrota.
+    const perGame = gs.map(g => ({ t: g.t, delta: (g.t in deltaByEnd) ? deltaByEnd[g.t] : (g.win ? STEP : -STEP) }));
+    const useGames = perGame.length ? perGame : lg.map(g => ({ t: g.end, delta: g.delta || 0 }));
     // Serie: reconstruye absLP hacia atrás desde el actual.
-    if (m.abs != null && lg.length) {
+    if (m.abs != null && useGames.length) {
       let abs = m.abs; const pts = [{ t: Date.now(), lp: abs }];
-      for (const g of lg) { abs -= (g.delta || 0); pts.push({ t: g.end, lp: abs }); }
+      for (let k = useGames.length - 1; k >= 0; k--) { abs -= useGames[k].delta; pts.push({ t: useGames[k].t, lp: Math.max(0, abs) }); }
       series.push({ rid, nm: m.nm, high: !!m.high, points: pts.reverse() });
     }
-    // Subidones/bajones: neto de ±LP por día.
-    for (const g of lg) { const dk = dayKey(g.end); const key = rid + '|' + dk;
+    // Subidones/bajones: neto por día.
+    for (const g of useGames) { const dk = dayKey(g.t); const key = rid + '|' + dk;
       (dayAcc[key] = dayAcc[key] || { rid, nm: m.nm, high: !!m.high, day: dk, net: 0 }).net += (g.delta || 0); }
   }
   const days = Object.values(dayAcc);
@@ -1251,7 +1263,15 @@ function startEmbeddedRunner(){
       for (const puuid in seed){
         const s = seed[puuid] || {};
         const c = cur[puuid] || (cur[puuid] = { games:[], lpGames:[], lastAbsLP:null });
-        c.lpGames = (s.lpGames || []).slice(0, 40);   // el seed es la línea base de ±LP al arrancar; lo vivo se apila encima
+        // Une el seed (línea base) con lo YA acumulado, sin perder partidas (dedup por end+delta).
+        const seen = new Set(), merged = [];
+        for (const g of [...(c.lpGames || []), ...(s.lpGames || [])]){
+          if (!g || g.end == null) continue;
+          const k = g.end + '|' + (g.delta || 0);
+          if (seen.has(k)) continue; seen.add(k); merged.push(g);
+        }
+        merged.sort((a, b) => (a.end || 0) - (b.end || 0));
+        c.lpGames = merged.slice(-80);   // conserva las 80 más recientes
         if (c.lastAbsLP == null && s.lastAbsLP != null) c.lastAbsLP = s.lastAbsLP;
         if ((!c.games || !c.games.length) && s.games) c.games = s.games;
       }
