@@ -67,6 +67,15 @@
   .avg-tip .d{ color:var(--muted); font-size:10px; font-weight:600; }
   .avg-tip b{ color:var(--accent); }
   .avg-date{ position:absolute; bottom:3px; pointer-events:none; transform:translateX(-50%); font-size:10px; font-weight:800; color:#000; background:var(--accent); padding:1px 6px; border-radius:4px; display:none; white-space:nowrap; }
+  /* Evolución de elo: hover para identificar la línea */
+  .elo-chart{ position:relative; }
+  .elo-chart svg{ cursor:crosshair; }
+  .eline{ transition:stroke-width .08s, opacity .08s; }
+  .elo-dot{ position:absolute; width:11px; height:11px; border-radius:50%; border:2px solid #000; pointer-events:none; display:none; transform:translate(-50%,-50%); box-shadow:0 0 8px rgba(0,0,0,.6); }
+  .elo-tip{ position:absolute; pointer-events:none; background:rgba(12,13,17,.97); border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; font-weight:700; color:#fff; white-space:nowrap; z-index:6; display:none; transform:translate(-50%,calc(-100% - 12px)); box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .elo-tip .d{ color:var(--muted); font-size:10px; font-weight:600; margin-top:2px; }
+  .elo-tip .nmc{ display:inline-flex; align-items:center; gap:6px; }
+  .elo-tip .sw{ width:9px; height:9px; border-radius:2px; display:inline-block; }
   .legend{ display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:12px; }
   .lg{ font-size:11px; color:var(--muted); cursor:pointer; padding:2px 7px; border-radius:6px; border:1px solid var(--line); user-select:none; }
   .lg .dot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
@@ -189,8 +198,12 @@
       <div class="subh">Mejores días — quién más elo ganó (o perdió) en un solo día</div>
       <div class="two">${col('SUBIDONES', e.subidones, 'up', '+')}${col('BAJONES', e.bajones, 'down', '−')}</div>
       <div class="chartwrap">
-        <h3>EVOLUCIÓN DE ELO</h3><div class="cap">Clic en un nombre para ocultarlo</div>
-        <svg id="elo-svg" viewBox="0 0 1000 380" preserveAspectRatio="none"></svg>
+        <h3>EVOLUCIÓN DE ELO</h3><div class="cap">Pasa el mouse sobre una línea para ver quién es · clic en un nombre para ocultarlo</div>
+        <div class="elo-chart" id="elo-chart">
+          <svg id="elo-svg" viewBox="0 0 1000 380" preserveAspectRatio="none"></svg>
+          <div class="elo-dot" id="elo-dot"></div>
+          <div class="elo-tip" id="elo-tip"></div>
+        </div>
         <div class="legend" id="elo-legend"></div>
       </div>
       <div class="chartwrap">
@@ -278,7 +291,7 @@
       if (hidden.has(s.rid)) return '';
       const c = PALETTE[i%PALETTE.length];
       const d = s.points.map((p,j) => (j?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ');
-      return `<path d="${d}" fill="none" stroke="${c}" stroke-width="1.5" opacity=".9"/>`;
+      return `<path class="eline" data-i="${i}" d="${d}" fill="none" stroke="${c}" stroke-width="1.5" opacity=".9"/>`;
     }).join('');
     svg.innerHTML = g + paths;
     $('elo-legend').innerHTML = series.map((s,i) =>
@@ -286,6 +299,46 @@
     $('elo-legend').querySelectorAll('.lg').forEach(el => el.onclick = () => {
       const r = el.dataset.rid; hidden.has(r)?hidden.delete(r):hidden.add(r); drawChart();
     });
+    // Datos para el hover (identificar la línea).
+    const box = $('elo-chart');
+    if (box){
+      box._elo = { series, W, H, X, Y, tMin, tMax };
+      if (!box._hoverBound){ box._hoverBound = true;
+        box.addEventListener('mousemove', eloHover);
+        box.addEventListener('mouseleave', eloHideHover);
+      }
+    }
+  }
+  function eloHideHover(){
+    const t=$('elo-tip'), d=$('elo-dot'); if(t)t.style.display='none'; if(d)d.style.display='none';
+    document.querySelectorAll('#elo-svg .eline').forEach(p=>{ p.style.strokeWidth='1.5'; p.style.opacity='.9'; });
+  }
+  function lpAt(points, t){
+    if (t<=points[0].t) return points[0].lp;
+    const n=points.length; if (t>=points[n-1].t) return points[n-1].lp;
+    for (let k=1;k<n;k++){ if (points[k].t>=t){ const a=points[k-1],b=points[k]; const f=(t-a.t)/((b.t-a.t)||1); return a.lp+(b.lp-a.lp)*f; } }
+    return points[n-1].lp;
+  }
+  function eloHover(e){
+    const box=$('elo-chart'), d=box&&box._elo; if(!d) return;
+    const svg=$('elo-svg'), rect=svg.getBoundingClientRect(); if(!rect.width) return;
+    const vbX=(e.clientX-rect.left)/rect.width*d.W, vbY=(e.clientY-rect.top)/rect.height*d.H;
+    const frac=Math.max(0,Math.min(1,(vbX-40)/((d.W-40-12)||1)));   // PL=40, PR=12
+    const t=d.tMin+frac*(d.tMax-d.tMin);
+    // Serie visible más cercana en Y al cursor.
+    let best=-1, bestDy=Infinity, bestLp=0;
+    d.series.forEach((s,i)=>{ if(hidden.has(s.rid))return; const lp=lpAt(s.points,t); const dy=Math.abs(d.Y(lp)-vbY); if(dy<bestDy){bestDy=dy;best=i;bestLp=lp;} });
+    if(best<0 || bestDy>28){ eloHideHover(); return; }   // umbral (unidades viewBox)
+    const s=d.series[best], c=PALETTE[best%PALETTE.length];
+    const px=d.X(t)/d.W*rect.width, py=d.Y(bestLp)/d.H*rect.height;
+    document.querySelectorAll('#elo-svg .eline').forEach(p=>{ const on=+p.dataset.i===best; p.style.strokeWidth=on?'3':'1.5'; p.style.opacity=on?'1':'.25'; });
+    const dot=$('elo-dot'), tip=$('elo-tip');
+    if(dot){ dot.style.display='block'; dot.style.left=px+'px'; dot.style.top=py+'px'; dot.style.background=c; }
+    if(tip){ tip.style.display='block'; tip.style.left=px+'px'; tip.style.top=py+'px';
+      tip.style.transform = py>80?'translate(-50%,calc(-100% - 12px))':'translate(-50%,12px)';
+      const dstr=new Date(t).toLocaleDateString('es-CL',{day:'2-digit',month:'short',year:'2-digit'});
+      tip.innerHTML=`<span class="nmc"><span class="sw" style="background:${c}"></span>${esc(s.nm)}</span><div class="d">${eloTierLabel(bestLp)} · ${dstr}</div>`;
+    }
   }
 
   // ---- COINCIDENCIAS ----
