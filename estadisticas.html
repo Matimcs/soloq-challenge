@@ -177,10 +177,16 @@
     try { const r = await fetch('/api/records', { cache:'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status); RECORDS = await r.json(); renderRecords(); }
     catch(e){ $('p-records').innerHTML = '<div class="empty">No se pudieron cargar los récords.<br><small>'+esc(e.message)+'</small></div>'; }
   }
-  function recRow(r, i, detail, value, opggOn){
-    const opgg = (opggOn && r.rid) ? ` · <a href="https://op.gg/lol/summoners/las/${encodeURIComponent(String(r.rid).replace('#','-'))}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">OP.GG ↗</a>` : '';
+  const LOG_REG = { LA2:'las', LA1:'lan', NA1:'na', EUW1:'euw', EUN1:'eune', KR:'kr', BR1:'br', OC1:'oce', TR1:'tr', RU:'ru', JP1:'jp' };
+  function logMatchUrl(matchId){
+    const p = String(matchId||'').split('_'); const gid = p[1]; if (!gid) return null;
+    return `https://www.leagueofgraphs.com/match/${LOG_REG[p[0]]||'las'}/${encodeURIComponent(gid)}`;
+  }
+  function recRow(r, i, detail, value, linkOn){
+    const url = linkOn ? logMatchUrl(r.matchId) : null;
+    const link = url ? ` · <a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">Ver partida ↗</a>` : '';
     return `<div class="rowl"><div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
-      <div class="meta"><div class="nm">${esc(r.nm)}</div><div class="games">${detail}${opgg}</div></div>
+      <div class="meta"><div class="nm">${esc(r.nm)}</div><div class="games">${detail}${link}</div></div>
       <div class="val">${value}</div></div>`;
   }
   function recCard(title, cap, list, detailFn, valueFn, opggOn=true){

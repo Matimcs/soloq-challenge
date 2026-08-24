@@ -1199,7 +1199,7 @@ app.get('/api/records', wrap(async (req, res) => {
   players.forEach(p => { if (p.puuid) ridByPuuid[p.puuid] = p.rid; nickByRid[(p.rid || '').toLowerCase()] = p.nm; });
   const N = 5;
   const K='coalesce(kills,0)', D='coalesce(deaths,0)', A='coalesce(assists,0)', CS='coalesce(cs,0)', DUR='coalesce(duration,0)', VIS='coalesce(vision,0)';
-  const cols = `name, lower(riotid) rid, puuid, champion, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
+  const cols = `name, lower(riotid) rid, puuid, champion, match_id, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
   const base = `FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>''`;
   const kda = `(${K}+${A})::float/GREATEST(${D},1)`;
   const topBy = order => q(`SELECT ${cols} ${base} ORDER BY ${order} LIMIT ${N}`);
@@ -1209,7 +1209,7 @@ app.get('/api/records', wrap(async (req, res) => {
     topBy(`${CS} DESC`), topBy(`${DUR} DESC`), topBy(`${K} DESC`), topBy(`${D} DESC`), topBy(`${A} DESC`), topBy(`${VIS} DESC`),
   ]);
   const map = r => { const rid = ridByPuuid[r.puuid] || r.rid;
-    return { nm: nickByRid[(rid || '').toLowerCase()] || r.name || (r.rid || '').split('#')[0], rid,
+    return { nm: nickByRid[(rid || '').toLowerCase()] || r.name || (r.rid || '').split('#')[0], rid, matchId: r.match_id,
       champ: r.champion, k:+r.k, d:+r.d, a:+r.a, kda:+(((+r.k) + (+r.a)) / Math.max(1, +r.d)).toFixed(2),
       cs:+r.cs, durMin: Math.round((+r.dur) / 60), vis:+r.vis }; };
   // Rachas de victorias/derrotas por cuenta (consecutivas en el tiempo); dedup por jugador (máx).
