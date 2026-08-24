@@ -80,6 +80,10 @@
   .lg{ font-size:11px; color:var(--muted); cursor:pointer; padding:2px 7px; border-radius:6px; border:1px solid var(--line); user-select:none; }
   .lg .dot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
   .lg.off{ opacity:.35; text-decoration:line-through; }
+  .elo-range-row{ display:flex; align-items:center; gap:10px; margin:6px 0 12px; flex-wrap:wrap; }
+  .elo-range-row .rlbl{ font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; }
+  .elo-range-row input[type=range]{ flex:0 1 220px; accent-color:var(--accent); cursor:pointer; }
+  .elo-range-row .cap{ margin:0; }
   .legend-tools{ display:flex; gap:8px; margin-top:12px; }
   .lgt{ font-family:inherit; font-size:11px; font-weight:700; color:var(--muted); cursor:pointer; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:rgba(255,255,255,.04); }
   .lgt:hover{ color:#fff; border-color:var(--line-2); }
@@ -202,6 +206,11 @@
       <div class="two">${col('SUBIDONES', e.subidones, 'up', '+')}${col('BAJONES', e.bajones, 'down', '−')}</div>
       <div class="chartwrap">
         <h3>EVOLUCIÓN DE ELO</h3><div class="cap">Reconstruida desde el historial de partidas (LP exacto donde se capturó, estimado por V/D si no) · pasa el mouse sobre una línea para ver quién es · clic en un nombre para ocultarlo</div>
+        <div class="elo-range-row">
+          <span class="rlbl">Rango:</span>
+          <input type="range" id="elo-range" min="7" max="30" value="30">
+          <span id="elo-range-lbl" class="cap"></span>
+        </div>
         <div class="elo-chart" id="elo-chart">
           <svg id="elo-svg" viewBox="0 0 1000 380" preserveAspectRatio="none"></svg>
           <div class="elo-dot" id="elo-dot"></div>
@@ -281,25 +290,50 @@
   }
   const hidden = new Set();
   const PALETTE = ['#e9ff1f','#4aa3ff','#fb7185','#34d399','#c084fc','#ffd24a','#f472b6','#22d3ee','#a3e635','#fb923c','#818cf8','#f87171'];
+  const DAY = 86400000;
+  let eloDays = 30;   // ventana visible (por defecto, último mes)
+  // Recorta los puntos a [tMin,tMax], interpolando el borde izquierdo para que la línea llene el ancho.
+  function clipPoints(pts, tMin, tMax){
+    const out=[];
+    for (let i=0;i<pts.length;i++){ const p=pts[i];
+      if (p.t < tMin) continue;
+      if (p.t > tMax) break;
+      if (out.length===0 && i>0){ const a=pts[i-1]; if (a.t<tMin){ const f=(tMin-a.t)/((p.t-a.t)||1); out.push({ t:tMin, lp:a.lp+(p.lp-a.lp)*f }); } }
+      out.push(p);
+    }
+    return out;
+  }
   function drawChart(){
     const svg = $('elo-svg'); if (!svg || !DATA) return;
-    const series = (DATA.elo.series||[]).filter(s => s.points && s.points.length>=2);
-    if (!series.length){ svg.innerHTML=''; $('elo-legend').innerHTML='<div class="empty">Sin datos de evolución</div>'; return; }
+    const all = (DATA.elo.series||[]).filter(s => s.points && s.points.length>=2);
+    if (!all.length){ svg.innerHTML=''; $('elo-legend').innerHTML='<div class="empty">Sin datos de evolución</div>'; return; }
     const W=1000, H=380, PL=40, PR=12, PT=12, PB=22;
-    let tMin=Infinity,tMax=-Infinity,yMin=Infinity,yMax=-Infinity;
-    series.forEach(s => s.points.forEach(p => { tMin=Math.min(tMin,p.t); tMax=Math.max(tMax,p.t); yMin=Math.min(yMin,p.lp); yMax=Math.max(yMax,p.lp); }));
+    // Rango temporal completo del historial.
+    let fullMin=Infinity, fullMax=-Infinity;
+    all.forEach(s => s.points.forEach(p => { if (p.t<fullMin) fullMin=p.t; if (p.t>fullMax) fullMax=p.t; }));
+    const totalDays = Math.max(1, Math.ceil((fullMax-fullMin)/DAY));
+    // Slider: min 7 días, max = historial completo, por defecto 30 (o menos si hay menos).
+    const rng = $('elo-range');
+    if (rng){ rng.min=7; rng.max=totalDays; if (!rng._init || +rng.value>totalDays){ rng.value=Math.min(eloDays,totalDays); rng._init=true; } eloDays=+rng.value; }
+    else eloDays=Math.min(eloDays,totalDays);
+    // Ventana visible.
+    const tMax=fullMax, tMin=Math.max(fullMin, tMax-eloDays*DAY);
+    const series = all.map(s => ({ rid:s.rid, nm:s.nm, high:s.high, pts:clipPoints(s.points, tMin, tMax) }));
+    // Rango Y de lo visible en la ventana.
+    let yMin=Infinity,yMax=-Infinity;
+    series.forEach(s => { if (hidden.has(s.rid)) return; s.pts.forEach(p => { if (p.lp<yMin) yMin=p.lp; if (p.lp>yMax) yMax=p.lp; }); });
+    if (yMin===Infinity){ yMin=0; yMax=100; }
     yMin=Math.max(0,yMin-100); yMax+=100;
     const X = t => PL + (tMax===tMin?0:(t-tMin)/(tMax-tMin))*(W-PL-PR);
     const Y = v => PT + (1-(v-yMin)/((yMax-yMin)||1))*(H-PT-PB);
-    // Gridlines de tier
     const ticks=[{v:0,l:'I4'},{v:400,l:'B'},{v:800,l:'S'},{v:1200,l:'G'},{v:1600,l:'P'},{v:2000,l:'E'},{v:2400,l:'D'},{v:2800,l:'M+'}];
     let g = ticks.filter(k=>k.v>=yMin&&k.v<=yMax).map(k =>
       `<line x1="${PL}" y1="${Y(k.v).toFixed(1)}" x2="${W-PR}" y2="${Y(k.v).toFixed(1)}" stroke="rgba(255,255,255,.06)"/>`+
       `<text x="4" y="${(Y(k.v)+3).toFixed(1)}" fill="rgba(255,255,255,.38)" font-size="10">${k.l}</text>`).join('');
     let paths = series.map((s,i) => {
-      if (hidden.has(s.rid)) return '';
+      if (hidden.has(s.rid) || s.pts.length<2) return '';
       const c = PALETTE[i%PALETTE.length];
-      const d = s.points.map((p,j) => (j?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ');
+      const d = s.pts.map((p,j) => (j?'L':'M')+X(p.t).toFixed(1)+' '+Y(p.lp).toFixed(1)).join(' ');
       return `<path class="eline" data-i="${i}" d="${d}" fill="none" stroke="${c}" stroke-width="1.5" opacity=".9"/>`;
     }).join('');
     svg.innerHTML = g + paths;
@@ -308,6 +342,9 @@
     $('elo-legend').querySelectorAll('.lg').forEach(el => el.onclick = () => {
       const r = el.dataset.rid; hidden.has(r)?hidden.delete(r):hidden.add(r); drawChart();
     });
+    // Etiqueta del rango.
+    const lbl = $('elo-range-lbl'), fmt = t => new Date(t).toLocaleDateString('es-CL',{day:'2-digit',month:'short'});
+    if (lbl) lbl.textContent = (eloDays>=totalDays) ? `Todo el historial (${fmt(tMin)} → hoy)` : `Últimos ${eloDays} días (desde ${fmt(tMin)})`;
     // Datos para el hover (identificar la línea).
     const box = $('elo-chart');
     if (box){
@@ -316,6 +353,7 @@
         box.addEventListener('mousemove', eloHover);
         box.addEventListener('mouseleave', eloHideHover);
       }
+      if (rng && !rng._bound){ rng._bound=true; rng.oninput = drawChart; }
     }
   }
   function eloHideHover(){
@@ -336,7 +374,7 @@
     const t=d.tMin+frac*(d.tMax-d.tMin);
     // Serie visible más cercana en Y al cursor.
     let best=-1, bestDy=Infinity, bestLp=0;
-    d.series.forEach((s,i)=>{ if(hidden.has(s.rid))return; const lp=lpAt(s.points,t); const dy=Math.abs(d.Y(lp)-vbY); if(dy<bestDy){bestDy=dy;best=i;bestLp=lp;} });
+    d.series.forEach((s,i)=>{ if(hidden.has(s.rid)||s.pts.length<2)return; const lp=lpAt(s.pts,t); const dy=Math.abs(d.Y(lp)-vbY); if(dy<bestDy){bestDy=dy;best=i;bestLp=lp;} });
     if(best<0 || bestDy>28){ eloHideHover(); return; }   // umbral (unidades viewBox)
     const s=d.series[best], c=PALETTE[best%PALETTE.length];
     const px=d.X(t)/d.W*rect.width, py=d.Y(bestLp)/d.H*rect.height;
