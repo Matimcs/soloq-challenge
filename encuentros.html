@@ -26,6 +26,10 @@
   .tag{ font-size:10px; font-weight:800; letter-spacing:.06em; padding:4px 9px; border-radius:6px; flex-shrink:0; }
   .tag.rival{ background:rgba(251,113,133,.14); color:var(--down); border:1px solid rgba(251,113,133,.4); }
   .tag.ally{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .enc-filters{ display:flex; gap:8px; margin:0 0 16px; flex-wrap:wrap; }
+  .enc-filters .chip{ font-family:inherit; cursor:pointer; background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:7px 14px; font-size:12px; font-weight:800; letter-spacing:.04em; }
+  .enc-filters .chip:hover{ color:#fff; }
+  .enc-filters .chip.active{ background:#fff; color:#000; border-color:#fff; }
   .sides{ display:flex; align-items:center; gap:12px; flex:1; min-width:220px; flex-wrap:wrap; }
   .side{ display:flex; align-items:center; gap:9px; }
   .pl{ display:flex; align-items:center; gap:8px; }
@@ -81,6 +85,11 @@
   <main class="wrap">
     <h1>Encuentros</h1>
     <div class="sub">Partidas donde coincidieron dos o más jugadores del torneo — como aliados o como rivales.</div>
+    <div class="enc-filters" id="enc-filters">
+      <button class="chip active" data-f="all">TODOS</button>
+      <button class="chip" data-f="ally">🤝 Aliados</button>
+      <button class="chip" data-f="rival">⚔ Rivales</button>
+    </div>
     <div class="enc" id="enc"></div>
     <div class="note">Se detectan cruzando el historial reciente de cada jugador (últimas ~15 partidas). Actualiza solo.</div>
   </main>
@@ -141,17 +150,29 @@
     </div>`;
   }
 
+  // Un encuentro es "rivales" si hubo participantes en ambos bandos (unos ganaron, otros perdieron);
+  // si no, fueron "aliados" (mismo equipo).
+  const isRival = e => { const ps = e.players || []; return ps.some(p => p.win) && ps.some(p => !p.win); };
+  let ENC_LIST = [], encFilter = 'all';
+  function paint(){
+    const el = document.getElementById('enc');
+    const list = ENC_LIST.filter(e => encFilter === 'all' ? true : encFilter === 'ally' ? !isRival(e) : isRival(e));
+    el.innerHTML = list.length ? list.map(e => card(e, (e.end || 0) > lastSeenAtLoad)).join('')
+      : `<div class="empty">${ENC_LIST.length ? 'No hay encuentros en esta categoría.' : 'Aún no hay encuentros registrados. Aparecerán cuando dos jugadores del torneo coincidan en una partida.'}</div>`;
+  }
   function render(data){
     DDV = (data && data.ddragonVersion) || DDV;
-    const list = (data && Array.isArray(data.encounters)) ? data.encounters : [];
-    const el = document.getElementById('enc');
-    el.innerHTML = list.length ? list.map(e => card(e, (e.end || 0) > lastSeenAtLoad)).join('')
-      : '<div class="empty">Aún no hay encuentros registrados. Aparecerán cuando dos jugadores del torneo coincidan en una partida.</div>';
+    ENC_LIST = (data && Array.isArray(data.encounters)) ? data.encounters : [];
+    paint();
     // Avisa (una vez por sesión) de los encuentros ocurridos en tu ausencia, y márcalos vistos.
-    const nuevos = list.filter(e => (e.end || 0) > lastSeenAtLoad).length;
+    const nuevos = ENC_LIST.filter(e => (e.end || 0) > lastSeenAtLoad).length;
     if (nuevos && !encToastShown){ encToastShown = true; showEncToast(nuevos); }
-    if (list.length){ markSeen(Math.max(...list.map(e => e.end || 0))); if (window.SQC) SQC.navBadges(); }
+    if (ENC_LIST.length){ markSeen(Math.max(...ENC_LIST.map(e => e.end || 0))); if (window.SQC) SQC.navBadges(); }
   }
+  document.querySelectorAll('#enc-filters .chip').forEach(b => b.onclick = () => {
+    document.querySelectorAll('#enc-filters .chip').forEach(x => x.classList.remove('active'));
+    b.classList.add('active'); encFilter = b.dataset.f; paint();
+  });
 
   // Los encuentros ahora salen de /api/encounters (reconstruido del historial COMPLETO
   // en la DB, con equipo y resultado reales) → detecta aliados Y rivales, no solo dúos.
