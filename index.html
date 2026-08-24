@@ -119,8 +119,8 @@
   .rank-head .updated{ font-size:12px; color:var(--muted-2); }
   .rank-head .updated b{ color:var(--up); font-weight:600; }
   .cutoffs{ display:flex; align-items:center; gap:8px; }
-  .cut{ display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:800; padding:4px 9px; border-radius:7px; white-space:nowrap; }
-  .cut .lbl{ font-size:9px; font-weight:800; letter-spacing:.06em; opacity:.85; }
+  .cut{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; font-weight:800; padding:3px 9px 3px 5px; border-radius:7px; white-space:nowrap; }
+  .cut img{ width:22px; height:22px; object-fit:contain; }
   .cut.chall{ color:#f4c95d; background:rgba(244,201,93,.1); border:1px solid rgba(244,201,93,.4); }
   .cut.gm{ color:#e0555a; background:rgba(224,85,90,.1); border:1px solid rgba(224,85,90,.4); }
 
@@ -618,8 +618,8 @@
       <div class="rank-head">
         <h2>Ranking</h2>
         <div class="cutoffs" id="cutoffs" style="display:none">
-          <span class="cut chall" title="LP de corte para entrar a Challenger"><span class="lbl">CHALL</span><b id="cut-chall">—</b></span>
-          <span class="cut gm" title="LP de corte para entrar a Grandmaster"><span class="lbl">GM</span><b id="cut-gm">—</b></span>
+          <span class="cut chall" title="LP de corte para Challenger (puesto 200)"><img src="overlay/assets/ranks/Season_2023_-_Challenger.webp" alt="Challenger" onerror="this.style.display='none'"><b id="cut-chall">—</b></span>
+          <span class="cut gm" title="LP de corte para Grandmaster (puesto 500)"><img src="overlay/assets/ranks/Season_2023_-_Grandmaster.webp" alt="Grandmaster" onerror="this.style.display='none'"><b id="cut-gm">—</b></span>
         </div>
         <div style="display:flex; align-items:center; gap:14px; margin-left:auto; flex-wrap:wrap;">
           <a href="normas.html" style="font-size:13px; font-weight:700; color:var(--accent); border:1px solid rgba(233,255,31,.35); background:rgba(233,255,31,.08); padding:7px 13px; border-radius:8px; white-space:nowrap;">Normas →</a>
