@@ -81,6 +81,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
           $v = "v${{ github.event.inputs.version }}"
+          gh release delete $v --repo Matimcs/soloq-overlay-releases --yes 2>$null   # si ya existe, la reemplaza
           gh release create $v `
             overlay/dist/SoloQ-Overlay-Setup.exe `
             overlay/dist/latest.yml `
