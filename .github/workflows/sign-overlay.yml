@@ -1,0 +1,89 @@
+# Compila el overlay, lo FIRMA con SignPath (gratis para open source) y publica el instalador
+# firmado en el repo público de releases. SignPath exige que el build venga de GitHub Actions
+# (no de tu PC), por eso el build se movió aquí.
+#
+# ── ANTES de que funcione, completa: ────────────────────────────────────────────────
+#  1) En SignPath (Foundation / open source), crea Project + Signing Policy y anota:
+#       - organization-id, project-slug, signing-policy-slug   → reemplaza los "FILL_ME" de abajo.
+#  2) En GitHub → Settings → Secrets and variables → Actions, agrega:
+#       - SIGNPATH_API_TOKEN  = token de CI de SignPath.
+#       - RELEASES_TOKEN      = un PAT tuyo con scope "repo" (para publicar en soloq-overlay-releases).
+#  3) Ejecuta el workflow a mano (pestaña Actions → Build & sign overlay → Run workflow) con la versión.
+# ────────────────────────────────────────────────────────────────────────────────────
+
+name: Build & sign overlay
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Versión del overlay (ej. 0.2.19)"
+        required: true
+
+jobs:
+  build-sign:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fijar versión y construir (sin firmar)
+        working-directory: overlay
+        run: |
+          npm version ${{ github.event.inputs.version }} --no-git-tag-version --allow-same-version
+          npm ci
+          node -e "require('fs').copyFileSync('../roulette.js','roulette.js')"
+          npx electron-builder --win nsis --publish never
+
+      - name: Subir instalador sin firmar (para enviarlo a SignPath)
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: overlay-unsigned
+          path: overlay/dist/SoloQ-Overlay-Setup.exe
+
+      # Envía el .exe a SignPath, espera la firma y descarga el firmado a dist-signed/.
+      # Revisa los nombres de inputs en la doc de SignPath por si tu versión difiere.
+      - name: Firmar con SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: "FILL_ME_ORG_ID"
+          project-slug: "FILL_ME_PROJECT_SLUG"
+          signing-policy-slug: "FILL_ME_POLICY_SLUG"
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: overlay/dist-signed
+
+      # Reemplaza el exe por el firmado y RECALCULA latest.yml (hash + tamaño) para que la
+      # auto-actualización (electron-updater) no falle por checksum. Quita el blockmap (se hace
+      # descarga completa; funciona igual).
+      - name: Reemplazar por el firmado y arreglar latest.yml
+        shell: pwsh
+        run: |
+          Copy-Item overlay/dist-signed/SoloQ-Overlay-Setup.exe overlay/dist/SoloQ-Overlay-Setup.exe -Force
+          $exe   = "overlay/dist/SoloQ-Overlay-Setup.exe"
+          $sha   = [Convert]::ToBase64String([Security.Cryptography.SHA512]::Create().ComputeHash([IO.File]::ReadAllBytes($exe)))
+          $size  = (Get-Item $exe).Length
+          $yml   = Get-Content overlay/dist/latest.yml -Raw
+          $yml   = [Regex]::Replace($yml, 'sha512: .+', "sha512: $sha")     # top-level + files[0]
+          $yml   = [Regex]::Replace($yml, 'size: \d+', "size: $size")
+          $yml   = [Regex]::Replace($yml, '\s*blockMapSize: \d+', "")        # sin blockmap
+          Set-Content overlay/dist/latest.yml $yml -Encoding utf8 -NoNewline
+          Remove-Item overlay/dist/*.blockmap -ErrorAction SilentlyContinue
+
+      - name: Publicar release firmada
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          $v = "v${{ github.event.inputs.version }}"
+          gh release create $v `
+            overlay/dist/SoloQ-Overlay-Setup.exe `
+            overlay/dist/latest.yml `
+            --repo Matimcs/soloq-overlay-releases `
+            --title $v `
+            --notes "Overlay $v (firmado con SignPath)"
