@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Torneos</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#7dd3fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 20px; }
+  main.wrap{ padding-bottom:70px; }
+
+  .hero{ text-align:center; padding:10px 0 6px; }
+  .hero .kicker{ font-size:11px; font-weight:800; letter-spacing:.14em; color:var(--gold); }
+  .hero h1{ font-size:34px; letter-spacing:-.02em; margin:6px 0 6px; }
+  .hero h1 em{ font-style:normal; color:var(--accent); }
+  .hero .lead{ color:var(--muted); font-size:14.5px; max-width:640px; margin:0 auto; line-height:1.5; }
+  .hero-meta{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:14px 0 4px; }
+  .chipm{ font-size:12px; font-weight:700; color:var(--muted); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 13px; }
+  .chipm b{ color:var(--text); }
+  .dl{ display:inline-flex; align-items:center; gap:8px; background:var(--accent); color:#000; font-weight:800; font-size:14px; padding:10px 18px; border-radius:10px; margin-top:6px; }
+  .dl:hover{ filter:brightness(1.06); }
+
+  .sect-h{ font-size:13px; font-weight:800; letter-spacing:.08em; color:var(--accent); margin:34px 0 14px; }
+
+  /* Grupos */
+  .groups{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media(max-width:900px){ .groups{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:560px){ .groups{ grid-template-columns:1fr; } }
+  .grp{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .grp-h{ display:flex; align-items:center; justify-content:space-between; padding:11px 14px; background:linear-gradient(180deg,rgba(255,210,74,.16),rgba(255,210,74,.04)); border-bottom:1px solid var(--line); }
+  .grp-h .t{ font-size:14px; font-weight:800; letter-spacing:.04em; color:var(--gold); }
+  .grp-h .n{ font-size:10px; font-weight:700; color:var(--muted-2); }
+  .grp ul{ list-style:none; }
+  .grp li{ display:flex; align-items:center; gap:9px; padding:10px 14px; border-top:1px solid rgba(255,255,255,.04); }
+  .grp li:first-child{ border-top:none; }
+  .grp li.ours{ background:linear-gradient(90deg, rgba(233,255,31,.1), transparent); border-left:3px solid var(--accent); }
+  .grp li .tn{ font-size:13px; font-weight:700; }
+  .grp li .inst{ font-size:10.5px; color:var(--muted-2); }
+  .grp li.ours .tn{ color:var(--accent); }
+  .badge-us{ margin-left:auto; font-size:9px; font-weight:800; letter-spacing:.05em; color:#000; background:var(--accent); padding:2px 6px; border-radius:5px; flex-shrink:0; }
+
+  /* Simulación */
+  .sim-tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .sim-tab{ font-family:inherit; cursor:pointer; background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:9px; padding:9px 16px; font-size:13px; font-weight:800; }
+  .sim-tab:hover{ color:#fff; }
+  .sim-tab.active{ background:#fff; color:#000; border-color:#fff; }
+  .sim-note{ font-size:12.5px; color:var(--muted); margin:-4px 0 16px; line-height:1.5; }
+  .sim-panel{ display:none; }
+  .sim-panel.active{ display:block; }
+
+  /* Simple (arrastrar) */
+  .sgroups{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media(max-width:900px){ .sgroups{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:560px){ .sgroups{ grid-template-columns:1fr; } }
+  .sgrp{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .sgrp-h{ padding:10px 14px; font-size:13px; font-weight:800; color:var(--gold); border-bottom:1px solid var(--line); }
+  .drow{ display:flex; align-items:center; gap:9px; padding:9px 12px; border-top:1px solid rgba(255,255,255,.04); cursor:grab; background:var(--panel); }
+  .drow:first-child{ border-top:none; }
+  .drow.dragging{ opacity:.4; }
+  .drow.over{ box-shadow:inset 0 2px 0 var(--accent); }
+  .drow .pos{ width:20px; text-align:center; font-weight:800; font-size:13px; color:var(--muted); flex-shrink:0; }
+  .drow.q .pos{ color:var(--up); }
+  .drow.q{ background:linear-gradient(90deg, rgba(52,211,153,.09), transparent); }
+  .drow .dn{ font-size:13px; font-weight:700; }
+  .drow.ours .dn{ color:var(--accent); }
+  .drow .grip{ margin-left:auto; color:var(--muted-2); font-size:14px; }
+
+  /* Avanzada */
+  .adv-teams{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:16px; }
+  .adv-teams h3{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--muted); margin-bottom:4px; }
+  .adv-cols{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px 22px; margin-top:10px; }
+  @media(max-width:900px){ .adv-cols{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:560px){ .adv-cols{ grid-template-columns:1fr; } }
+  .strow{ display:flex; align-items:center; gap:9px; }
+  .strow .nm{ font-size:12px; font-weight:700; width:118px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .strow.ours .nm{ color:var(--accent); }
+  .strow input[type=range]{ flex:1; accent-color:var(--accent); cursor:pointer; }
+  .strow .v{ font-size:11px; font-weight:800; color:var(--muted); width:24px; text-align:right; }
+  .adv-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .btn{ font-family:inherit; cursor:pointer; border-radius:9px; padding:10px 16px; font-size:13px; font-weight:800; border:1px solid var(--line); }
+  .btn.p{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .btn.s{ background:var(--panel); color:var(--text); }
+  .btn:hover{ filter:brightness(1.06); }
+
+  .tables{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+  @media(max-width:760px){ .tables{ grid-template-columns:1fr; } }
+  .tbl{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .tbl-h{ padding:10px 14px; font-size:13px; font-weight:800; color:var(--gold); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .tbl-h .sub{ font-size:10px; color:var(--muted-2); font-weight:600; }
+  table{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  th,td{ padding:8px 10px; text-align:center; font-size:12.5px; }
+  th{ font-size:10px; letter-spacing:.05em; color:var(--muted-2); font-weight:700; border-bottom:1px solid var(--line); }
+  td.tn{ text-align:left; font-weight:700; }
+  tr.q td{ background:rgba(52,211,153,.07); }
+  tr.q td.pos{ color:var(--up); font-weight:800; }
+  tr.ours td.tn{ color:var(--accent); }
+  td.pts{ font-weight:800; }
+  .prob{ font-size:11px; color:var(--muted); }
+  .matches{ margin-top:6px; }
+  .mtoggle{ font-size:11px; color:var(--accent); cursor:pointer; padding:8px 14px; display:inline-block; }
+  .mlist{ display:none; padding:0 14px 12px; }
+  .mlist.open{ display:block; }
+  .mrow{ display:flex; align-items:center; gap:8px; font-size:11.5px; padding:3px 0; border-top:1px solid rgba(255,255,255,.04); }
+  .mrow .w{ color:var(--up); font-weight:700; } .mrow .lo{ color:var(--muted-2); }
+  .mrow .sc{ margin-left:auto; color:var(--muted); font-weight:700; }
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:30px 0; }
+</style>
+<link rel="stylesheet" href="nav.css">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="torneos.html" class="active">Torneos</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <div class="hero">
+      <div class="kicker">TORNEO LoL UDPORROS 2026 · AUSPICIADO POR JUGABET</div>
+      <h1>Fase de <em>Grupos</em></h1>
+      <p class="lead">El torneo universitario que estamos jugando. Los 4 equipos del SoloQ Challenge (<b style="color:var(--accent)">Zenith, Hundred Blossom, Exilium y Tide</b>) cayeron uno en cada grupo. Clasifican los <b>2 mejores de cada grupo</b> a playoffs.</p>
+      <div class="hero-meta">
+        <span class="chipm">Fase de grupos: <b>26 ago – 27 sep</b></span>
+        <span class="chipm">Formato: <b>ida y vuelta Bo1</b> · Victoria <b>3 pts</b></span>
+        <span class="chipm">Premio: <b>USD 500</b></span>
+        <span class="chipm">Semilla: <b>978850873</b></span>
+      </div>
+      <a class="dl" href="reglamento-udporros-2026.pdf" download target="_blank" rel="noopener">⬇ Descargar reglamento (PDF)</a>
+    </div>
+
+    <div class="sect-h">GRUPOS SORTEADOS</div>
+    <div class="groups" id="groups"></div>
+
+    <div class="sect-h">SIMULACIÓN</div>
+    <div class="sim-tabs">
+      <button class="sim-tab active" data-s="simple">🔀 Simple (arrastrar)</button>
+      <button class="sim-tab" data-s="adv">⚙ Avanzada (simular partidas)</button>
+    </div>
+
+    <div class="sim-panel active" id="p-simple">
+      <div class="sim-note">Arrastra los equipos para ordenar cada grupo como crees que debería quedar. Los <b style="color:var(--up)">2 primeros</b> (verde) clasifican a playoffs.</div>
+      <div class="sgroups" id="sgroups"></div>
+    </div>
+
+    <div class="sim-panel" id="p-adv">
+      <div class="sim-note">Asigna una <b>fuerza</b> (0–100) a cada equipo y simula la fase de grupos completa (ida y vuelta Bo1, victoria 3 pts). Cada partida se decide por probabilidad según la diferencia de fuerza.</div>
+      <div class="adv-teams">
+        <h3>FUERZA DE CADA EQUIPO</h3>
+        <div class="adv-cols" id="adv-cols"></div>
+      </div>
+      <div class="adv-actions">
+        <button class="btn p" id="sim-once">🎲 Simular una vez</button>
+        <button class="btn s" id="sim-prob">📊 Probabilidades (2000 simulaciones)</button>
+      </div>
+      <div class="tables" id="adv-tables"><div class="empty">Ajusta las fuerzas y presiona “Simular”.</div></div>
+    </div>
+  </main>
+
+<script src="players.js"></script>
+<script src="api.js"></script>
+<script>
+  // ===== Datos de los grupos (sorteo del 24 ago). ours = uno de los 4 equipos de la página. =====
+  const GROUPS = {
+    A: [
+      { name:'UCH Zenith', inst:'U. de Chile', ours:true },
+      { name:'Los 420', inst:'U. de Chile' },
+      { name:'PAPU team', inst:'UDP' },
+      { name:'UNAB B', inst:'UNAB' },
+      { name:'UC B', inst:'PUC' },
+      { name:'siXStars', inst:'U. Mayor' },
+    ],
+    B: [
+      { name:'Hundred Blossoms', inst:'U. de Chile', ours:true },
+      { name:'UDP B', inst:'UDP' },
+      { name:'UNAB Esports', inst:'UNAB' },
+      { name:'USM Yavin', inst:'USM' },
+      { name:'Duoc UC', inst:'Duoc UC' },
+      { name:'UTEM Last Dance', inst:'UTEM' },
+    ],
+    C: [
+      { name:'UCH Exilium', inst:'U. de Chile', ours:true },
+      { name:'UDP Esports A', inst:'UDP' },
+      { name:'Unab Esports B', inst:'UNAB' },
+      { name:'USM Jedha', inst:'USM' },
+      { name:'UC Esports', inst:'PUC' },
+      { name:'Los Ratones', inst:'PUCV' },
+    ],
+    D: [
+      { name:'UCH Tide', inst:'U. de Chile', ours:true },
+      { name:'Los Choripanes Ninja', inst:'UDP' },
+      { name:'USM Naboo', inst:'USM' },
+      { name:'León Usach Esports', inst:'USACH' },
+      { name:'Finis Terrae', inst:'U. Finis Terrae' },
+    ],
+  };
+  const GK = Object.keys(GROUPS);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  // ===== Grupos (vista) =====
+  document.getElementById('groups').innerHTML = GK.map(g => `
+    <div class="grp">
+      <div class="grp-h"><span class="t">GRUPO ${g}</span><span class="n">${GROUPS[g].length} EQUIPOS</span></div>
+      <ul>${GROUPS[g].map(t => `<li class="${t.ours?'ours':''}">
+        <div><div class="tn">${esc(t.name)}</div><div class="inst">${esc(t.inst)}</div></div>
+        ${t.ours?'<span class="badge-us">SoloQ</span>':''}</li>`).join('')}</ul>
+    </div>`).join('');
+
+  // ===== Tabs =====
+  document.querySelectorAll('.sim-tab').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.sim-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active');
+    document.getElementById('p-simple').classList.toggle('active', b.dataset.s==='simple');
+    document.getElementById('p-adv').classList.toggle('active', b.dataset.s==='adv');
+  });
+
+  // ===== SIMPLE: arrastrar para ordenar =====
+  const order = {}; GK.forEach(g => order[g] = GROUPS[g].slice());
+  function paintSimple(){
+    document.getElementById('sgroups').innerHTML = GK.map(g => `
+      <div class="sgrp">
+        <div class="sgrp-h">GRUPO ${g}</div>
+        <div class="dlist" data-g="${g}">${order[g].map((t,i) => `
+          <div class="drow ${i<2?'q':''} ${t.ours?'ours':''}" draggable="true" data-g="${g}" data-i="${i}">
+            <span class="pos">${i+1}</span><span class="dn">${esc(t.name)}</span><span class="grip">⠿</span>
+          </div>`).join('')}</div>
+      </div>`).join('');
+    // drag & drop
+    let src = null;
+    document.querySelectorAll('.drow').forEach(row => {
+      row.addEventListener('dragstart', e => { src = row; row.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); document.querySelectorAll('.drow').forEach(r=>r.classList.remove('over')); });
+      row.addEventListener('dragover', e => { e.preventDefault(); if (src && src!==row && src.dataset.g===row.dataset.g) row.classList.add('over'); });
+      row.addEventListener('dragleave', () => row.classList.remove('over'));
+      row.addEventListener('drop', e => { e.preventDefault();
+        if (!src || src===row || src.dataset.g!==row.dataset.g) return;
+        const g = row.dataset.g, from = +src.dataset.i, to = +row.dataset.i;
+        const arr = order[g]; const [m] = arr.splice(from,1); arr.splice(to,0,m); paintSimple();
+      });
+    });
+  }
+  paintSimple();
+
+  // ===== AVANZADA: fuerzas + simulación =====
+  const str = {};   // name -> fuerza (0-100)
+  GK.forEach(g => GROUPS[g].forEach(t => { str[t.name] = t.ours ? 60 : 50; }));
+  document.getElementById('adv-cols').innerHTML = GK.map(g => `<div>
+    <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">GRUPO ${g}</div>
+    ${GROUPS[g].map(t => `<div class="strow ${t.ours?'ours':''}">
+      <span class="nm">${esc(t.name)}</span>
+      <input type="range" min="0" max="100" value="${str[t.name]}" data-t="${esc(t.name)}">
+      <span class="v" data-v="${esc(t.name)}">${str[t.name]}</span></div>`).join('')}
+  </div>`).join('');
+  document.querySelectorAll('.strow input').forEach(inp => inp.oninput = () => {
+    str[inp.dataset.t] = +inp.value; document.querySelector(`[data-v="${CSS.escape(inp.dataset.t)}"]`).textContent = inp.value;
+  });
+
+  // Prob. de que 'a' gane una Bo1 (curva logística sobre la diferencia de fuerza).
+  const pWin = (a, b) => 1 / (1 + Math.pow(10, -(str[a] - str[b]) / 40));
+
+  // Simula un grupo (ida y vuelta Bo1). Devuelve tabla ordenada + partidas.
+  function simGroup(teams){
+    const n = teams.length, nm = teams.map(t=>t.name);
+    const pts = {}, w = {}, l = {}, beat = {};   // beat[a][b] = pts que 'a' le sacó a 'b'
+    nm.forEach(a => { pts[a]=0; w[a]=0; l[a]=0; beat[a]={}; nm.forEach(b=>beat[a][b]=0); });
+    const games = [];
+    for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
+      for (let leg=0; leg<2; leg++){                      // ida y vuelta
+        const a = nm[i], b = nm[j];
+        const aw = Math.random() < pWin(a, b);
+        const [wn, ls] = aw ? [a,b] : [b,a];
+        pts[wn]+=3; w[wn]++; l[ls]++; beat[wn][ls]+=3;
+        games.push({ w:wn, l:ls });
+      }
+    }
+    // Orden: puntos, luego head-to-head (entre empatados), luego victorias, luego fuerza.
+    const table = nm.slice().sort((a,b) => {
+      if (pts[b]!==pts[a]) return pts[b]-pts[a];
+      const tie = nm.filter(x => pts[x]===pts[a]);        // grupo de empatados
+      const h = x => tie.reduce((s,y)=> y===x?s:s+beat[x][y], 0);
+      if (h(b)!==h(a)) return h(b)-h(a);
+      if (w[b]!==w[a]) return w[b]-w[a];
+      return str[b]-str[a];
+    }).map((name,i) => ({ name, pos:i+1, pts:pts[name], w:w[name], l:l[name], q:i<2, ours:!!teams.find(t=>t.name===name && t.ours) }));
+    return { table, games };
+  }
+
+  function renderTables(res){   // res: {g: {table, games}}
+    document.getElementById('adv-tables').innerHTML = GK.map(g => {
+      const t = res[g];
+      const rows = t.table.map(r => `<tr class="${r.q?'q':''} ${r.ours?'ours':''}">
+        <td class="pos">${r.pos}</td><td class="tn">${esc(r.name)}${r.ours?' <span style="color:var(--accent);font-size:9px">◆</span>':''}</td>
+        <td>${r.w+r.l}</td><td>${r.w}</td><td>${r.l}</td><td class="pts">${r.pts}</td></tr>`).join('');
+      const games = t.games ? `<div class="matches"><span class="mtoggle" data-mg="${g}">Ver ${t.games.length} partidas ▾</span>
+        <div class="mlist" data-ml="${g}">${t.games.map(m=>`<div class="mrow"><span class="w">${esc(m.w)}</span><span class="lo">venció a ${esc(m.l)}</span></div>`).join('')}</div></div>` : '';
+      return `<div class="tbl">
+        <div class="tbl-h"><span>GRUPO ${g}</span><span class="sub">clasifican top 2</span></div>
+        <table><thead><tr><th>#</th><th style="text-align:left">Equipo</th><th>PJ</th><th>G</th><th>P</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>
+        ${games}</div>`;
+    }).join('');
+    document.querySelectorAll('.mtoggle').forEach(el => el.onclick = () => {
+      const ml = document.querySelector(`[data-ml="${el.dataset.mg}"]`); const open = ml.classList.toggle('open');
+      el.textContent = `${open?'Ocultar':'Ver'} ${ml.children.length} partidas ${open?'▴':'▾'}`;
+    });
+  }
+
+  document.getElementById('sim-once').onclick = () => {
+    const res = {}; GK.forEach(g => res[g] = simGroup(GROUPS[g])); renderTables(res);
+  };
+
+  document.getElementById('sim-prob').onclick = () => {
+    const N = 2000, qcount = {}, avgpts = {};
+    GK.forEach(g => GROUPS[g].forEach(t => { qcount[t.name]=0; avgpts[t.name]=0; }));
+    for (let s=0;s<N;s++) GK.forEach(g => { const { table } = simGroup(GROUPS[g]);
+      table.forEach(r => { if (r.q) qcount[r.name]++; avgpts[r.name]+=r.pts; }); });
+    // Render: por grupo, equipos ordenados por prob de clasificar.
+    document.getElementById('adv-tables').innerHTML = GK.map(g => {
+      const rows = GROUPS[g].map(t => ({ name:t.name, ours:t.ours, p:qcount[t.name]/N*100, ap:avgpts[t.name]/N }))
+        .sort((a,b)=>b.p-a.p)
+        .map((r,i)=>`<tr class="${r.p>=50?'q':''} ${r.ours?'ours':''}">
+          <td class="pos">${i+1}</td><td class="tn">${esc(r.name)}${r.ours?' <span style="color:var(--accent);font-size:9px">◆</span>':''}</td>
+          <td class="prob">${r.ap.toFixed(1)} pts</td><td class="pts">${r.p.toFixed(0)}%</td></tr>`).join('');
+      return `<div class="tbl"><div class="tbl-h"><span>GRUPO ${g}</span><span class="sub">prob. de clasificar</span></div>
+        <table><thead><tr><th>#</th><th style="text-align:left">Equipo</th><th>Pts prom.</th><th>Clasifica</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }).join('');
+  };
+
+  SQC.preNav(); SQC.mountNav();
+</script>
+</body>
+</html>
