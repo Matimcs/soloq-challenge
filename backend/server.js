@@ -243,9 +243,12 @@ app.get('/api/rosters', wrap(async (req,res) => {
   const smurfs = await q('SELECT user_id, riotid FROM smurfs');
   const links  = await q('SELECT smurf_riotid, main_riotid FROM smurf_links');
   const userByRid  = {}; users.forEach(u => { userByRid[u.riotid.toLowerCase()] = u; });
+  const userById   = {}; users.forEach(u => { userById[u.id] = u; });
   const smurfsByUser = {}; smurfs.forEach(s => { (smurfsByUser[s.user_id] = smurfsByUser[s.user_id] || []).push(s.riotid); });
-  // Vínculos smurf→main de jugadores no registrados.
+  // Mapa smurf→main. Primero las smurfs REGISTRADAS (tabla smurfs, colgadas de un usuario),
+  // luego los vínculos manuales de jugadores no registrados (smurf_links).
   const mainOf = {}, linkSmurfs = {};
+  smurfs.forEach(s => { const m = userById[s.user_id]; if (m) mainOf[s.riotid.toLowerCase()] = m.riotid; });
   links.forEach(l => { mainOf[l.smurf_riotid.toLowerCase()] = l.main_riotid;
     (linkSmurfs[l.main_riotid.toLowerCase()] = linkSmurfs[l.main_riotid.toLowerCase()] || []).push(l.smurf_riotid); });
   const canon = rid => mainOf[(rid || '').toLowerCase()] || rid;   // resuelve una smurf a su main
