@@ -33,9 +33,9 @@
   <div class="shell">
     <div class="bar" id="head">
       <img class="logo" src="assets/logo.png" alt=""><div class="btitle">SoloQ Challenge</div>
-      <div class="hint">Cerrar: <b>Alt&nbsp;+&nbsp;X</b></div>
+      <div class="hint">Ocultar: <b>Alt&nbsp;+&nbsp;X</b></div>
       <button class="gear" id="gear" title="Configuración">⚙</button>
-      <button class="xbtn" id="close-all" title="Cerrar todo (Alt+X)">✕</button>
+      <button class="xbtn" id="close-all" title="Ocultar overlay (Alt+X) — sigue corriendo en la bandeja">✕</button>
     </div>
     <!-- La página REAL. Cambia esta URL por la de producción cuando despliegues. -->
     <iframe id="site" src="https://soloq-challenge-em9q.onrender.com"></iframe>
@@ -54,8 +54,9 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="sbtn" id="s-reset">Reponer posiciones</button>
         <button class="sbtn" id="s-update" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16)">Buscar actualizaciones</button>
+        <button class="sbtn" id="s-quit" style="background:rgba(251,113,133,.16);color:#fb7185;border:1px solid rgba(251,113,133,.45)">Salir del overlay</button>
       </div>
-      <div class="snote">Los cambios se guardan automáticamente. La página se carga en vivo desde el servidor.<br>SoloQ Overlay <span id="s-version">—</span></div>
+      <div class="snote"><b>Ocultar</b> (Alt+X / ✕) solo esconde el overlay; sigue corriendo en la bandeja para trackear. <b>Salir del overlay</b> lo cierra por completo.<br>Los cambios se guardan automáticamente. SoloQ Overlay <span id="s-version">—</span></div>
     </div>
   </div>
 
@@ -77,8 +78,9 @@
   }
   const set = (k,v) => ipcRenderer.send('setting',{key:k,value:v});
   $('gear').addEventListener('click', () => settingsEl.style.display==='flex' ? settingsEl.style.display='none' : openSettings());
-  $('close-all').addEventListener('click', () => ipcRenderer.send('close-all'));   // cierra todo el overlay
+  $('close-all').addEventListener('click', () => ipcRenderer.send('close-all'));   // solo OCULTA el overlay
   $('s-close').addEventListener('click', () => settingsEl.style.display='none');
+  $('s-quit').addEventListener('click', () => { if (confirm('¿Cerrar el overlay por completo? Dejará de trackear hasta que lo vuelvas a abrir.')) ipcRenderer.send('quit-app'); });
   $('s-small').addEventListener('change', e => set('smallVisible', e.target.checked));
   $('s-shell').addEventListener('change', e => set('shellVisible', e.target.checked));
   $('s-autostart').addEventListener('change', e => set('autoLaunch', e.target.checked));

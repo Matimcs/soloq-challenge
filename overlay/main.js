@@ -236,7 +236,7 @@ function createTray(){
       { label: 'SoloQ Challenge — Overlay', enabled: false },
       { type: 'separator' },
       { label: 'Mostrar todo (Alt+X)', click: () => showAll() },
-      { label: 'Cerrar overlay', click: () => hideAll() },
+      { label: 'Ocultar overlay (Alt+X)', click: () => hideAll() },
       { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
       { type: 'separator' },
       { label: 'Buscar actualizaciones', click: () => checkUpdates(true) },
@@ -321,7 +321,8 @@ ipcMain.on('reset-pos', () => {
 ipcMain.handle('get-settings', () => settings);
 ipcMain.handle('get-version', () => { try { return app.getVersion(); } catch { return '?'; } });
 ipcMain.on('check-updates', () => checkUpdates(true));   // botón "Buscar actualizaciones" del panel
-ipcMain.on('close-all', () => hideAll());   // botón ✕ del panel
+ipcMain.on('close-all', () => hideAll());   // botón ✕ del panel: solo OCULTA (sigue en la bandeja)
+ipcMain.on('quit-app', () => { try { app.quit(); } catch {} });   // botón "Salir del overlay": cierra la app del todo
 
 // Reporta a la nube el rango del jugador (sacado del cliente vía LCU, GRATIS) y si está en
 // partida, para que el runner NO gaste llamadas a la Riot API por este jugador. Máx. 1/min.
