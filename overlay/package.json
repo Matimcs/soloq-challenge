@@ -1,6 +1,6 @@
 {
   "name": "sqc-overlay",
-  "version": "0.2.19",
+  "version": "0.2.20",
   "description": "SoloQ Challenge overlay (sin Overwolf) — Electron + APIs locales de Riot",
   "author": "SoloQ Chile",
   "main": "main.js",
