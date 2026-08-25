@@ -113,6 +113,22 @@
   .mrow .w{ color:var(--up); font-weight:700; } .mrow .lo{ color:var(--muted-2); }
   .mrow .sc{ margin-left:auto; color:var(--muted); font-weight:700; }
   .empty{ color:var(--muted); font-size:13px; text-align:center; padding:30px 0; }
+
+  /* Bracket de playoffs */
+  .bracket{ display:flex; gap:16px; align-items:stretch; overflow-x:auto; padding-bottom:6px; }
+  .bcol{ flex:1; min-width:180px; display:flex; flex-direction:column; justify-content:space-around; gap:12px; }
+  .bcol-h{ font-size:11px; font-weight:800; letter-spacing:.06em; color:var(--muted-2); text-align:center; margin-bottom:2px; }
+  .bmatch{ background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .bteam{ display:flex; align-items:center; gap:8px; padding:9px 11px; font-size:12.5px; font-weight:700; color:var(--muted); }
+  .bteam+.bteam{ border-top:1px solid var(--line); }
+  .bteam.win{ color:#fff; }
+  .bteam.win .bs{ color:var(--accent); }
+  .bteam.ours{ color:var(--accent); }
+  .bteam .bs{ margin-left:auto; font-weight:800; color:var(--muted-2); font-variant-numeric:tabular-nums; }
+  .bteam.final-win{ background:linear-gradient(90deg, rgba(233,255,31,.14), transparent); }
+  .champ{ margin-top:16px; text-align:center; font-size:17px; font-weight:800; }
+  .champ b{ color:var(--accent); }
+  .scrollx{ overflow-x:auto; }
 </style>
 <link rel="stylesheet" href="nav.css">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -177,6 +193,7 @@
         <button class="btn s" id="sim-prob">📊 Probabilidades (2000 simulaciones)</button>
       </div>
       <div class="tables" id="adv-tables"><div class="empty">Ajusta las fuerzas y presiona “Simular”.</div></div>
+      <div id="adv-bracket"></div>
     </div>
   </main>
 
@@ -326,25 +343,70 @@
     });
   }
 
+  // Conjunto de "nuestros" equipos (para resaltar) y lista plana con su grupo.
+  const OURS = new Set(); GK.forEach(g => GROUPS[g].forEach(t => { if (t.ours) OURS.add(t.name); }));
+  const allTeams = () => GK.flatMap(g => GROUPS[g].map(t => ({ name:t.name, group:g, ours:!!t.ours })));
+
+  // Serie al mejor de 3 (Bo3): cada mapa se decide por probabilidad; el primero a 2 gana.
+  function simBo3(a, b){
+    let ga = 0, gb = 0;
+    while (ga < 2 && gb < 2) { if (Math.random() < pWin(a, b)) ga++; else gb++; }
+    return { a, b, ga, gb, w: ga > gb ? a : b, l: ga > gb ? b : a };
+  }
+  // Bracket de 8: los 2 mejores de cada grupo. Los mismos de un grupo solo se cruzan en la final.
+  //  QF1: A1-B2 · QF2: C1-D2 · QF3: B1-A2 · QF4: D1-C2 · SF1: QF1-QF2 · SF2: QF3-QF4 · Final: SF1-SF2
+  function runBracket(q){   // q = {A:[1º,2º], B:[...], ...}
+    const qf = [ simBo3(q.A[0], q.B[1]), simBo3(q.C[0], q.D[1]), simBo3(q.B[0], q.A[1]), simBo3(q.D[0], q.C[1]) ];
+    const sf = [ simBo3(qf[0].w, qf[1].w), simBo3(qf[2].w, qf[3].w) ];
+    const fin = simBo3(sf[0].w, sf[1].w);
+    return { qf, sf, fin, champ: fin.w };
+  }
+  function qualifiers(res){ const q = {}; GK.forEach(g => q[g] = res[g].table.filter(r=>r.q).map(r=>r.name)); return q; }
+
+  function renderBracket(br){
+    const bt = (nm, g, isW, isFinal) => `<div class="bteam ${isW?'win':''} ${OURS.has(nm)?'ours':''} ${isFinal&&isW?'final-win':''}">${esc(nm)}<span class="bs">${g}</span></div>`;
+    const cell = m => `<div class="bmatch">${bt(m.a, m.ga, m.w===m.a)}${bt(m.b, m.gb, m.w===m.b)}</div>`;
+    const cellF = m => `<div class="bmatch">${bt(m.a, m.ga, m.w===m.a, true)}${bt(m.b, m.gb, m.w===m.b, true)}</div>`;
+    document.getElementById('adv-bracket').innerHTML = `
+      <div class="sect-h" style="margin-top:26px">PLAYOFFS — eliminación directa (Bo3)</div>
+      <div class="bracket">
+        <div class="bcol"><div class="bcol-h">CUARTOS</div>${br.qf.map(cell).join('')}</div>
+        <div class="bcol"><div class="bcol-h">SEMIFINALES</div>${br.sf.map(cell).join('')}</div>
+        <div class="bcol"><div class="bcol-h">FINAL</div>${cellF(br.fin)}</div>
+      </div>
+      <div class="champ">🏆 Campeón: <b>${esc(br.champ)}</b></div>`;
+  }
+
   document.getElementById('sim-once').onclick = () => {
-    const res = {}; GK.forEach(g => res[g] = simGroup(GROUPS[g])); renderTables(res);
+    const res = {}; GK.forEach(g => res[g] = simGroup(GROUPS[g]));
+    renderTables(res);                       // fase de grupos
+    renderBracket(runBracket(qualifiers(res)));   // playoffs hasta la final
   };
 
   document.getElementById('sim-prob').onclick = () => {
-    const N = 2000, qcount = {}, avgpts = {};
-    GK.forEach(g => GROUPS[g].forEach(t => { qcount[t.name]=0; avgpts[t.name]=0; }));
-    for (let s=0;s<N;s++) GK.forEach(g => { const { table } = simGroup(GROUPS[g]);
-      table.forEach(r => { if (r.q) qcount[r.name]++; avgpts[r.name]+=r.pts; }); });
-    // Render: por grupo, equipos ordenados por prob de clasificar.
-    document.getElementById('adv-tables').innerHTML = GK.map(g => {
-      const rows = GROUPS[g].map(t => ({ name:t.name, ours:t.ours, p:qcount[t.name]/N*100, ap:avgpts[t.name]/N }))
-        .sort((a,b)=>b.p-a.p)
-        .map((r,i)=>`<tr class="${r.p>=50?'q':''} ${r.ours?'ours':''}">
+    const N = 2000;
+    const qc = {}, sfc = {}, finc = {}, chc = {};   // clasifica / llega a semis / llega a final / campeón
+    allTeams().forEach(t => { qc[t.name]=0; sfc[t.name]=0; finc[t.name]=0; chc[t.name]=0; });
+    for (let s=0;s<N;s++){
+      const res = {}; GK.forEach(g => { res[g] = simGroup(GROUPS[g]); res[g].table.forEach(r=>{ if(r.q) qc[r.name]++; }); });
+      const br = runBracket(qualifiers(res));
+      br.qf.forEach(m => sfc[m.w]++);   // ganar cuartos = llega a semis
+      br.sf.forEach(m => finc[m.w]++);  // ganar semis = llega a la final
+      chc[br.champ]++;
+    }
+    const rows = allTeams().map(t => ({ ...t, q:qc[t.name]/N*100, sf:sfc[t.name]/N*100, fin:finc[t.name]/N*100, ch:chc[t.name]/N*100 }))
+      .sort((a,b) => b.ch - a.ch || b.fin - a.fin || b.q - a.q);
+    const pct = v => v>=0.5 ? v.toFixed(0)+'%' : (v>0?'<1%':'—');
+    document.getElementById('adv-bracket').innerHTML = '';
+    document.getElementById('adv-tables').innerHTML = `<div class="tbl" style="grid-column:1/-1">
+      <div class="tbl-h"><span>PROBABILIDADES (${N} simulaciones del torneo completo)</span></div>
+      <div class="scrollx"><table><thead><tr>
+        <th>#</th><th style="text-align:left">Equipo</th><th>Grupo</th><th>Clasifica</th><th>Semis</th><th>Final</th><th>Campeón</th></tr></thead><tbody>
+        ${rows.map((r,i)=>`<tr class="${r.ours?'ours':''}">
           <td class="pos">${i+1}</td><td class="tn">${esc(r.name)}${r.ours?' <span style="color:var(--accent);font-size:9px">◆</span>':''}</td>
-          <td class="prob">${r.ap.toFixed(1)} pts</td><td class="pts">${r.p.toFixed(0)}%</td></tr>`).join('');
-      return `<div class="tbl"><div class="tbl-h"><span>GRUPO ${g}</span><span class="sub">prob. de clasificar</span></div>
-        <table><thead><tr><th>#</th><th style="text-align:left">Equipo</th><th>Pts prom.</th><th>Clasifica</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-    }).join('');
+          <td class="prob">${r.group}</td><td class="prob">${pct(r.q)}</td><td class="prob">${pct(r.sf)}</td><td class="prob">${pct(r.fin)}</td>
+          <td class="pts" style="color:var(--accent)">${pct(r.ch)}</td></tr>`).join('')}
+      </tbody></table></div></div>`;
   };
 
   SQC.preNav(); SQC.mountNav();
