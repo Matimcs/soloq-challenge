@@ -36,6 +36,9 @@
   .badge.on{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
   .badge.off{ background:rgba(255,255,255,.06); color:var(--muted); border:1px solid var(--line-2); }
   input[type=text],select{ flex:1; min-width:160px; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:9px 12px; }
+  .rs-role,.rs-start{ flex:0 0 auto; min-width:0; width:auto; padding:6px 9px; font-size:12px; }
+  .rs-team-h{ font-size:13px; font-weight:800; color:var(--gold); margin:4px 0 8px; }
+  .rs-team-h .c{ color:var(--muted-2); font-weight:600; }
   .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:9px 14px; font-size:13px; font-weight:700; }
   .btn-accent{ background:var(--accent); color:#000; } .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
   .btn-ok{ background:rgba(52,211,153,.16); color:var(--up); border:1px solid rgba(52,211,153,.45); }
@@ -122,6 +125,18 @@
         <button class="btn btn-accent" id="rt-add">Agregar</button>
       </div>
       <div class="list" id="rt-list" style="margin-top:12px"></div>
+    </div>
+
+    <!-- Rosters de equipos -->
+    <div class="box">
+      <h2>Rosters de equipos <span class="n" id="rs-count"></span></h2>
+      <div class="sub" style="margin:-6px 0 12px">Define la <b>posición en el equipo</b> (puede diferir de la de SoloQ) y quién es <b>titular</b> o <b>suplente</b>. Se guarda al momento. Para sumar a un jugador usa el Riot ID de su cuenta principal.</div>
+      <div class="drop-row" style="margin-bottom:14px">
+        <input type="text" id="rs-riotid" placeholder="Riot ID (Nombre#TAG) de la cuenta principal">
+        <select id="rs-team" style="flex:0 0 auto;min-width:150px"></select>
+        <button class="btn btn-accent" id="rs-add">Sumar al equipo</button>
+      </div>
+      <div id="rs-teams"></div>
     </div>
 
     <!-- Transmisiones en vivo -->
@@ -310,6 +325,57 @@
       catch(e){ toast(e.message); }
     });
 
+    // ---- Rosters de equipos (rol/posición + titular/suplente) ----
+    const RS_TEAMS = ['Zenith','Hundred Blossom','Exilium','Tide'];
+    const RS_LABEL = { Zenith:'UCH Zenith', 'Hundred Blossom':'Hundred Blossoms', Exilium:'UCH Exilium', Tide:'UCH Tide' };
+    const RS_ROLES = [['','Posición —'],['TOP','Top'],['JUNGLE','Jungla'],['MID','Mid'],['ADC','ADC'],['SUPPORT','Support']];
+    const escA = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    const roleOpts = v => RS_ROLES.map(([val,l])=>`<option value="${val}" ${val===(v||'')?'selected':''}>${l}</option>`).join('');
+    async function saveMeta(rid, team, role, starter){
+      try { await SQC.api('/admin/team-meta/'+encodeURIComponent(rid), {method:'POST', body:{ team, role: role||null, starter }}); toast('Guardado'); }
+      catch(e){ toast(e.message); }
+    }
+    async function renderRosters(){
+      $('rs-team').innerHTML = RS_TEAMS.map(t=>`<option value="${escA(t)}">${RS_LABEL[t]}</option>`).join('');
+      let data = {};
+      try { const r = await fetch('/api/rosters?t='+Date.now(), { cache:'no-store' }); if (r.ok) data = await r.json(); } catch(e){}
+      let total = 0;
+      $('rs-teams').innerHTML = RS_TEAMS.map(t => {
+        const arr = Array.isArray(data[t]) ? data[t] : []; total += arr.length;
+        const rows = arr.length ? arr.map(p=>`
+          <div class="item">
+            <div class="info"><div class="t">${escA(p.nickname)}</div><div class="s">${escA(p.riotid)}</div></div>
+            <select class="rs-role" data-rid="${escA(p.riotid)}" data-team="${escA(t)}">${roleOpts(p.role)}</select>
+            <select class="rs-start" data-rid="${escA(p.riotid)}" data-team="${escA(t)}">
+              <option value="1" ${p.starter!==false?'selected':''}>Titular</option>
+              <option value="0" ${p.starter===false?'selected':''}>Suplente</option>
+            </select>
+            <button class="btn btn-no rs-del" data-rid="${escA(p.riotid)}" data-team="${escA(t)}">Quitar</button>
+          </div>`).join('') : '<div class="empty">Sin jugadores en este equipo.</div>';
+        return `<div style="margin-bottom:14px"><div class="rs-team-h">${RS_LABEL[t]} <span class="c">· ${arr.length}</span></div><div class="list" style="max-height:none">${rows}</div></div>`;
+      }).join('');
+      $('rs-count').textContent = `(${total})`;
+      $('rs-teams').querySelectorAll('.rs-role').forEach(sel=>sel.addEventListener('change',()=>{
+        const st = sel.closest('.item').querySelector('.rs-start');
+        saveMeta(sel.dataset.rid, sel.dataset.team, sel.value, st.value!=='0');
+      }));
+      $('rs-teams').querySelectorAll('.rs-start').forEach(sel=>sel.addEventListener('change',()=>{
+        const rl = sel.closest('.item').querySelector('.rs-role');
+        saveMeta(sel.dataset.rid, sel.dataset.team, rl.value, sel.value!=='0');
+      }));
+      $('rs-teams').querySelectorAll('.rs-del').forEach(b=>b.addEventListener('click',async()=>{
+        if(!confirm('¿Quitar a este jugador del equipo?')) return;
+        try { await SQC.api('/admin/team-remove/'+encodeURIComponent(b.dataset.rid),{method:'POST',body:{team:b.dataset.team}}); toast('Quitado'); renderRosters(); }
+        catch(e){ toast(e.message); }
+      }));
+    }
+    $('rs-add').addEventListener('click', async () => {
+      const rid = $('rs-riotid').value.trim(), team = $('rs-team').value;
+      if (!/^.+#.+$/.test(rid)){ toast('Formato Nombre#TAG'); return; }
+      try { await SQC.api('/admin/team-meta/'+encodeURIComponent(rid), {method:'POST', body:{ team, starter:true }}); $('rs-riotid').value=''; toast('Sumado al equipo'); renderRosters(); }
+      catch(e){ toast(e.message); }
+    });
+
     // ---- Transmisiones ----
     async function renderStreams(){
       const list = await SQC.api('/streams');
@@ -410,7 +476,7 @@
     $('msg-send').addEventListener('click', sendMsg);
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
-    renderConfirm(); renderDrop(); renderRoster(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
+    renderConfirm(); renderDrop(); renderRoster(); renderRosters(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
     setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
   })();
 </script>

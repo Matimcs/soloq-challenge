@@ -962,6 +962,26 @@ app.post('/api/admin/teams/:riotid', auth, requireAdmin, wrap(async (req,res) =>
   await q('UPDATE users SET team=NULL WHERE lower(riotid)=lower($1)', [rid]);   // el multi-equipo vive en team_members
   res.json({ ok:true, riotid: rid, selected: want });
 }));
+// Alta o edición de UN jugador en UN equipo (rol + titular/suplente), sin tocar sus otros equipos.
+app.post('/api/admin/team-meta/:riotid', auth, requireAdmin, wrap(async (req,res) => {
+  const rid = await canonicalRid((req.params.riotid || '').trim());
+  if (!/^.+#.+$/.test(rid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  const team = (req.body && TEAMS.has(req.body.team)) ? req.body.team : null;
+  if (!team) return res.status(400).json({ error:'Equipo inválido' });
+  const role = ROLES.has(req.body && req.body.role) ? req.body.role : null;
+  const starter = (req.body && req.body.starter === false) ? false : true;
+  await q(`INSERT INTO team_members (riotid, team, role, starter) VALUES ($1,$2,$3,$4)
+           ON CONFLICT (riotid, team) DO UPDATE SET role=EXCLUDED.role, starter=EXCLUDED.starter`, [rid, team, role, starter]);
+  res.json({ ok:true, riotid: rid, team });
+}));
+// Quita a un jugador de UN equipo concreto.
+app.post('/api/admin/team-remove/:riotid', auth, requireAdmin, wrap(async (req,res) => {
+  const rid = await canonicalRid((req.params.riotid || '').trim());
+  const team = (req.body && TEAMS.has(req.body.team)) ? req.body.team : null;
+  if (!team) return res.status(400).json({ error:'Equipo inválido' });
+  await q('DELETE FROM team_members WHERE lower(riotid)=lower($1) AND team=$2', [rid, team]);
+  res.json({ ok:true });
+}));
 
 // Promover o quitar admin a un jugador registrado (solo admin).
 app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
