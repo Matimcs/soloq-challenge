@@ -406,7 +406,10 @@
   .pd-teams[hidden]{ display:none; }
   .pd-teams-t{ font-size:12px; font-weight:800; color:#fff; margin-bottom:10px; }
   .pd-teams-note{ font-size:11px; font-weight:600; color:var(--muted); }
-  .pd-teams-list{ display:flex; flex-wrap:wrap; gap:8px 16px; }
+  .pd-teams-list{ display:flex; flex-direction:column; gap:8px; }
+  .pd-trow{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pd-trow .pd-tck{ min-width:150px; }
+  .pd-trole,.pd-tstart{ font-family:inherit; font-size:12px; font-weight:600; color:var(--muted); background:var(--panel-2,#121319); border:1px solid rgba(255,255,255,.14); border-radius:7px; padding:5px 8px; cursor:pointer; }
   .pd-tck{ display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); cursor:pointer; }
   .pd-tck input{ width:15px; height:15px; accent-color:var(--purple); cursor:pointer; }
   .pd-teams-actions{ margin-top:12px; }
@@ -1447,16 +1450,32 @@ function renderDetail(root, rid, data){
     tmBtn.disabled = true;
     try {
       const d = await SQC.api('/admin/teams/' + encodeURIComponent(rid));
+      const ROLE_OPTS = [['','Rol —'],['TOP','Top'],['JUNGLE','Jungla'],['MID','Mid'],['ADC','ADC'],['SUPPORT','Support']];
       tmPanel.innerHTML =
-        `<div class="pd-teams-t">Equipos de ${prof.nickname} <span class="pd-teams-note">(aplica a todas sus cuentas)</span></div>`
-        + `<div class="pd-teams-list">` + d.teams.map(t =>
-            `<label class="pd-tck"><input type="checkbox" value="${escAttr(t)}" ${d.selected.includes(t)?'checked':''}><span class="team-tag ${teamSlug(t)}">${teamLabel(t)}</span> ${t}</label>`).join('') + `</div>`
+        `<div class="pd-teams-t">Equipos de ${prof.nickname} <span class="pd-teams-note">(rol y titular/suplente por equipo · aplica a todas sus cuentas)</span></div>`
+        + `<div class="pd-teams-list">` + d.teams.map(t => {
+            const meta = (d.meta && d.meta[t]) || {};
+            const roleSel = `<select class="pd-trole">` + ROLE_OPTS.map(([v,l]) =>
+                `<option value="${v}" ${((meta.role||'')===v)?'selected':''}>${l}</option>`).join('') + `</select>`;
+            const startSel = `<select class="pd-tstart">`
+                + `<option value="1" ${meta.starter!==false?'selected':''}>Titular</option>`
+                + `<option value="0" ${meta.starter===false?'selected':''}>Suplente</option></select>`;
+            return `<div class="pd-trow">`
+              + `<label class="pd-tck"><input type="checkbox" value="${escAttr(t)}" ${d.selected.includes(t)?'checked':''}><span class="team-tag ${teamSlug(t)}">${teamLabel(t)}</span> ${t}</label>`
+              + roleSel + startSel + `</div>`;
+          }).join('') + `</div>`
         + `<div class="pd-teams-actions"><button class="pd-adm" data-tsave>Guardar</button></div>`;
       tmPanel.hidden = false;
       tmPanel.querySelector('[data-tsave]').onclick = async (ev) => {
-        const teams = [...tmPanel.querySelectorAll('input:checked')].map(i => i.value);
+        const teams = [], meta = {};
+        tmPanel.querySelectorAll('.pd-trow').forEach(row => {
+          const cb = row.querySelector('input[type=checkbox]'); if (!cb.checked) return;
+          teams.push(cb.value);
+          meta[cb.value] = { role: row.querySelector('.pd-trole').value || null,
+                             starter: row.querySelector('.pd-tstart').value !== '0' };
+        });
         ev.target.disabled = true;
-        try { await SQC.api('/admin/teams/' + encodeURIComponent(rid), { method:'POST', body:{ teams } });
+        try { await SQC.api('/admin/teams/' + encodeURIComponent(rid), { method:'POST', body:{ teams, meta } });
           tmPanel.hidden = true; loadTeams(true);   // refresca las etiquetas del ranking (sin caché)
         } catch (e) { ev.target.disabled = false; alert('No se pudo: ' + e.message); }
       };

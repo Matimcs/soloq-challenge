@@ -164,12 +164,16 @@
   .rcard-h{ display:flex; align-items:center; gap:10px; padding:14px 16px; background:linear-gradient(180deg, rgba(233,255,31,.12), rgba(233,255,31,.03)); border-bottom:1px solid var(--line); }
   .rcard-h .rt{ font-size:16px; font-weight:800; color:var(--accent); }
   .rcard-h .ri{ font-size:10.5px; color:var(--muted-2); font-weight:700; margin-left:auto; text-align:right; }
+  .rsub{ font-size:9.5px; font-weight:800; letter-spacing:.08em; color:var(--muted-2); padding:10px 16px 4px; }
+  .rsub.sub{ color:var(--blue); opacity:.75; border-top:1px solid var(--line); margin-top:2px; }
   .rlist{ list-style:none; }
-  .rlist li{ display:flex; align-items:center; gap:11px; padding:11px 16px; border-top:1px solid rgba(255,255,255,.05); }
+  .rlist li{ display:flex; align-items:center; gap:11px; padding:10px 16px; border-top:1px solid rgba(255,255,255,.05); }
   .rlist li:first-child{ border-top:none; }
-  .rlist .rpos{ width:18px; text-align:center; font-size:11px; font-weight:800; color:var(--muted-2); flex-shrink:0; }
-  .rlist .rn{ font-size:13.5px; font-weight:700; }
-  .rlist .rid{ font-size:10.5px; color:var(--muted-2); }
+  .rlist .rrole{ width:56px; flex-shrink:0; font-size:10px; font-weight:800; letter-spacing:.02em; color:#000; background:var(--accent); border-radius:6px; padding:3px 0; text-align:center; }
+  .rlist .rrole.none{ color:var(--muted-2); background:transparent; border:1px solid var(--line); }
+  .rlist .rinfo{ min-width:0; }
+  .rlist .rn{ font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rlist .rid{ font-size:10.5px; color:var(--muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rlist .rk{ margin-left:auto; text-align:right; flex-shrink:0; }
   .rlist .rk .tier{ font-size:11.5px; font-weight:800; }
   .rlist .rk .lp{ font-size:10px; color:var(--muted); }
@@ -251,7 +255,7 @@
 
     <!-- ===== ROSTERS ===== -->
     <section class="ptab" id="tab-rosters">
-      <div class="rnote">Rosters de los 4 equipos de la <b style="color:var(--accent)">U. de Chile</b> en el torneo. Por ahora solo aparecen los equipos UChile; a futuro se sumarán los demás. El rango y los LP salen del ranking del SoloQ Challenge.</div>
+      <div class="rnote">Rosters de los 4 equipos de la <b style="color:var(--accent)">U. de Chile</b> en el torneo, separados en titulares y suplentes. Por ahora solo aparecen los equipos UChile; a futuro se sumarán los demás. Se muestra <b>una fila por jugador</b> con el rango de su <b>cuenta más alta</b> (según el ranking del SoloQ Challenge).</div>
       <div class="rosters" id="rosters"><div class="rempty">Cargando rosters…</div></div>
     </section>
   </main>
@@ -451,7 +455,7 @@
   document.querySelectorAll('.ptab-btn').forEach(b=> b.onclick = () => showPage(b.dataset.p));
   showPage((location.hash||'').replace('#',''));
 
-  // ===== ROSTERS: equipos U. de Chile (equipos desde /api/teams + rango/LP del ranking) =====
+  // ===== ROSTERS: equipos U. de Chile (una fila por jugador = su cuenta main, con el elo de su cuenta más alta) =====
   const ROSTER_TEAMS = [
     { key:'Zenith',          name:'UCH Zenith' },
     { key:'Hundred Blossom', name:'Hundred Blossoms' },
@@ -459,8 +463,8 @@
     { key:'Tide',            name:'UCH Tide' },
   ];
   const TIER_COL = { CHALLENGER:'#f4c14b', GRANDMASTER:'#fb7185', MASTER:'#c084fc', DIAMOND:'#7dd3fc', EMERALD:'#34d399', PLATINUM:'#5eead4', GOLD:'#fcd34d', SILVER:'#cbd5e1', BRONZE:'#d6a06a', IRON:'#9ca3af' };
-  const RPLAYERS = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players)) ? window.SQC_DATA.players : [];
-  const byRid = {}; RPLAYERS.forEach(p => { if (p.rid) byRid[p.rid.toLowerCase()] = p; });
+  const ROLE_LBL = { TOP:'Top', JUNGLE:'Jungla', MID:'Mid', ADC:'ADC', SUPPORT:'Support' };
+  const ROLE_ORD = { TOP:0, JUNGLE:1, MID:2, ADC:3, SUPPORT:4 };
   const APEX = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
   function tierLabel(p){
     if(!p || !p.tier) return { t:'Sin rango', c:'var(--muted-2)', lp:'' };
@@ -468,20 +472,29 @@
     const div = APEX.has(p.tier) ? '' : (p.div ? ' '+p.div : '');
     return { t: nice+div, c: TIER_COL[p.tier]||'var(--text)', lp: (p.lp!=null ? p.lp+' LP' : '') };
   }
-  function renderRosters(map){
+  function sortRoster(a,b){
+    const ra = (a.role in ROLE_ORD)?ROLE_ORD[a.role]:9, rb = (b.role in ROLE_ORD)?ROLE_ORD[b.role]:9;
+    if (ra!==rb) return ra-rb;
+    return (b.lp||0)-(a.lp||0);
+  }
+  function playerRow(p){
+    const tl = tierLabel(p);
+    const role = p.role ? '<span class="rrole">'+esc(ROLE_LBL[p.role]||p.role)+'</span>' : '<span class="rrole none">—</span>';
+    return '<li>'+role+'<div class="rinfo"><div class="rn">'+esc(p.nickname)+'</div><div class="rid">'+esc(p.bestRiotid||p.riotid)+'</div></div>'
+      +'<div class="rk"><div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'
+      +(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':'')+'</div></li>';
+  }
+  function renderRosters(data){
     const html = ROSTER_TEAMS.map(tm => {
-      const arr = [...(map[tm.key] ? map[tm.key].values() : [])]
-        .sort((a,b)=>(b.lp||0)-(a.lp||0));
-      let body;
+      const arr = Array.isArray(data[tm.key]) ? data[tm.key] : [];
+      const starters = arr.filter(p=>p.starter!==false).sort(sortRoster);
+      const subs     = arr.filter(p=>p.starter===false).sort(sortRoster);
+      let body = '';
       if(arr.length){
-        body = '<ul class="rlist">'+arr.map((p,i)=>{ const tl=tierLabel(p);
-          return '<li><span class="rpos">'+(i+1)+'</span>'
-            +'<div><div class="rn">'+esc(p.nm)+'</div><div class="rid">'+esc(p.rid)+'</div></div>'
-            +'<div class="rk"><div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'
-            +(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':'')+'</div></li>';
-        }).join('')+'</ul>';
+        if(starters.length) body += '<div class="rsub">TITULARES</div><ul class="rlist">'+starters.map(playerRow).join('')+'</ul>';
+        if(subs.length)     body += '<div class="rsub sub">SUPLENTES</div><ul class="rlist">'+subs.map(playerRow).join('')+'</ul>';
       } else {
-        body = '<div class="rempty">Sin jugadores cargados todavía.</div>';
+        body = '<div class="rempty">Sin jugadores asignados todavía.</div>';
       }
       return '<div class="rcard"><div class="rcard-h"><span class="rt">'+esc(tm.name)+'</span>'
         +'<span class="ri">U. de Chile · '+arr.length+' jugador'+(arr.length===1?'':'es')+'</span></div>'+body+'</div>';
@@ -489,15 +502,9 @@
     document.getElementById('rosters').innerHTML = html;
   }
   async function loadRosters(){
-    const map = {}; ROSTER_TEAMS.forEach(t => map[t.key] = new Map());
-    let rows = [];
-    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/teams'); if (r.ok) rows = await r.json(); } } catch {}
-    rows.forEach(row => {
-      const p = byRid[(row.riotid||'').toLowerCase()];
-      if (!p) return;                          // solo cuentas del ranking (evita smurfs sin rango)
-      (row.teams||[]).forEach(t => { if (map[t]) map[t].set(p.rid.toLowerCase(), p); });
-    });
-    renderRosters(map);
+    let data = {};
+    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/rosters'); if (r.ok) data = await r.json(); } } catch {}
+    renderRosters(data);
   }
   loadRosters();
 

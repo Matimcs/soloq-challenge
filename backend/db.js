@@ -192,6 +192,9 @@ async function init(){
     INSERT INTO team_members (riotid, team)
       SELECT riotid, team FROM users WHERE team IS NOT NULL AND team<>''
       ON CONFLICT (riotid, team) DO NOTHING;
+    -- Rol en el equipo (puede diferir del de SoloQ) y titular/suplente, por (cuenta, equipo).
+    ALTER TABLE team_members ADD COLUMN IF NOT EXISTS role    TEXT;             -- TOP|JUNGLE|MID|ADC|SUPPORT|null
+    ALTER TABLE team_members ADD COLUMN IF NOT EXISTS starter BOOLEAN DEFAULT true;  -- true=titular, false=suplente
 
     -- Transmisiones en vivo (streams) que el admin agrega a mano para verlas embebidas en la web.
     CREATE TABLE IF NOT EXISTS streams (

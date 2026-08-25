@@ -104,6 +104,7 @@ app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.hea
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
 const sign = u => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
 const TEAMS = new Set(['Exilium', 'Tide', 'Zenith', 'Hundred Blossom']);
+const ROLES = new Set(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT']);   // rol dentro del equipo (puede diferir del de SoloQ)
 const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, team:u.team || null, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -227,6 +228,46 @@ app.get('/api/teams', wrap(async (req,res) => {
   users.forEach(u => { const m = map[u.riotid.toLowerCase()];   // propaga los equipos de la main a sus smurfs
     if (m && m.teams.size) (byUser[u.id] || []).forEach(rid => m.teams.forEach(t => add(rid, t))); });
   res.json(Object.values(map).map(x => ({ riotid:x.riotid, teams:[...x.teams] })));
+}));
+
+// Rosters por equipo: UNA fila por jugador (su cuenta main de team_members), mostrando el
+// elo de su CUENTA MÁS ALTA (main + smurfs), su rol en el equipo y si es titular o suplente.
+// El elo se toma del ranking ya trackeado (liveSnapshot), sin llamar a la Riot API. Público.
+app.get('/api/rosters', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  const players = liveSnapshot().players || [];
+  const byRid = {}; players.forEach(p => { byRid[(p.rid || '').toLowerCase()] = p; });
+
+  const tm     = await q("SELECT riotid, team, role, starter FROM team_members WHERE team IS NOT NULL AND team<>''");
+  const users  = await q("SELECT id, riotid, nickname FROM users");
+  const smurfs = await q('SELECT user_id, riotid FROM smurfs');
+  const userByRid  = {}; users.forEach(u => { userByRid[u.riotid.toLowerCase()] = u; });
+  const smurfsByUser = {}; smurfs.forEach(s => { (smurfsByUser[s.user_id] = smurfsByUser[s.user_id] || []).push(s.riotid); });
+
+  // Mejor cuenta (mayor elo absoluto) entre una lista de riotids, usando el ranking.
+  const bestOf = rids => {
+    let best = null, bestAbs = -1;
+    rids.forEach(rid => { const p = byRid[(rid || '').toLowerCase()]; if (!p) return;
+      const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > bestAbs){ bestAbs = abs; best = p; } });
+    return best;
+  };
+
+  const out = {}; [...TEAMS].forEach(t => out[t] = []);
+  tm.forEach(row => {
+    if (!out[row.team]) return;
+    const u = userByRid[row.riotid.toLowerCase()];
+    const accounts = [row.riotid].concat(u ? (smurfsByUser[u.id] || []) : []);
+    const best = bestOf(accounts);
+    out[row.team].push({
+      riotid: row.riotid,
+      nickname: u ? u.nickname : row.riotid.split('#')[0],
+      role: ROLES.has(row.role) ? row.role : null,
+      starter: row.starter !== false,
+      tier: best ? best.tier : null, div: best ? (best.div || '') : null, lp: best ? best.lp : null,
+      bestRiotid: best ? best.rid : row.riotid,
+    });
+  });
+  res.json(out);
 }));
 
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
@@ -897,19 +938,27 @@ async function canonicalRid(riotid){
   if (asSmurf) return asSmurf.riotid;
   return riotid;
 }
-// Equipos actualmente marcados para una cuenta (+ catálogo de equipos disponibles).
+// Equipos actualmente marcados para una cuenta (+ catálogo de equipos disponibles + rol/titularidad por equipo).
 app.get('/api/admin/teams/:riotid', auth, requireAdmin, wrap(async (req,res) => {
   const rid = await canonicalRid((req.params.riotid || '').trim());
-  const rows = await q("SELECT team FROM team_members WHERE lower(riotid)=lower($1) AND team<>''", [rid]);
-  res.json({ riotid: rid, teams: [...TEAMS], selected: rows.map(r => r.team) });
+  const rows = await q("SELECT team, role, starter FROM team_members WHERE lower(riotid)=lower($1) AND team<>''", [rid]);
+  const meta = {}; rows.forEach(r => { meta[r.team] = { role: r.role || null, starter: r.starter !== false }; });
+  res.json({ riotid: rid, teams: [...TEAMS], roles: [...ROLES], selected: rows.map(r => r.team), meta });
 }));
-// Reemplaza el conjunto de equipos de una cuenta (array vacío = sin equipo).
+// Reemplaza el conjunto de equipos de una cuenta (array vacío = sin equipo). meta[team] = { role, starter }.
 app.post('/api/admin/teams/:riotid', auth, requireAdmin, wrap(async (req,res) => {
   const rid = await canonicalRid((req.params.riotid || '').trim());
   if (!/^.+#.+$/.test(rid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
   const want = [...new Set((Array.isArray(req.body && req.body.teams) ? req.body.teams : []).filter(t => TEAMS.has(t)))];
+  const meta = (req.body && req.body.meta && typeof req.body.meta === 'object') ? req.body.meta : {};
   await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [rid]);
-  for (const t of want) await q('INSERT INTO team_members (riotid, team) VALUES ($1,$2) ON CONFLICT (riotid, team) DO NOTHING', [rid, t]);
+  for (const t of want){
+    const m = meta[t] || {};
+    const role = ROLES.has(m.role) ? m.role : null;
+    const starter = m.starter === false ? false : true;
+    await q(`INSERT INTO team_members (riotid, team, role, starter) VALUES ($1,$2,$3,$4)
+             ON CONFLICT (riotid, team) DO UPDATE SET role=EXCLUDED.role, starter=EXCLUDED.starter`, [rid, t, role, starter]);
+  }
   await q('UPDATE users SET team=NULL WHERE lower(riotid)=lower($1)', [rid]);   // el multi-equipo vive en team_members
   res.json({ ok:true, riotid: rid, selected: want });
 }));
