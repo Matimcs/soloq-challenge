@@ -131,11 +131,18 @@
     <div class="box">
       <h2>Rosters de equipos <span class="n" id="rs-count"></span></h2>
       <div class="sub" style="margin:-6px 0 12px">Define la <b>posición en el equipo</b> (puede diferir de la de SoloQ) y quién es <b>titular</b> o <b>suplente</b>. Se guarda al momento. Para sumar a un jugador usa el Riot ID de su cuenta principal.</div>
-      <div class="drop-row" style="margin-bottom:14px">
+      <div class="drop-row" style="margin-bottom:10px">
         <input type="text" id="rs-riotid" placeholder="Riot ID (Nombre#TAG) de la cuenta principal">
         <select id="rs-team" style="flex:0 0 auto;min-width:150px"></select>
         <button class="btn btn-accent" id="rs-add">Sumar al equipo</button>
       </div>
+      <div class="drop-row" style="margin-bottom:6px">
+        <input type="text" id="rs-smurf" placeholder="Smurf (Nombre#TAG) de jugador NO registrado">
+        <input type="text" id="rs-main" placeholder="Su cuenta main (Nombre#TAG)">
+        <button class="btn btn-ghost" id="rs-link">Vincular smurf</button>
+      </div>
+      <div class="sub" style="margin:0 0 12px;font-size:12px">Vincula la smurf de un jugador <b>no registrado</b> a su main: en los rosters se muestra una sola fila (la main) con el elo de su cuenta más alta.</div>
+      <div id="rs-links" class="list" style="max-height:none;margin-bottom:14px"></div>
       <div id="rs-teams"></div>
     </div>
 
@@ -373,6 +380,24 @@
       const rid = $('rs-riotid').value.trim(), team = $('rs-team').value;
       if (!/^.+#.+$/.test(rid)){ toast('Formato Nombre#TAG'); return; }
       try { await SQC.api('/admin/team-meta/'+encodeURIComponent(rid), {method:'POST', body:{ team, starter:true }}); $('rs-riotid').value=''; toast('Sumado al equipo'); renderRosters(); }
+      catch(e){ toast(e.message); }
+    });
+    // Vínculos smurf→main (jugadores no registrados)
+    async function renderLinks(){
+      let list = []; try { list = await SQC.api('/admin/smurf-links'); } catch(e){ return; }
+      $('rs-links').innerHTML = list.length ? list.map(l=>`
+        <div class="item"><div class="info"><div class="t">${escA(l.smurf_riotid)} <span style="color:var(--muted)">→ smurf de</span> ${escA(l.main_riotid)}</div><div class="s">Vinculada ${fdate(l.created_at)}</div></div>
+          <div class="acts"><button class="btn btn-no" data-smurf="${escA(l.smurf_riotid)}">Desvincular</button></div></div>`).join('')
+        : '<div class="empty">No hay smurfs vinculadas a mano.</div>';
+      $('rs-links').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/smurf-unlink',{method:'POST',body:{smurf:b.dataset.smurf}}); toast('Desvinculada'); renderLinks(); renderRosters(); }
+        catch(e){ toast(e.message); }
+      }));
+    }
+    $('rs-link').addEventListener('click', async () => {
+      const smurf = $('rs-smurf').value.trim(), main = $('rs-main').value.trim();
+      if (!/^.+#.+$/.test(smurf) || !/^.+#.+$/.test(main)){ toast('Formato Nombre#TAG en ambas'); return; }
+      try { await SQC.api('/admin/smurf-link', {method:'POST', body:{ smurf, main }}); $('rs-smurf').value=''; $('rs-main').value=''; toast('Smurf vinculada'); renderLinks(); renderRosters(); }
       catch(e){ toast(e.message); }
     });
 

@@ -195,6 +195,13 @@ async function init(){
     -- Rol en el equipo (puede diferir del de SoloQ) y titular/suplente, por (cuenta, equipo).
     ALTER TABLE team_members ADD COLUMN IF NOT EXISTS role    TEXT;             -- TOP|JUNGLE|MID|ADC|SUPPORT|null
     ALTER TABLE team_members ADD COLUMN IF NOT EXISTS starter BOOLEAN DEFAULT true;  -- true=titular, false=suplente
+    -- Vínculos smurf→main para jugadores NO registrados (para que los rosters muestren una sola
+    -- fila por jugador con el elo de su cuenta más alta, igual que hace 'smurfs' con los registrados).
+    CREATE TABLE IF NOT EXISTS smurf_links (
+      smurf_riotid TEXT PRIMARY KEY,
+      main_riotid  TEXT NOT NULL,
+      created_at   TIMESTAMPTZ DEFAULT now()
+    );
 
     -- Transmisiones en vivo (streams) que el admin agrega a mano para verlas embebidas en la web.
     CREATE TABLE IF NOT EXISTS streams (

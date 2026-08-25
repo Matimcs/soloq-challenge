@@ -241,9 +241,23 @@ app.get('/api/rosters', wrap(async (req,res) => {
   const tm     = await q("SELECT riotid, team, role, starter FROM team_members WHERE team IS NOT NULL AND team<>''");
   const users  = await q("SELECT id, riotid, nickname FROM users");
   const smurfs = await q('SELECT user_id, riotid FROM smurfs');
+  const links  = await q('SELECT smurf_riotid, main_riotid FROM smurf_links');
   const userByRid  = {}; users.forEach(u => { userByRid[u.riotid.toLowerCase()] = u; });
   const smurfsByUser = {}; smurfs.forEach(s => { (smurfsByUser[s.user_id] = smurfsByUser[s.user_id] || []).push(s.riotid); });
+  // Vínculos smurf→main de jugadores no registrados.
+  const mainOf = {}, linkSmurfs = {};
+  links.forEach(l => { mainOf[l.smurf_riotid.toLowerCase()] = l.main_riotid;
+    (linkSmurfs[l.main_riotid.toLowerCase()] = linkSmurfs[l.main_riotid.toLowerCase()] || []).push(l.smurf_riotid); });
+  const canon = rid => mainOf[(rid || '').toLowerCase()] || rid;   // resuelve una smurf a su main
 
+  // Todas las cuentas de un jugador (main + smurfs registradas + smurfs vinculadas a mano).
+  const accountsOf = mainRid => {
+    const set = new Map(); const add = r => { if (r) set.set(r.toLowerCase(), r); };
+    add(mainRid);
+    const u = userByRid[mainRid.toLowerCase()]; if (u) (smurfsByUser[u.id] || []).forEach(add);
+    (linkSmurfs[mainRid.toLowerCase()] || []).forEach(add);
+    return [...set.values()];
+  };
   // Mejor cuenta (mayor elo absoluto) entre una lista de riotids, usando el ranking.
   const bestOf = rids => {
     let best = null, bestAbs = -1;
@@ -252,22 +266,28 @@ app.get('/api/rosters', wrap(async (req,res) => {
     return best;
   };
 
-  const out = {}; [...TEAMS].forEach(t => out[t] = []);
+  const out = {}; [...TEAMS].forEach(t => out[t] = new Map());   // equipo -> Map(lower(main) -> entrada)
   tm.forEach(row => {
     if (!out[row.team]) return;
-    const u = userByRid[row.riotid.toLowerCase()];
-    const accounts = [row.riotid].concat(u ? (smurfsByUser[u.id] || []) : []);
-    const best = bestOf(accounts);
-    out[row.team].push({
-      riotid: row.riotid,
-      nickname: u ? u.nickname : row.riotid.split('#')[0],
-      role: ROLES.has(row.role) ? row.role : null,
-      starter: row.starter !== false,
-      tier: best ? best.tier : null, div: best ? (best.div || '') : null, lp: best ? best.lp : null,
-      bestRiotid: best ? best.rid : row.riotid,
-    });
+    const mainRid = canon(row.riotid);           // si esta fila es una smurf vinculada, la absorbe la main
+    const key = mainRid.toLowerCase();
+    const isMainRow = row.riotid.toLowerCase() === key;
+    let e = out[row.team].get(key);
+    if (!e){
+      const u = userByRid[key];
+      const best = bestOf(accountsOf(mainRid));
+      e = { riotid: mainRid, nickname: u ? u.nickname : mainRid.split('#')[0],
+        role: null, starter: true, _main:false,
+        tier: best ? best.tier : null, div: best ? (best.div || '') : null, lp: best ? best.lp : null,
+        bestRiotid: best ? best.rid : mainRid };
+      out[row.team].set(key, e);
+    }
+    // Rol/titularidad: manda la fila de la main; una fila smurf solo aporta si aún no vimos la main.
+    if (isMainRow || !e._main){ e.role = ROLES.has(row.role) ? row.role : null; e.starter = row.starter !== false; if (isMainRow) e._main = true; }
   });
-  res.json(out);
+  const result = {};
+  Object.keys(out).forEach(t => result[t] = [...out[t].values()].map(({ _main, ...e }) => e));
+  res.json(result);
 }));
 
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
@@ -980,6 +1000,23 @@ app.post('/api/admin/team-remove/:riotid', auth, requireAdmin, wrap(async (req,r
   const team = (req.body && TEAMS.has(req.body.team)) ? req.body.team : null;
   if (!team) return res.status(400).json({ error:'Equipo inválido' });
   await q('DELETE FROM team_members WHERE lower(riotid)=lower($1) AND team=$2', [rid, team]);
+  res.json({ ok:true });
+}));
+// Vínculos smurf→main de jugadores NO registrados (para agrupar cuentas en los rosters).
+app.get('/api/admin/smurf-links', auth, requireAdmin, wrap(async (req,res) =>
+  res.json(await q('SELECT smurf_riotid, main_riotid, created_at FROM smurf_links ORDER BY main_riotid, created_at'))));
+app.post('/api/admin/smurf-link', auth, requireAdmin, wrap(async (req,res) => {
+  const smurf = ((req.body && req.body.smurf) || '').trim();
+  const main  = ((req.body && req.body.main)  || '').trim();
+  if (!/^.+#.+$/.test(smurf) || !/^.+#.+$/.test(main)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  if (smurf.toLowerCase() === main.toLowerCase()) return res.status(400).json({ error:'La smurf y la main no pueden ser la misma cuenta' });
+  await q(`INSERT INTO smurf_links (smurf_riotid, main_riotid) VALUES ($1,$2)
+           ON CONFLICT (smurf_riotid) DO UPDATE SET main_riotid=EXCLUDED.main_riotid`, [smurf, main]);
+  res.json({ ok:true, smurf, main });
+}));
+app.post('/api/admin/smurf-unlink', auth, requireAdmin, wrap(async (req,res) => {
+  const smurf = ((req.body && req.body.smurf) || '').trim();
+  await q('DELETE FROM smurf_links WHERE lower(smurf_riotid)=lower($1)', [smurf]);
   res.json({ ok:true });
 }));
 
