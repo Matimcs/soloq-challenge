@@ -234,7 +234,7 @@ app.get('/api/teams', wrap(async (req,res) => {
 // elo de su CUENTA MÁS ALTA (main + smurfs), su rol en el equipo y si es titular o suplente.
 // El elo se toma del ranking ya trackeado (liveSnapshot), sin llamar a la Riot API. Público.
 app.get('/api/rosters', wrap(async (req,res) => {
-  res.set('Cache-Control', 'public, max-age=120');
+  res.set('Cache-Control', 'public, max-age=20');
   const players = liveSnapshot().players || [];
   const byRid = {}; players.forEach(p => { byRid[(p.rid || '').toLowerCase()] = p; });
 

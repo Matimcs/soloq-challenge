@@ -503,7 +503,7 @@
   }
   async function loadRosters(){
     let data = {};
-    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/rosters'); if (r.ok) data = await r.json(); } } catch {}
+    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/rosters?t='+Date.now(), { cache:'no-store' }); if (r.ok) data = await r.json(); } } catch {}
     renderRosters(data);
   }
   loadRosters();
