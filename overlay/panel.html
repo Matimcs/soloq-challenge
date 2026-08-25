@@ -80,6 +80,16 @@
   $('gear').addEventListener('click', () => settingsEl.style.display==='flex' ? settingsEl.style.display='none' : openSettings());
   $('close-all').addEventListener('click', () => ipcRenderer.send('close-all'));   // solo OCULTA el overlay
   $('s-close').addEventListener('click', () => settingsEl.style.display='none');
+  // Cuando el panel tiene el foco, el atajo GLOBAL Alt+X no siempre llega (Windows toma el Alt
+  // para la ventana enfocada), así que el 2º Alt+X "no cerraba". Aquí lo escuchamos localmente:
+  // Alt+X o Escape ocultan el panel aunque esté enfocado.
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' || (e.altKey && (e.key === 'x' || e.key === 'X'))){
+      e.preventDefault();
+      if (settingsEl.style.display === 'flex') { settingsEl.style.display = 'none'; return; }
+      ipcRenderer.send('close-all');
+    }
+  });
   $('s-quit').addEventListener('click', () => { if (confirm('¿Cerrar el overlay por completo? Dejará de trackear hasta que lo vuelvas a abrir.')) ipcRenderer.send('quit-app'); });
   $('s-small').addEventListener('change', e => set('smallVisible', e.target.checked));
   $('s-shell').addEventListener('change', e => set('shellVisible', e.target.checked));

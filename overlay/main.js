@@ -181,6 +181,14 @@ function createWindows(){
   const bp = posFor('big', Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2));
   bigWin = baseWin(BW, BH, bp.x, bp.y, false, true, true); bigWin._posKey = 'big';   // opaco (iframe web)
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
+  // Con el panel enfocado, el atajo GLOBAL Alt+X no llega (Windows toma el Alt para la ventana),
+  // así que el 2º Alt+X "no cerraba". before-input-event captura la tecla aunque el foco esté
+  // dentro del iframe web: Alt+X o Escape ocultan el panel.
+  bigWin.webContents.on('before-input-event', (event, input) => {
+    if (input.type === 'keyDown' && (input.key === 'Escape' || (input.alt && (input.key === 'x' || input.key === 'X')))){
+      event.preventDefault(); hideAll();
+    }
+  });
   [win, shellWin, bigWin].forEach(trackMoves);   // recuerda dónde los dejaste
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
   bsWin = baseWin(720, 440, Math.round(d.wa.x + (d.wa.width - 720) / 2), Math.round(d.wa.y + (d.wa.height - 440) / 2), false);
