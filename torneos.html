@@ -567,7 +567,10 @@
     return '<li>'
       + (cap ? '<span class="rrole cap">⭐ CAP</span>' : '<span class="rrole none">&nbsp;</span>')
       + '<div class="rinfo"><div class="rn">'+esc(nameOf(pl.rid))+'</div><div class="rid">'+esc(pl.rid)+'</div></div>'
-      + (tl ? ('<div class="rk"><div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'+(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':'')+'</div>') : '')
+      + '<div class="rk">' + (tl
+          ? ('<div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'+(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':''))
+          : '<div class="tier" style="color:var(--muted-2);font-weight:700">Unranked</div>')
+        + '</div>'
       + '</li>';
   }
   function teamCard(t){
