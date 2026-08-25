@@ -177,7 +177,40 @@
   .rlist .rk{ margin-left:auto; text-align:right; flex-shrink:0; }
   .rlist .rk .tier{ font-size:11.5px; font-weight:800; }
   .rlist .rk .lp{ font-size:10px; color:var(--muted); }
+  .rrole.cap{ background:linear-gradient(90deg,#ffd24a,#ffb020); }
   .rempty{ color:var(--muted); font-size:12.5px; padding:16px; text-align:center; }
+
+  /* Fixture (calendario de partidos) */
+  .fx-phase{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:2px 0 20px; }
+  .fx-groups{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media(max-width:820px){ .fx-groups{ grid-template-columns:1fr; } }
+  .fxcard{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .fxcard-h{ padding:11px 14px; font-size:13px; font-weight:800; color:var(--gold); border-bottom:1px solid var(--line); background:linear-gradient(180deg,rgba(255,210,74,.14),rgba(255,210,74,.03)); }
+  .fxj{ font-size:9.5px; font-weight:800; letter-spacing:.06em; color:var(--muted-2); padding:9px 14px 3px; }
+  .fxm{ display:flex; align-items:center; gap:8px; padding:6px 14px; border-top:1px solid rgba(255,255,255,.04); font-size:12px; }
+  .fxm .rn{ width:20px; font-size:9px; color:var(--muted-2); font-weight:700; flex-shrink:0; text-align:center; }
+  .fxm .a{ flex:1; text-align:right; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fxm .b{ flex:1; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fxm .vs{ font-size:9px; color:var(--muted-2); flex-shrink:0; }
+  .fxm .ours{ color:var(--accent); font-weight:800; }
+  .fxstream{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid rgba(255,255,255,.05); font-size:12.5px; }
+  .fxstream:first-child{ border-top:none; }
+  .fxstream .fdate{ font-size:11px; font-weight:800; color:var(--blue); width:130px; flex-shrink:0; }
+  .fxstream .fg{ font-size:9px; font-weight:800; color:#000; background:var(--gold); border-radius:5px; padding:2px 7px; flex-shrink:0; }
+  .fxstream .fmatch{ flex:1; }
+
+  /* Playoffs — calendario */
+  .posched{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media(max-width:640px){ .posched{ grid-template-columns:1fr; } }
+  .poitem{ display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:11px 14px; }
+  .poitem .pc{ font-size:12px; font-weight:800; color:var(--accent); width:64px; flex-shrink:0; }
+  .poitem .pcru{ font-size:12px; font-weight:600; flex:1; min-width:0; }
+  .poitem .pf{ font-size:10.5px; color:var(--muted); text-align:right; flex-shrink:0; max-width:46%; }
+
+  /* Rosters agrupados por grupo */
+  .tgrp-h{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--gold); margin:24px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .tgrp-h:first-child{ margin-top:6px; }
+  .rcard-h .rtag{ font-size:10px; font-weight:800; color:#000; background:var(--muted-2); border-radius:5px; padding:2px 6px; }
 </style>
 <link rel="stylesheet" href="nav.css?v=2">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -207,6 +240,7 @@
   <main class="wrap">
     <div class="page-tabs">
       <button class="ptab-btn active" data-p="torneo">🏆 Torneo</button>
+      <button class="ptab-btn" data-p="fixture">📅 Fixture</button>
       <button class="ptab-btn" data-p="sim">🎮 Simulación</button>
       <button class="ptab-btn" data-p="rosters">👥 Rosters</button>
     </div>
@@ -228,6 +262,20 @@
 
       <div class="sect-h">GRUPOS SORTEADOS</div>
       <div class="groups" id="groups"></div>
+
+      <div class="sect-h">PLAYOFFS · Bo3 Fearless Draft · 29 sep – 17 oct</div>
+      <div class="posched" id="po-sched"></div>
+    </section>
+
+    <!-- ===== FIXTURE ===== -->
+    <section class="ptab" id="tab-fixture">
+      <div class="rnote">Calendario oficial de la <b style="color:var(--accent)">fase de grupos</b> (ida y vuelta, Bo1). Cada grupo juega 10 rondas repartidas en las jornadas. Nuestros equipos van resaltados.</div>
+      <div class="fx-phase" id="fx-phase"></div>
+      <div class="fx-groups" id="fx-groups"></div>
+
+      <div class="sect-h">TRANSMISIONES PROGRAMADAS</div>
+      <div class="rnote" style="margin-top:-6px">Partidos seleccionados para stream (selección semanal, jueves).</div>
+      <div class="fxcard"><div id="fx-streams"></div></div>
     </section>
 
     <!-- ===== SIMULACIÓN ===== -->
@@ -255,12 +303,13 @@
 
     <!-- ===== ROSTERS ===== -->
     <section class="ptab" id="tab-rosters">
-      <div class="rnote">Rosters de los 4 equipos de la <b style="color:var(--accent)">U. de Chile</b> en el torneo, separados en titulares y suplentes. Por ahora solo aparecen los equipos UChile; a futuro se sumarán los demás. Se muestra <b>una fila por jugador</b> con el rango de su <b>cuenta más alta</b> (según el ranking del SoloQ Challenge).</div>
-      <div class="rosters" id="rosters"><div class="rempty">Cargando rosters…</div></div>
+      <div class="rnote">Rosters oficiales de los <b style="color:var(--accent)">23 equipos</b> del torneo (inscripción UDPORROS), agrupados por grupo. Cada equipo muestra sus <b>titulares</b> y <b>suplentes</b> (capitán con ⭐). En los jugadores que trackeamos en el ranking del SoloQ Challenge se ve además su rango.</div>
+      <div id="rosters"><div class="rempty">Cargando rosters…</div></div>
     </section>
   </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="torneo-data.js?v=1"></script>
 <script src="players.js"></script>
 <script src="api.js"></script>
 <script>
@@ -270,7 +319,7 @@
       { name:'UCH Zenith', inst:'U. de Chile', ours:true },
       { name:'Los 420', inst:'U. de Chile' },
       { name:'PAPU team', inst:'UDP' },
-      { name:'UNAB B', inst:'UNAB' },
+      { name:'UNAB C', inst:'UNAB' },
       { name:'UC B', inst:'PUC' },
       { name:'siXStars', inst:'U. Mayor' },
     ],
@@ -444,8 +493,8 @@
 
   render();
 
-  // ===== Pestañas de página (Torneo / Simulación / Rosters) =====
-  const PAGES = ['torneo','sim','rosters'];
+  // ===== Pestañas de página =====
+  const PAGES = ['torneo','fixture','sim','rosters'];
   function showPage(p){
     if(!PAGES.includes(p)) p='torneo';
     document.querySelectorAll('.ptab-btn').forEach(b=>b.classList.toggle('active', b.dataset.p===p));
@@ -455,58 +504,89 @@
   document.querySelectorAll('.ptab-btn').forEach(b=> b.onclick = () => showPage(b.dataset.p));
   showPage((location.hash||'').replace('#',''));
 
-  // ===== ROSTERS: equipos U. de Chile (una fila por jugador = su cuenta main, con el elo de su cuenta más alta) =====
-  const ROSTER_TEAMS = [
-    { key:'Zenith',          name:'UCH Zenith' },
-    { key:'Hundred Blossom', name:'Hundred Blossoms' },
-    { key:'Exilium',         name:'UCH Exilium' },
-    { key:'Tide',            name:'UCH Tide' },
-  ];
+  // ===== Datos oficiales (fixture, rosters, playoffs) desde el Excel =====
+  const TD = window.TDATA || { fixture:{}, teams:[], streams:[], playoffs:[], phaseDates:{} };
+  const OURS_T = new Set(['uch zenith','hundred blossoms','uch exilium','uch tide']);
+  const isOur = nm => OURS_T.has((nm||'').toLowerCase());
   const TIER_COL = { CHALLENGER:'#f4c14b', GRANDMASTER:'#fb7185', MASTER:'#c084fc', DIAMOND:'#7dd3fc', EMERALD:'#34d399', PLATINUM:'#5eead4', GOLD:'#fcd34d', SILVER:'#cbd5e1', BRONZE:'#d6a06a', IRON:'#9ca3af' };
-  const ROLE_LBL = { TOP:'Top', JUNGLE:'Jungla', MID:'Mid', ADC:'ADC', SUPPORT:'Support' };
-  const ROLE_ORD = { TOP:0, JUNGLE:1, MID:2, ADC:3, SUPPORT:4 };
   const APEX = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
   function tierLabel(p){
-    if(!p || !p.tier) return { t:'Sin rango', c:'var(--muted-2)', lp:'' };
+    if(!p || !p.tier) return null;
     const nice = p.tier.charAt(0)+p.tier.slice(1).toLowerCase();
     const div = APEX.has(p.tier) ? '' : (p.div ? ' '+p.div : '');
     return { t: nice+div, c: TIER_COL[p.tier]||'var(--text)', lp: (p.lp!=null ? p.lp+' LP' : '') };
   }
-  function sortRoster(a,b){
-    const ra = (a.role in ROLE_ORD)?ROLE_ORD[a.role]:9, rb = (b.role in ROLE_ORD)?ROLE_ORD[b.role]:9;
-    if (ra!==rb) return ra-rb;
-    return (b.lp||0)-(a.lp||0);
+  // Índice del ranking trackeado (para mostrar rango en jugadores que seguimos).
+  const RP = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players)) ? window.SQC_DATA.players : [];
+  const byRid = {}; RP.forEach(p => { if (p.rid) byRid[p.rid.toLowerCase()] = p; });
+
+  // ---- PLAYOFFS (calendario) en la pestaña Torneo ----
+  function renderPlayoffs(){
+    const el = document.getElementById('po-sched'); if(!el) return;
+    el.innerHTML = (TD.playoffs||[]).map(x =>
+      '<div class="poitem"><span class="pc">'+esc(x.cf)+'</span><span class="pcru">'+esc(x.cruce)+'</span><span class="pf">'+esc(x.fecha)+'</span></div>').join('');
   }
-  function playerRow(p){
-    const tl = tierLabel(p);
-    const role = p.role ? '<span class="rrole">'+esc(ROLE_LBL[p.role]||p.role)+'</span>' : '<span class="rrole none">—</span>';
-    return '<li>'+role+'<div class="rinfo"><div class="rn">'+esc(p.nickname)+'</div><div class="rid">'+esc(p.bestRiotid||p.riotid)+'</div></div>'
-      +'<div class="rk"><div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'
-      +(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':'')+'</div></li>';
-  }
-  function renderRosters(data){
-    const html = ROSTER_TEAMS.map(tm => {
-      const arr = Array.isArray(data[tm.key]) ? data[tm.key] : [];
-      const starters = arr.filter(p=>p.starter!==false).sort(sortRoster);
-      const subs     = arr.filter(p=>p.starter===false).sort(sortRoster);
-      let body = '';
-      if(arr.length){
-        if(starters.length) body += '<div class="rsub">TITULARES</div><ul class="rlist">'+starters.map(playerRow).join('')+'</ul>';
-        if(subs.length)     body += '<div class="rsub sub">SUPLENTES</div><ul class="rlist">'+subs.map(playerRow).join('')+'</ul>';
-      } else {
-        body = '<div class="rempty">Sin jugadores asignados todavía.</div>';
-      }
-      return '<div class="rcard"><div class="rcard-h"><span class="rt">'+esc(tm.name)+'</span>'
-        +'<span class="ri">U. de Chile · '+arr.length+' jugador'+(arr.length===1?'':'es')+'</span></div>'+body+'</div>';
+
+  // ---- FIXTURE (calendario de grupos + streams) ----
+  const fxTeam = nm => '<span class="'+(isOur(nm)?'ours':'')+'">'+esc(nm)+'</span>';
+  function renderFixture(){
+    const pd = TD.phaseDates||{};
+    document.getElementById('fx-phase').innerHTML =
+      [['Jornada 1',pd.J1],['Jornada 2',pd.J2],['Recuperación',pd.Rec],['Cierre',pd.Cierre]]
+      .filter(x=>x[1]).map(x=>'<span class="chipm">'+x[0]+': <b>'+esc(x[1])+'</b></span>').join('');
+    document.getElementById('fx-groups').innerHTML = ['A','B','C','D'].map(g => {
+      const ms = (TD.fixture&&TD.fixture[g])||[]; if(!ms.length) return '';
+      let rows='', lastJ=null;
+      ms.forEach(m => {
+        if(m.j!==lastJ){ rows += '<div class="fxj">'+esc(m.j||'')+'</div>'; lastJ=m.j; }
+        rows += '<div class="fxm"><span class="rn">'+esc(m.r)+'</span><span class="a">'+fxTeam(m.a)+'</span><span class="vs">vs</span><span class="b">'+fxTeam(m.b)+'</span></div>';
+      });
+      return '<div class="fxcard"><div class="fxcard-h">GRUPO '+g+' · '+ms.length+' partidos</div>'+rows+'</div>';
     }).join('');
-    document.getElementById('rosters').innerHTML = html;
+    const st = TD.streams||[];
+    document.getElementById('fx-streams').innerHTML = st.length ? st.map(s =>
+      '<div class="fxstream"><span class="fdate">'+esc(s.fecha)+'</span><span class="fg">'+esc(s.g)+'</span>'
+      +'<span class="fmatch">'+fxTeam(s.a)+' <span class="vs" style="color:var(--muted-2);font-size:10px">vs</span> '+fxTeam(s.b)+'</span></div>').join('')
+      : '<div class="rempty">Sin transmisiones programadas.</div>';
   }
-  async function loadRosters(){
-    let data = {};
-    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/rosters?t='+Date.now(), { cache:'no-store' }); if (r.ok) data = await r.json(); } } catch {}
-    renderRosters(data);
+
+  // ---- ROSTERS: los 23 equipos oficiales, agrupados por grupo ----
+  const nameOf = rid => ((rid||'').split('#')[0] || rid);
+  function playerRow(pl){
+    const trk = byRid[(pl.rid||'').toLowerCase()];
+    const tl = trk ? tierLabel(trk) : null;
+    const cap = /capit/i.test(pl.role||'');
+    return '<li>'
+      + (cap ? '<span class="rrole cap">⭐ CAP</span>' : '<span class="rrole none">&nbsp;</span>')
+      + '<div class="rinfo"><div class="rn">'+esc(nameOf(pl.rid))+'</div><div class="rid">'+esc(pl.rid)+'</div></div>'
+      + (tl ? ('<div class="rk"><div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'+(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':'')+'</div>') : '')
+      + '</li>';
   }
-  loadRosters();
+  function teamCard(t){
+    const starters = t.players.filter(p=>!/supl/i.test(p.role||''));
+    const subs     = t.players.filter(p=> /supl/i.test(p.role||''));
+    const ours = isOur(t.team);
+    let body='';
+    if(starters.length) body += '<div class="rsub">TITULARES</div><ul class="rlist">'+starters.map(playerRow).join('')+'</ul>';
+    if(subs.length)     body += '<div class="rsub sub">SUPLENTES</div><ul class="rlist">'+subs.map(playerRow).join('')+'</ul>';
+    if(!body) body = '<div class="rempty">Sin jugadores.</div>';
+    return '<div class="rcard"><div class="rcard-h"><span class="rt" style="color:'+(ours?'var(--accent)':'#fff')+'">'+esc(t.team)+'</span>'
+      + (t.tag?'<span class="rtag">'+esc(t.tag)+'</span>':'')
+      + '<span class="ri">'+esc(t.inst||'')+' · '+t.players.length+' jug</span></div>'+body+'</div>';
+  }
+  function renderTeams(){
+    const teams = TD.teams||[];
+    const byG = {A:[],B:[],C:[],D:[],'':[]};
+    teams.forEach(t => { (byG[t.g]||byG['']).push(t); });
+    let html='';
+    ['A','B','C','D'].forEach(g => {
+      const list = byG[g]||[]; if(!list.length) return;
+      html += '<div class="tgrp-h">GRUPO '+g+'</div><div class="rosters">'+list.map(teamCard).join('')+'</div>';
+    });
+    document.getElementById('rosters').innerHTML = html || '<div class="rempty">Sin datos de rosters.</div>';
+  }
+
+  renderPlayoffs(); renderFixture(); renderTeams();
 
   SQC.preNav(); SQC.mountNav();
 </script>
