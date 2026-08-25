@@ -146,6 +146,34 @@
   .gstand td.pts{ font-weight:800; }
   .bteam.clk{ cursor:pointer; } .bteam.clk:hover{ background:rgba(255,255,255,.04); }
   .bteam.pend{ color:var(--muted-2); font-style:italic; }
+
+  /* Pestañas de página: Torneo / Simulación / Rosters */
+  .page-tabs{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:16px 0 8px; }
+  .ptab-btn{ font-family:inherit; cursor:pointer; background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:11px; padding:11px 22px; font-size:14px; font-weight:800; display:inline-flex; align-items:center; gap:8px; }
+  .ptab-btn:hover{ color:#fff; border-color:var(--line-2); }
+  .ptab-btn.active{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .ptab{ display:none; }
+  .ptab.active{ display:block; animation:ptabfade .22s ease; }
+  @keyframes ptabfade{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+
+  /* Rosters */
+  .rnote{ font-size:12.5px; color:var(--muted); margin:6px 0 18px; line-height:1.55; text-align:center; max-width:720px; margin-left:auto; margin-right:auto; }
+  .rosters{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media(max-width:820px){ .rosters{ grid-template-columns:1fr; } }
+  .rcard{ background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+  .rcard-h{ display:flex; align-items:center; gap:10px; padding:14px 16px; background:linear-gradient(180deg, rgba(233,255,31,.12), rgba(233,255,31,.03)); border-bottom:1px solid var(--line); }
+  .rcard-h .rt{ font-size:16px; font-weight:800; color:var(--accent); }
+  .rcard-h .ri{ font-size:10.5px; color:var(--muted-2); font-weight:700; margin-left:auto; text-align:right; }
+  .rlist{ list-style:none; }
+  .rlist li{ display:flex; align-items:center; gap:11px; padding:11px 16px; border-top:1px solid rgba(255,255,255,.05); }
+  .rlist li:first-child{ border-top:none; }
+  .rlist .rpos{ width:18px; text-align:center; font-size:11px; font-weight:800; color:var(--muted-2); flex-shrink:0; }
+  .rlist .rn{ font-size:13.5px; font-weight:700; }
+  .rlist .rid{ font-size:10.5px; color:var(--muted-2); }
+  .rlist .rk{ margin-left:auto; text-align:right; flex-shrink:0; }
+  .rlist .rk .tier{ font-size:11.5px; font-weight:800; }
+  .rlist .rk .lp{ font-size:10px; color:var(--muted); }
+  .rempty{ color:var(--muted); font-size:12.5px; padding:16px; text-align:center; }
 </style>
 <link rel="stylesheet" href="nav.css">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -165,6 +193,7 @@
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
       <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
     </nav>
+    <script>/* Revela pestañas de sesión al instante (sin parpadeo), antes de pintar. */(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};s('nav-blueshell');s('nav-ticket');if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
     <div class="nav-right">
       <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
       <button class="logout-link" id="logout" style="display:none">Salir</button>
@@ -172,42 +201,59 @@
   </div></header>
 
   <main class="wrap">
-    <div class="hero">
-      <div class="kicker">TORNEO LoL UDPORROS 2026 · AUSPICIADO POR JUGABET</div>
-      <h1>Fase de <em>Grupos</em></h1>
-      <p class="lead">El torneo universitario que estamos jugando. Los 4 equipos del SoloQ Challenge (<b style="color:var(--accent)">Zenith, Hundred Blossom, Exilium y Tide</b>) cayeron uno en cada grupo. Clasifican los <b>2 mejores de cada grupo</b> a playoffs.</p>
-      <div class="hero-meta">
-        <span class="chipm">Fase de grupos: <b>26 ago – 27 sep</b></span>
-        <span class="chipm">Formato: <b>ida y vuelta Bo1</b> · Victoria <b>3 pts</b></span>
-        <span class="chipm">Premio: <b>USD 500</b></span>
-        <span class="chipm">Semilla: <b>978850873</b></span>
+    <div class="page-tabs">
+      <button class="ptab-btn active" data-p="torneo">🏆 Torneo</button>
+      <button class="ptab-btn" data-p="sim">🎮 Simulación</button>
+      <button class="ptab-btn" data-p="rosters">👥 Rosters</button>
+    </div>
+
+    <!-- ===== TORNEO ===== -->
+    <section class="ptab active" id="tab-torneo">
+      <div class="hero">
+        <div class="kicker">TORNEO LoL UDPORROS 2026 · AUSPICIADO POR JUGABET</div>
+        <h1>Fase de <em>Grupos</em></h1>
+        <p class="lead">El torneo universitario que estamos jugando. Los 4 equipos del SoloQ Challenge (<b style="color:var(--accent)">Zenith, Hundred Blossom, Exilium y Tide</b>) cayeron uno en cada grupo. Clasifican los <b>2 mejores de cada grupo</b> a playoffs.</p>
+        <div class="hero-meta">
+          <span class="chipm">Fase de grupos: <b>26 ago – 27 sep</b></span>
+          <span class="chipm">Formato: <b>ida y vuelta Bo1</b> · Victoria <b>3 pts</b></span>
+          <span class="chipm">Premio: <b>USD 500</b></span>
+          <span class="chipm">Semilla: <b>978850873</b></span>
+        </div>
+        <a class="dl" href="reglamento-udporros-2026.pdf" download target="_blank" rel="noopener">⬇ Descargar reglamento (PDF)</a>
       </div>
-      <a class="dl" href="reglamento-udporros-2026.pdf" download target="_blank" rel="noopener">⬇ Descargar reglamento (PDF)</a>
-    </div>
 
-    <div class="sect-h">GRUPOS SORTEADOS</div>
-    <div class="groups" id="groups"></div>
+      <div class="sect-h">GRUPOS SORTEADOS</div>
+      <div class="groups" id="groups"></div>
+    </section>
 
-    <div class="sect-h">SIMULACIÓN</div>
-    <div class="sim-tabs">
-      <button class="sim-tab active" data-s="simple">🔀 Simple (arrastrar)</button>
-      <button class="sim-tab" data-s="adv">⚙ Avanzada (simular partidas)</button>
-    </div>
-
-    <div class="sim-panel active" id="p-simple">
-      <div class="sim-note">Arrastra los equipos para ordenar cada grupo como crees que debería quedar. Los <b style="color:var(--up)">2 primeros</b> (verde) clasifican a playoffs.</div>
-      <div class="sgroups" id="sgroups"></div>
-    </div>
-
-    <div class="sim-panel" id="p-adv">
-      <div class="sim-note">Pon el resultado de cada partido haciendo <b>clic en el equipo ganador</b> (ida y vuelta, Bo1, victoria 3 pts). La tabla de cada grupo se arma en vivo; al completar los 4 grupos aparece el <b>bracket de playoffs</b> para definir hasta el campeón. Puedes autollenar al azar y ajustar.</div>
-      <div class="adv-actions">
-        <button class="btn s" id="adv-random">🎲 Autollenar al azar</button>
-        <button class="btn s" id="adv-clear">🧹 Limpiar</button>
-        <button class="btn p" id="adv-shot">📸 Descargar imagen</button>
+    <!-- ===== SIMULACIÓN ===== -->
+    <section class="ptab" id="tab-sim">
+      <div class="sim-tabs">
+        <button class="sim-tab active" data-s="simple">🔀 Simple (arrastrar)</button>
+        <button class="sim-tab" data-s="adv">⚙ Avanzada (simular partidas)</button>
       </div>
-      <div id="adv-sim"></div>
-    </div>
+
+      <div class="sim-panel active" id="p-simple">
+        <div class="sim-note">Arrastra los equipos para ordenar cada grupo como crees que debería quedar. Los <b style="color:var(--up)">2 primeros</b> (verde) clasifican a playoffs.</div>
+        <div class="sgroups" id="sgroups"></div>
+      </div>
+
+      <div class="sim-panel" id="p-adv">
+        <div class="sim-note">Pon el resultado de cada partido haciendo <b>clic en el equipo ganador</b> (ida y vuelta, Bo1, victoria 3 pts). La tabla de cada grupo se arma en vivo; al completar los 4 grupos aparece el <b>bracket de playoffs</b> para definir hasta el campeón. Puedes autollenar al azar y ajustar.</div>
+        <div class="adv-actions">
+          <button class="btn s" id="adv-random">🎲 Autollenar al azar</button>
+          <button class="btn s" id="adv-clear">🧹 Limpiar</button>
+          <button class="btn p" id="adv-shot">📸 Descargar imagen</button>
+        </div>
+        <div id="adv-sim"></div>
+      </div>
+    </section>
+
+    <!-- ===== ROSTERS ===== -->
+    <section class="ptab" id="tab-rosters">
+      <div class="rnote">Rosters de los 4 equipos de la <b style="color:var(--accent)">U. de Chile</b> en el torneo. Por ahora solo aparecen los equipos UChile; a futuro se sumarán los demás. El rango y los LP salen del ranking del SoloQ Challenge.</div>
+      <div class="rosters" id="rosters"><div class="rempty">Cargando rosters…</div></div>
+    </section>
   </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -393,6 +439,67 @@
   };
 
   render();
+
+  // ===== Pestañas de página (Torneo / Simulación / Rosters) =====
+  const PAGES = ['torneo','sim','rosters'];
+  function showPage(p){
+    if(!PAGES.includes(p)) p='torneo';
+    document.querySelectorAll('.ptab-btn').forEach(b=>b.classList.toggle('active', b.dataset.p===p));
+    document.querySelectorAll('.ptab').forEach(s=>s.classList.toggle('active', s.id==='tab-'+p));
+    if(history.replaceState) history.replaceState(null,'','#'+p);
+  }
+  document.querySelectorAll('.ptab-btn').forEach(b=> b.onclick = () => showPage(b.dataset.p));
+  showPage((location.hash||'').replace('#',''));
+
+  // ===== ROSTERS: equipos U. de Chile (equipos desde /api/teams + rango/LP del ranking) =====
+  const ROSTER_TEAMS = [
+    { key:'Zenith',          name:'UCH Zenith' },
+    { key:'Hundred Blossom', name:'Hundred Blossoms' },
+    { key:'Exilium',         name:'UCH Exilium' },
+    { key:'Tide',            name:'UCH Tide' },
+  ];
+  const TIER_COL = { CHALLENGER:'#f4c14b', GRANDMASTER:'#fb7185', MASTER:'#c084fc', DIAMOND:'#7dd3fc', EMERALD:'#34d399', PLATINUM:'#5eead4', GOLD:'#fcd34d', SILVER:'#cbd5e1', BRONZE:'#d6a06a', IRON:'#9ca3af' };
+  const RPLAYERS = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players)) ? window.SQC_DATA.players : [];
+  const byRid = {}; RPLAYERS.forEach(p => { if (p.rid) byRid[p.rid.toLowerCase()] = p; });
+  const APEX = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
+  function tierLabel(p){
+    if(!p || !p.tier) return { t:'Sin rango', c:'var(--muted-2)', lp:'' };
+    const nice = p.tier.charAt(0)+p.tier.slice(1).toLowerCase();
+    const div = APEX.has(p.tier) ? '' : (p.div ? ' '+p.div : '');
+    return { t: nice+div, c: TIER_COL[p.tier]||'var(--text)', lp: (p.lp!=null ? p.lp+' LP' : '') };
+  }
+  function renderRosters(map){
+    const html = ROSTER_TEAMS.map(tm => {
+      const arr = [...(map[tm.key] ? map[tm.key].values() : [])]
+        .sort((a,b)=>(b.lp||0)-(a.lp||0));
+      let body;
+      if(arr.length){
+        body = '<ul class="rlist">'+arr.map((p,i)=>{ const tl=tierLabel(p);
+          return '<li><span class="rpos">'+(i+1)+'</span>'
+            +'<div><div class="rn">'+esc(p.nm)+'</div><div class="rid">'+esc(p.rid)+'</div></div>'
+            +'<div class="rk"><div class="tier" style="color:'+tl.c+'">'+esc(tl.t)+'</div>'
+            +(tl.lp?'<div class="lp">'+esc(tl.lp)+'</div>':'')+'</div></li>';
+        }).join('')+'</ul>';
+      } else {
+        body = '<div class="rempty">Sin jugadores cargados todavía.</div>';
+      }
+      return '<div class="rcard"><div class="rcard-h"><span class="rt">'+esc(tm.name)+'</span>'
+        +'<span class="ri">U. de Chile · '+arr.length+' jugador'+(arr.length===1?'':'es')+'</span></div>'+body+'</div>';
+    }).join('');
+    document.getElementById('rosters').innerHTML = html;
+  }
+  async function loadRosters(){
+    const map = {}; ROSTER_TEAMS.forEach(t => map[t.key] = new Map());
+    let rows = [];
+    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/teams'); if (r.ok) rows = await r.json(); } } catch {}
+    rows.forEach(row => {
+      const p = byRid[(row.riotid||'').toLowerCase()];
+      if (!p) return;                          // solo cuentas del ranking (evita smurfs sin rango)
+      (row.teams||[]).forEach(t => { if (map[t]) map[t].set(p.rid.toLowerCase(), p); });
+    });
+    renderRosters(map);
+  }
+  loadRosters();
 
   SQC.preNav(); SQC.mountNav();
 </script>

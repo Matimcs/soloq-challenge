@@ -99,6 +99,7 @@
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
       <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
     </nav>
+    <script>/* Revela pestañas de sesión al instante (sin parpadeo), antes de pintar. */(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};s('nav-blueshell');s('nav-ticket');if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
     <div class="nav-right">
       <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
       <button class="logout-link" id="logout" style="display:none">Salir</button>
