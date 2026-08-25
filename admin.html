@@ -501,7 +501,7 @@
     $('msg-send').addEventListener('click', sendMsg);
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
-    renderConfirm(); renderDrop(); renderRoster(); renderRosters(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
+    renderConfirm(); renderDrop(); renderRoster(); renderRosters(); renderLinks(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
     setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
   })();
 </script>
