@@ -211,6 +211,8 @@
   .tgrp-h{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--gold); margin:24px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
   .tgrp-h:first-child{ margin-top:6px; }
   .rcard-h .rtag{ font-size:10px; font-weight:800; color:#000; background:var(--muted-2); border-radius:5px; padding:2px 6px; }
+  .rcard-h .ravg{ font-size:10.5px; font-weight:800; padding:2px 9px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid var(--line-2); white-space:nowrap; }
+  .rcard-h .ravg b{ font-weight:800; }
 </style>
 <link rel="stylesheet" href="nav.css?v=2">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -309,7 +311,6 @@
   </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="torneo-data.js?v=1"></script>
 <script src="players.js"></script>
 <script src="api.js"></script>
 <script>
@@ -504,8 +505,9 @@
   document.querySelectorAll('.ptab-btn').forEach(b=> b.onclick = () => showPage(b.dataset.p));
   showPage((location.hash||'').replace('#',''));
 
-  // ===== Datos oficiales (fixture, rosters, playoffs) desde el Excel =====
-  const TD = window.TDATA || { fixture:{}, teams:[], streams:[], playoffs:[], phaseDates:{} };
+  // ===== Datos oficiales (fixture, rosters, playoffs + PL) — se cargan con cache-bust
+  // para que el refresco automático del PL (cada 6 h) se vea al recargar. =====
+  let TD = { fixture:{}, teams:[], streams:[], playoffs:[], phaseDates:{} };
   const OURS_T = new Set(['uch zenith','hundred blossoms','uch exilium','uch tide']);
   const isOur = nm => OURS_T.has((nm||'').toLowerCase());
   const TIER_COL = { CHALLENGER:'#f4c14b', GRANDMASTER:'#fb7185', MASTER:'#c084fc', DIAMOND:'#7dd3fc', EMERALD:'#34d399', PLATINUM:'#5eead4', GOLD:'#fcd34d', SILVER:'#cbd5e1', BRONZE:'#d6a06a', IRON:'#9ca3af' };
@@ -516,9 +518,15 @@
     const div = APEX.has(p.tier) ? '' : (p.div ? ' '+p.div : '');
     return { t: nice+div, c: TIER_COL[p.tier]||'var(--text)', lp: (p.lp!=null ? p.lp+' LP' : '') };
   }
-  // Índice del ranking trackeado (para mostrar rango en jugadores que seguimos).
+  const TIERV = { IRON:0, BRONZE:1, SILVER:2, GOLD:3, PLATINUM:4, EMERALD:5, DIAMOND:6 };
+  const DIVV  = { IV:0, III:1, II:2, I:3 };
+  function absLP(r){ if(!r || !r.tier || r.tier==='UNRANKED') return -1;
+    if(APEX.has(r.tier)) return 2800 + (r.lp||0);
+    return (TIERV[r.tier]||0)*400 + (DIVV[r.div]||0)*100 + (r.lp||0); }
+  // Índice del ranking trackeado (fallback de rango si un jugador no trae rank horneado).
   const RP = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players)) ? window.SQC_DATA.players : [];
   const byRid = {}; RP.forEach(p => { if (p.rid) byRid[p.rid.toLowerCase()] = p; });
+  const rankOfPl = pl => (pl.rank && pl.rank.tier && pl.rank.tier!=='UNRANKED') ? pl.rank : byRid[(pl.rid||'').toLowerCase()];
 
   // ---- PLAYOFFS (calendario) en la pestaña Torneo ----
   function renderPlayoffs(){
@@ -553,8 +561,8 @@
   // ---- ROSTERS: los 23 equipos oficiales, agrupados por grupo ----
   const nameOf = rid => ((rid||'').split('#')[0] || rid);
   function playerRow(pl){
-    const trk = byRid[(pl.rid||'').toLowerCase()];
-    const tl = trk ? tierLabel(trk) : null;
+    const rk = (pl.rank && pl.rank.tier && pl.rank.tier!=='UNRANKED') ? pl.rank : byRid[(pl.rid||'').toLowerCase()];
+    const tl = rk ? tierLabel(rk) : null;
     const cap = /capit/i.test(pl.role||'');
     return '<li>'
       + (cap ? '<span class="rrole cap">⭐ CAP</span>' : '<span class="rrole none">&nbsp;</span>')
@@ -563,14 +571,18 @@
       + '</li>';
   }
   function teamCard(t){
-    const starters = t.players.filter(p=>!/supl/i.test(p.role||''));
-    const subs     = t.players.filter(p=> /supl/i.test(p.role||''));
+    const byLp = (a,b)=> absLP(rankOfPl(b)) - absLP(rankOfPl(a));
+    const starters = t.players.filter(p=>!/supl/i.test(p.role||'')).sort(byLp);
+    const subs     = t.players.filter(p=> /supl/i.test(p.role||'')).sort(byLp);
     const ours = isOur(t.team);
     let body='';
     if(starters.length) body += '<div class="rsub">TITULARES</div><ul class="rlist">'+starters.map(playerRow).join('')+'</ul>';
     if(subs.length)     body += '<div class="rsub sub">SUPLENTES</div><ul class="rlist">'+subs.map(playerRow).join('')+'</ul>';
     if(!body) body = '<div class="rempty">Sin jugadores.</div>';
+    const al = t.avg ? tierLabel(t.avg) : null;
+    const avgBadge = al ? '<span class="ravg" title="Elo promedio del equipo">Prom <b style="color:'+al.c+'">'+esc(al.t)+(al.lp?' '+al.lp:'')+'</b></span>' : '';
     return '<div class="rcard"><div class="rcard-h"><span class="rt" style="color:'+(ours?'var(--accent)':'#fff')+'">'+esc(t.team)+'</span>'
+      + avgBadge
       + (t.tag?'<span class="rtag">'+esc(t.tag)+'</span>':'')
       + '<span class="ri">'+esc(t.inst||'')+' · '+t.players.length+' jug</span></div>'+body+'</div>';
   }
@@ -586,7 +598,15 @@
     document.getElementById('rosters').innerHTML = html || '<div class="rempty">Sin datos de rosters.</div>';
   }
 
-  renderPlayoffs(); renderFixture(); renderTeams();
+  function renderAll(){ renderPlayoffs(); renderFixture(); renderTeams(); }
+  // Carga torneo-data.js con cache-bust y luego renderiza (fallback: render vacío si falla).
+  (function loadTData(){
+    const s = document.createElement('script');
+    s.src = 'torneo-data.js?t=' + Date.now();
+    s.onload  = () => { TD = window.TDATA || TD; renderAll(); };
+    s.onerror = () => { renderAll(); };
+    document.head.appendChild(s);
+  })();
 
   SQC.preNav(); SQC.mountNav();
 </script>

@@ -1,0 +1,41 @@
+# Refresca el PL (rango de SoloQ) de los jugadores del torneo cada 6 h.
+# Regenera torneo-data.js (rango por jugador + promedio por equipo) y lo commitea;
+# el push a main hace que Render redespliegue solo. Repo público => Actions gratis.
+# Requiere el secret RIOT_API_KEY (una key de Riot con validez larga).
+name: Refresh tourney PL
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 00:00, 06:00, 12:00, 18:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-tourney-pl
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Consultar Riot y regenerar torneo-data.js
+        env:
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
+        run: node tools/refresh-tourney-pl.js
+      - name: Commit si cambió
+        run: |
+          git config user.name  "soloq-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -n "$(git status --porcelain torneo-data.js)" ]; then
+            git add torneo-data.js
+            git commit -m "chore: refresh PL torneo (auto)"
+            git push
+          else
+            echo "Sin cambios en el PL."
+          fi
