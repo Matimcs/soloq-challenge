@@ -75,16 +75,6 @@
   .drow .grip{ margin-left:auto; color:var(--muted-2); font-size:14px; }
 
   /* Avanzada */
-  .adv-teams{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:16px; }
-  .adv-teams h3{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--muted); margin-bottom:4px; }
-  .adv-cols{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px 22px; margin-top:10px; }
-  @media(max-width:900px){ .adv-cols{ grid-template-columns:repeat(2,1fr); } }
-  @media(max-width:560px){ .adv-cols{ grid-template-columns:1fr; } }
-  .strow{ display:flex; align-items:center; gap:9px; }
-  .strow .nm{ font-size:12px; font-weight:700; width:118px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .strow.ours .nm{ color:var(--accent); }
-  .strow input[type=range]{ flex:1; accent-color:var(--accent); cursor:pointer; }
-  .strow .v{ font-size:11px; font-weight:800; color:var(--muted); width:24px; text-align:right; }
   .adv-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
   .btn{ font-family:inherit; cursor:pointer; border-radius:9px; padding:10px 16px; font-size:13px; font-weight:800; border:1px solid var(--line); }
   .btn.p{ background:var(--accent); color:#000; border-color:var(--accent); }
@@ -129,6 +119,33 @@
   .champ{ margin-top:16px; text-align:center; font-size:17px; font-weight:800; }
   .champ b{ color:var(--accent); }
   .scrollx{ overflow-x:auto; }
+
+  /* Simulación manual: grupos con partidos clicables + tabla */
+  .gsim{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:18px; }
+  @media(max-width:820px){ .gsim{ grid-template-columns:1fr; } }
+  .gcard{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .gcard-h{ padding:10px 14px; font-size:13px; font-weight:800; color:var(--gold); border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .gcard-h .st{ font-size:10px; font-weight:700; color:var(--muted-2); }
+  .gsub{ font-size:10px; font-weight:800; letter-spacing:.05em; color:var(--muted-2); padding:9px 14px 3px; }
+  .gmatches{ padding:2px 12px 8px; display:flex; flex-direction:column; gap:5px; }
+  .gm{ display:flex; align-items:center; gap:6px; }
+  .gm .tm{ flex:1 1 0; min-width:0; padding:6px 9px; border-radius:7px; cursor:pointer; border:1px solid var(--line); background:var(--panel-2); font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gm .tm.a{ text-align:right; } .gm .tm.b{ text-align:left; }
+  .gm .tm:hover{ border-color:var(--line-2); }
+  .gm .tm.win{ background:rgba(52,211,153,.16); border-color:rgba(52,211,153,.5); color:var(--up); font-weight:800; }
+  .gm .tm.lose{ opacity:.45; }
+  .gm .tm.ours{ color:var(--accent); } .gm .tm.win.ours{ color:var(--up); }
+  .gm .vs{ font-size:9px; color:var(--muted-2); flex-shrink:0; }
+  .gstand{ margin-top:2px; border-top:1px solid var(--line); }
+  .gstand table{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  .gstand th,.gstand td{ padding:6px 10px; font-size:12px; text-align:center; }
+  .gstand th{ font-size:9.5px; letter-spacing:.04em; color:var(--muted-2); font-weight:700; }
+  .gstand td.tn{ text-align:left; font-weight:700; }
+  .gstand tr.q td{ background:rgba(52,211,153,.07); } .gstand tr.q td.pos{ color:var(--up); font-weight:800; }
+  .gstand tr.ours td.tn{ color:var(--accent); }
+  .gstand td.pts{ font-weight:800; }
+  .bteam.clk{ cursor:pointer; } .bteam.clk:hover{ background:rgba(255,255,255,.04); }
+  .bteam.pend{ color:var(--muted-2); font-style:italic; }
 </style>
 <link rel="stylesheet" href="nav.css">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -183,20 +200,17 @@
     </div>
 
     <div class="sim-panel" id="p-adv">
-      <div class="sim-note">Asigna una <b>fuerza</b> (0–100) a cada equipo y simula la fase de grupos completa (ida y vuelta Bo1, victoria 3 pts). Cada partida se decide por probabilidad según la diferencia de fuerza.</div>
-      <div class="adv-teams">
-        <h3>FUERZA DE CADA EQUIPO</h3>
-        <div class="adv-cols" id="adv-cols"></div>
-      </div>
+      <div class="sim-note">Pon el resultado de cada partido haciendo <b>clic en el equipo ganador</b> (ida y vuelta, Bo1, victoria 3 pts). La tabla de cada grupo se arma en vivo; al completar los 4 grupos aparece el <b>bracket de playoffs</b> para definir hasta el campeón. Puedes autollenar al azar y ajustar.</div>
       <div class="adv-actions">
-        <button class="btn p" id="sim-once">🎲 Simular una vez</button>
-        <button class="btn s" id="sim-prob">📊 Probabilidades (2000 simulaciones)</button>
+        <button class="btn s" id="adv-random">🎲 Autollenar al azar</button>
+        <button class="btn s" id="adv-clear">🧹 Limpiar</button>
+        <button class="btn p" id="adv-shot">📸 Descargar imagen</button>
       </div>
-      <div class="tables" id="adv-tables"><div class="empty">Ajusta las fuerzas y presiona “Simular”.</div></div>
-      <div id="adv-bracket"></div>
+      <div id="adv-sim"></div>
     </div>
   </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="players.js"></script>
 <script src="api.js"></script>
 <script>
@@ -280,134 +294,105 @@
   }
   paintSimple();
 
-  // ===== AVANZADA: fuerzas + simulación =====
-  const str = {};   // name -> fuerza (0-100)
-  GK.forEach(g => GROUPS[g].forEach(t => { str[t.name] = t.ours ? 60 : 50; }));
-  document.getElementById('adv-cols').innerHTML = GK.map(g => `<div>
-    <div style="font-size:11px;font-weight:800;color:var(--gold);margin-bottom:6px">GRUPO ${g}</div>
-    ${GROUPS[g].map(t => `<div class="strow ${t.ours?'ours':''}">
-      <span class="nm">${esc(t.name)}</span>
-      <input type="range" min="0" max="100" value="${str[t.name]}" data-t="${esc(t.name)}">
-      <span class="v" data-v="${esc(t.name)}">${str[t.name]}</span></div>`).join('')}
-  </div>`).join('');
-  document.querySelectorAll('.strow input').forEach(inp => inp.oninput = () => {
-    str[inp.dataset.t] = +inp.value; document.querySelector(`[data-v="${CSS.escape(inp.dataset.t)}"]`).textContent = inp.value;
+  // ===== AVANZADA: simulación manual (pon el resultado de cada partido) =====
+  const OURS = new Set(); GK.forEach(g => GROUPS[g].forEach(t => { if (t.ours) OURS.add(t.name); }));
+  const gRes = {};   // id de partido -> nombre del ganador
+  const bRes = {};   // id de serie   -> nombre del ganador
+  const ohl = n => OURS.has(n) ? 'ours' : '';
+
+  // Todos los partidos de un grupo: ida y vuelta (cada par juega 2 veces).
+  function groupGames(g){
+    const t = GROUPS[g].map(x => x.name), games = [];
+    for (let i=0;i<t.length;i++) for (let j=i+1;j<t.length;j++){
+      games.push({ id:g+'|'+i+'|'+j+'|1', a:t[i], b:t[j] });
+      games.push({ id:g+'|'+i+'|'+j+'|2', a:t[j], b:t[i] });
+    }
+    return games;
+  }
+  // Tabla del grupo desde los resultados puestos (desempate: pts, head-to-head, victorias).
+  function groupTable(g){
+    const t = GROUPS[g].map(x => x.name);
+    const pts={},w={},l={},beat={}; t.forEach(a=>{pts[a]=0;w[a]=0;l[a]=0;beat[a]={};t.forEach(b=>beat[a][b]=0);});
+    const games=groupGames(g); let done=0;
+    games.forEach(gm=>{ const win=gRes[gm.id]; if(!win)return; done++; const lose=win===gm.a?gm.b:gm.a; pts[win]+=3;w[win]++;l[lose]++;beat[win][lose]+=3; });
+    const table = t.slice().sort((a,b)=>{
+      if(pts[b]!==pts[a])return pts[b]-pts[a];
+      const tie=t.filter(x=>pts[x]===pts[a]); const h=x=>tie.reduce((s,y)=>y===x?s:s+beat[x][y],0);
+      if(h(b)!==h(a))return h(b)-h(a); if(w[b]!==w[a])return w[b]-w[a]; return a.localeCompare(b);
+    }).map((name,i)=>({name,pos:i+1,pts:pts[name],w:w[name],l:l[name],q:i<2}));
+    return { table, done, total:games.length, complete: done===games.length };
+  }
+  function allComplete(){ return GK.every(g => groupTable(g).complete); }
+  function quals(){ const q={}; GK.forEach(g=> q[g]=groupTable(g).table.slice(0,2).map(r=>r.name)); return q; }
+
+  function render(){
+    const gcards = GK.map(g => {
+      const gt = groupTable(g);
+      const matches = groupGames(g).map(gm=>{
+        const win=gRes[gm.id];
+        const cls=x=> win? (win===x?'win '+ohl(x):'lose '+ohl(x)) : ohl(x);
+        return '<div class="gm">'
+          +'<div class="tm a '+cls(gm.a)+'" data-gid="'+gm.id+'" data-t="'+esc(gm.a)+'">'+esc(gm.a)+'</div>'
+          +'<span class="vs">vs</span>'
+          +'<div class="tm b '+cls(gm.b)+'" data-gid="'+gm.id+'" data-t="'+esc(gm.b)+'">'+esc(gm.b)+'</div></div>';
+      }).join('');
+      const rows = gt.table.map(r=>'<tr class="'+(r.q?'q':'')+' '+ohl(r.name)+'">'
+        +'<td class="pos">'+r.pos+'</td><td class="tn">'+esc(r.name)+(OURS.has(r.name)?' <span style="color:var(--accent);font-size:9px">&#9670;</span>':'')+'</td>'
+        +'<td>'+(r.w+r.l)+'</td><td>'+r.w+'</td><td>'+r.l+'</td><td class="pts">'+r.pts+'</td></tr>').join('');
+      return '<div class="gcard"><div class="gcard-h"><span>GRUPO '+g+'</span><span class="st">'+gt.done+'/'+gt.total+' partidos</span></div>'
+        +'<div class="gsub">PARTIDOS (clic en el ganador)</div><div class="gmatches">'+matches+'</div>'
+        +'<div class="gstand"><table><thead><tr><th>#</th><th style="text-align:left">Equipo</th><th>PJ</th><th>G</th><th>P</th><th>Pts</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+    }).join('');
+
+    let bracket;
+    if(allComplete()){
+      const q=quals(), w=id=>bRes[id]||null;
+      const qf=[ {id:'qf1',a:q.A[0],b:q.B[1]}, {id:'qf2',a:q.C[0],b:q.D[1]}, {id:'qf3',a:q.B[0],b:q.A[1]}, {id:'qf4',a:q.D[0],b:q.C[1]} ];
+      const sf=[ {id:'sf1',a:w('qf1'),b:w('qf2')}, {id:'sf2',a:w('qf3'),b:w('qf4')} ];
+      const fin={id:'fin',a:w('sf1'),b:w('sf2')}; const champ=w('fin');
+      const bt=(m,nm,f)=>{ if(!nm) return '<div class="bteam pend">&mdash;</div>';
+        const win=bRes[m.id]===nm; return '<div class="bteam clk '+(win?'win':'')+' '+ohl(nm)+' '+(f&&win?'final-win':'')+'" data-bid="'+m.id+'" data-t="'+esc(nm)+'">'+esc(nm)+'</div>'; };
+      const cell=(m,f)=>'<div class="bmatch">'+bt(m,m.a,f)+bt(m,m.b,f)+'</div>';
+      bracket='<div class="sect-h" style="margin-top:26px">PLAYOFFS &mdash; clic en el ganador de cada serie (Bo3)</div>'
+        +'<div class="bracket"><div class="bcol"><div class="bcol-h">CUARTOS</div>'+qf.map(m=>cell(m)).join('')+'</div>'
+        +'<div class="bcol"><div class="bcol-h">SEMIFINALES</div>'+sf.map(m=>cell(m)).join('')+'</div>'
+        +'<div class="bcol"><div class="bcol-h">FINAL</div>'+cell(fin,true)+'</div></div>'
+        +(champ?'<div class="champ">&#127942; Campe&oacute;n: <b>'+esc(champ)+'</b></div>':'<div class="champ" style="color:var(--muted);font-size:13px">Define el bracket para ver el campe&oacute;n&hellip;</div>');
+    } else {
+      bracket='<div class="empty">Completa los 4 grupos para desbloquear el bracket de playoffs.</div>';
+    }
+    document.getElementById('adv-sim').innerHTML = '<div class="gsim">'+gcards+'</div>'+bracket;
+  }
+
+  document.getElementById('adv-sim').addEventListener('click', e => {
+    const gm = e.target.closest('.tm[data-gid]');
+    if(gm){ const id=gm.dataset.gid, t=gm.dataset.t; gRes[id] = (gRes[id]===t)? null : t; render(); return; }
+    const bteam = e.target.closest('.bteam[data-bid]');
+    if(bteam){ const id=bteam.dataset.bid, t=bteam.dataset.t; bRes[id] = (bRes[id]===t)? null : t;
+      if(id.indexOf('qf')===0){ delete bRes.sf1; delete bRes.sf2; delete bRes.fin; }
+      if(id.indexOf('sf')===0){ delete bRes.fin; }
+      render(); }
   });
 
-  // Prob. de que 'a' gane una Bo1 (curva logística sobre la diferencia de fuerza).
-  const pWin = (a, b) => 1 / (1 + Math.pow(10, -(str[a] - str[b]) / 40));
+  document.getElementById('adv-random').onclick = () => {
+    GK.forEach(g => groupGames(g).forEach(gm => { gRes[gm.id] = Math.random()<0.5?gm.a:gm.b; }));
+    ['sf1','sf2','fin'].forEach(k=>delete bRes[k]);
+    if(allComplete()){ const q=quals(), pick=(a,b)=> a&&b?(Math.random()<0.5?a:b):null;
+      bRes.qf1=pick(q.A[0],q.B[1]); bRes.qf2=pick(q.C[0],q.D[1]); bRes.qf3=pick(q.B[0],q.A[1]); bRes.qf4=pick(q.D[0],q.C[1]);
+      bRes.sf1=pick(bRes.qf1,bRes.qf2); bRes.sf2=pick(bRes.qf3,bRes.qf4); bRes.fin=pick(bRes.sf1,bRes.sf2); }
+    render();
+  };
+  document.getElementById('adv-clear').onclick = () => { for(const k in gRes)delete gRes[k]; for(const k in bRes)delete bRes[k]; render(); };
 
-  // Simula un grupo (ida y vuelta Bo1). Devuelve tabla ordenada + partidas.
-  function simGroup(teams){
-    const n = teams.length, nm = teams.map(t=>t.name);
-    const pts = {}, w = {}, l = {}, beat = {};   // beat[a][b] = pts que 'a' le sacó a 'b'
-    nm.forEach(a => { pts[a]=0; w[a]=0; l[a]=0; beat[a]={}; nm.forEach(b=>beat[a][b]=0); });
-    const games = [];
-    for (let i=0;i<n;i++) for (let j=i+1;j<n;j++){
-      for (let leg=0; leg<2; leg++){                      // ida y vuelta
-        const a = nm[i], b = nm[j];
-        const aw = Math.random() < pWin(a, b);
-        const [wn, ls] = aw ? [a,b] : [b,a];
-        pts[wn]+=3; w[wn]++; l[ls]++; beat[wn][ls]+=3;
-        games.push({ w:wn, l:ls });
-      }
-    }
-    // Orden: puntos, luego head-to-head (entre empatados), luego victorias, luego fuerza.
-    const table = nm.slice().sort((a,b) => {
-      if (pts[b]!==pts[a]) return pts[b]-pts[a];
-      const tie = nm.filter(x => pts[x]===pts[a]);        // grupo de empatados
-      const h = x => tie.reduce((s,y)=> y===x?s:s+beat[x][y], 0);
-      if (h(b)!==h(a)) return h(b)-h(a);
-      if (w[b]!==w[a]) return w[b]-w[a];
-      return str[b]-str[a];
-    }).map((name,i) => ({ name, pos:i+1, pts:pts[name], w:w[name], l:l[name], q:i<2, ours:!!teams.find(t=>t.name===name && t.ours) }));
-    return { table, games };
-  }
-
-  function renderTables(res){   // res: {g: {table, games}}
-    document.getElementById('adv-tables').innerHTML = GK.map(g => {
-      const t = res[g];
-      const rows = t.table.map(r => `<tr class="${r.q?'q':''} ${r.ours?'ours':''}">
-        <td class="pos">${r.pos}</td><td class="tn">${esc(r.name)}${r.ours?' <span style="color:var(--accent);font-size:9px">◆</span>':''}</td>
-        <td>${r.w+r.l}</td><td>${r.w}</td><td>${r.l}</td><td class="pts">${r.pts}</td></tr>`).join('');
-      const games = t.games ? `<div class="matches"><span class="mtoggle" data-mg="${g}">Ver ${t.games.length} partidas ▾</span>
-        <div class="mlist" data-ml="${g}">${t.games.map(m=>`<div class="mrow"><span class="w">${esc(m.w)}</span><span class="lo">venció a ${esc(m.l)}</span></div>`).join('')}</div></div>` : '';
-      return `<div class="tbl">
-        <div class="tbl-h"><span>GRUPO ${g}</span><span class="sub">clasifican top 2</span></div>
-        <table><thead><tr><th>#</th><th style="text-align:left">Equipo</th><th>PJ</th><th>G</th><th>P</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>
-        ${games}</div>`;
-    }).join('');
-    document.querySelectorAll('.mtoggle').forEach(el => el.onclick = () => {
-      const ml = document.querySelector(`[data-ml="${el.dataset.mg}"]`); const open = ml.classList.toggle('open');
-      el.textContent = `${open?'Ocultar':'Ver'} ${ml.children.length} partidas ${open?'▴':'▾'}`;
-    });
-  }
-
-  // Conjunto de "nuestros" equipos (para resaltar) y lista plana con su grupo.
-  const OURS = new Set(); GK.forEach(g => GROUPS[g].forEach(t => { if (t.ours) OURS.add(t.name); }));
-  const allTeams = () => GK.flatMap(g => GROUPS[g].map(t => ({ name:t.name, group:g, ours:!!t.ours })));
-
-  // Serie al mejor de 3 (Bo3): cada mapa se decide por probabilidad; el primero a 2 gana.
-  function simBo3(a, b){
-    let ga = 0, gb = 0;
-    while (ga < 2 && gb < 2) { if (Math.random() < pWin(a, b)) ga++; else gb++; }
-    return { a, b, ga, gb, w: ga > gb ? a : b, l: ga > gb ? b : a };
-  }
-  // Bracket de 8: los 2 mejores de cada grupo. Los mismos de un grupo solo se cruzan en la final.
-  //  QF1: A1-B2 · QF2: C1-D2 · QF3: B1-A2 · QF4: D1-C2 · SF1: QF1-QF2 · SF2: QF3-QF4 · Final: SF1-SF2
-  function runBracket(q){   // q = {A:[1º,2º], B:[...], ...}
-    const qf = [ simBo3(q.A[0], q.B[1]), simBo3(q.C[0], q.D[1]), simBo3(q.B[0], q.A[1]), simBo3(q.D[0], q.C[1]) ];
-    const sf = [ simBo3(qf[0].w, qf[1].w), simBo3(qf[2].w, qf[3].w) ];
-    const fin = simBo3(sf[0].w, sf[1].w);
-    return { qf, sf, fin, champ: fin.w };
-  }
-  function qualifiers(res){ const q = {}; GK.forEach(g => q[g] = res[g].table.filter(r=>r.q).map(r=>r.name)); return q; }
-
-  function renderBracket(br){
-    const bt = (nm, g, isW, isFinal) => `<div class="bteam ${isW?'win':''} ${OURS.has(nm)?'ours':''} ${isFinal&&isW?'final-win':''}">${esc(nm)}<span class="bs">${g}</span></div>`;
-    const cell = m => `<div class="bmatch">${bt(m.a, m.ga, m.w===m.a)}${bt(m.b, m.gb, m.w===m.b)}</div>`;
-    const cellF = m => `<div class="bmatch">${bt(m.a, m.ga, m.w===m.a, true)}${bt(m.b, m.gb, m.w===m.b, true)}</div>`;
-    document.getElementById('adv-bracket').innerHTML = `
-      <div class="sect-h" style="margin-top:26px">PLAYOFFS — eliminación directa (Bo3)</div>
-      <div class="bracket">
-        <div class="bcol"><div class="bcol-h">CUARTOS</div>${br.qf.map(cell).join('')}</div>
-        <div class="bcol"><div class="bcol-h">SEMIFINALES</div>${br.sf.map(cell).join('')}</div>
-        <div class="bcol"><div class="bcol-h">FINAL</div>${cellF(br.fin)}</div>
-      </div>
-      <div class="champ">🏆 Campeón: <b>${esc(br.champ)}</b></div>`;
-  }
-
-  document.getElementById('sim-once').onclick = () => {
-    const res = {}; GK.forEach(g => res[g] = simGroup(GROUPS[g]));
-    renderTables(res);                       // fase de grupos
-    renderBracket(runBracket(qualifiers(res)));   // playoffs hasta la final
+  document.getElementById('adv-shot').onclick = async () => {
+    const el=document.getElementById('adv-sim');
+    if(typeof html2canvas==='undefined'){ alert('No se pudo cargar el capturador de imagen. Usa la captura de pantalla del sistema.'); return; }
+    try{ const c=await html2canvas(el,{backgroundColor:'#0b0b0b',scale:2});
+      const a=document.createElement('a'); a.download='simulacion-udporros.png'; a.href=c.toDataURL('image/png'); a.click();
+    }catch(err){ alert('No se pudo generar la imagen: '+err.message); }
   };
 
-  document.getElementById('sim-prob').onclick = () => {
-    const N = 2000;
-    const qc = {}, sfc = {}, finc = {}, chc = {};   // clasifica / llega a semis / llega a final / campeón
-    allTeams().forEach(t => { qc[t.name]=0; sfc[t.name]=0; finc[t.name]=0; chc[t.name]=0; });
-    for (let s=0;s<N;s++){
-      const res = {}; GK.forEach(g => { res[g] = simGroup(GROUPS[g]); res[g].table.forEach(r=>{ if(r.q) qc[r.name]++; }); });
-      const br = runBracket(qualifiers(res));
-      br.qf.forEach(m => sfc[m.w]++);   // ganar cuartos = llega a semis
-      br.sf.forEach(m => finc[m.w]++);  // ganar semis = llega a la final
-      chc[br.champ]++;
-    }
-    const rows = allTeams().map(t => ({ ...t, q:qc[t.name]/N*100, sf:sfc[t.name]/N*100, fin:finc[t.name]/N*100, ch:chc[t.name]/N*100 }))
-      .sort((a,b) => b.ch - a.ch || b.fin - a.fin || b.q - a.q);
-    const pct = v => v>=0.5 ? v.toFixed(0)+'%' : (v>0?'<1%':'—');
-    document.getElementById('adv-bracket').innerHTML = '';
-    document.getElementById('adv-tables').innerHTML = `<div class="tbl" style="grid-column:1/-1">
-      <div class="tbl-h"><span>PROBABILIDADES (${N} simulaciones del torneo completo)</span></div>
-      <div class="scrollx"><table><thead><tr>
-        <th>#</th><th style="text-align:left">Equipo</th><th>Grupo</th><th>Clasifica</th><th>Semis</th><th>Final</th><th>Campeón</th></tr></thead><tbody>
-        ${rows.map((r,i)=>`<tr class="${r.ours?'ours':''}">
-          <td class="pos">${i+1}</td><td class="tn">${esc(r.name)}${r.ours?' <span style="color:var(--accent);font-size:9px">◆</span>':''}</td>
-          <td class="prob">${r.group}</td><td class="prob">${pct(r.q)}</td><td class="prob">${pct(r.sf)}</td><td class="prob">${pct(r.fin)}</td>
-          <td class="pts" style="color:var(--accent)">${pct(r.ch)}</td></tr>`).join('')}
-      </tbody></table></div></div>`;
-  };
+  render();
 
   SQC.preNav(); SQC.mountNav();
 </script>
