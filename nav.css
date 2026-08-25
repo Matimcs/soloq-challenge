@@ -74,11 +74,13 @@ header .nav{ display:grid; grid-template-columns:1fr minmax(0,auto) 1fr; align-i
 .download-pill:hover{ background:rgba(233,255,31,.18); }
 
 @media (max-width:1000px){
-  header .nav{ height:102px; gap:14px; }
+  /* Altura AUTO: si la nav-pill se envuelve en varias filas, el header crece con ella
+     (antes tenía altura fija y las filas extra se desbordaban tapando el contenido y sus clics). */
+  header .nav{ height:auto; min-height:102px; padding:8px 0; gap:14px; }
   .brand img{ height:84px; }
 }
 @media (max-width:640px){
-  header .nav{ height:80px; }
+  header .nav{ min-height:80px; }
   .brand img{ height:60px; }
   .nav-left,.nav-right{ gap:10px; }
 }

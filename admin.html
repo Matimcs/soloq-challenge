@@ -25,6 +25,14 @@
   .nav-spacer{ flex:1; }
   .admin-tag{ font-size:11px; font-weight:800; letter-spacing:.08em; color:#000; background:var(--accent); padding:4px 9px; border-radius:6px; }
 
+  /* Subpestañas del panel */
+  .atabs{ display:flex; gap:8px; flex-wrap:wrap; margin:0 0 22px; }
+  .atab-btn{ font-family:var(--font); cursor:pointer; background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:10px; padding:10px 18px; font-size:13.5px; font-weight:800; }
+  .atab-btn:hover{ color:#fff; border-color:var(--line-2); }
+  .atab-btn.active{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .atab{ display:none; }
+  .atab.active{ display:block; }
+
   h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
   .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
   .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
@@ -95,123 +103,143 @@
 
   <main class="wrap">
     <h1>Panel de administración</h1>
-    <div class="sub">Gestión del challenge: drop diario, verificaciones, tickets y participantes.</div>
+    <div class="sub">Gestión del challenge: equipos, Blue Shells, jugadores y comunidad.</div>
 
-    <!-- Drop diario -->
-    <div class="box">
-      <h2>Drop diario <span class="badge off" id="drop-state">Inactivo</span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Lanza un reto sencillo; el primero que lo cumpla en una partida iniciada tras el lanzamiento se lleva la Blue Shell. Actívalo solo si circulan muy pocas.</div>
-      <div class="drop-row">
-        <input type="text" id="drop-reto" placeholder="Reto (ej: gana una partida, consigue un triple kill, first blood…)">
-        <button class="btn btn-accent" id="drop-activar">Activar drop</button>
-        <button class="btn btn-ghost" id="drop-cerrar" style="display:none">Cerrar</button>
+    <div class="atabs">
+      <button class="atab-btn active" data-g="equipos">👥 Equipos y ranking</button>
+      <button class="atab-btn" data-g="shells">🐚 Shells y castigos</button>
+      <button class="atab-btn" data-g="jugadores">🎮 Jugadores</button>
+      <button class="atab-btn" data-g="comunidad">📺 Streams y tickets</button>
+    </div>
+
+    <!-- ===== EQUIPOS Y RANKING ===== -->
+    <section class="atab active" id="at-equipos">
+      <!-- Rosters de equipos -->
+      <div class="box">
+        <h2>Rosters de equipos <span class="n" id="rs-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Define la <b>posición en el equipo</b> (puede diferir de la de SoloQ) y quién es <b>titular</b> o <b>suplente</b>. Se guarda al momento. Para sumar a un jugador usa el Riot ID de su cuenta principal.</div>
+        <div class="drop-row" style="margin-bottom:10px">
+          <input type="text" id="rs-riotid" placeholder="Riot ID (Nombre#TAG) de la cuenta principal">
+          <select id="rs-team" style="flex:0 0 auto;min-width:150px"></select>
+          <button class="btn btn-accent" id="rs-add">Sumar al equipo</button>
+        </div>
+        <div class="drop-row" style="margin-bottom:6px">
+          <input type="text" id="rs-smurf" placeholder="Smurf (Nombre#TAG) de jugador NO registrado">
+          <input type="text" id="rs-main" placeholder="Su cuenta main (Nombre#TAG)">
+          <button class="btn btn-ghost" id="rs-link">Vincular smurf</button>
+        </div>
+        <div class="sub" style="margin:0 0 12px;font-size:12px">Vincula la smurf de un jugador <b>no registrado</b> a su main: en los rosters se muestra una sola fila (la main) con el elo de su cuenta más alta. Si el jugador está registrado, sus smurfs se agrupan solas.</div>
+        <div id="rs-links" class="list" style="max-height:none;margin-bottom:14px"></div>
+        <div id="rs-teams"></div>
       </div>
-      <div id="drop-current" class="empty" style="margin-top:10px">Sin drop activo.</div>
-    </div>
 
-    <!-- Uso del overlay -->
-    <div class="box">
-      <h2>Overlay — quién lo está usando <span class="n" id="ov-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Cuentas que han abierto LoL con el overlay corriendo (reportan solas cada ~1 min). "Activo ahora" = lo tienen abierto en este momento.</div>
-      <div class="list" id="ov-list"></div>
-    </div>
-
-    <!-- Agregar cuenta al ranking -->
-    <div class="box">
-      <h2>Agregar cuenta al ranking <span class="n" id="rt-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Suma una cuenta al ranking sin que el jugador se registre. Se trackea junto al resto (aparece tras el próximo ciclo del runner, ~2 min).</div>
-      <div class="drop-row">
-        <input type="text" id="rt-riotid" placeholder="Riot ID (Nombre#TAG), ej: pancho pistolas2#LAS">
-        <button class="btn btn-accent" id="rt-add">Agregar</button>
+      <!-- Agregar cuenta al ranking -->
+      <div class="box">
+        <h2>Agregar cuenta al ranking <span class="n" id="rt-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Suma una cuenta al ranking sin que el jugador se registre. Se trackea junto al resto (aparece tras el próximo ciclo del runner, ~2 min).</div>
+        <div class="drop-row">
+          <input type="text" id="rt-riotid" placeholder="Riot ID (Nombre#TAG), ej: pancho pistolas2#LAS">
+          <button class="btn btn-accent" id="rt-add">Agregar</button>
+        </div>
+        <div class="list" id="rt-list" style="margin-top:12px"></div>
       </div>
-      <div class="list" id="rt-list" style="margin-top:12px"></div>
-    </div>
 
-    <!-- Rosters de equipos -->
-    <div class="box">
-      <h2>Rosters de equipos <span class="n" id="rs-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Define la <b>posición en el equipo</b> (puede diferir de la de SoloQ) y quién es <b>titular</b> o <b>suplente</b>. Se guarda al momento. Para sumar a un jugador usa el Riot ID de su cuenta principal.</div>
-      <div class="drop-row" style="margin-bottom:10px">
-        <input type="text" id="rs-riotid" placeholder="Riot ID (Nombre#TAG) de la cuenta principal">
-        <select id="rs-team" style="flex:0 0 auto;min-width:150px"></select>
-        <button class="btn btn-accent" id="rs-add">Sumar al equipo</button>
+      <!-- Participantes -->
+      <div class="box">
+        <h2>Participantes <span class="n" id="pt-count"></span></h2>
+        <div class="scrollbox"><table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table></div>
       </div>
-      <div class="drop-row" style="margin-bottom:6px">
-        <input type="text" id="rs-smurf" placeholder="Smurf (Nombre#TAG) de jugador NO registrado">
-        <input type="text" id="rs-main" placeholder="Su cuenta main (Nombre#TAG)">
-        <button class="btn btn-ghost" id="rs-link">Vincular smurf</button>
+    </section>
+
+    <!-- ===== SHELLS Y CASTIGOS ===== -->
+    <section class="atab" id="at-shells">
+      <!-- Drop diario -->
+      <div class="box">
+        <h2>Drop diario <span class="badge off" id="drop-state">Inactivo</span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Lanza un reto sencillo; el primero que lo cumpla en una partida iniciada tras el lanzamiento se lleva la Blue Shell. Actívalo solo si circulan muy pocas.</div>
+        <div class="drop-row">
+          <input type="text" id="drop-reto" placeholder="Reto (ej: gana una partida, consigue un triple kill, first blood…)">
+          <button class="btn btn-accent" id="drop-activar">Activar drop</button>
+          <button class="btn btn-ghost" id="drop-cerrar" style="display:none">Cerrar</button>
+        </div>
+        <div id="drop-current" class="empty" style="margin-top:10px">Sin drop activo.</div>
       </div>
-      <div class="sub" style="margin:0 0 12px;font-size:12px">Vincula la smurf de un jugador <b>no registrado</b> a su main: en los rosters se muestra una sola fila (la main) con el elo de su cuenta más alta.</div>
-      <div id="rs-links" class="list" style="max-height:none;margin-bottom:14px"></div>
-      <div id="rs-teams"></div>
-    </div>
 
-    <!-- Transmisiones en vivo -->
-    <div class="box">
-      <h2>Transmisiones en vivo <span class="n" id="st-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Pega el link de un stream (Twitch o YouTube) y aparecerá embebido en la web, en "Live Games". Ej: https://www.twitch.tv/elunderesports</div>
-      <div class="drop-row">
-        <input type="text" id="st-url" placeholder="Link del stream (https://www.twitch.tv/...)">
-        <input type="text" id="st-label" placeholder="Etiqueta opcional (ej: HB vs Zenith)">
-        <button class="btn btn-accent" id="st-add">Agregar</button>
+      <!-- Verificaciones manuales -->
+      <div class="box">
+        <h2>Verificaciones pendientes <span class="n" id="ver-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Castigos que la API no detecta sola (runas, sensibilidad x2, sin objetos hasta min 15).</div>
+        <div class="list" id="ver-list"></div>
       </div>
-      <div class="list" id="st-list" style="margin-top:12px"></div>
-    </div>
 
-    <!-- Perfiles por confirmar -->
-    <div class="box">
-      <h2>Perfiles por confirmar <span class="n" id="cf-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Jugadores recién registrados. Revisa sus datos (Riot ID, campeones, slot de Flash) y confirma.</div>
-      <div class="list" id="cf-list"></div>
-    </div>
-
-    <!-- Verificaciones manuales -->
-    <div class="box">
-      <h2>Verificaciones pendientes <span class="n" id="ver-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Castigos que la API no detecta sola (runas, sensibilidad x2, sin objetos hasta min 15).</div>
-      <div class="list" id="ver-list"></div>
-    </div>
-
-    <!-- Tickets -->
-    <div class="box">
-      <h2>Tickets <span class="n" id="tk-count"></span></h2>
-      <div class="list" id="tk-list"></div>
-    </div>
-
-    <!-- Participantes -->
-    <div class="box">
-      <h2>Participantes <span class="n" id="pt-count"></span></h2>
-      <div class="scrollbox"><table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table></div>
-    </div>
-
-    <!-- Penalizaciones -->
-    <div class="box">
-      <h2>Penalizaciones <span class="n" id="pen-count"></span></h2>
-      <div class="sub" style="margin:-6px 0 12px">Asigna un castigo directamente a un jugador (queda pendiente en sus "recibidas") o quita uno pendiente.</div>
-      <div class="drop-row">
-        <select id="pen-user"></select>
-        <select id="pen-castigo"></select>
-        <button class="btn btn-accent" id="pen-add">Dar penalización</button>
+      <!-- Penalizaciones -->
+      <div class="box">
+        <h2>Penalizaciones <span class="n" id="pen-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Asigna un castigo directamente a un jugador (queda pendiente en sus "recibidas") o quita uno pendiente.</div>
+        <div class="drop-row">
+          <select id="pen-user"></select>
+          <select id="pen-castigo"></select>
+          <button class="btn btn-accent" id="pen-add">Dar penalización</button>
+        </div>
+        <div class="list" id="pen-list" style="margin-top:12px"></div>
       </div>
-      <div class="list" id="pen-list" style="margin-top:12px"></div>
-    </div>
+    </section>
 
-    <div class="box">
-      <h2>Mensaje a jugador</h2>
-      <div class="sub" style="margin:-6px 0 12px">Manda una notificación (texto y/o voz) al overlay del jugador. La voz se graba aquí y suena en su pantalla.</div>
-      <div class="drop-row">
-        <select id="msg-user"></select>
-        <button class="btn btn-ghost" id="msg-rec">● Grabar voz</button>
-        <span class="n" id="msg-rec-state"></span>
+    <!-- ===== JUGADORES ===== -->
+    <section class="atab" id="at-jugadores">
+      <!-- Perfiles por confirmar -->
+      <div class="box">
+        <h2>Perfiles por confirmar <span class="n" id="cf-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Jugadores recién registrados. Revisa sus datos (Riot ID, campeones, slot de Flash) y confirma.</div>
+        <div class="list" id="cf-list"></div>
       </div>
-      <textarea id="msg-text" rows="2" placeholder="Mensaje de texto (opcional)"
-        style="width:100%;margin-top:10px;background:rgba(255,255,255,.04);border:1px solid var(--line-strong,rgba(255,255,255,.12));border-radius:10px;color:#fff;font-family:inherit;font-size:14px;padding:10px 12px;resize:vertical"></textarea>
-      <audio id="msg-preview" controls style="display:none;margin-top:10px;width:100%;height:36px"></audio>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="btn btn-accent" id="msg-send">Enviar mensaje</button>
-        <button class="btn btn-ghost" id="msg-clear" style="display:none">Descartar audio</button>
+
+      <!-- Uso del overlay -->
+      <div class="box">
+        <h2>Overlay — quién lo está usando <span class="n" id="ov-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Cuentas que han abierto LoL con el overlay corriendo (reportan solas cada ~1 min). "Activo ahora" = lo tienen abierto en este momento.</div>
+        <div class="list" id="ov-list"></div>
       </div>
-    </div>
+
+      <!-- Mensaje a jugador -->
+      <div class="box">
+        <h2>Mensaje a jugador</h2>
+        <div class="sub" style="margin:-6px 0 12px">Manda una notificación (texto y/o voz) al overlay del jugador. La voz se graba aquí y suena en su pantalla.</div>
+        <div class="drop-row">
+          <select id="msg-user"></select>
+          <button class="btn btn-ghost" id="msg-rec">● Grabar voz</button>
+          <span class="n" id="msg-rec-state"></span>
+        </div>
+        <textarea id="msg-text" rows="2" placeholder="Mensaje de texto (opcional)"
+          style="width:100%;margin-top:10px;background:rgba(255,255,255,.04);border:1px solid var(--line-strong,rgba(255,255,255,.12));border-radius:10px;color:#fff;font-family:inherit;font-size:14px;padding:10px 12px;resize:vertical"></textarea>
+        <audio id="msg-preview" controls style="display:none;margin-top:10px;width:100%;height:36px"></audio>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-accent" id="msg-send">Enviar mensaje</button>
+          <button class="btn btn-ghost" id="msg-clear" style="display:none">Descartar audio</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== STREAMS Y TICKETS ===== -->
+    <section class="atab" id="at-comunidad">
+      <!-- Transmisiones en vivo -->
+      <div class="box">
+        <h2>Transmisiones en vivo <span class="n" id="st-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Pega el link de un stream (Twitch o YouTube) y aparecerá embebido en la web, en "Live Games". Ej: https://www.twitch.tv/elunderesports</div>
+        <div class="drop-row">
+          <input type="text" id="st-url" placeholder="Link del stream (https://www.twitch.tv/...)">
+          <input type="text" id="st-label" placeholder="Etiqueta opcional (ej: HB vs Zenith)">
+          <button class="btn btn-accent" id="st-add">Agregar</button>
+        </div>
+        <div class="list" id="st-list" style="margin-top:12px"></div>
+      </div>
+
+      <!-- Tickets -->
+      <div class="box">
+        <h2>Tickets <span class="n" id="tk-count"></span></h2>
+        <div class="list" id="tk-list"></div>
+      </div>
+    </section>
   </main>
   <div class="toast" id="toast"></div>
 
@@ -229,6 +257,12 @@
     const user = await SQC.me();
     if (!user || !user.isAdmin){ alert('Acceso solo para el administrador.'); location.href = 'index.html'; return; }
     SQC.paintNav(user);
+
+    // ---- Subpestañas ----
+    document.querySelectorAll('.atab-btn').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('.atab-btn').forEach(x => x.classList.toggle('active', x === b));
+      document.querySelectorAll('.atab').forEach(s => s.classList.toggle('active', s.id === 'at-' + b.dataset.g));
+    }));
 
     // ---- Verificaciones ----
     async function renderVer(){
