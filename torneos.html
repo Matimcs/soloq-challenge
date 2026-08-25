@@ -213,6 +213,8 @@
   .rcard-h .rtag{ font-size:10px; font-weight:800; color:#000; background:var(--muted-2); border-radius:5px; padding:2px 6px; }
   .rcard-h .ravg{ font-size:10.5px; font-weight:800; padding:2px 9px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid var(--line-2); white-space:nowrap; }
   .rcard-h .ravg b{ font-weight:800; }
+  .rcard-h .opgg{ font-size:9.5px; font-weight:800; color:var(--blue); border:1px solid rgba(125,211,252,.45); background:rgba(125,211,252,.08); padding:3px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; }
+  .rcard-h .opgg:hover{ background:rgba(125,211,252,.18); }
 </style>
 <link rel="stylesheet" href="nav.css?v=2">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -584,9 +586,13 @@
     if(!body) body = '<div class="rempty">Sin jugadores.</div>';
     const al = t.avg ? tierLabel(t.avg) : null;
     const avgBadge = al ? '<span class="ravg" title="Elo promedio del equipo">Prom <b style="color:'+al.c+'">'+esc(al.t)+(al.lp?' '+al.lp:'')+'</b></span>' : '';
+    const rids = t.players.map(p=>(p.rid||'').trim()).filter(Boolean);
+    const multi = 'https://www.op.gg/multisearch/las?summoners=' + rids.map(r=>encodeURIComponent(r)).join(',');
+    const opgg = rids.length ? '<a class="opgg" href="'+multi+'" target="_blank" rel="noopener" title="Ver el equipo completo en OP.GG">OP.GG</a>' : '';
     return '<div class="rcard"><div class="rcard-h"><span class="rt" style="color:'+(ours?'var(--accent)':'#fff')+'">'+esc(t.team)+'</span>'
       + avgBadge
       + (t.tag?'<span class="rtag">'+esc(t.tag)+'</span>':'')
+      + opgg
       + '<span class="ri">'+esc(t.inst||'')+' · '+t.players.length+' jug</span></div>'+body+'</div>';
   }
   function renderTeams(){
