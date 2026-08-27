@@ -193,6 +193,20 @@
   .fxm .b{ flex:1; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fxm .vs{ font-size:9px; color:var(--muted-2); flex-shrink:0; }
   .fxm .ours{ color:var(--accent); font-weight:800; }
+  .fxm .ft{ border-radius:6px; padding:2px 6px; }
+  .fxm .ft.win{ background:rgba(52,211,153,.18); color:var(--up); font-weight:800; }
+  .fxm .ft.win.ours{ color:var(--up); }
+  .fxm .ft.lose{ opacity:.4; }
+  .fxm .ft.clk{ cursor:pointer; }
+  .fxm .ft.clk:hover{ background:rgba(255,255,255,.09); }
+  .fxstand{ border-bottom:1px solid var(--line); }
+  .fxstand table{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  .fxstand th,.fxstand td{ padding:5px 10px; font-size:11.5px; text-align:center; }
+  .fxstand th{ font-size:9px; letter-spacing:.04em; color:var(--muted-2); font-weight:700; }
+  .fxstand td.tn{ text-align:left; font-weight:700; }
+  .fxstand td.pos{ color:var(--muted); font-weight:800; }
+  .fxstand tr.q td{ background:rgba(52,211,153,.08); } .fxstand tr.q td.pos{ color:var(--up); }
+  .fxstand tr.ours td.tn{ color:var(--accent); }
   .fxstream{ display:flex; align-items:center; gap:10px; padding:9px 14px; border-top:1px solid rgba(255,255,255,.05); font-size:12.5px; }
   .fxstream:first-child{ border-top:none; }
   .fxstream .fdate{ font-size:11px; font-weight:800; color:var(--blue); width:130px; flex-shrink:0; }
@@ -273,7 +287,8 @@
 
     <!-- ===== FIXTURE ===== -->
     <section class="ptab" id="tab-fixture">
-      <div class="rnote">Calendario oficial de la <b style="color:var(--accent)">fase de grupos</b> (ida y vuelta, Bo1). Cada grupo juega 10 rondas repartidas en las jornadas. Nuestros equipos van resaltados.</div>
+      <div class="rnote">Calendario oficial de la <b style="color:var(--accent)">fase de grupos</b> (ida y vuelta, Bo1). La tabla de cada grupo se arma sola con los resultados; clasifican los <b style="color:var(--up)">2 primeros</b>. Nuestros equipos van resaltados.</div>
+      <div class="rnote" id="fx-admin-note" style="display:none;color:var(--accent)">👑 Eres admin: haz <b>clic en el equipo ganador</b> de cada partido para guardar el resultado (clic de nuevo lo borra). Se guarda para todos.</div>
       <div class="fx-phase" id="fx-phase"></div>
       <div class="fx-groups" id="fx-groups"></div>
 
@@ -537,21 +552,48 @@
       '<div class="poitem"><span class="pc">'+esc(x.cf)+'</span><span class="pcru">'+esc(x.cruce)+'</span><span class="pf">'+esc(x.fecha)+'</span></div>').join('');
   }
 
-  // ---- FIXTURE (calendario de grupos + streams) ----
+  // ---- FIXTURE (calendario de grupos + resultados + tabla en vivo) ----
   const fxTeam = nm => '<span class="'+(isOur(nm)?'ours':'')+'">'+esc(nm)+'</span>';
+  let RESULTS = {};            // matchId -> equipo ganador
+  let IS_ADMIN = false;
+  try { const u = JSON.parse(localStorage.getItem('sqc_user')||'null'); if (u && u.isAdmin) IS_ADMIN = true; } catch {}
+  const matchId = (g,m) => g+'|'+m.r+'|'+m.a+'|'+m.b;
+  async function loadResults(){
+    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/tourney-results?t='+Date.now(), { cache:'no-store' }); if (r.ok) RESULTS = await r.json(); } } catch {}
+  }
+  // Tabla del grupo calculada desde los resultados puestos. Clasifican los 2 primeros.
+  function standings(g){
+    const ms = (TD.fixture&&TD.fixture[g])||[];
+    const tm = {}; ms.forEach(m => { [m.a,m.b].forEach(t => { if(!tm[t]) tm[t]={w:0,l:0}; }); });
+    ms.forEach(m => { const w = RESULTS[matchId(g,m)]; if(!w) return; const l = w===m.a?m.b:m.a; if(tm[w])tm[w].w++; if(tm[l])tm[l].l++; });
+    return Object.keys(tm).map(n => ({ n, w:tm[n].w, l:tm[n].l }))
+      .sort((x,y) => (y.w-x.w) || (x.l-y.l) || x.n.localeCompare(y.n));
+  }
+  function fxMatch(g,m){
+    const id = matchId(g,m), w = RESULTS[id];
+    const cls = nm => (isOur(nm)?'ours ':'') + (IS_ADMIN?'clk ':'') + (w? (w===nm?'win':'lose') : '');
+    const attrs = nm => IS_ADMIN ? (' data-mid="'+esc(encodeURIComponent(id))+'" data-t="'+esc(nm)+'"') : '';
+    return '<div class="fxm"><span class="rn">'+esc(m.r)+'</span>'
+      + '<span class="a ft '+cls(m.a)+'"'+attrs(m.a)+'>'+esc(m.a)+'</span>'
+      + '<span class="vs">vs</span>'
+      + '<span class="b ft '+cls(m.b)+'"'+attrs(m.b)+'>'+esc(m.b)+'</span></div>';
+  }
   function renderFixture(){
     const pd = TD.phaseDates||{};
     document.getElementById('fx-phase').innerHTML =
       [['Jornada 1',pd.J1],['Jornada 2',pd.J2],['Recuperación',pd.Rec],['Cierre',pd.Cierre]]
       .filter(x=>x[1]).map(x=>'<span class="chipm">'+x[0]+': <b>'+esc(x[1])+'</b></span>').join('');
+    const note = document.getElementById('fx-admin-note'); if(note) note.style.display = IS_ADMIN ? '' : 'none';
     document.getElementById('fx-groups').innerHTML = ['A','B','C','D'].map(g => {
       const ms = (TD.fixture&&TD.fixture[g])||[]; if(!ms.length) return '';
+      const st = standings(g);
+      const strows = st.map((r,i) => '<tr class="'+(i<2?'q':'')+' '+(isOur(r.n)?'ours':'')+'">'
+        +'<td class="pos">'+(i+1)+'</td><td class="tn">'+esc(r.n)+'</td><td>'+(r.w+r.l)+'</td><td>'+r.w+'</td><td>'+r.l+'</td></tr>').join('');
+      const table = '<div class="fxstand"><table><thead><tr><th>#</th><th style="text-align:left">Equipo</th><th>PJ</th><th>G</th><th>P</th></tr></thead><tbody>'+strows+'</tbody></table></div>';
       let rows='', lastJ=null;
-      ms.forEach(m => {
-        if(m.j!==lastJ){ rows += '<div class="fxj">'+esc(m.j||'')+'</div>'; lastJ=m.j; }
-        rows += '<div class="fxm"><span class="rn">'+esc(m.r)+'</span><span class="a">'+fxTeam(m.a)+'</span><span class="vs">vs</span><span class="b">'+fxTeam(m.b)+'</span></div>';
-      });
-      return '<div class="fxcard"><div class="fxcard-h">GRUPO '+g+' · '+ms.length+' partidos</div>'+rows+'</div>';
+      ms.forEach(m => { if(m.j!==lastJ){ rows += '<div class="fxj">'+esc(m.j||'')+'</div>'; lastJ=m.j; } rows += fxMatch(g,m); });
+      const played = ms.filter(m=>RESULTS[matchId(g,m)]).length;
+      return '<div class="fxcard"><div class="fxcard-h">GRUPO '+g+' · '+played+'/'+ms.length+' jugados</div>'+table+rows+'</div>';
     }).join('');
     const st = TD.streams||[];
     document.getElementById('fx-streams').innerHTML = st.length ? st.map(s =>
@@ -559,6 +601,16 @@
       +'<span class="fmatch">'+fxTeam(s.a)+' <span class="vs" style="color:var(--muted-2);font-size:10px">vs</span> '+fxTeam(s.b)+'</span></div>').join('')
       : '<div class="rempty">Sin transmisiones programadas.</div>';
   }
+  // Clic del admin en el ganador (toggle: clic en el ganador actual lo borra). Guarda en el servidor.
+  document.getElementById('fx-groups').addEventListener('click', async e => {
+    const el = e.target.closest('.ft.clk'); if(!el || !IS_ADMIN) return;
+    const id = decodeURIComponent(el.dataset.mid), t = el.dataset.t;
+    const winner = (RESULTS[id]===t) ? '' : t;
+    if(winner) RESULTS[id]=winner; else delete RESULTS[id];
+    renderFixture();
+    try { await SQC.api('/admin/tourney-result', { method:'POST', body:{ matchId:id, winner } }); }
+    catch(err){ alert('No se pudo guardar el resultado: '+err.message); await loadResults(); renderFixture(); }
+  });
 
   // ---- ROSTERS: los 23 equipos oficiales, agrupados por grupo ----
   const nameOf = rid => ((rid||'').split('#')[0] || rid);
@@ -608,13 +660,16 @@
   }
 
   function renderAll(){ renderPlayoffs(); renderFixture(); renderTeams(); }
-  // Carga torneo-data.js con cache-bust y luego renderiza (fallback: render vacío si falla).
-  (function loadTData(){
+  // Carga torneo-data.js + los resultados (cache-bust) y luego renderiza.
+  (function boot(){
     const s = document.createElement('script');
     s.src = 'torneo-data.js?t=' + Date.now();
-    s.onload  = () => { TD = window.TDATA || TD; renderAll(); };
-    s.onerror = () => { renderAll(); };
+    const go = () => loadResults().then(renderAll);
+    s.onload  = () => { TD = window.TDATA || TD; go(); };
+    s.onerror = () => { go(); };
     document.head.appendChild(s);
+    // Verifica el admin real (por si el cache local está viejo) y re-renderiza el fixture.
+    if (window.SQC && SQC.me) SQC.me().then(u => { const a = !!(u && u.isAdmin); if (a !== IS_ADMIN){ IS_ADMIN = a; renderFixture(); } }).catch(()=>{});
   })();
 
   SQC.preNav(); SQC.mountNav();

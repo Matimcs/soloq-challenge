@@ -202,6 +202,13 @@ async function init(){
       main_riotid  TEXT NOT NULL,
       created_at   TIMESTAMPTZ DEFAULT now()
     );
+    -- Resultados de la fase de grupos del torneo (los pone el admin desde la web).
+    -- match_id = "grupo|ronda|local|visita"; winner = nombre del equipo ganador.
+    CREATE TABLE IF NOT EXISTS tourney_results (
+      match_id   TEXT PRIMARY KEY,
+      winner     TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
 
     -- Transmisiones en vivo (streams) que el admin agrega a mano para verlas embebidas en la web.
     CREATE TABLE IF NOT EXISTS streams (

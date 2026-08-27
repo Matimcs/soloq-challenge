@@ -293,6 +293,24 @@ app.get('/api/rosters', wrap(async (req,res) => {
   res.json(result);
 }));
 
+// Resultados de la fase de grupos del torneo. Público (los lee la pestaña Fixture).
+app.get('/api/tourney-results', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=15');
+  const rows = await q('SELECT match_id, winner FROM tourney_results');
+  const out = {}; rows.forEach(r => { out[r.match_id] = r.winner; });
+  res.json(out);
+}));
+// El admin pone (o borra) el ganador de un partido. winner vacío/null = borra el resultado.
+app.post('/api/admin/tourney-result', auth, requireAdmin, wrap(async (req,res) => {
+  const matchId = ((req.body && req.body.matchId) || '').trim();
+  if (!matchId) return res.status(400).json({ error:'Falta matchId' });
+  const winner = ((req.body && req.body.winner) || '').trim();
+  if (!winner) { await q('DELETE FROM tourney_results WHERE match_id=$1', [matchId]); return res.json({ ok:true, cleared:true }); }
+  await q(`INSERT INTO tourney_results (match_id, winner, updated_at) VALUES ($1,$2,now())
+           ON CONFLICT (match_id) DO UPDATE SET winner=EXCLUDED.winner, updated_at=now()`, [matchId, winner]);
+  res.json({ ok:true, matchId, winner });
+}));
+
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
 app.get('/api/me/smurfs', auth, wrap(async (req,res) =>
   res.json(await q('SELECT id, riotid FROM smurfs WHERE user_id=$1 ORDER BY id', [req.user.id]))));
