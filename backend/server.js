@@ -43,11 +43,21 @@ function localMatchesCache(){
   catch { _mcCache = { at: Date.now(), data: null }; }
   return _mcCache.data;
 }
-// Devuelve el historial (games/lpGames) de un puuid: primero del disco local; si no está
-// (runner deshabilitado), cae a Supabase una vez.
+// Blob de historial (±LP/partidas por cuenta): primero del disco local (runner embebido);
+// si no está (en Render no hay runner), cae a Supabase PERO cacheado en memoria 60s. Antes se
+// bajaba el blob (varios MB) en CADA apertura de ficha/jugador → era el gran consumo de egress.
+let _dbMatchesCache = { at: 0, data: null };
+async function matchesBlob(){
+  const local = localMatchesCache();
+  if (local) return local;
+  if (Date.now() - _dbMatchesCache.at >= 60000){
+    const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'");
+    _dbMatchesCache = { at: Date.now(), data: (r && r.data) || null };
+  }
+  return _dbMatchesCache.data;
+}
 async function playerMatchCache(puuid){
-  let d = localMatchesCache();
-  if (!d){ const r = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); d = r && r.data; }
+  const d = await matchesBlob();
   return d && d[puuid];
 }
 // Blobs de partidas (JSON de Riot): INMUTABLES → se cachean en memoria (acotado) para no
@@ -193,13 +203,22 @@ app.post('/api/me/update', auth, wrap(async (req,res) => {
   vals.push(req.user.id);
   const u = await q1(`UPDATE users SET ${sets.join(',')} WHERE id=$${i} RETURNING *`, vals);
   // Nota: los equipos ahora los administra el staff (multi-equipo en team_members); no se tocan aquí.
+  invalidateAvatars();   // refresca el ranking público si cambió avatar/nick/pos/champs
   res.json({ user: publicUser(u) });
 }));
 
 // Avatares públicos (para el ranking y los popups del sitio). Sin auth: el leaderboard es público.
 // Devuelve una entrada por CUENTA: la main del usuario + sus smurfs, con etiqueta Main/Smurf N.
+// Cache en MEMORIA de los avatares: el SELECT trae los avatares (base64, ~cientos de KB) de
+// TODOS los usuarios; se pegaba en cada golpe al origen (la página más visitada) → era el
+// mayor consumo de egress de Supabase. Ahora la DB se toca a lo más 1 vez cada 10 min; los
+// avatares cambian muy poco y la caché se invalida al editar el perfil (invalidateAvatars()).
+let AVATARS_CACHE = { at: 0, data: null };
+function invalidateAvatars(){ AVATARS_CACHE = { at: 0, data: null }; }
+const AVATARS_TTL = 10 * 60 * 1000;
 app.get('/api/avatars', wrap(async (req,res) => {
-  res.set('Cache-Control', 'public, max-age=180');   // avatares cambian poco → menos ancho de banda
+  res.set('Cache-Control', 'public, max-age=600');   // avatares cambian muy poco
+  if (AVATARS_CACHE.data && Date.now() - AVATARS_CACHE.at < AVATARS_TTL) return res.json(AVATARS_CACHE.data);
   const users = await q('SELECT id, riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
   const smurfs = await q('SELECT user_id, riotid FROM smurfs ORDER BY id');
   const byUser = {}; smurfs.forEach(s => { (byUser[s.user_id] = byUser[s.user_id] || []).push(s.riotid); });
@@ -210,6 +229,7 @@ app.get('/api/avatars', wrap(async (req,res) => {
     const list = byUser[u.id] || [];
     list.forEach((rid, i) => out.push({ ...base, riotid:rid, label: list.length > 1 ? `Smurf ${i+1}` : 'Smurf' }));
   });
+  AVATARS_CACHE = { at: Date.now(), data: out };
   res.json(out);
 }));
 
@@ -1255,8 +1275,7 @@ app.get('/api/stats', wrap(async (req, res) => {
 
   // ---- ELO: subidones/bajones por día + serie de evolución (desde ±LP guardados) ----
   // El caché de ±LP ya está keyeado por puuid (consolidado por cuenta); la meta también.
-  let store = localMatchesCache();   // del disco local (runner embebido); evita bajar el blob de Supabase
-  if (!store){ const mc = await q1("SELECT data FROM fetch_cache WHERE id='matches'"); store = (mc && mc.data) || {}; }
+  let store = (await matchesBlob()) || {};   // disco local del runner o Supabase cacheado 60s (anti-egress)
   // Partidas guardadas por cuenta (win/loss). Riot NO da el LP histórico, así que la curva se
   // reconstruye desde aquí: LP exacto donde el runner lo capturó (lpGames), estimado por V/D si no.
   const gamesByPuuid = {};
