@@ -58,6 +58,7 @@
       <div class="pright" id="pright"></div>
     </div>
     <div class="chal-notice" id="chal" style="display:none"></div>
+    <div class="chal-notice" id="tour" style="display:none"></div>
   </div>
 
 <script>
@@ -110,6 +111,14 @@
       cn.innerHTML = `<span class="lbl">⚔ Del challenge:</span> ` +
         chal.map(c => `<span class="${c.ally?'ally':'enemy'}">${c.name}${c.ally?' (aliado)':' (rival)'}</span>`).join(', ');
     } else cn.style.display = 'none';
+
+    // Jugadores de TORNEO en tu partida (con la abreviatura del equipo).
+    const tour = d.tourneyInGame || [], tn = $('tour');
+    if (tour.length){
+      tn.style.display = 'flex';
+      tn.innerHTML = `<span class="lbl">🏆 De torneo:</span> ` +
+        tour.map(t => `<span class="${t.ally?'ally':'enemy'}" title="${t.team||''}">${t.name} <b>(${t.tag||'?'})</b>${t.ally?' (aliado)':' (rival)'}</span>`).join(', ');
+    } else tn.style.display = 'none';
 
     renderRight();
   });

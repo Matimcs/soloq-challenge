@@ -81,8 +81,10 @@ let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shown
 // El roster/standing se baja del backend (players.json), no de un archivo local:
 // así el .exe es independiente y usa datos frescos de la nube.
 let rosterCache = { players: [] };
+let tourneyMap = {};   // ridLower -> { tag, team } de jugadores inscritos en torneos
 async function refreshRoster(){
   try { const r = await fetch(`${BACKEND}/players.json`); if (r.ok) rosterCache = await r.json(); } catch {}   // URL estable → cacheable en Cloudflare
+  try { const r = await fetch(`${BACKEND}/api/tourney-players`); if (r.ok) tourneyMap = await r.json(); } catch {}
 }
 function loadRoster(){ return rosterCache; }
 
@@ -410,6 +412,10 @@ async function poll(){
             payload.challengeInGame = all
               .filter(p => { const r = ridOf(p); return r && r !== meId && rosterNick[r] !== undefined; })
               .map(p => ({ name: rosterNick[ridOf(p)], ally: myTeam != null && p.team === myTeam }));
+            // Jugadores de TORNEO que NO están en el challenge: se muestran con la abreviatura del equipo.
+            payload.tourneyInGame = all
+              .filter(p => { const r = ridOf(p); return r && r !== meId && tourneyMap[r] && rosterNick[r] === undefined; })
+              .map(p => ({ name: (p.riotId || p.summonerName || '').split('#')[0], tag: tourneyMap[ridOf(p)].tag, team: tourneyMap[ridOf(p)].team, ally: myTeam != null && p.team === myTeam }));
           }
         } catch {}
       }

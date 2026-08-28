@@ -310,6 +310,27 @@ app.post('/api/admin/tourney-result', auth, requireAdmin, wrap(async (req,res) =
            ON CONFLICT (match_id) DO UPDATE SET winner=EXCLUDED.winner, updated_at=now()`, [matchId, winner]);
   res.json({ ok:true, matchId, winner });
 }));
+// Mapa Riot ID -> equipo del torneo (nombre + abreviatura). Lo usa el overlay para avisar
+// si juegas con/contra alguien inscrito en un torneo, aunque NO esté en el SoloQ Challenge.
+// Se lee de torneo-data.js (cache por mtime del archivo). Público.
+let _tourneyPlayers = { mtime: -1, map: {} };
+app.get('/api/tourney-players', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  try {
+    const f = path.join(ROOT, 'torneo-data.js');
+    const st = fs.statSync(f);
+    if (st.mtimeMs !== _tourneyPlayers.mtime){
+      const m = fs.readFileSync(f, 'utf8').match(/window\.TDATA\s*=\s*([\s\S]*);\s*$/);
+      const data = m ? JSON.parse(m[1]) : { teams: [] };
+      const map = {};
+      (data.teams || []).forEach(t => (t.players || []).forEach(p => {
+        const rid = (p.rid || '').trim(); if (rid) map[rid.toLowerCase()] = { tag: t.tag || '', team: t.team || '' };
+      }));
+      _tourneyPlayers = { mtime: st.mtimeMs, map };
+    }
+  } catch {}
+  res.json(_tourneyPlayers.map);
+}));
 
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
 app.get('/api/me/smurfs', auth, wrap(async (req,res) =>
