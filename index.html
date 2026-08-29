@@ -829,7 +829,9 @@ async function loadTeams(fresh){
 let TOURNEY_MAP = {}, PTAGS = {};
 const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
 function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_MAP[nrid(rid)] || null; }
-function ptagOf(rid){ return PTAGS[(rid||'').toLowerCase()] || PTAGS[nrid(rid)] || null; }
+// Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está inscrito en un torneo,
+// se considera "Competitivo" por defecto (jugador de torneo tier 2-3).
+function ptagOf(rid){ return PTAGS[(rid||'').toLowerCase()] || PTAGS[nrid(rid)] || (tourneyOf(rid) ? 'COMPETITIVO' : null); }
 async function loadTourneyTags(){
   if (!location.protocol.startsWith('http')) return;
   try { const r = await fetch('/api/tourney-players'); if (r.ok) TOURNEY_MAP = await r.json(); } catch {}
