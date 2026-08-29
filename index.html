@@ -181,6 +181,9 @@
   .acc-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 6px; border-radius:5px; vertical-align:middle; }
   .acc-tag.main{ color:var(--accent); background:rgba(233,255,31,.12); border:1px solid rgba(233,255,31,.35); }
   .acc-tag.smurf{ color:var(--purple); background:rgba(192,132,252,.12); border:1px solid rgba(192,132,252,.4); }
+  .acc-tag.ptag.pro{ color:#000; background:#e9ff1f; border:1px solid #e9ff1f; }
+  .acc-tag.ptag.streamer{ color:#fff; background:rgba(145,70,255,.9); border:1px solid #9146ff; }
+  .acc-tag.ptag.competitivo{ color:#053; background:#5eead4; border:1px solid #5eead4; }
   .team-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 7px; border-radius:5px; vertical-align:middle; display:inline-block; }
   .tag-stack{ display:inline-flex; flex-direction:column; gap:3px; align-items:flex-start; vertical-align:middle; }
   .tag-stack:empty{ display:none; }
@@ -294,6 +297,11 @@
   .lg-name{ font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .lg-row.tracked .lg-name{ color:var(--up); }
   .lg-tag{ color:var(--muted-2); font-weight:400; font-size:11px; }
+  .lg-team{ margin-left:6px; font-size:9.5px; font-weight:800; color:#000; background:var(--gold); border-radius:5px; padding:1px 6px; vertical-align:middle; }
+  .lg-ptag{ margin-left:5px; font-size:9px; font-weight:800; border-radius:5px; padding:1px 6px; vertical-align:middle; }
+  .lg-ptag.pro{ color:#000; background:#e9ff1f; }
+  .lg-ptag.streamer{ color:#fff; background:#9146ff; }
+  .lg-ptag.competitivo{ color:#000; background:#5eead4; }
   .lg-rank{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; margin-top:1px; }
   .lg-rank .tdot{ width:6px; height:6px; border-radius:50%; }
   .lg-pos{ font-size:12px; font-weight:800; color:var(--up); white-space:nowrap; }
@@ -559,6 +567,28 @@
     .hero h1{ font-size:34px; }
     .nav-links{ display:none; }
   }
+  /* Simulador */
+  .sim-btn{ font-family:inherit; cursor:pointer; font-size:13px; font-weight:800; color:#000; background:var(--accent); border:none; padding:8px 14px; border-radius:8px; white-space:nowrap; }
+  .sim-btn:hover{ filter:brightness(1.06); }
+  .sim-overlay{ position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.7); display:flex; align-items:flex-start; justify-content:center; padding:6vh 16px; overflow-y:auto; }
+  .sim-card{ position:relative; width:100%; max-width:560px; background:var(--panel,#0b0c10); border:1px solid var(--line-2,rgba(255,255,255,.14)); border-radius:16px; padding:22px; }
+  .sim-x{ position:absolute; top:14px; right:14px; background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--text); width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:14px; }
+  .sim-title{ font-size:18px; font-weight:800; margin-bottom:16px; }
+  .sim-form{ display:flex; flex-direction:column; gap:12px; margin-bottom:18px; }
+  .sim-lbl{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); flex-wrap:wrap; }
+  .sim-lbl select{ flex:1; min-width:150px; font-family:inherit; font-size:14px; color:var(--text); background:var(--panel-2,#121319); border:1px solid var(--line-2); border-radius:9px; padding:9px 11px; }
+  .sim-need{ text-align:center; padding:14px 0 4px; }
+  .sim-need .kick{ font-size:12px; font-weight:800; letter-spacing:.1em; color:var(--muted); }
+  .sim-need .big{ font-size:44px; font-weight:900; font-style:italic; letter-spacing:-.02em; line-height:1; margin:4px 0; }
+  .sim-need .path{ font-size:12px; color:var(--muted); }
+  .sim-need .path b{ color:var(--text); }
+  .sim-wr{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:16px; }
+  @media(max-width:560px){ .sim-wr{ grid-template-columns:repeat(2,1fr); } }
+  .sim-wr-c{ background:var(--panel-2,#121319); border:1px solid var(--line); border-radius:12px; padding:12px 8px; text-align:center; }
+  .sim-wr-c .r{ font-size:11px; font-weight:800; color:var(--muted); }
+  .sim-wr-c .g{ font-size:22px; font-weight:900; color:var(--down); margin:4px 0 2px; }
+  .sim-wr-c .wl{ font-size:11px; color:var(--muted-2); }
+  .sim-msg{ text-align:center; font-size:15px; font-weight:700; color:var(--up); padding:20px 0; }
 </style>
 <link rel="stylesheet" href="nav.css?v=2">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -626,6 +656,7 @@
           <span class="cut chall" title="LP de corte para Challenger (puesto 200)"><img src="overlay/assets/ranks/Season_2023_-_Challenger.webp" alt="Challenger" onerror="this.style.display='none'"><b id="cut-chall">—</b></span>
           <span class="cut gm" title="LP de corte para Grandmaster (puesto 700)"><img src="overlay/assets/ranks/Season_2023_-_Grandmaster.webp" alt="Grandmaster" onerror="this.style.display='none'"><b id="cut-gm">—</b></span>
         </div>
+        <button id="sim-btn" class="sim-btn" title="¿Cuántas victorias necesitas?">🎯 Simulador</button>
         <div style="display:flex; align-items:center; gap:14px; margin-left:auto; flex-wrap:wrap;">
           <a href="normas.html" style="font-size:13px; font-weight:700; color:var(--accent); border:1px solid rgba(233,255,31,.35); background:rgba(233,255,31,.08); padding:7px 13px; border-radius:8px; white-space:nowrap;">Normas →</a>
           <a href="blueshell.html" style="font-size:13px; font-weight:700; color:var(--blue); border:1px solid rgba(74,163,255,.35); padding:7px 13px; border-radius:8px; white-space:nowrap;">Normas Blue Shell →</a>
@@ -688,6 +719,23 @@
       Prototipo — SoloQ Challenge · jugadores de la U (datos estáticos, jul 2026). Diseño basado en soloqchallenge.gg. Sin pickem, premios ni tier list.
     </footer>
   </main>
+
+  <!-- ===== Simulador: cuántas victorias necesitas ===== -->
+  <div id="sim-modal" class="sim-overlay" style="display:none">
+    <div class="sim-card">
+      <button class="sim-x" id="sim-close" aria-label="Cerrar">✕</button>
+      <div class="sim-title">🎯 Simulador de ascenso</div>
+      <div class="sim-form">
+        <label class="sim-lbl">Tú eres <select id="sim-me"></select></label>
+        <label class="sim-lbl">Quieres alcanzar
+          <select id="sim-mode"><option value="player">a un jugador</option><option value="rank">un rango</option></select>
+        </label>
+        <label class="sim-lbl" id="sim-target-player-l">Jugador <select id="sim-target"></select></label>
+        <label class="sim-lbl" id="sim-target-rank-l" style="display:none">Rango <select id="sim-rank"></select></label>
+      </div>
+      <div id="sim-result"></div>
+    </div>
+  </div>
 
 <script src="players.js"></script>
 <script>
@@ -776,6 +824,17 @@ async function loadTeams(fresh){
     list.forEach(t => { if (t.riotid && Array.isArray(t.teams) && t.teams.length) TEAMS_BY_RID[nrid(t.riotid)] = t.teams; });
     render();
   } catch {}
+}
+// Etiquetas de torneo (Riot ID -> {tag,team}) y de jugador (PRO/Streamer/Competitivo).
+let TOURNEY_MAP = {}, PTAGS = {};
+const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
+function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_MAP[nrid(rid)] || null; }
+function ptagOf(rid){ return PTAGS[(rid||'').toLowerCase()] || PTAGS[nrid(rid)] || null; }
+async function loadTourneyTags(){
+  if (!location.protocol.startsWith('http')) return;
+  try { const r = await fetch('/api/tourney-players'); if (r.ok) TOURNEY_MAP = await r.json(); } catch {}
+  try { const r = await fetch('/api/player-tags');    if (r.ok) PTAGS       = await r.json(); } catch {}
+  render(); renderLive();
 }
 function avaSrc(rid, nm){ return AVA_BY_RID[nrid(rid)] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
 // Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
@@ -892,7 +951,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
         ${avaHtml(p.rid, p.nm)}
         <div><div class="nm">${NICK_BY_RID[rl] || p.nm}</div><div class="rid">${p.rid}</div></div>
-        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}</span>
+        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${ptagOf(p.rid) ? `<span class="acc-tag ptag ${ptagOf(p.rid).toLowerCase()}">${PTAG_LABEL[ptagOf(p.rid)]||ptagOf(p.rid)}</span>` : ''}</span>
         ${badges}
       </div></td>
       <td>${roleCell(p)}</td>
@@ -1069,11 +1128,14 @@ function playerRow(p){
   const color = TIER_COLOR[p.tier] || 'var(--muted-2)';
   const tag = p.tag ? `<span class="lg-tag"> #${p.tag}</span>` : '';
   const pos = (p.tracked && p.position) ? `<div class="lg-pos">★ #${p.position}</div>` : '';
+  const rid = (p.rid || ((p.name||'') + '#' + (p.tag||''))).toLowerCase();
+  const tt = tourneyOf(rid); const teamBadge = tt ? `<span class="lg-team" title="${escAttr(tt.team||'')}">${tt.tag||''}</span>` : '';
+  const pg = ptagOf(rid);    const ptagBadge = pg ? `<span class="lg-ptag ${pg.toLowerCase()}">${PTAG_LABEL[pg]||pg}</span>` : '';
   return `
     <div class="lg-row ${p.tracked?'tracked':''}">
       <div class="lg-champ">${champ}${spells}${rune}</div>
       <div class="lg-info">
-        <div class="lg-name">${p.name}${tag}</div>
+        <div class="lg-name">${p.name}${tag}${teamBadge}${ptagBadge}</div>
         <div class="lg-rank"><span class="tdot" style="background:${color}"></span>${p.rankLabel}</div>
       </div>
       ${pos}
@@ -1705,6 +1767,7 @@ document.getElementById('rows').addEventListener('click', e => {
 counts(); render(); renderLive();
 loadAvatars();
 loadTeams();
+loadTourneyTags();
 checkEncounters();
 if (new URLSearchParams(location.search).has('demo')) setTimeout(demoEncuentro, 700);
 
@@ -1751,6 +1814,61 @@ if (location.protocol.startsWith('http')){
   pull();                    // inmediato al cargar (no espera 30s) → live games frescos de una
   setInterval(pull, 30000);
 }
+
+/* ===== Simulador de ascenso: ¿cuántas victorias necesitas? ===== */
+const SIM_LP_PER_WIN = 20;   // LP neto por victoria (estimado, simétrico victoria/derrota)
+const niceTier = t => t ? t.charAt(0)+t.slice(1).toLowerCase() : '';
+function simRankTargets(){
+  const c = (DATA && DATA.cutoffs) || {};
+  return [
+    { label:'Challenger',  abs: 2800 + (c.chall!=null?c.chall:800) },
+    { label:'Grandmaster', abs: 2800 + (c.gm!=null?c.gm:400) },
+    { label:'Master',      abs: 2800 },
+    { label:'Diamante I',  abs: 2700 },
+    { label:'Diamante II', abs: 2600 },
+  ];
+}
+function simLabel(p){ const div = HIGH_ELO.has(p.tier)?'':(p.div?' '+p.div:''); return niceTier(p.tier)+div+(p.lp!=null?' · '+p.lp+' LP':''); }
+function simFill(){
+  const opts = (PLAYERS||[]).slice().sort((a,b)=>absLPf(b)-absLPf(a))
+    .map(p=>`<option value="${escAttr(p.rid)}">${p.nm} — ${simLabel(p)}</option>`).join('');
+  document.getElementById('sim-me').innerHTML = opts;
+  document.getElementById('sim-target').innerHTML = opts;
+  document.getElementById('sim-rank').innerHTML = simRankTargets().map((r,i)=>`<option value="${i}">${r.label}</option>`).join('');
+}
+function simCompute(){
+  const me = (PLAYERS||[]).find(p=>p.rid===document.getElementById('sim-me').value);
+  const box = document.getElementById('sim-result'); if(!me){ box.innerHTML=''; return; }
+  let targetAbs, targetLabel;
+  if(document.getElementById('sim-mode').value==='player'){
+    const t = (PLAYERS||[]).find(p=>p.rid===document.getElementById('sim-target').value);
+    if(!t){ box.innerHTML=''; return; } targetAbs=absLPf(t); targetLabel=t.nm+' ('+simLabel(t)+')';
+  } else { const rt = simRankTargets()[+document.getElementById('sim-rank').value]; targetAbs=rt.abs; targetLabel=rt.label; }
+  const gap = targetAbs - absLPf(me);
+  if(gap<=0){ box.innerHTML = `<div class="sim-msg">¡${me.nm} ya está en ${targetLabel} o por encima! 🎉</div>`; return; }
+  const wins = Math.ceil(gap / SIM_LP_PER_WIN);
+  const cards = [0.55,0.60,0.65,0.70].map(r=>{ const games=Math.ceil(wins/(2*r-1)), W=Math.round(games*r), L=games-W;
+    return `<div class="sim-wr-c"><div class="r">${Math.round(r*100)}% win rate</div><div class="g">${games} games</div><div class="wl">${W}W • ${L}L</div></div>`; }).join('');
+  box.innerHTML = `<div class="sim-need"><div class="kick">NECESITAS</div><div class="big">${wins} WINS</div>
+      <div class="path"><b>${me.nm} · ${simLabel(me)}</b> → <b>${targetLabel}</b> · ~${gap} LP</div></div>
+      <div class="sim-wr">${cards}</div>
+      <div class="path" style="text-align:center;margin-top:10px;font-size:11px">Estimado con ~${SIM_LP_PER_WIN} LP por victoria.</div>`;
+}
+function simSyncMode(){ const m=document.getElementById('sim-mode').value;
+  document.getElementById('sim-target-player-l').style.display=m==='player'?'':'none';
+  document.getElementById('sim-target-rank-l').style.display=m==='rank'?'':'none'; }
+function simOpen(){
+  simFill(); simSyncMode();
+  document.getElementById('sim-modal').style.display='flex';
+  if(window.SQC && SQC.me) SQC.me().then(u=>{ if(u&&u.riotid){ const sel=document.getElementById('sim-me');
+    const o=[...sel.options].find(x=>nrid(x.value)===nrid(u.riotid)); if(o){ o.selected=true; simCompute(); } } }).catch(()=>{});
+  simCompute();
+}
+document.getElementById('sim-btn').addEventListener('click', simOpen);
+document.getElementById('sim-close').addEventListener('click', ()=>document.getElementById('sim-modal').style.display='none');
+document.getElementById('sim-modal').addEventListener('click', e=>{ if(e.target.id==='sim-modal') document.getElementById('sim-modal').style.display='none'; });
+['sim-me','sim-target','sim-rank'].forEach(id=>document.getElementById(id).addEventListener('change', simCompute));
+document.getElementById('sim-mode').addEventListener('change', ()=>{ simSyncMode(); simCompute(); });
 </script>
 <script src="api.js"></script>
 <script>

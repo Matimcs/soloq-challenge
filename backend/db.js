@@ -209,6 +209,12 @@ async function init(){
       winner     TEXT NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Etiqueta manual de un jugador (PRO / Streamer / Competitivo), la pone el admin.
+    CREATE TABLE IF NOT EXISTS player_tags (
+      riotid     TEXT PRIMARY KEY,
+      tag        TEXT NOT NULL,           -- PRO | STREAMER | COMPETITIVO
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
 
     -- Transmisiones en vivo (streams) que el admin agrega a mano para verlas embebidas en la web.
     CREATE TABLE IF NOT EXISTS streams (

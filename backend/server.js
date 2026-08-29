@@ -351,6 +351,31 @@ app.get('/api/tourney-players', wrap(async (req,res) => {
   } catch {}
   res.json(_tourneyPlayers.map);
 }));
+// Etiquetas de jugador (PRO / Streamer / Competitivo). Público (ranking + live games).
+const PLAYER_TAGS = new Set(['PRO', 'STREAMER', 'COMPETITIVO']);
+let _tagsCache = { at: 0, data: null };
+function invalidateTags(){ _tagsCache = { at: 0, data: null }; }
+app.get('/api/player-tags', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  if (_tagsCache.data && Date.now() - _tagsCache.at < 120000) return res.json(_tagsCache.data);
+  const rows = await q('SELECT riotid, tag FROM player_tags');
+  const out = {}; rows.forEach(r => { out[r.riotid.toLowerCase()] = r.tag; });
+  _tagsCache = { at: Date.now(), data: out };
+  res.json(out);
+}));
+app.post('/api/admin/player-tag', auth, requireAdmin, wrap(async (req,res) => {
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });
+  const tag = ((req.body && req.body.tag) || '').trim().toUpperCase();
+  if (!tag){ await q('DELETE FROM player_tags WHERE lower(riotid)=lower($1)', [riotid]); invalidateTags(); return res.json({ ok:true, cleared:true }); }
+  if (!PLAYER_TAGS.has(tag)) return res.status(400).json({ error:'Etiqueta inválida' });
+  await q(`INSERT INTO player_tags (riotid, tag, updated_at) VALUES ($1,$2,now())
+           ON CONFLICT (riotid) DO UPDATE SET tag=EXCLUDED.tag, updated_at=now()`, [riotid, tag]);
+  invalidateTags();
+  res.json({ ok:true, riotid, tag });
+}));
+app.get('/api/admin/player-tags', auth, requireAdmin, wrap(async (req,res) =>
+  res.json(await q('SELECT riotid, tag, updated_at FROM player_tags ORDER BY updated_at DESC'))));
 
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
 app.get('/api/me/smurfs', auth, wrap(async (req,res) =>
@@ -440,7 +465,15 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
         const byEnd = {}; s.lpGames.forEach(g => { if (g.end) byEnd[g.end] = g; });
         const wd = s.lpGames.filter(g => g.delta > 0).slice(0, 15).map(g => g.delta).sort((a,b)=>a-b);
         const med = wd.length ? wd[Math.floor(wd.length/2)] : 0;
-        history.forEach(h => { const g = byEnd[h.end]; if (g){ h.lp = g.delta; h.aegis = g.delta > 0 && med > 0 && g.delta >= 1.8*med; } });
+        // Guarda de signo: una victoria SIEMPRE da +LP y una derrota −LP. Si el delta casado por
+        // 'end' contradice el resultado (por un desfase del runner al juntarse 2 partidas o un
+        // remake), no lo mostramos en vez de mostrar un ±LP incoherente (victoria −23, derrota +17).
+        history.forEach(h => {
+          const g = byEnd[h.end];
+          if (g && ((h.win && g.delta >= 0) || (!h.win && g.delta <= 0))){
+            h.lp = g.delta; h.aegis = g.delta > 0 && med > 0 && g.delta >= 1.8*med;
+          }
+        });
       }
     } catch {}
   }

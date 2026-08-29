@@ -149,6 +149,22 @@
         <h2>Participantes <span class="n" id="pt-count"></span></h2>
         <div class="scrollbox"><table><thead><tr><th>Shells</th><th>Jugador</th><th>Riot ID</th><th></th></tr></thead><tbody id="pt-body"></tbody></table></div>
       </div>
+
+      <!-- Etiquetas de jugador -->
+      <div class="box">
+        <h2>Etiquetas de jugador <span class="n" id="tg-count"></span></h2>
+        <div class="sub" style="margin:-6px 0 12px">Etiqueta una cuenta como <b>PRO</b>, <b>Streamer</b> o <b>Competitivo</b> (jugadores de torneo tier 2-3). Aparece en el ranking y en Live Games.</div>
+        <div class="drop-row">
+          <input type="text" id="tg-riotid" placeholder="Riot ID (Nombre#TAG), ej: rakyz#sbm">
+          <select id="tg-tag" style="flex:0 0 auto;min-width:150px">
+            <option value="PRO">PRO</option>
+            <option value="STREAMER">Streamer</option>
+            <option value="COMPETITIVO">Competitivo</option>
+          </select>
+          <button class="btn btn-accent" id="tg-add">Etiquetar</button>
+        </div>
+        <div class="list" id="tg-list" style="margin-top:12px"></div>
+      </div>
     </section>
 
     <!-- ===== SHELLS Y CASTIGOS ===== -->
@@ -535,7 +551,28 @@
     $('msg-send').addEventListener('click', sendMsg);
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
-    renderConfirm(); renderDrop(); renderRoster(); renderRosters(); renderLinks(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
+    // ---- Etiquetas de jugador (PRO / Streamer / Competitivo) ----
+    const TG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
+    async function renderTags(){
+      let list = []; try { list = await SQC.api('/admin/player-tags'); } catch(e){ return; }
+      $('tg-count').textContent = `(${list.length})`;
+      $('tg-list').innerHTML = list.length ? list.map(t=>`
+        <div class="item"><div class="info"><div class="t">${escA(t.riotid)} — <b>${TG_LABEL[t.tag]||t.tag}</b></div><div class="s">Etiquetado ${fdate(t.updated_at)}</div></div>
+          <div class="acts"><button class="btn btn-no" data-rid="${escA(t.riotid)}">Quitar</button></div></div>`).join('')
+        : '<div class="empty">Sin jugadores etiquetados.</div>';
+      $('tg-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+        try { await SQC.api('/admin/player-tag',{method:'POST',body:{riotid:b.dataset.rid, tag:''}}); toast('Etiqueta quitada'); renderTags(); }
+        catch(e){ toast(e.message); }
+      }));
+    }
+    $('tg-add').addEventListener('click', async () => {
+      const riotid = $('tg-riotid').value.trim(), tag = $('tg-tag').value;
+      if (!/^.+#.+$/.test(riotid)){ toast('Formato Nombre#TAG'); return; }
+      try { await SQC.api('/admin/player-tag', {method:'POST', body:{ riotid, tag }}); $('tg-riotid').value=''; toast('Etiqueta puesta'); renderTags(); }
+      catch(e){ toast(e.message); }
+    });
+
+    renderConfirm(); renderDrop(); renderRoster(); renderRosters(); renderLinks(); renderTags(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
     setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
   })();
 </script>
