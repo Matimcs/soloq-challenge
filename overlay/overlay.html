@@ -59,6 +59,7 @@
     </div>
     <div class="chal-notice" id="chal" style="display:none"></div>
     <div class="chal-notice" id="tour" style="display:none"></div>
+    <div class="chal-notice" id="tagged" style="display:none"></div>
   </div>
 
 <script>
@@ -119,6 +120,14 @@
       tn.innerHTML = `<span class="lbl">🏆 De torneo:</span> ` +
         tour.map(t => `<span class="${t.ally?'ally':'enemy'}" title="${t.team||''}">${t.name} <b>(${t.tag||'?'})</b>${t.ally?' (aliado)':' (rival)'}</span>`).join(', ');
     } else tn.style.display = 'none';
+
+    // Jugadores ETIQUETADOS (PRO / Streamer / Competitivo).
+    const tagged = d.taggedInGame || [], gn = $('tagged');
+    if (tagged.length){
+      gn.style.display = 'flex';
+      gn.innerHTML = `<span class="lbl">🎬 Etiquetados:</span> ` +
+        tagged.map(t => `<span class="${t.ally?'ally':'enemy'}">${t.name} <b>(${t.tag})</b>${t.ally?' (aliado)':' (rival)'}</span>`).join(', ');
+    } else gn.style.display = 'none';
 
     renderRight();
   });

@@ -82,10 +82,13 @@ let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shown
 // así el .exe es independiente y usa datos frescos de la nube.
 let rosterCache = { players: [] };
 let tourneyMap = {};   // ridLower -> { tag, team } de jugadores inscritos en torneos
+let playerTags = {};   // ridLower -> 'PRO' | 'STREAMER' | 'COMPETITIVO'
 async function refreshRoster(){
   try { const r = await fetch(`${BACKEND}/players.json`); if (r.ok) rosterCache = await r.json(); } catch {}   // URL estable → cacheable en Cloudflare
   try { const r = await fetch(`${BACKEND}/api/tourney-players`); if (r.ok) tourneyMap = await r.json(); } catch {}
+  try { const r = await fetch(`${BACKEND}/api/player-tags`);    if (r.ok) playerTags = await r.json(); } catch {}
 }
+const TAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
 function loadRoster(){ return rosterCache; }
 
 async function loadDDragon(){
@@ -416,6 +419,10 @@ async function poll(){
             payload.tourneyInGame = all
               .filter(p => { const r = ridOf(p); return r && r !== meId && tourneyMap[r] && rosterNick[r] === undefined; })
               .map(p => ({ name: (p.riotId || p.summonerName || '').split('#')[0], tag: tourneyMap[ridOf(p)].tag, team: tourneyMap[ridOf(p)].team, ally: myTeam != null && p.team === myTeam }));
+            // Jugadores ETIQUETADOS (PRO / Streamer / Competitivo), sea del challenge o no.
+            payload.taggedInGame = all
+              .filter(p => { const r = ridOf(p); return r && r !== meId && playerTags[r]; })
+              .map(p => ({ name: (p.riotId || p.summonerName || '').split('#')[0], tag: TAG_LABEL[playerTags[ridOf(p)]] || playerTags[ridOf(p)], ally: myTeam != null && p.team === myTeam }));
           }
         } catch {}
       }
