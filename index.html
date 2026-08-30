@@ -829,9 +829,16 @@ async function loadTeams(fresh){
 let TOURNEY_MAP = {}, PTAGS = {};
 const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
 function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_MAP[nrid(rid)] || null; }
-// Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está inscrito en un torneo,
-// se considera "Competitivo" por defecto (jugador de torneo tier 2-3).
-function ptagOf(rid){ return PTAGS[(rid||'').toLowerCase()] || PTAGS[nrid(rid)] || (tourneyOf(rid) ? 'COMPETITIVO' : null); }
+// Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está en un torneo, se considera
+// "Competitivo" por defecto — SALVO nuestros 4 equipos UChile (no son competitivos externos).
+const OUR_TEAMS = new Set(['uch zenith','hundred blossoms','uch exilium','uch tide']);
+function ptagOf(rid){
+  const explicit = PTAGS[(rid||'').toLowerCase()] || PTAGS[nrid(rid)];
+  if (explicit) return explicit;
+  const t = tourneyOf(rid);
+  if (t && !OUR_TEAMS.has((t.team||'').toLowerCase())) return 'COMPETITIVO';
+  return null;
+}
 async function loadTourneyTags(){
   if (!location.protocol.startsWith('http')) return;
   try { const r = await fetch('/api/tourney-players'); if (r.ok) TOURNEY_MAP = await r.json(); } catch {}
