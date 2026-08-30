@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  *{ box-sizing:border-box; margin:0; }
+  html,body{ height:100%; background:transparent; overflow:hidden; }
+  .bar{ height:100%; display:flex; align-items:center; gap:12px; padding:0 16px;
+    background:linear-gradient(180deg,#161b22,#0e1218); border:1px solid rgba(233,255,31,.5);
+    border-radius:14px; box-shadow:0 10px 30px rgba(0,0,0,.5); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; -webkit-app-region:drag; }
+  .txt{ flex:1; min-width:0; color:#eaeff6; }
+  .txt .t{ font-size:13px; font-weight:800; }
+  .txt .s{ font-size:11px; color:#8b95a5; margin-top:1px; }
+  button{ -webkit-app-region:no-drag; font-family:inherit; cursor:pointer; border-radius:9px; padding:9px 15px; font-size:13px; font-weight:800; border:1px solid rgba(255,255,255,.14); }
+  .reset{ background:rgba(255,255,255,.06); color:#eaeff6; }
+  .reset:hover{ background:rgba(255,255,255,.12); }
+  .done{ background:#e9ff1f; color:#000; border-color:#e9ff1f; }
+  .done:hover{ filter:brightness(1.05); }
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="txt">
+      <div class="t">🎯 Acomoda tus overlays</div>
+      <div class="s">Arrastra cada uno y usa la esquina ◢ para agrandarlo o achicarlo.</div>
+    </div>
+    <button class="reset" id="reset">↺ Reponer</button>
+    <button class="done" id="done">✓ Listo</button>
+  </div>
+<script>
+  const { ipcRenderer } = require('electron');
+  document.getElementById('done').addEventListener('click', () => ipcRenderer.send('pos-done'));
+  document.getElementById('reset').addEventListener('click', () => ipcRenderer.send('pos-reset'));
+</script>
+</body>
+</html>

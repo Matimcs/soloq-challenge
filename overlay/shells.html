@@ -10,6 +10,10 @@
   /* padding para que la sombra de las tarjetas no se corte contra el borde de la ventana */
   body{ padding:10px 14px 16px; }
   .wrap{ display:flex; flex-direction:column; gap:6px; cursor:move; }
+  .pos-grip{ display:none; position:fixed; right:0; bottom:0; width:16px; height:16px; z-index:99999;
+    cursor:nwse-resize; background:linear-gradient(135deg,transparent 45%, #e9ff1f 45%); }
+  body.positioning .pos-grip{ display:block; }
+  body.positioning .wrap{ outline:2px dashed #e9ff1f; outline-offset:2px; }
   .frame{ border:1px solid var(--line); border-radius:10px; -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
     background:rgba(8,10,14,.68); box-shadow:0 5px 18px rgba(0,0,0,.5); }
   .top{ display:flex; align-items:center; justify-content:center; gap:8px; padding:8px 12px; }
@@ -46,6 +50,7 @@
     </div>
     <div class="frame body" id="body"></div>
   </div>
+  <div class="pos-grip" id="posgrip" title="Redimensionar"></div>
 
 <script>
   const { ipcRenderer } = require('electron');
@@ -98,6 +103,19 @@
   wrap.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
   window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
   window.addEventListener('mouseup', () => { if(dragging){ dragging=false; ipcRenderer.send('drag-end'); } });
+
+  // ---- Modo posicionar: ejemplo + grip de redimensionar ----
+  ipcRenderer.on('position', (_e, on) => {
+    document.body.classList.toggle('positioning', !!on);
+    if (on){ castigos = [{ name:'Sin Flash', from:'Un admin', to:'tú', img:null }]; idx = 0; render(); }
+  });
+  const posgrip = $('posgrip');
+  if (posgrip){ let sy=0;
+    const mv = e => { const dz = (e.screenY - sy)/260; sy = e.screenY; if (dz) ipcRenderer.send('zoom-delta', dz); };
+    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+    posgrip.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); sy=e.screenY;
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up); });
+  }
 
   render();
 </script>

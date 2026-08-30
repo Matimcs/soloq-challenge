@@ -180,6 +180,12 @@ function createWindows(){
   win = baseWin(340, 130, sp.x, sp.y); win._posKey = 'small'; win.setAlwaysOnTop(true, 'screen-saver'); win.loadFile(path.join(__dirname, 'overlay.html'));
   const shp = posFor('shell', d.shellX, d.shellY);
   shellWin = baseWin(278, 150, shp.x, shp.y); shellWin._posKey = 'shell'; shellWin.setAlwaysOnTop(true, 'screen-saver'); shellWin.loadFile(path.join(__dirname, 'shells.html'));
+  // Aplica el zoom (tamaño) guardado de la tarjeta/popup al cargar.
+  const applySavedZoom = (w, baseW) => w.webContents.on('did-finish-load', () => {
+    const k = settings.scale && w._posKey && settings.scale[w._posKey];
+    if (k && k !== 1){ try { w.webContents.setZoomFactor(k); } catch {} const b = w.getBounds(); w.setBounds({ x:b.x, y:b.y, width: Math.round(baseW * k), height: b.height }); }
+  });
+  applySavedZoom(win, 340); applySavedZoom(shellWin, 278);
   const BW = 1200, BH = 780;
   // El panel es ENFOCABLE (a diferencia de los overlays chicos): así se puede escribir en
   // los campos de la web (login, tickets, etc.).
@@ -250,6 +256,7 @@ function createTray(){
       { type: 'separator' },
       { label: 'Mostrar todo (Alt+X)', click: () => showAll() },
       { label: 'Ocultar overlay (Alt+X)', click: () => hideAll() },
+      { label: 'Posicionar overlays…', click: () => enterPositioning() },
       { label: 'Probar Blue Shell (Alt+B)', click: () => showBlueShellEvent({ castigo: 'Autofill', from: 'Prueba' }) },
       { type: 'separator' },
       { label: 'Buscar actualizaciones', click: () => checkUpdates(true) },
@@ -266,10 +273,36 @@ function createTray(){
 ipcMain.on('drag-start', (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w._d = { dx: mx - b.x, dy: my - b.y }; });
 ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && w._d) w.setPosition(Math.round(mx - w._d.dx), Math.round(my - w._d.dy)); });
 ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w){ w._d = null; savePos(w); } });
-ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(50, Math.min(900, Math.round(h))) }); });
+ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return;
+  w._cssH = h;   // alto natural del contenido (sin zoom); la ventana se ajusta multiplicando por el zoom
+  const k = (settings.scale && w._posKey && settings.scale[w._posKey]) || 1;
+  const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(40, Math.min(1400, Math.round(h * k))) }); });
 // Redimensionado de la ruleta (grip esquina): fija ancho/alto manteniendo la posición.
 ipcMain.on('bs-resize',     (e, { w, h }) => { const win = BrowserWindow.fromWebContents(e.sender); if (!win) return; const b = win.getBounds(); win.setBounds({ x: b.x, y: b.y, width: Math.max(300, Math.round(w)), height: Math.max(130, Math.round(h)) }); });
 ipcMain.on('bs-resize-end', (e) => { const win = BrowserWindow.fromWebContents(e.sender); if (win) savePos(win); });   // guarda tamaño elegido
+// ---- Modo posicionar ----
+ipcMain.on('enter-positioning', () => enterPositioning());
+ipcMain.on('pos-done', () => exitPositioning());
+ipcMain.on('pos-reset', () => {
+  settings.pos = {}; settings.scale = {};
+  const d = defaults();
+  if (win)      { win.setBounds({ x:d.smallX, y:d.smallY, width:340, height:130 }); try{ win.webContents.setZoomFactor(1); }catch{} }
+  if (shellWin) { shellWin.setBounds({ x:d.shellX, y:d.shellY, width:278, height:150 }); try{ shellWin.webContents.setZoomFactor(1); }catch{} }
+  if (bsWin)    { bsWin.setBounds({ x:Math.round(d.wa.x + (d.wa.width - 540)/2), y:d.wa.y + 130, width:540, height:156 }); }
+  saveSettings();
+});
+// Redimensionar la tarjeta/popup por su grip: ajusta el zoom del contenido (la altura se
+// re-mide sola por el ResizeObserver de cada overlay). Se persiste por ventana.
+ipcMain.on('zoom-delta', (e, dz) => {
+  const w = BrowserWindow.fromWebContents(e.sender); if (!w || !w._posKey) return;
+  const cur = (settings.scale && settings.scale[w._posKey]) || 1;
+  const k = Math.max(0.6, Math.min(1.8, cur + dz));
+  settings.scale = settings.scale || {}; settings.scale[w._posKey] = k; saveSettings();
+  try { w.webContents.setZoomFactor(k); } catch {}
+  const baseW = w._posKey === 'small' ? 340 : (w._posKey === 'shell' ? 278 : 540);
+  const b = w.getBounds();
+  w.setBounds({ x: b.x, y: b.y, width: Math.round(baseW * k), height: Math.round((w._cssH || 130) * k) });
+});
 
 // ---- Aplicar settings ----
 function applyOpacity(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
@@ -306,6 +339,43 @@ function hideAll(){
   applyVis();
 }
 function toggleAll(){ (forceShowAll || (bigWin && bigWin.isVisible())) ? hideAll() : showAll(); }
+
+// ---- Modo POSICIONAR overlays: muestra la tarjeta, el popup de shells y el carrusel con un
+// ejemplo, desbloqueados, para moverlos y redimensionarlos. Una barra flotante cierra/repone.
+// El panel (Alt+X) NO entra: nunca aparece en partida.
+let positioning = false, posWin = null;
+function safeVersion(){ try { return app.getVersion(); } catch { return '0'; } }
+function posWins(){ return [win, shellWin, bsWin].filter(w => w && !w.isDestroyed()); }
+function enterPositioning(){
+  if (positioning) return; positioning = true; forceShowAll = false;
+  posWins().forEach(w => { w.setIgnoreMouseEvents(false); w.setAlwaysOnTop(true, 'screen-saver'); });
+  if (win) win.webContents.send('position', true);
+  if (shellWin) shellWin.webContents.send('position', true);
+  if (win){ win.showInactive(); smallShown = true; }
+  if (shellWin){ shellWin.showInactive(); shellShown = true; }
+  if (bsWin){
+    const d = defaults(), sp = (settings.pos && settings.pos.bs) || {};
+    const W = Number.isFinite(sp.w) && sp.w > 200 ? sp.w : 540, H = Number.isFinite(sp.h) && sp.h > 120 ? sp.h : 156;
+    const p = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), d.wa.y + 130);
+    bsWin.setBounds({ x: p.x, y: p.y, width: W, height: H });
+    bsWin.webContents.send('bs-sample'); bsWin.showInactive();
+  }
+  if (posWin && !posWin.isDestroyed()) posWin.close();
+  const d = defaults();
+  posWin = baseWin(440, 72, Math.round(d.wa.x + (d.wa.width - 440) / 2), d.wa.y + 16, true, true, false);
+  posWin.setAlwaysOnTop(true, 'screen-saver'); posWin.loadFile(path.join(__dirname, 'position-bar.html'));
+}
+function exitPositioning(){
+  if (!positioning) return; positioning = false;
+  posWins().forEach(w => savePos(w));
+  if (win) win.webContents.send('position', false);
+  if (shellWin) shellWin.webContents.send('position', false);
+  if (bsWin && !bsWin.isDestroyed()){ bsWin.webContents.send('bs-hide'); bsWin.hide(); }
+  if (posWin && !posWin.isDestroyed()) posWin.close();
+  posWin = null;
+  settings.onboardedV = safeVersion(); saveSettings();
+  applyLock(); applyVis();
+}
 function applyAutoLaunch(){
   try {
     const opts = { openAtLogin: settings.autoLaunch !== false, args: [] };
@@ -442,7 +512,7 @@ ipcMain.on('bs-done', () => { if (bsWin && !bsWin.isDestroyed()) bsWin.hide(); }
 function showBlueShellEvent(s){
   if (!bsWin || bsWin.isDestroyed()){ dlog('showBlueShellEvent: bsWin no disponible'); return; }
   const d = defaults();
-  const mode = lastInGame ? 'notif' : 'roulette';
+  const mode = 'roulette';   // el carrusel ahora también aparece EN partida (antes era una notif chica)
   dlog(`showBlueShellEvent: ${s.from} → ${s.castigo} (${mode})`);
   if (mode === 'roulette'){
     // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado por defecto.
@@ -574,6 +644,9 @@ if (hasLock) app.whenReady().then(async () => {
   setInterval(pollShells, 12000);   // revisa Blue Shells recibidas cada 12s
   pollMessages();
   setInterval(pollMessages, 8000);  // revisa mensajes del admin cada 8s
+  // Onboarding: al instalar por primera vez —o al actualizar a una versión nueva— lo primero
+  // que se abre es el modo posicionar, para que el usuario acomode sus overlays.
+  if (settings.onboardedV !== safeVersion()) setTimeout(() => { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } }, 3000);
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());

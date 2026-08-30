@@ -21,6 +21,11 @@
   .chal-notice{ margin-top:9px; padding-top:8px; border-top:1px solid var(--line); font-size:11px; font-weight:600; display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
   .chal-notice .lbl{ color:var(--muted); }
   .chal-notice .ally{ color:var(--up); } .chal-notice .enemy{ color:var(--down); }
+  /* Modo posicionar: grip para redimensionar (zoom) + realce del borde */
+  .pos-grip{ display:none; position:fixed; right:0; bottom:0; width:16px; height:16px; z-index:99999;
+    cursor:nwse-resize; background:linear-gradient(135deg,transparent 45%, var(--accent,#e9ff1f) 45%); }
+  body.positioning .pos-grip{ display:block; }
+  body.positioning .card{ outline:2px dashed var(--accent,#e9ff1f); outline-offset:2px; }
 
   .pleft{ display:flex; align-items:center; gap:11px; flex:1; min-width:0; }
   .pcrest{ width:40px; height:40px; object-fit:contain; flex-shrink:0; filter:drop-shadow(0 0 6px rgba(192,132,252,.4)); }
@@ -61,6 +66,7 @@
     <div class="chal-notice" id="tour" style="display:none"></div>
     <div class="chal-notice" id="tagged" style="display:none"></div>
   </div>
+  <div class="pos-grip" id="posgrip" title="Redimensionar"></div>
 
 <script>
   const { ipcRenderer } = require('electron');
@@ -139,6 +145,26 @@
   card.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
   window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
   window.addEventListener('mouseup', () => { if(dragging){ dragging=false; ipcRenderer.send('drag-end'); } });
+
+  // ---- Modo posicionar: muestra un ejemplo y activa el grip de redimensionar (zoom) ----
+  ipcRenderer.on('position', (_e, on) => {
+    document.body.classList.toggle('positioning', !!on);
+    if (on){
+      $('name').textContent = 'Tu nick';
+      $('tier').textContent = 'Diamante II'; $('lp').textContent = '45 LP';
+      $('pos').textContent = '#12 en el ranking';
+      $('pright').innerHTML = '<span style="color:var(--up);font-weight:800">▲ 3</span>';
+      try { $('crest').src = CREST('DIAMOND'); $('crest').style.visibility = 'visible'; } catch(e){}
+      ['chal','tour','tagged'].forEach(id => { const e2=$(id); if(e2) e2.style.display='none'; });
+    }
+  });
+  const posgrip = $('posgrip');
+  if (posgrip){ let sy=0;
+    const mv = e => { const dz = (e.screenY - sy)/260; sy = e.screenY; if (dz) ipcRenderer.send('zoom-delta', dz); };
+    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); };
+    posgrip.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); sy=e.screenY;
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up); });
+  }
 </script>
 </body>
 </html>

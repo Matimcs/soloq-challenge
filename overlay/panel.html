@@ -52,6 +52,7 @@
       <label class="opt col"><span>Volumen (efectos / ruleta) <b id="s-vol-val"></b></span><input type="range" id="s-vol" min="0" max="100"></label>
       <label class="opt col"><span>Volumen de mensajes de voz <b id="s-vvol-val"></b></span><input type="range" id="s-vvol" min="0" max="100"></label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="sbtn" id="s-position" style="background:#e9ff1f;color:#000;border:1px solid #e9ff1f;font-weight:800">🎯 Posicionar overlays</button>
         <button class="sbtn" id="s-reset">Reponer posiciones</button>
         <button class="sbtn" id="s-update" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16)">Buscar actualizaciones</button>
         <button class="sbtn" id="s-quit" style="background:rgba(251,113,133,.16);color:#fb7185;border:1px solid rgba(251,113,133,.45)">Salir del overlay</button>
@@ -100,6 +101,7 @@
   $('s-vol').addEventListener('input', e => { const v=+e.target.value; $('s-vol-val').textContent=v+'%'; set('volume', v/100); });
   $('s-vvol').addEventListener('input', e => { const v=+e.target.value; $('s-vvol-val').textContent=v+'%'; set('voiceVolume', v/100); });
   $('s-reset').addEventListener('click', () => ipcRenderer.send('reset-pos'));
+  $('s-position').addEventListener('click', () => { settingsEl.style.display='none'; ipcRenderer.send('enter-positioning'); });
   $('s-update').addEventListener('click', () => {
     ipcRenderer.send('check-updates');
     const b = $('s-update'), t = b.textContent; b.textContent = 'Buscando…'; b.disabled = true;

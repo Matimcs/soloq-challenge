@@ -41,6 +41,12 @@
   </div>
 
   <div class="grip" id="grip" title="Redimensionar"></div>
+  <div id="possample" style="display:none; position:fixed; inset:0; align-items:center; justify-content:center; flex-direction:column; gap:8px;
+    outline:2px dashed #e9ff1f; outline-offset:-4px; border-radius:14px; background:rgba(12,16,24,.82); color:#eaeff6; font-family:system-ui,sans-serif; text-align:center;">
+    <div style="font-size:30px">🛡</div>
+    <div style="font-size:15px; font-weight:800">Carrusel de Blue Shell</div>
+    <div style="font-size:12px; opacity:.7">Arrástralo y usa la esquina ◢ para el tamaño</div>
+  </div>
 
 <script src="roulette.js"></script>
 <script>
@@ -52,6 +58,9 @@
 
   // Muestra/oculta el grip de redimensionar (solo en modo ruleta).
   function setChrome(on){ $('grip').style.display = on ? 'block' : 'none'; }
+  // Modo posicionar: preview estático del carrusel (para moverlo/redimensionarlo), sin sonido ni ruleta.
+  ipcRenderer.on('bs-sample', () => { try { cleanupRoulette(); } catch(e){} setChrome(true); const p=$('possample'); if(p) p.style.display='flex'; });
+  ipcRenderer.on('bs-hide',   () => { const p=$('possample'); if(p) p.style.display='none'; try { cleanupRoulette(); } catch(e){} });
   // Borra CUALQUIER ruleta que haya quedado en el DOM (el auto-cierre por timeout no la quitaba)
   // y detiene su audio, para que la siguiente Blue Shell no se dibuje encima de la anterior.
   let curAudio = null;
