@@ -30,6 +30,11 @@
   .enc-filters .chip{ font-family:inherit; cursor:pointer; background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--muted); border-radius:8px; padding:7px 14px; font-size:12px; font-weight:800; letter-spacing:.04em; }
   .enc-filters .chip:hover{ color:#fff; }
   .enc-filters .chip.active{ background:#fff; color:#000; border-color:#fff; }
+  .ally-wr{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 16px; margin:0 0 16px; }
+  .ally-wr .lbl{ font-size:12px; font-weight:800; letter-spacing:.04em; color:var(--muted); }
+  .ally-wr .pct{ font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .ally-wr .pct.good{ color:var(--up); } .ally-wr .pct.bad{ color:var(--down); }
+  .ally-wr .rec{ font-size:12px; color:var(--muted-2); }
   .sides{ display:flex; align-items:center; gap:12px; flex:1; min-width:220px; flex-wrap:wrap; }
   .side{ display:flex; align-items:center; gap:9px; }
   .pl{ display:flex; align-items:center; gap:8px; }
@@ -92,6 +97,7 @@
       <button class="chip" data-f="ally">🤝 Aliados</button>
       <button class="chip" data-f="rival">⚔ Rivales</button>
     </div>
+    <div class="ally-wr" id="ally-wr" style="display:none"></div>
     <div class="enc" id="enc"></div>
     <div class="note">Se detectan cruzando el historial reciente de cada jugador (últimas ~15 partidas). Actualiza solo.</div>
   </main>
@@ -162,10 +168,24 @@
     el.innerHTML = list.length ? list.map(e => card(e, (e.end || 0) > lastSeenAtLoad)).join('')
       : `<div class="empty">${ENC_LIST.length ? 'No hay encuentros en esta categoría.' : 'Aún no hay encuentros registrados. Aparecerán cuando dos jugadores del torneo coincidan en una partida.'}</div>`;
   }
+  // Winrate total jugando como ALIADOS (encuentros no-rival: todos del mismo bando).
+  function paintAllyWR(){
+    const box = document.getElementById('ally-wr');
+    const allies = ENC_LIST.filter(e => !isRival(e));
+    if (!allies.length){ box.style.display = 'none'; return; }
+    const wins = allies.filter(e => (e.players || []).some(p => p.win)).length;
+    const losses = allies.length - wins;
+    const wr = Math.round(wins / allies.length * 100);
+    const cls = wr >= 50 ? 'good' : 'bad';
+    box.style.display = 'flex';
+    box.innerHTML = `<span class="lbl">🤝 Winrate como aliados</span>`
+      + `<b class="pct ${cls}">${wr}%</b>`
+      + `<span class="rec">${wins}V · ${losses}D en ${allies.length} partidas</span>`;
+  }
   function render(data){
     DDV = (data && data.ddragonVersion) || DDV;
     ENC_LIST = (data && Array.isArray(data.encounters)) ? data.encounters : [];
-    paint();
+    paint(); paintAllyWR();
     // Avisa (una vez por sesión) de los encuentros ocurridos en tu ausencia, y márcalos vistos.
     const nuevos = ENC_LIST.filter(e => (e.end || 0) > lastSeenAtLoad).length;
     if (nuevos && !encToastShown){ encToastShown = true; showEncToast(nuevos); }
