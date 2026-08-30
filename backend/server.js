@@ -333,22 +333,34 @@ app.post('/api/admin/tourney-result', auth, requireAdmin, wrap(async (req,res) =
 // Mapa Riot ID -> equipo del torneo (nombre + abreviatura). Lo usa el overlay para avisar
 // si juegas con/contra alguien inscrito en un torneo, aunque NO esté en el SoloQ Challenge.
 // Se lee de torneo-data.js (cache por mtime del archivo). Público.
-let _tourneyPlayers = { mtime: -1, map: {} };
+let _tourneyPlayers = { at: 0, map: {} };
+async function buildTourneyMap(){
+  const map = {};
+  try {
+    const m = fs.readFileSync(path.join(ROOT, 'torneo-data.js'), 'utf8').match(/window\.TDATA\s*=\s*([\s\S]*);\s*$/);
+    const data = m ? JSON.parse(m[1]) : { teams: [] };
+    (data.teams || []).forEach(t => (t.players || []).forEach(p => {
+      const rid = (p.rid || '').trim(); if (rid) map[rid.toLowerCase()] = { tag: t.tag || '', team: t.team || '' };
+    }));
+  } catch {}
+  // Propaga el equipo del torneo a las SMURFS de sus jugadores (registradas o vinculadas a mano),
+  // así una smurf como "pancho pistolas2#LAS" (de kıwı, Exilium) también muestra el tag.
+  try {
+    const users  = await q('SELECT id, riotid FROM users');
+    const smurfs = await q('SELECT user_id, riotid FROM smurfs');
+    const links  = await q('SELECT smurf_riotid, main_riotid FROM smurf_links');
+    const smurfsByUser = {}; smurfs.forEach(s => { (smurfsByUser[s.user_id] = smurfsByUser[s.user_id] || []).push(s.riotid); });
+    users.forEach(u => { const m = map[u.riotid.toLowerCase()];
+      if (m) (smurfsByUser[u.id] || []).forEach(rid => { const k = rid.toLowerCase(); if (!map[k]) map[k] = m; }); });
+    links.forEach(l => { const m = map[l.main_riotid.toLowerCase()]; const k = l.smurf_riotid.toLowerCase(); if (m && !map[k]) map[k] = m; });
+  } catch {}
+  return map;
+}
 app.get('/api/tourney-players', wrap(async (req,res) => {
   res.set('Cache-Control', 'public, max-age=300');
-  try {
-    const f = path.join(ROOT, 'torneo-data.js');
-    const st = fs.statSync(f);
-    if (st.mtimeMs !== _tourneyPlayers.mtime){
-      const m = fs.readFileSync(f, 'utf8').match(/window\.TDATA\s*=\s*([\s\S]*);\s*$/);
-      const data = m ? JSON.parse(m[1]) : { teams: [] };
-      const map = {};
-      (data.teams || []).forEach(t => (t.players || []).forEach(p => {
-        const rid = (p.rid || '').trim(); if (rid) map[rid.toLowerCase()] = { tag: t.tag || '', team: t.team || '' };
-      }));
-      _tourneyPlayers = { mtime: st.mtimeMs, map };
-    }
-  } catch {}
+  if (_tourneyPlayers.map && Object.keys(_tourneyPlayers.map).length && Date.now() - _tourneyPlayers.at < 300000)
+    return res.json(_tourneyPlayers.map);
+  _tourneyPlayers = { at: Date.now(), map: await buildTourneyMap() };
   res.json(_tourneyPlayers.map);
 }));
 // Etiquetas de jugador (PRO / Streamer / Competitivo). Público (ranking + live games).
