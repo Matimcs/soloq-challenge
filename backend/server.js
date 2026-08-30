@@ -405,10 +405,12 @@ app.post('/api/me/smurfs', auth, wrap(async (req,res) => {
   // Mueve el equipo sembrado de la smurf a la cuenta canónica (la main) y limpia el de la smurf.
   await q('INSERT INTO team_members (riotid, team) SELECT $1, team FROM team_members WHERE lower(riotid)=lower($2) ON CONFLICT (riotid, team) DO NOTHING', [req.user.riotid, riotid]);
   await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [riotid]);
+  invalidateAvatars();   // para que la nueva smurf salga etiquetada en el ranking sin esperar la caché
   res.json({ ok:true });
 }));
 app.post('/api/me/smurfs/remove', auth, wrap(async (req,res) => {
   await q('DELETE FROM smurfs WHERE id=$1 AND user_id=$2', [Number(req.body && req.body.id), req.user.id]);
+  invalidateAvatars();
   res.json({ ok:true });
 }));
 
