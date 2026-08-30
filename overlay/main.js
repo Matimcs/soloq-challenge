@@ -5,7 +5,7 @@
      - shellWin : popup de Blue Shells (shells.html)
      - bigWin   : panel scoreboard (panel.html, Alt+X)
    Cada una se mueve y se activa/desactiva por separado.
-   Solo tiene en cuenta partidas de SoloQ (queue 420).
+   Se muestra en partidas de SoloQ (queue 420) y en Practice Tool.
    ============================================================ */
 const { app, BrowserWindow, screen, ipcMain, globalShortcut, Tray, Menu, nativeImage } = require('electron');
 const path = require('path');
@@ -370,9 +370,13 @@ async function poll(){
       const ranked  = await lcu(creds, '/lol-ranked/v1/current-ranked-stats');
       const solo    = ranked && ranked.queues && ranked.queues.find(q => q.queueType === 'RANKED_SOLO_5x5');
 
-      const queueId = gsession && gsession.gameData && gsession.gameData.queue && gsession.gameData.queue.id;
+      const gq = gsession && gsession.gameData && gsession.gameData.queue;
+      const queueId = gq && gq.id;
+      // Practice Tool: cola 0 / gameMode PRACTICETOOL. Se muestra el overlay igual que en SoloQ.
+      const isPractice = (gq && (gq.gameMode === 'PRACTICETOOL' || gq.type === 'PRACTICETOOL'))
+        || (gsession && gsession.gameData && gsession.gameData.gameMode === 'PRACTICETOOL');
       const phase = gsession && gsession.phase;
-      const inSoloQ = queueId === 420 && phase === 'InProgress';
+      const inSoloQ = (queueId === 420 || isPractice) && phase === 'InProgress';
 
       const myRid = (me && !me.error) ? `${me.gameName}#${me.tagLine}` : null;
       if (myRid !== myRidForShells) dlog('myRid = ' + myRid);
