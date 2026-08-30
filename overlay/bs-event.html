@@ -89,7 +89,8 @@
   document.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
     if (e.target.closest('#grip')) return;         // el grip maneja su propio resize
-    if (!e.target.closest('.sqcr-box')) return;    // fuera de la ruleta: deja pasar (cerrar)
+    // Arrastrable desde la ruleta real (.sqcr-box) o desde el preview del modo posicionar (#possample).
+    if (!e.target.closest('.sqcr-box') && !e.target.closest('#possample')) return;
     dg = { sx:e.screenX, sy:e.screenY, moved:false };
     ipcRenderer.send('drag-start', { mx:e.screenX, my:e.screenY });
   });

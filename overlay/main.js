@@ -313,12 +313,13 @@ function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w =>
 // OJO: sin { forward:true }. Ese "forward" reenvía TODOS los eventos de mouse y hace que el
 // cursor se trabe/freezee cada pocos segundos en Windows (bug conocido de Electron). No hace
 // falta: las tarjetas son solo informativas (no necesitan hover). Bloqueado = click-through puro.
-function applyLock(){ [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked); }); }
+function applyLock(){ if (positioning) return; [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
 let forceShowAll = false;
 function applyVis(){
+  if (positioning) return;   // en modo posicionar los overlays quedan visibles y desbloqueados; no los toques
   // Regla fija: la tarjeta de standing y el popup de Blue Shells SOLO se ven en partida,
   // salvo que se pida mostrar todo a mano (doble-click en bandeja / Alt+X).
   const okSmall = forceShowAll || (settings.smallVisible && lastInGame);
@@ -346,28 +347,39 @@ function toggleAll(){ (forceShowAll || (bigWin && bigWin.isVisible())) ? hideAll
 let positioning = false, posWin = null;
 function safeVersion(){ try { return app.getVersion(); } catch { return '0'; } }
 function posWins(){ return [win, shellWin, bsWin].filter(w => w && !w.isDestroyed()); }
+// Prepara una ventana para posicionar: la muestra, DESBLOQUEA el mouse (no click-through),
+// la hace enfocable y la sube al frente. El orden importa: primero mostrar, luego
+// setIgnoreMouseEvents(false) — si se hace estando oculta, showInactive puede re-ignorar.
+function makeDraggable(w){
+  if (!w || w.isDestroyed()) return;
+  w.showInactive();
+  w.setIgnoreMouseEvents(false);
+  try { w.setFocusable(true); } catch {}
+  w.setAlwaysOnTop(true, 'screen-saver');
+  w.moveTop();
+}
 function enterPositioning(){
   if (positioning) return; positioning = true; forceShowAll = false;
-  posWins().forEach(w => { w.setIgnoreMouseEvents(false); w.setAlwaysOnTop(true, 'screen-saver'); });
-  if (win) win.webContents.send('position', true);
-  if (shellWin) shellWin.webContents.send('position', true);
-  if (win){ win.showInactive(); smallShown = true; }
-  if (shellWin){ shellWin.showInactive(); shellShown = true; }
+  if (bigWin && !bigWin.isDestroyed()) bigWin.hide();   // el panel de la web NO entra al modo posicionar
+  if (win){ win.webContents.send('position', true); smallShown = true; makeDraggable(win); }
+  if (shellWin){ shellWin.webContents.send('position', true); shellShown = true; makeDraggable(shellWin); }
   if (bsWin){
     const d = defaults(), sp = (settings.pos && settings.pos.bs) || {};
     const W = Number.isFinite(sp.w) && sp.w > 200 ? sp.w : 540, H = Number.isFinite(sp.h) && sp.h > 120 ? sp.h : 156;
     const p = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), d.wa.y + 130);
     bsWin.setBounds({ x: p.x, y: p.y, width: W, height: H });
-    bsWin.webContents.send('bs-sample'); bsWin.showInactive();
+    bsWin.webContents.send('bs-sample'); makeDraggable(bsWin);
   }
   if (posWin && !posWin.isDestroyed()) posWin.close();
   const d = defaults();
   posWin = baseWin(440, 72, Math.round(d.wa.x + (d.wa.width - 440) / 2), d.wa.y + 16, true, true, false);
   posWin.setAlwaysOnTop(true, 'screen-saver'); posWin.loadFile(path.join(__dirname, 'position-bar.html'));
+  posWin.once('ready-to-show', () => posWin.moveTop());
 }
 function exitPositioning(){
   if (!positioning) return; positioning = false;
   posWins().forEach(w => savePos(w));
+  [win, shellWin, bsWin].forEach(w => { if (w && !w.isDestroyed()) { try { w.setFocusable(false); } catch {} } });
   if (win) win.webContents.send('position', false);
   if (shellWin) shellWin.webContents.send('position', false);
   if (bsWin && !bsWin.isDestroyed()){ bsWin.webContents.send('bs-hide'); bsWin.hide(); }
