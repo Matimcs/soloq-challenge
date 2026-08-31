@@ -407,7 +407,7 @@ function exitPositioning(){
   if (bsWin && !bsWin.isDestroyed()){ bsWin.webContents.send('bs-hide'); bsWin.hide(); }
   if (posWin && !posWin.isDestroyed()) posWin.close();
   posWin = null;
-  settings.onboardedV = safeVersion(); saveSettings();
+  settings.onboarded = true; saveSettings();   // ya acomodó: no volver a auto-abrir el modo posicionar
   applyLock(); applyVis();
 }
 function applyAutoLaunch(){
@@ -684,9 +684,15 @@ if (hasLock) app.whenReady().then(async () => {
   setInterval(pollShells, 12000);   // revisa Blue Shells recibidas cada 12s
   pollMessages();
   setInterval(pollMessages, 8000);  // revisa mensajes del admin cada 8s
-  // Onboarding: al instalar por primera vez —o al actualizar a una versión nueva— lo primero
-  // que se abre es el modo posicionar, para que el usuario acomode sus overlays.
-  if (settings.onboardedV !== safeVersion()) setTimeout(() => { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } }, 3000);
+  // Onboarding: SOLO en la primera instalación se abre el modo posicionar una vez, para acomodar
+  // los overlays. NUNCA se re-abre en actualizaciones (antes se disparaba con cada cambio de versión,
+  // por eso "aparecía de la nada" al terminar una partida tras un auto-update). Quien ya lo vio en una
+  // versión anterior (onboardedV) queda marcado como visto y no lo verá más.
+  if (settings.onboardedV) settings.onboarded = true;   // migración de usuarios existentes
+  if (!settings.onboarded){
+    settings.onboarded = true; saveSettings();          // marca ANTES, para que ocurra a lo sumo una vez
+    setTimeout(() => { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } }, 3000);
+  }
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
 app.on('window-all-closed', () => app.quit());
