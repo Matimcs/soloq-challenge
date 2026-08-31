@@ -342,8 +342,20 @@ function applyVis(){
   if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
 }
 // Mostrar todo (tarjeta de standing + popup de Blue Shells + panel de la web).
+// Es a prueba de fallos: si el modo posicionar quedó pegado lo cierra, y reubica los overlays a una
+// posición ON-SCREEN antes de mostrarlos (al prender el PC los monitores pueden no estar listos y
+// quedar fuera de pantalla) — así Alt+X SIEMPRE los trae de vuelta, no solo el panel.
 function showAll(){
+  if (positioning) exitPositioning();   // rompe cualquier modo posicionar atascado
   forceShowAll = true;
+  const d = defaults();
+  const forceShow = (w, key, defX, defY) => {
+    if (!w || w.isDestroyed()) return;
+    const p = posFor(key, defX, defY); w.setPosition(p.x, p.y);
+    w.setAlwaysOnTop(true, 'screen-saver'); w.showInactive(); w.moveTop();
+  };
+  forceShow(win, 'small', d.smallX, d.smallY);   smallShown = true;
+  forceShow(shellWin, 'shell', d.shellX, d.shellY); shellShown = true;
   applyVis();
   if (bigWin && !bigWin.isDestroyed()){ bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.show(); bigWin.moveTop(); bigWin.focus(); }
 }
@@ -691,7 +703,10 @@ if (hasLock) app.whenReady().then(async () => {
   if (settings.onboardedV) settings.onboarded = true;   // migración de usuarios existentes
   if (!settings.onboarded){
     settings.onboarded = true; saveSettings();          // marca ANTES, para que ocurra a lo sumo una vez
-    setTimeout(() => { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } }, 3000);
+    // Espera a que las posiciones estén restauradas (monitores listos) para NO abrir el modo
+    // posicionar con los overlays fuera de pantalla al prender el PC.
+    const startOnb = () => { if (posReady) { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } } else setTimeout(startOnb, 500); };
+    setTimeout(startOnb, 3000);
   }
 });
 app.on('will-quit', () => globalShortcut.unregisterAll());
