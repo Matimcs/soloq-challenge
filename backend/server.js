@@ -363,16 +363,28 @@ async function buildTourneyMap(){
       const rid = (p.rid || '').trim(); if (rid) map[rid.toLowerCase()] = { tag: t.tag || '', team: t.team || '' };
     }));
   } catch {}
-  // Propaga el equipo del torneo a las SMURFS de sus jugadores (registradas o vinculadas a mano),
-  // así una smurf como "pancho pistolas2#LAS" (de kıwı, Exilium) también muestra el tag.
+  // Propaga el equipo del torneo a TODAS las cuentas de un jugador (registradas o vinculadas a mano),
+  // así una smurf como "pancho pistolas2#LAS" o "BEST JG LAS#LAS" también muestra el tag. Es SIMÉTRICO:
+  // si CUALQUIER cuenta del usuario (su main O una smurf) figura en el torneo, se etiquetan todas —
+  // no solo si la que está en el torneo es la main.
   try {
     const users  = await q('SELECT id, riotid FROM users');
     const smurfs = await q('SELECT user_id, riotid FROM smurfs');
     const links  = await q('SELECT smurf_riotid, main_riotid FROM smurf_links');
-    const smurfsByUser = {}; smurfs.forEach(s => { (smurfsByUser[s.user_id] = smurfsByUser[s.user_id] || []).push(s.riotid); });
-    users.forEach(u => { const m = map[u.riotid.toLowerCase()];
-      if (m) (smurfsByUser[u.id] || []).forEach(rid => { const k = rid.toLowerCase(); if (!map[k]) map[k] = m; }); });
-    links.forEach(l => { const m = map[l.main_riotid.toLowerCase()]; const k = l.smurf_riotid.toLowerCase(); if (m && !map[k]) map[k] = m; });
+    // Agrupa todas las cuentas por usuario (main + smurfs).
+    const acctsByUser = {};
+    users.forEach(u => { (acctsByUser[u.id] = acctsByUser[u.id] || []).push(u.riotid); });
+    smurfs.forEach(s => { (acctsByUser[s.user_id] = acctsByUser[s.user_id] || []).push(s.riotid); });
+    Object.values(acctsByUser).forEach(accts => {
+      let m = null; for (const rid of accts){ const f = map[rid.toLowerCase()]; if (f){ m = f; break; } }   // ¿alguna en el torneo?
+      if (m) accts.forEach(rid => { const k = rid.toLowerCase(); if (!map[k]) map[k] = m; });                // etiqueta todas
+    });
+    // Vínculos manuales (jugadores no registrados): propaga en ambos sentidos.
+    links.forEach(l => {
+      const km = l.main_riotid.toLowerCase(), ks = l.smurf_riotid.toLowerCase();
+      if (map[km] && !map[ks]) map[ks] = map[km];
+      if (map[ks] && !map[km]) map[km] = map[ks];
+    });
   } catch {}
   return map;
 }
