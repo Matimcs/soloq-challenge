@@ -128,6 +128,7 @@
           <button type="button" id="bs-file-btn" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#fff;font-family:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:9px;cursor:pointer">📎 Subir audio</button>
           <input type="file" id="bs-file" accept="audio/*" style="display:none">
           <span id="bs-rec-time" style="font-size:13px;font-weight:700;font-variant-numeric:tabular-nums"></span>
+          <button type="button" id="bs-rec-play" style="display:none;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.4);color:var(--up,#34d399);font-family:inherit;font-size:13px;font-weight:700;padding:8px 14px;border-radius:9px;cursor:pointer">▶ Escuchar</button>
           <button type="button" id="bs-rec-clear" style="display:none;background:none;border:0;color:rgba(255,255,255,.5);font-family:inherit;font-size:12px;cursor:pointer">✕ quitar</button>
         </div>
         <button class="throw" id="throw">Lanzar 🛡</button>
@@ -248,6 +249,7 @@
     async function bsToggleRec(){
       const btn=$('bs-rec'), t=$('bs-rec-time');
       if (bsRecording){ bsStopRec(); return; }
+      bsStopPreview();   // corta cualquier previsualización antes de regrabar
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ alert('Tu navegador no permite grabar'); return; }
       try { bsStream = await navigator.mediaDevices.getUserMedia({ audio:true }); }
       catch(e){ alert('No se pudo acceder al micrófono'); return; }
@@ -258,7 +260,7 @@
         clearInterval(bsTick); clearTimeout(bsTimeout);
         const blob = new Blob(bsChunks, { type:(bsRec&&bsRec.mimeType)||'audio/webm' });
         const fr = new FileReader();
-        fr.onload = () => { bsAudio = fr.result; t.style.color='var(--up,#34d399)'; t.textContent='✓ audio listo'; $('bs-rec-clear').style.display=''; };
+        fr.onload = () => { bsAudio = fr.result; t.style.color='var(--up,#34d399)'; t.textContent='✓ audio listo'; bsShowAudioReady(); };
         fr.readAsDataURL(blob);
         bsRecording=false; btn.textContent='🎤 Regrabar';
       };
@@ -267,7 +269,18 @@
       bsTick = setInterval(()=>{ left--; t.textContent='Grabando… '+Math.max(0,left)+'s'; if (left<=0) bsStopRec(); }, 1000);
       bsTimeout = setTimeout(bsStopRec, BS_MAX*1000+200);
     }
-    function bsClearAudio(){ bsAudio=null; $('bs-rec-time').textContent=''; $('bs-rec-clear').style.display='none'; $('bs-rec').textContent='🎤 Grabar audio (opcional)'; }
+    // Previsualización: escuchar el audio grabado/subido antes de lanzar.
+    let bsPreview=null;
+    function bsStopPreview(){ if (bsPreview){ try{ bsPreview.pause(); }catch(e){} bsPreview=null; } $('bs-rec-play').textContent='▶ Escuchar'; }
+    function bsShowAudioReady(){ $('bs-rec-clear').style.display=''; $('bs-rec-play').style.display=''; bsStopPreview(); }
+    $('bs-rec-play').addEventListener('click', () => {
+      if (!bsAudio) return;
+      if (bsPreview){ bsStopPreview(); return; }   // ya sonando → detener
+      bsPreview = new Audio(bsAudio);
+      bsPreview.onended = () => bsStopPreview();
+      bsPreview.play().then(()=>{ $('bs-rec-play').textContent='■ Detener'; }).catch(()=>{ bsStopPreview(); alert('No se pudo reproducir el audio'); });
+    });
+    function bsClearAudio(){ bsStopPreview(); bsAudio=null; $('bs-rec-time').textContent=''; $('bs-rec-clear').style.display='none'; $('bs-rec-play').style.display='none'; $('bs-rec').textContent='🎤 Grabar audio (opcional)'; }
     $('bs-rec').addEventListener('click', bsToggleRec);
     $('bs-rec-clear').addEventListener('click', bsClearAudio);
     // Subir un archivo de audio en vez de grabar
@@ -277,7 +290,7 @@
       if (!f.type.startsWith('audio/')){ alert('Elige un archivo de audio'); e.target.value=''; return; }
       if (f.size > 1500000){ alert('El audio es muy pesado (máx ~1.5 MB). Usa un clip corto.'); e.target.value=''; return; }
       const fr = new FileReader();
-      fr.onload = () => { bsAudio = fr.result; const t=$('bs-rec-time'); t.style.color='var(--up,#34d399)'; t.textContent='✓ '+f.name; $('bs-rec-clear').style.display=''; };
+      fr.onload = () => { bsAudio = fr.result; const t=$('bs-rec-time'); t.style.color='var(--up,#34d399)'; t.textContent='✓ '+f.name; bsShowAudioReady(); };
       fr.readAsDataURL(f); e.target.value='';
     });
 
