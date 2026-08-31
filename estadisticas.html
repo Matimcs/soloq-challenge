@@ -94,13 +94,16 @@
   .duel{ padding:10px 0; border-top:1px solid var(--line); }
   .duel:first-of-type{ border-top:0; }
   .drow{ display:flex; align-items:center; gap:10px; font-size:13px; }
-  .drow .dn{ flex:0 0 24%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .drow .dn{ flex:0 0 24%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
   .drow .dn.a{ text-align:right; } .drow .dn.b{ text-align:left; }
   /* Barra "versus": el ancho de cada lado = su cuota de victorias del cara a cara; el número va centrado en su lado. */
   .hbar{ flex:1; display:flex; height:24px; border-radius:6px; overflow:hidden; background:var(--panel-2); border:1px solid var(--line); min-width:80px; }
   .hseg{ flex-grow:0; flex-basis:0; min-width:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.35); }
   .hseg.has{ min-width:22px; }
   .hseg.a{ background:var(--blue); } .hseg.b{ background:var(--down); }
+  /* Ganador del duelo (más victorias): nombre y segmento en DORADO. */
+  .drow .dn.win{ color:var(--gold); font-weight:800; }
+  .hseg.win{ background:var(--gold); color:#0b0b0b; text-shadow:none; }
   .dsub{ text-align:center; font-size:10.5px; color:var(--muted-2); margin-top:4px; }
   .enc{ display:flex; flex-direction:column; gap:10px; }
   .encc{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -477,16 +480,18 @@
       <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
       <div class="meta"><div class="nm">${esc(v.nm)}${eloTag(v.high)}</div><div class="games">${v.duels} duelos · ${v.wr}% ganados</div></div>
       <div class="val">${v.wins}<span style="font-size:10px;color:var(--muted);font-weight:700"> V</span></div></div>`).join('');
-    const duel = (c.duelos||[]).map(d => `<div class="duel">
+    const duel = (c.duelos||[]).map(d => {
+      const aWin = d.aw > d.bw, bWin = d.bw > d.aw;   // ganador del cara a cara (empate = ninguno)
+      return `<div class="duel">
       <div class="drow">
-        <span class="dn a" title="${esc(d.a.nm)}">${esc(d.a.nm)}</span>
+        <span class="dn a ${aWin?'win':''}" title="${esc(d.a.nm)}">${esc(d.a.nm)}</span>
         <div class="hbar" title="${esc(d.a.nm)} ${d.aw}–${d.bw} ${esc(d.b.nm)}">
-          <div class="hseg a ${d.aw?'has':''}" style="flex-grow:${d.aw}">${d.aw||''}</div>
-          <div class="hseg b ${d.bw?'has':''}" style="flex-grow:${d.bw}">${d.bw||''}</div>
+          <div class="hseg a ${aWin?'win':''} ${d.aw?'has':''}" style="flex-grow:${d.aw}">${d.aw||''}</div>
+          <div class="hseg b ${bWin?'win':''} ${d.bw?'has':''}" style="flex-grow:${d.bw}">${d.bw||''}</div>
         </div>
-        <span class="dn b" title="${esc(d.b.nm)}">${esc(d.b.nm)}</span>
+        <span class="dn b ${bWin?'win':''}" title="${esc(d.b.nm)}">${esc(d.b.nm)}</span>
       </div>
-      ${d.together?`<div class="dsub">${d.together} en el mismo equipo</div>`:''}</div>`).join('');
+      ${d.together?`<div class="dsub">${d.together} en el mismo equipo</div>`:''}</div>`; }).join('');
     const duoRows = arr => (arr||[]).map((d,i) => `<div class="rowl">
       <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
       <div class="meta"><div class="nm">${esc(d.a.nm)} <span style="color:var(--muted-2)">+</span> ${esc(d.b.nm)}</div><div class="games">${d.games} juntos · ${d.wins}V ${d.games-d.wins}D</div></div>
