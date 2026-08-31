@@ -229,6 +229,44 @@
   .rcard-h .ravg b{ font-weight:800; }
   .rcard-h .opgg{ font-size:9.5px; font-weight:800; color:var(--blue); border:1px solid rgba(125,211,252,.45); background:rgba(125,211,252,.08); padding:3px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; }
   .rcard-h .opgg:hover{ background:rgba(125,211,252,.18); }
+
+  /* Pestañas de TORNEO (nivel superior: cada torneo en curso) */
+  .tourn-tabs{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:14px 0 6px; }
+  .ttab-btn{ font-family:inherit; cursor:pointer; background:transparent; border:1px solid var(--line-2); color:var(--muted); border-radius:999px; padding:9px 20px; font-size:13.5px; font-weight:800; letter-spacing:.01em; display:inline-flex; align-items:center; gap:7px; }
+  .ttab-btn:hover{ color:#fff; border-color:#fff; }
+  .ttab-btn.active{ background:var(--gold); color:#000; border-color:var(--gold); }
+  .ttab-btn .dotlive{ width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 8px var(--up); }
+
+  /* Clasificatorias internas */
+  .qletters{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:8px; }
+  @media(max-width:640px){ .qletters{ grid-template-columns:repeat(2,1fr); } }
+  .qlet{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; position:relative; overflow:hidden; }
+  .qlet .L{ font-size:30px; font-weight:800; color:var(--accent); line-height:1; }
+  .qlet .tm{ font-size:14px; font-weight:800; margin-top:7px; }
+  .qlet .tm.pend{ color:var(--muted-2); font-style:italic; font-weight:600; }
+  .qlet .sub{ font-size:10px; color:var(--muted-2); font-weight:700; letter-spacing:.05em; margin-top:3px; }
+
+  .qtable{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:6px; }
+  .qtable table{ width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
+  .qtable th,.qtable td{ padding:9px 12px; font-size:12.5px; text-align:center; }
+  .qtable th{ font-size:10px; letter-spacing:.05em; color:var(--muted-2); font-weight:700; border-bottom:1px solid var(--line); }
+  .qtable td.tn{ text-align:left; font-weight:800; color:var(--accent); }
+  .qtable td.let{ font-weight:800; color:var(--gold); }
+  .qtable td.pts{ font-weight:800; }
+  .qtable tr+tr td{ border-top:1px solid rgba(255,255,255,.04); }
+
+  .qseries{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  @media(max-width:680px){ .qseries{ grid-template-columns:1fr; } }
+  .qs{ display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:11px 13px; }
+  .qs .qa{ flex:1; text-align:right; font-size:13px; font-weight:700; color:var(--accent); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qs .qb{ flex:1; text-align:left;  font-size:13px; font-weight:700; color:var(--accent); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .qs .qa.lose,.qs .qb.lose{ color:var(--muted-2); font-weight:600; }
+  .qs .qsc{ flex-shrink:0; min-width:66px; text-align:center; font-size:14px; font-weight:800; font-variant-numeric:tabular-nums;
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:5px 10px; color:var(--text); }
+  .qs .qsc.none{ color:var(--muted-2); font-weight:700; }
+  .qs .qsc.clk{ cursor:pointer; }
+  .qs .qsc.clk:hover{ border-color:var(--accent); color:#fff; }
+  .qhint{ font-size:11.5px; color:var(--muted); text-align:center; margin:10px 0 2px; }
 </style>
 <link rel="stylesheet" href="nav.css?v=2">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -256,6 +294,13 @@
   </div></header>
 
   <main class="wrap">
+    <!-- Pestañas de TORNEO: cada torneo en curso -->
+    <div class="tourn-tabs" id="tourn-tabs">
+      <button class="ttab-btn active" data-t="udporros">UDPORROS 2026</button>
+      <button class="ttab-btn" data-t="internas"><span class="dotlive"></span> Clasificatorias Internas</button>
+    </div>
+
+  <div class="tourn-view" id="tv-udporros">
     <div class="page-tabs">
       <button class="ptab-btn active" data-p="torneo">🏆 Torneo</button>
       <button class="ptab-btn" data-p="fixture">📅 Fixture</button>
@@ -325,6 +370,30 @@
       <div class="rnote">Rosters oficiales de los <b style="color:var(--accent)">23 equipos</b> del torneo (inscripción UDPORROS), agrupados por grupo. Cada equipo muestra sus <b>titulares</b> y <b>suplentes</b> (capitán con ⭐). En los jugadores que trackeamos en el ranking del SoloQ Challenge se ve además su rango.</div>
       <div id="rosters"><div class="rempty">Cargando rosters…</div></div>
     </section>
+  </div><!-- /tv-udporros -->
+
+  <!-- ===== CLASIFICATORIAS INTERNAS ===== -->
+  <div class="tourn-view" id="tv-internas" style="display:none">
+    <div class="hero">
+      <div class="kicker">SOLOQ CHALLENGE · CLASIFICATORIAS INTERNAS</div>
+      <h1>Orden de <em>nuestros 4 equipos</em></h1>
+      <p class="lead">Round-robin <b>Bo3</b> entre <b style="color:var(--accent)">Zenith, Hundred Blossoms, Exilium y Tide</b> para definir el orden: 1° = <b>Equipo A</b>, 2° = <b>B</b>, 3° = <b>C</b>, 4° = <b>D</b>. Cada equipo juega contra los otros tres.</p>
+      <div class="hero-meta">
+        <span class="chipm">Formato: <b>todos contra todos · Bo3</b></span>
+        <span class="chipm">Desempate: <b>mapas ganados → enfrentamiento directo → duración</b></span>
+      </div>
+    </div>
+
+    <div class="rnote" id="q-admin-note" style="display:none;color:var(--accent)">👑 Eres admin: haz <b>clic en el marcador</b> de cada serie para fijarlo. Cada clic avanza: <b>2-0</b> → <b>2-1</b> al equipo de la izquierda, luego al de la derecha, y de nuevo a vacío. Se guarda para todos.</div>
+
+    <div class="sect-h">TABLA · define las letras</div>
+    <div class="qletters" id="q-letters"></div>
+    <div class="qtable" id="q-standings"></div>
+    <div class="qhint" id="q-hint"></div>
+
+    <div class="sect-h">SERIES · todos contra todos (Bo3)</div>
+    <div class="qseries" id="q-series"></div>
+  </div><!-- /tv-internas -->
   </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -520,7 +589,7 @@
     if(history.replaceState) history.replaceState(null,'','#'+p);
   }
   document.querySelectorAll('.ptab-btn').forEach(b=> b.onclick = () => showPage(b.dataset.p));
-  showPage((location.hash||'').replace('#',''));
+  // La selección inicial (torneo vs internas + sub-pestaña) la hace initTourn() más abajo.
 
   // ===== Datos oficiales (fixture, rosters, playoffs + PL) — se cargan con cache-bust
   // para que el refresco automático del PL (cada 6 h) se vea al recargar. =====
@@ -668,8 +737,97 @@
     s.onload  = () => { TD = window.TDATA || TD; go(); };
     s.onerror = () => { go(); };
     document.head.appendChild(s);
-    // Verifica el admin real (por si el cache local está viejo) y re-renderiza el fixture.
-    if (window.SQC && SQC.me) SQC.me().then(u => { const a = !!(u && u.isAdmin); if (a !== IS_ADMIN){ IS_ADMIN = a; renderFixture(); } }).catch(()=>{});
+    // Verifica el admin real (por si el cache local está viejo) y re-renderiza fixture + internas.
+    if (window.SQC && SQC.me) SQC.me().then(u => { const a = !!(u && u.isAdmin); if (a !== IS_ADMIN){ IS_ADMIN = a; renderFixture(); renderQual(); } }).catch(()=>{});
+    // Carga los resultados de las clasificatorias internas (para verlas al entrar a esa pestaña).
+    loadQual().then(renderQual);
+  })();
+
+  // ================= CLASIFICATORIAS INTERNAS (round-robin Bo3 de nuestros 4 equipos) =================
+  const QTEAMS = ['Zenith','Hundred Blossoms','Exilium','Tide'];
+  const QPAIRS = []; for(let i=0;i<QTEAMS.length;i++) for(let j=i+1;j<QTEAMS.length;j++) QPAIRS.push([QTEAMS[i],QTEAMS[j]]);
+  const qkey = (a,b)=> [a,b].slice().sort().join('__');
+  // Resultados conocidos por defecto (el servidor los sobrescribe si el admin los edita).
+  const DEFAULT_QRES = { 'Exilium__Tide':{winner:'Tide',loserMaps:0}, 'Tide__Zenith':{winner:'Tide',loserMaps:1} };
+  let QSERVER = {};   // match_id -> {winner, loserMaps}  (autoridad; winner '' = serie borrada)
+  function qres(a,b){ const s=QSERVER[qkey(a,b)]; if(s) return s.winner ? s : null; return DEFAULT_QRES[qkey(a,b)]||null; }
+  async function loadQual(){
+    try{ if(location.protocol.startsWith('http')){ const r=await fetch('/api/qualifier-results?t='+Date.now(),{cache:'no-store'}); if(r.ok) QSERVER=await r.json(); } }catch{}
+  }
+  // Tabla: victorias de serie -> mapas ganados -> enfrentamiento directo -> (duración: manual).
+  function qStandings(){
+    const st={}; QTEAMS.forEach(t=>st[t]={t,sw:0,sl:0,mw:0,ml:0,played:0});
+    let done=0;
+    QPAIRS.forEach(([a,b])=>{ const r=qres(a,b); if(!r||!r.winner) return; done++;
+      const w=r.winner, lo=(w===a?b:a), lm=r.loserMaps|0;
+      st[w].sw++; st[w].mw+=2; st[w].ml+=lm; st[w].played++;
+      st[lo].sl++; st[lo].mw+=lm; st[lo].ml+=2; st[lo].played++;
+    });
+    const h2h=(a,b)=>{ const r=qres(a,b); return (r&&r.winner) ? (r.winner===a?1:-1) : 0; };
+    const order=QTEAMS.slice().sort((a,b)=>{
+      if(st[b].sw!==st[a].sw) return st[b].sw-st[a].sw;      // 1) victorias de serie
+      if(st[b].mw!==st[a].mw) return st[b].mw-st[a].mw;      // 2) mapas ganados
+      const d=h2h(a,b); if(d) return -d;                    // 3) enfrentamiento directo
+      return a.localeCompare(b);                            // (4) duración = desempate manual
+    }).map((t,i)=>({...st[t], pos:i+1, letter:'ABCD'[i]}));
+    return { order, done, total:QPAIRS.length };
+  }
+  function qScore(a,b){ const r=qres(a,b);   // marcador desde la perspectiva de 'a'
+    if(!r||!r.winner) return {txt:'—', none:true};
+    const lm=r.loserMaps|0; return (r.winner===a) ? {txt:'2 - '+lm, awin:true} : {txt:lm+' - 2', bwin:true};
+  }
+  function renderQual(){
+    const note=document.getElementById('q-admin-note'); if(note) note.style.display = IS_ADMIN?'':'none';
+    const {order,done,total}=qStandings();
+    document.getElementById('q-letters').innerHTML = order.map(r=>
+      '<div class="qlet"><div class="L">'+r.letter+'</div><div class="tm">'+esc(r.t)+'</div>'
+      +'<div class="sub">'+r.sw+'V · '+r.sl+'D</div></div>').join('');
+    const rows=order.map(r=>{ const dif=r.mw-r.ml;
+      return '<tr><td class="let">'+r.letter+'</td><td>'+r.pos+'</td><td class="tn">'+esc(r.t)+'</td>'
+        +'<td class="pts">'+r.sw+'</td><td>'+r.sl+'</td><td>'+r.mw+'</td><td>'+r.ml+'</td>'
+        +'<td>'+(dif>0?'+':'')+dif+'</td></tr>'; }).join('');
+    document.getElementById('q-standings').innerHTML =
+      '<table><thead><tr><th>Letra</th><th>#</th><th style="text-align:left">Equipo</th><th>V</th><th>D</th><th>MG</th><th>MP</th><th>Dif</th></tr></thead><tbody>'+rows+'</tbody></table>';
+    document.getElementById('q-hint').innerHTML = (done<total)
+      ? 'Provisional · '+done+'/'+total+' series jugadas. El orden se fija al completarse. Empates: mapas ganados → enfrentamiento directo → duración (manual).'
+      : '✓ Orden definitivo · empates por mapas ganados → enfrentamiento directo → duración.';
+    document.getElementById('q-series').innerHTML = QPAIRS.map(([a,b])=>{
+      const sv=qScore(a,b), k=qkey(a,b);
+      const cls='qsc'+(sv.none?' none':'')+(IS_ADMIN?' clk':'');
+      const at = IS_ADMIN ? ' data-a="'+esc(a)+'" data-b="'+esc(b)+'"' : '';
+      return '<div class="qs"><span class="qa'+(sv.bwin?' lose':'')+'">'+esc(a)+'</span>'
+        +'<span class="'+cls+'"'+at+' title="'+(IS_ADMIN?'Clic: fija el marcador (2-0 / 2-1 a cada lado)':'')+'">'+sv.txt+'</span>'
+        +'<span class="qb'+(sv.awin?' lose':'')+'">'+esc(b)+'</span></div>';
+    }).join('');
+  }
+  // Admin: clic en el marcador cicla los estados y guarda en el servidor.
+  document.getElementById('q-series').addEventListener('click', async e=>{
+    const el=e.target.closest('.qsc.clk'); if(!el||!IS_ADMIN) return;
+    const a=el.dataset.a, b=el.dataset.b, k=qkey(a,b), cur=qres(a,b);
+    let next;   // none -> a 2-0 -> a 2-1 -> b 2-1 -> b 2-0 -> none
+    if(!cur||!cur.winner) next={winner:a,loserMaps:0};
+    else if(cur.winner===a && (cur.loserMaps|0)===0) next={winner:a,loserMaps:1};
+    else if(cur.winner===a) next={winner:b,loserMaps:1};
+    else if(cur.winner===b && (cur.loserMaps|0)===1) next={winner:b,loserMaps:0};
+    else next={winner:'',loserMaps:0};
+    QSERVER[k]=next; renderQual();
+    try{ await SQC.api('/admin/qualifier-result',{method:'POST',body:{matchId:k,winner:next.winner,loserMaps:next.loserMaps}}); }
+    catch(err){ alert('No se pudo guardar: '+err.message); await loadQual(); renderQual(); }
+  });
+
+  // ===== Pestañas de TORNEO (nivel superior) =====
+  function showTourn(t){
+    const internas=(t==='internas');
+    document.getElementById('tv-udporros').style.display = internas?'none':'';
+    document.getElementById('tv-internas').style.display = internas?'':'none';
+    document.querySelectorAll('.ttab-btn').forEach(b=>b.classList.toggle('active',(b.dataset.t==='internas')===internas));
+    if(internas){ if(history.replaceState) history.replaceState(null,'','#internas'); renderQual(); loadQual().then(renderQual); }
+    else if((location.hash||'')==='#internas'){ showPage('torneo'); }
+  }
+  document.querySelectorAll('.ttab-btn').forEach(b=> b.onclick = ()=>showTourn(b.dataset.t));
+  (function initTourn(){
+    const h=(location.hash||'').replace('#','');
+    if(h==='internas') showTourn('internas'); else { showTourn('udporros'); showPage(h); }
   })();
 
   SQC.preNav(); SQC.mountNav();

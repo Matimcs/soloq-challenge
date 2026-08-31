@@ -330,6 +330,26 @@ app.post('/api/admin/tourney-result', auth, requireAdmin, wrap(async (req,res) =
            ON CONFLICT (match_id) DO UPDATE SET winner=EXCLUDED.winner, updated_at=now()`, [matchId, winner]);
   res.json({ ok:true, matchId, winner });
 }));
+
+// Resultados de las CLASIFICATORIAS INTERNAS (round-robin Bo3 de nuestros 4 equipos). Público.
+app.get('/api/qualifier-results', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=15');
+  const rows = await q('SELECT match_id, winner, loser_maps FROM qualifier_results');
+  const out = {}; rows.forEach(r => { out[r.match_id] = { winner: r.winner || '', loserMaps: r.loser_maps|0 }; });
+  res.json(out);
+}));
+// El admin fija (o borra) el resultado de una serie. winner vacío = serie sin resultado (se conserva
+// la fila como "vacía" para que gane a un posible default del front). loserMaps = 0 (2-0) o 1 (2-1).
+app.post('/api/admin/qualifier-result', auth, requireAdmin, wrap(async (req,res) => {
+  const matchId = ((req.body && req.body.matchId) || '').trim();
+  if (!matchId) return res.status(400).json({ error:'Falta matchId' });
+  const winner = ((req.body && req.body.winner) || '').trim();
+  const loserMaps = Math.max(0, Math.min(1, parseInt(req.body && req.body.loserMaps, 10) || 0));
+  await q(`INSERT INTO qualifier_results (match_id, winner, loser_maps, updated_at) VALUES ($1,$2,$3,now())
+           ON CONFLICT (match_id) DO UPDATE SET winner=EXCLUDED.winner, loser_maps=EXCLUDED.loser_maps, updated_at=now()`,
+          [matchId, winner, loserMaps]);
+  res.json({ ok:true, matchId, winner, loserMaps });
+}));
 // Mapa Riot ID -> equipo del torneo (nombre + abreviatura). Lo usa el overlay para avisar
 // si juegas con/contra alguien inscrito en un torneo, aunque NO esté en el SoloQ Challenge.
 // Se lee de torneo-data.js (cache por mtime del archivo). Público.

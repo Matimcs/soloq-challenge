@@ -209,6 +209,15 @@ async function init(){
       winner     TEXT NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Resultados de las CLASIFICATORIAS INTERNAS (round-robin Bo3 de nuestros 4 equipos, define A/B/C/D).
+    -- match_id = par canónico "equipoX__equipoY" (nombres ordenados); winner = equipo ganador de la serie
+    -- ('' = serie sin resultado / borrada); loser_maps = mapas que ganó el perdedor (0 o 1) -> score 2-0 / 2-1.
+    CREATE TABLE IF NOT EXISTS qualifier_results (
+      match_id   TEXT PRIMARY KEY,
+      winner     TEXT NOT NULL DEFAULT '',
+      loser_maps INT  NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
     -- Etiqueta manual de un jugador (PRO / Streamer / Competitivo), la pone el admin.
     CREATE TABLE IF NOT EXISTS player_tags (
       riotid     TEXT PRIMARY KEY,
