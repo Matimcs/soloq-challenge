@@ -143,6 +143,11 @@ function savePos(w){
   if (!posReady) return;
   if (!w || !w._posKey || w.isDestroyed()) return;
   const b = w.getBounds();
+  // No persistas una posición FUERA DE PANTALLA: pisaría la buena que tenías guardada. Si por el
+  // arranque del PC (monitores no listos) la ventana quedó fuera de pantalla, se conserva la anterior.
+  const onScreen = screen.getAllDisplays().some(d => { const a = d.workArea;
+    return b.x < a.x + a.width - 40 && b.x + b.width > a.x && b.y < a.y + a.height - 20 && b.y + b.height > a.y; });
+  if (!onScreen) return;
   settings.pos = settings.pos || {};
   settings.pos[w._posKey] = { x: b.x, y: b.y, w: b.width, h: b.height };   // w/h se usa para la ruleta (bs)
   saveSettings();
