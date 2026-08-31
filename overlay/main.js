@@ -218,12 +218,13 @@ function createWindows(){
   updWin = baseWin(UW, UH, d.wa.x + d.wa.width - UW - 16, d.wa.y + d.wa.height - UH - 46, false);
   updWin.setAlwaysOnTop(true, 'screen-saver'); updWin.loadFile(path.join(__dirname, 'update.html'));
 }
-// Muestra/actualiza la ventana de actualización. text = línea de estado; pct = % (o null = sin barra).
-function showUpd(text, pct){
+// Muestra/actualiza la ventana de actualización. text = línea de estado; pct = % (o null = sin barra);
+// clickable=true hace la tarjeta clicable (fallback de instalación manual).
+function showUpd(text, pct, clickable){
   if (!updWin || updWin.isDestroyed()) return;
-  if (lastInGame && !updManual) return;   // no molestar con avisos de update durante la partida
+  if (lastInGame && !updManual && !clickable) return;   // no molestar con avisos de update durante la partida
   if (!updWin.isVisible()) updWin.showInactive();
-  updWin.webContents.send('upd', { text, pct });
+  updWin.webContents.send('upd', { text, pct, clickable: !!clickable });
 }
 function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); }
 // Chequeo de actualización. manual=true (desde la bandeja) muestra también "ya estás al día"
@@ -232,14 +233,27 @@ let updManual = false;
 function checkUpdates(manual){ if (!app.isPackaged) return; updManual = !!manual; try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
 // Instala la actualización SIN abrir el instalador (modo silencioso) y relanza la app sola.
 // No interrumpe si estás en partida: espera a que termines (lo reintenta el interval).
-let updateReady = false;
+let updateReady = false, pendingVer = null;
+// Fallback: si la instalación silenciosa NO se aplica (la app sigue viva a los ~12 s, o al reiniciar
+// seguimos en la versión vieja), se ofrece instalación MANUAL clicable en vez de reintentar en loop.
+function offerManualInstall(v){
+  updManual = true;
+  showUpd('Actualización ' + (v ? 'v' + v : '') + ' lista — haz clic aquí para instalarla', null, true);
+}
 function tryInstall(){
   if (!updateReady || lastInGame) return;   // en partida: se instalará al terminar (o al cerrar la app)
   updateReady = false;
+  // Recuerda qué versión intentamos auto-instalar; si al reiniciar seguimos en la vieja, no reintentamos
+  // en loop (lo detecta update-downloaded) sino que ofrecemos instalación manual.
+  try { settings.updTriedVer = pendingVer; saveSettings(); } catch {}
   showUpd('Actualizando…', 100);
   try { autoUpdater.quitAndInstall(true, true); }   // (isSilent, isForceRunAfter): sin ventana de instalador + relanza
-  catch (e){ dlog('quitAndInstall: ' + (e && e.message)); }
+  catch (e){ dlog('quitAndInstall: ' + (e && e.message)); offerManualInstall(pendingVer); }
+  // Si en ~12 s la app sigue viva, la instalación silenciosa no se aplicó en esta máquina: fallback manual.
+  setTimeout(() => offerManualInstall(pendingVer), 12000);
 }
+// Instalación MANUAL (desde el clic en la tarjeta): abre el instalador visible para que el usuario lo complete.
+ipcMain.on('upd-install', () => { try { autoUpdater.quitAndInstall(false, true); } catch (e){ dlog('manual install: ' + (e && e.message)); } });
 function playVoice(dataUrl){
   if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
 }
@@ -637,6 +651,8 @@ if (hasLock) app.whenReady().then(async () => {
   // Muestra el progreso en una ventana (no en 2do plano) e instala apenas termina de bajar.
   if (app.isPackaged){
     try {
+      // Si ya corremos la versión que intentamos instalar, el auto-update funcionó → limpia el guard.
+      if (settings.updTriedVer && settings.updTriedVer === safeVersion()){ delete settings.updTriedVer; saveSettings(); }
       autoUpdater.autoDownload = true;
       autoUpdater.autoInstallOnAppQuit = true;
       autoUpdater.on('checking-for-update', () => { if (updManual) showUpd('Buscando actualización…', null); });
@@ -645,11 +661,15 @@ if (hasLock) app.whenReady().then(async () => {
       autoUpdater.on('update-not-available', () => { dlog('sin updates');
         if (updManual){ showUpd('Ya tienes la última versión ✓', null); setTimeout(hideUpd, 4000); } updManual = false; });
       autoUpdater.on('download-progress', p => showUpd('Descargando actualización… ' + Math.round(p.percent) + '%', p.percent));
-      autoUpdater.on('update-downloaded', i => { dlog('update descargada: ' + (i && i.version));
+      autoUpdater.on('update-downloaded', i => { const v = i && i.version; dlog('update descargada: ' + v); pendingVer = v;
+        // Si ya intentamos auto-instalar ESTA versión y seguimos en la vieja, la instalación silenciosa no
+        // funciona en esta máquina → NO reintentar en loop; ofrecer instalación manual clicable.
+        if (v && settings.updTriedVer === v){ offerManualInstall(v); return; }
         updateReady = true;
         setTimeout(tryInstall, 2500); });
       autoUpdater.on('error', e => { dlog('updater error: ' + (e && e.message));
-        if (updManual){ showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); } updManual = false; });
+        // Oculta la ventana también en modo automático para que no quede "Descargando…/Actualizando…" pegado.
+        showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); updManual = false; });
       checkUpdates(false);
       setInterval(() => checkUpdates(false), 15 * 60 * 1000);   // revisa cada 15 min (beta: updates frecuentes)
       setInterval(tryInstall, 8000);   // si quedó una update lista y ya saliste de la partida, la instala sola

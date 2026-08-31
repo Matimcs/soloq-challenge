@@ -15,6 +15,8 @@
   .s{ font-size:11.5px; color:rgba(255,255,255,.62); margin-top:2px; }
   .bar{ height:6px; background:rgba(255,255,255,.08); border-radius:4px; margin-top:10px; overflow:hidden; display:none; }
   .bar > span{ display:block; height:100%; width:0; background:#e9ff1f; transition:width .2s; }
+  body.clickable .card{ cursor:pointer; border-color:#e9ff1f; box-shadow:0 12px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(233,255,31,.35); }
+  body.clickable .card:hover{ background:linear-gradient(180deg,#1a1c26,#101118); }
 </style>
 </head>
 <body>
@@ -27,12 +29,17 @@
   </div>
 <script>
   const { ipcRenderer } = require('electron');
+  let clickable = false;
   ipcRenderer.on('upd', (_e, d) => {
     document.getElementById('s').textContent = d.text || '';
     const bw = document.getElementById('barwrap'), b = document.getElementById('bar');
     if (d.pct != null){ bw.style.display = 'block'; b.style.width = Math.max(0, Math.min(100, d.pct)) + '%'; }
     else { bw.style.display = 'none'; }
+    clickable = !!d.clickable;
+    document.body.classList.toggle('clickable', clickable);
   });
+  // Fallback de instalación manual: si la tarjeta está en modo clicable, un clic abre el instalador.
+  document.querySelector('.card').addEventListener('click', () => { if (clickable) ipcRenderer.send('upd-install'); });
 </script>
 </body>
 </html>
