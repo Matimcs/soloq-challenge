@@ -97,7 +97,9 @@
     }
   }
 
+  let positioning = false;   // en modo posicionar, ignora 'data' para que el ejemplo no se borre
   ipcRenderer.on('data', (_e, d) => {
+    if (positioning) return;
     latest = d;
     $('dot').classList.toggle('on', !!d.connected);
     if (!d.connected){
@@ -148,12 +150,15 @@
 
   // ---- Modo posicionar: muestra un ejemplo y activa el grip de redimensionar (zoom) ----
   ipcRenderer.on('position', (_e, on) => {
+    positioning = !!on;
     document.body.classList.toggle('positioning', !!on);
     if (on){
+      $('dot').classList.add('on');
+      $('crest').style.display = '';
       $('name').textContent = 'Tu nick';
       $('tier').textContent = 'Diamante II'; $('lp').textContent = '45 LP';
       $('pos').textContent = '#12 en el ranking';
-      $('pright').innerHTML = '<span style="color:var(--up);font-weight:800">▲ 3</span>';
+      $('pright').innerHTML = '<div class="rlabel">Torneo</div><div class="rwl"><span class="w">12W</span> · <span class="l">3L</span></div><div class="rsub" style="color:var(--muted)">80% WR</div>';
       try { $('crest').src = CREST('DIAMOND'); $('crest').style.visibility = 'visible'; } catch(e){}
       ['chal','tour','tagged'].forEach(id => { const e2=$(id); if(e2) e2.style.display='none'; });
     }

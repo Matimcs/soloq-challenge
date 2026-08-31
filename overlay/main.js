@@ -361,8 +361,17 @@ function makeDraggable(w){
 function enterPositioning(){
   if (positioning) return; positioning = true; forceShowAll = false;
   if (bigWin && !bigWin.isDestroyed()) bigWin.hide();   // el panel de la web NO entra al modo posicionar
-  if (win){ win.webContents.send('position', true); smallShown = true; makeDraggable(win); }
-  if (shellWin){ shellWin.webContents.send('position', true); shellShown = true; makeDraggable(shellWin); }
+  const d = defaults();
+  // Reafirma una posición ON-SCREEN (por si la guardada quedó fuera de pantalla tras cambiar de
+  // monitor) para garantizar que la tarjeta y el popup se VEAN al entrar al modo posicionar.
+  if (win){
+    const p = posFor('small', d.smallX, d.smallY); win.setPosition(p.x, p.y);
+    win.webContents.send('position', true); smallShown = true; makeDraggable(win);
+  }
+  if (shellWin){
+    const p = posFor('shell', d.shellX, d.shellY); shellWin.setPosition(p.x, p.y);
+    shellWin.webContents.send('position', true); shellShown = true; makeDraggable(shellWin);
+  }
   if (bsWin){
     const d = defaults(), sp = (settings.pos && settings.pos.bs) || {};
     const W = Number.isFinite(sp.w) && sp.w > 200 ? sp.w : 540, H = Number.isFinite(sp.h) && sp.h > 120 ? sp.h : 156;
@@ -371,7 +380,6 @@ function enterPositioning(){
     bsWin.webContents.send('bs-sample'); makeDraggable(bsWin);
   }
   if (posWin && !posWin.isDestroyed()) posWin.close();
-  const d = defaults();
   posWin = baseWin(440, 72, Math.round(d.wa.x + (d.wa.width - 440) / 2), d.wa.y + 16, true, true, false);
   posWin.setAlwaysOnTop(true, 'screen-saver'); posWin.loadFile(path.join(__dirname, 'position-bar.html'));
   posWin.once('ready-to-show', () => posWin.moveTop());

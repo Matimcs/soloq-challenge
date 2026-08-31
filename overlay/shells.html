@@ -86,7 +86,9 @@
     }
   }
 
+  let positioning = false;   // en modo posicionar, ignora 'data' para que el ejemplo no se borre
   ipcRenderer.on('data', (_e, d) => {
+    if (positioning) return;
     me = (d && d.name) || 'tú';
     const next = (d && d.castigos) || [];
     if (JSON.stringify(next.map(c=>c.name)) !== JSON.stringify(castigos.map(c=>c.name))) idx = 0;
@@ -106,6 +108,7 @@
 
   // ---- Modo posicionar: ejemplo + grip de redimensionar ----
   ipcRenderer.on('position', (_e, on) => {
+    positioning = !!on;
     document.body.classList.toggle('positioning', !!on);
     if (on){ castigos = [{ name:'Sin Flash', from:'Un admin', to:'tú', img:null }]; idx = 0; render(); }
   });
