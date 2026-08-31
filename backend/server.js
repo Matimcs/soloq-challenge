@@ -1306,12 +1306,23 @@ app.get('/api/stats', wrap(async (req, res) => {
     .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), aw: d.aw, bw: d.bw, together: d.together }))
     .sort((x, y) => (y.aw + y.bw) - (x.aw + x.bw)).slice(0, 30);
 
-  // Mejores / peores dúos: parejas que jugaron en el MISMO equipo, por winrate (mín. 2 partidas).
-  const MINDUO = 2;
+  // Mejores / peores dúos: parejas que jugaron en el MISMO equipo (mín. 2 partidas).
+  // No se ordena por winrate crudo (un 2-0 = 100% no vale más que un 11-4 = 73%), sino por el
+  // INTERVALO DE WILSON, que castiga las muestras chicas: los mejores por su cota INFERIOR (desc)
+  // y los peores por su cota SUPERIOR (asc). z alto => el nº de partidas pesa más que el % crudo.
+  const MINDUO = 2, WZ = 2.5;
+  const wilson = (w, n, upper) => {
+    if (!n) return upper ? 1 : 0;
+    const p = w / n, z2 = WZ * WZ;
+    const centre = p + z2 / (2 * n);
+    const margin = WZ * Math.sqrt((p * (1 - p) + z2 / (4 * n)) / n);
+    return (centre + (upper ? margin : -margin)) / (1 + z2 / n);
+  };
   const duosAll = Object.values(duel).filter(d => d.together >= MINDUO)
-    .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), games: d.together, wins: d.tw, wr: Math.round(d.tw / d.together * 100) }));
-  const duosBest = duosAll.slice().sort((x, y) => y.wr - x.wr || y.games - x.games).slice(0, 8);
-  const duosWorst = duosAll.slice().sort((x, y) => x.wr - y.wr || y.games - x.games).slice(0, 8);
+    .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), games: d.together, wins: d.tw, wr: Math.round(d.tw / d.together * 100),
+      lo: wilson(d.tw, d.together, false), hi: wilson(d.tw, d.together, true) }));
+  const duosBest = duosAll.slice().sort((x, y) => y.lo - x.lo || y.games - x.games).slice(0, 8);
+  const duosWorst = duosAll.slice().sort((x, y) => x.hi - y.hi || y.games - x.games).slice(0, 8);
 
   // ---- CONTRINCANTES externos: rivales AJENOS al torneo, por victorias/derrotas nuestras ----
   // Cada partida guardada trae los 10 jugadores; los que NO son del torneo son "contrincantes".
