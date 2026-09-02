@@ -83,10 +83,14 @@ let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shown
 let rosterCache = { players: [] };
 let tourneyMap = {};   // ridLower -> { tag, team } de jugadores inscritos en torneos
 let playerTags = {};   // ridLower -> 'PRO' | 'STREAMER' | 'COMPETITIVO'
+// Normaliza un Riot ID para cruzarlo con lo que reporta el juego: minúsculas y SIN espacios
+// alrededor del '#' (muchos rids del Excel vienen "Nombre #tag" y en partida son "Nombre#tag").
+const normRid = s => (s || '').trim().toLowerCase().replace(/\s*#\s*/g, '#');
+const rekey = obj => { const o = {}; for (const k in obj) o[normRid(k)] = obj[k]; return o; };
 async function refreshRoster(){
   try { const r = await fetch(`${BACKEND}/players.json`); if (r.ok) rosterCache = await r.json(); } catch {}   // URL estable → cacheable en Cloudflare
-  try { const r = await fetch(`${BACKEND}/api/tourney-players`); if (r.ok) tourneyMap = await r.json(); } catch {}
-  try { const r = await fetch(`${BACKEND}/api/player-tags`);    if (r.ok) playerTags = await r.json(); } catch {}
+  try { const r = await fetch(`${BACKEND}/api/tourney-players`); if (r.ok) tourneyMap = rekey(await r.json()); } catch {}
+  try { const r = await fetch(`${BACKEND}/api/player-tags`);    if (r.ok) playerTags = rekey(await r.json()); } catch {}
 }
 const TAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
 function loadRoster(){ return rosterCache; }
@@ -531,12 +535,12 @@ async function poll(){
           const live = await liveClient();
           const all = live && Array.isArray(live.allPlayers) ? live.allPlayers : null;
           if (all){
-            const ridOf = p => (p.riotId || p.summonerName || '').toLowerCase();
-            const meId = ((live.activePlayer && (live.activePlayer.riotId || live.activePlayer.summonerName)) || myRid || '').toLowerCase();
+            const ridOf = p => normRid(p.riotId || p.summonerName || '');
+            const meId = normRid((live.activePlayer && (live.activePlayer.riotId || live.activePlayer.summonerName)) || myRid || '');
             const meP = all.find(p => ridOf(p) === meId);
             const myTeam = meP ? meP.team : null;
             const rosterNick = {};
-            (roster.players || []).forEach(p => { rosterNick[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
+            (roster.players || []).forEach(p => { rosterNick[normRid(p.rid)] = p.nm || (p.rid || '').split('#')[0]; });
             payload.challengeInGame = all
               .filter(p => { const r = ridOf(p); return r && r !== meId && rosterNick[r] !== undefined; })
               .map(p => ({ name: rosterNick[ridOf(p)], ally: myTeam != null && p.team === myTeam }));

@@ -354,13 +354,17 @@ app.post('/api/admin/qualifier-result', auth, requireAdmin, wrap(async (req,res)
 // si juegas con/contra alguien inscrito en un torneo, aunque NO esté en el SoloQ Challenge.
 // Se lee de torneo-data.js (cache por mtime del archivo). Público.
 let _tourneyPlayers = { at: 0, map: {} };
+// Normaliza un Riot ID para cruzarlo con lo que reporta el juego: minúsculas y SIN espacios
+// alrededor del '#'. Muchos rids del Excel vienen como "Nombre #tag" (con espacio) y en partida
+// el riotId es "Nombre#tag", así que sin esto no se detectan (ni en el overlay ni en Live Games).
+function normRid(s){ return (s || '').trim().toLowerCase().replace(/\s*#\s*/g, '#'); }
 async function buildTourneyMap(){
   const map = {};
   try {
     const m = fs.readFileSync(path.join(ROOT, 'torneo-data.js'), 'utf8').match(/window\.TDATA\s*=\s*([\s\S]*);\s*$/);
     const data = m ? JSON.parse(m[1]) : { teams: [] };
     (data.teams || []).forEach(t => (t.players || []).forEach(p => {
-      const rid = (p.rid || '').trim(); if (rid) map[rid.toLowerCase()] = { tag: t.tag || '', team: t.team || '' };
+      const rid = normRid(p.rid); if (rid) map[rid] = { tag: t.tag || '', team: t.team || '' };
     }));
   } catch {}
   // Propaga el equipo del torneo a TODAS las cuentas de un jugador (registradas o vinculadas a mano),
@@ -376,12 +380,12 @@ async function buildTourneyMap(){
     users.forEach(u => { (acctsByUser[u.id] = acctsByUser[u.id] || []).push(u.riotid); });
     smurfs.forEach(s => { (acctsByUser[s.user_id] = acctsByUser[s.user_id] || []).push(s.riotid); });
     Object.values(acctsByUser).forEach(accts => {
-      let m = null; for (const rid of accts){ const f = map[rid.toLowerCase()]; if (f){ m = f; break; } }   // ¿alguna en el torneo?
-      if (m) accts.forEach(rid => { const k = rid.toLowerCase(); if (!map[k]) map[k] = m; });                // etiqueta todas
+      let m = null; for (const rid of accts){ const f = map[normRid(rid)]; if (f){ m = f; break; } }   // ¿alguna en el torneo?
+      if (m) accts.forEach(rid => { const k = normRid(rid); if (!map[k]) map[k] = m; });                // etiqueta todas
     });
     // Vínculos manuales (jugadores no registrados): propaga en ambos sentidos.
     links.forEach(l => {
-      const km = l.main_riotid.toLowerCase(), ks = l.smurf_riotid.toLowerCase();
+      const km = normRid(l.main_riotid), ks = normRid(l.smurf_riotid);
       if (map[km] && !map[ks]) map[ks] = map[km];
       if (map[ks] && !map[km]) map[km] = map[ks];
     });
