@@ -369,26 +369,44 @@ async function updatePlayerStats(puuid, entry){
   // confirmar el delta real en el ciclo siguiente, cuando el LP ya cambió.
   const cur = absLP(entry);
   // Aegis PERMANENTE (acumulativo): un aegis = victoria de ~doble LP (≥1.8× el LP típico reciente).
-  const aegisBase = () => median(store.lpGames.filter(g => g.delta > 0).map(g => g.delta).slice(0, 15));
+  // Solo cuenta deltas CONFIRMADOS de una sola partida (no los estimados de un ciclo multi-partida,
+  // que podrían ser 2 partidas sumadas y darían aegis fantasma).
+  const aegisBase = () => median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15));
   const countAegis = d => { const b = aegisBase(); if (d > 0 && b && d >= 1.8 * b) store.aegisTotal = (store.aegisTotal || 0) + 1; };
   if (store.aegisTotal == null) {
     const b = aegisBase();
-    store.aegisTotal = b ? store.lpGames.filter(g => g.delta > 0 && g.delta >= 1.8 * b).length : 0;
+    store.aegisTotal = b ? store.lpGames.filter(g => g.delta > 0 && !g.est && g.delta >= 1.8 * b).length : 0;
   }
   if (cur != null && store.lastAbsLP != null) {
-    // 1) Confirmar el delta PENDIENTE del ciclo anterior (ahora que el LP ya se movió).
-    if (store.lpGames[0] && store.lpGames[0].pending) {
-      const d = cur - store.lastAbsLP;
-      if (d !== 0 && Math.abs(d) <= 100) { store.lpGames[0].delta = d; delete store.lpGames[0].pending; countAegis(d); store.lastAbsLP = cur; }
-    }
-    // 2) Partida nueva (exactamente 1). Si el LP aún no propagó (delta 0) → queda pendiente.
-    if (fetched.length === 1) {
-      const delta = cur - store.lastAbsLP;
-      if (Math.abs(delta) <= 100) {              // descarta saltos raros (promo de tier, decay, reset)
-        if (delta === 0) store.lpGames.unshift({ win: fetched[0].win, delta: 0, end: fetched[0].end, pending: true });
-        else { store.lpGames.unshift({ win: fetched[0].win, delta, end: fetched[0].end }); countAegis(delta); }
-        store.lpGames = store.lpGames.slice(0, 40);
+    // Partidas a atribuir desde el último LP conocido: el PENDIENTE del ciclo anterior (si lo hay,
+    // LP que aún no había propagado) + las NUEVAS de este ciclo (viejo→nuevo). Riot no da el LP por
+    // partida, así que el "neto" (cur - lastAbsLP) se reparte entre estas partidas.
+    const pend = (store.lpGames[0] && store.lpGames[0].pending) ? store.lpGames[0] : null;
+    const list = [...(pend ? [{ win: pend.win, end: pend.end }] : []),
+                  ...fetched.map(g => ({ win: g.win, end: g.end }))];
+    const net = cur - store.lastAbsLP;
+    const N = list.length;
+    if (N >= 1 && Math.abs(net) <= 100 * N) {   // descarta saltos raros (promo de tier, decay, reset)
+      if (N === 1 && net === 0) {
+        // Una sola partida y el LP aún no propagó → queda PENDIENTE (se confirma el próximo ciclo).
+        if (!pend) store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, pending: true });
+      } else if (N === 1) {
+        // Una sola partida con el LP ya movido → atribución directa (caso normal, ±LP exacto).
+        if (pend) { pend.delta = net; delete pend.pending; }
+        else store.lpGames.unshift({ win: list[0].win, delta: net, end: list[0].end });
+        countAegis(net);
+      } else {
+        // VARIAS partidas en un ciclo: no se puede separar el LP exacto de cada una, así que se
+        // reparte el neto por V/D usando el LP típico reciente. Se marcan como estimadas (est) para
+        // no contarlas como aegis (evita el "doble" fantasma de 2 partidas sumadas).
+        const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
+        let est = list.map(g => g.win ? mag : -mag);
+        const per = (net - est.reduce((a, b) => a + b, 0)) / N;   // reparte el residuo por igual
+        est = est.map(d => Math.round(d + per));
+        if (pend) store.lpGames.shift();                          // quita el pendiente; se re-inserta estimado
+        for (let i = 0; i < N; i++) store.lpGames.unshift({ win: list[i].win, delta: est[i], end: list[i].end, est: true });
       }
+      store.lpGames = store.lpGames.slice(0, 40);
     }
   }
   if (cur != null) store.lastAbsLP = cur;
