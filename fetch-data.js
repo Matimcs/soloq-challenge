@@ -542,12 +542,22 @@ function rankText(entry) {
     };
   }
 
+  // Games que YA terminaron: match-v5 registra la partida ~1-3 min después de acabar, normalmente
+  // ANTES de que el spectator de Riot deje de devolverla (que puede tardar bastante más). Si el
+  // gameId ya está en el historial de algún jugador trackeado, la partida terminó → NO se muestra
+  // como "en vivo". Esto reduce el delay de las tarjetas LIVE fantasma.
+  const endedGameIds = new Set();
+  for (const store of Object.values(matchStore)){
+    for (const g of (store.games || [])){ const n = g && g.id ? String(g.id).split('_').pop() : ''; if (n) endedGameIds.add(n); }
+  }
+
   const liveGames = [];
   const seenGames = new Set();
   console.log('\nConstruyendo scoreboards de partidas en vivo...');
   for (const { puuid, raw } of rawByPlayer) {
     if (seenGames.has(raw.gameId)) continue;
     seenGames.add(raw.gameId);
+    if (endedGameIds.has(String(raw.gameId))){ console.log(`  ↳ game ${raw.gameId} ya está en el historial → terminó, no se muestra en vivo`); continue; }
 
     const blue = [], red = [];
     for (const pt of raw.participants) {
