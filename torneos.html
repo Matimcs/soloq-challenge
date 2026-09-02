@@ -623,12 +623,25 @@
 
   // ---- FIXTURE (calendario de grupos + resultados + tabla en vivo) ----
   const fxTeam = nm => '<span class="'+(isOur(nm)?'ours':'')+'">'+esc(nm)+'</span>';
-  let RESULTS = {};            // matchId -> equipo ganador
+  // Resultados conocidos (importados del CSV oficial del fixture). Se muestran para todos al toque;
+  // lo que ponga el admin en el servidor (clic en el ganador) SOBREESCRIBE estos por defecto.
+  const DEFAULT_RESULTS = {
+    "A|1|Los 420|UC B":"UC B","A|1|PAPU team|UNAB C":"UNAB C","A|2|UCH Zenith|UC B":"UCH Zenith",
+    "A|3|siXStars|Los 420":"siXStars","A|4|UNAB C|Los 420":"UNAB C","A|4|UC B|siXStars":"siXStars",
+    "B|1|Hundred Blossoms|UTEM LAST DANCE":"Hundred Blossoms","B|1|UDP B|Duoc UC":"Duoc UC","B|1|UNAB Esports|USM Yavin":"UNAB Esports",
+    "B|3|Hundred Blossoms|USM Yavin":"USM Yavin","B|4|Hundred Blossoms|UNAB Esports":"UNAB Esports","B|4|USM Yavin|UDP B":"UDP B",
+    "C|1|UCH EXILIUM|Los Ratones":"UCH EXILIUM","C|1|Unab Esports B|USM Jedha":"Unab Esports B","C|2|Los Ratones|USM Jedha":"USM Jedha",
+    "C|4|UCH EXILIUM|Unab Esports B":"Unab Esports B","C|4|USM Jedha|UDP Esports A":"USM Jedha",
+    "D|1|Los Choripanes Ninja|Finis Terrae":"Finis Terrae","D|1|USM Naboo|León Usach Esports":"USM Naboo","D|2|UCH Tide|Finis Terrae":"UCH Tide",
+    "D|2|Los Choripanes Ninja|USM Naboo":"USM Naboo","D|3|Finis Terrae|USM Naboo":"USM Naboo","D|4|UCH Tide|USM Naboo":"USM Naboo",
+    "D|5|UCH Tide|Los Choripanes Ninja":"UCH Tide","D|5|León Usach Esports|Finis Terrae":"León Usach Esports"
+  };
+  let RESULTS = { ...DEFAULT_RESULTS };   // matchId -> equipo ganador (default CSV + lo del servidor)
   let IS_ADMIN = false;
   try { const u = JSON.parse(localStorage.getItem('sqc_user')||'null'); if (u && u.isAdmin) IS_ADMIN = true; } catch {}
   const matchId = (g,m) => g+'|'+m.r+'|'+m.a+'|'+m.b;
   async function loadResults(){
-    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/tourney-results?t='+Date.now(), { cache:'no-store' }); if (r.ok) RESULTS = await r.json(); } } catch {}
+    try { if (location.protocol.startsWith('http')){ const r = await fetch('/api/tourney-results?t='+Date.now(), { cache:'no-store' }); if (r.ok){ const srv = await r.json(); RESULTS = { ...DEFAULT_RESULTS, ...srv }; } } } catch {}
   }
   // Tabla del grupo calculada desde los resultados puestos. Clasifican los 2 primeros.
   function standings(g){
