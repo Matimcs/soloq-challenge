@@ -862,7 +862,12 @@ app.get('/api/overlay/shells', wrap(async (req,res) => {
   if (!riotid) return res.json([]);
   const uid = await ownerIdByRiotid(riotid);
   if (!uid) return res.json([]);
-  res.json(await q(`SELECT id, castigo, other AS "from", estado, extra, audio, created_at FROM events
+  // EGRESS: el audio (base64, hasta ~1.5 MB) solo se manda en shells RECIENTES. El overlay solo
+  // reproduce las nuevas (created_at > su arranque), así que las viejas no necesitan re-bajar el
+  // audio en cada poll (cada 12 s por overlay abierto) — antes ESO era el gran consumo de egress.
+  res.json(await q(`SELECT id, castigo, other AS "from", estado, extra,
+      CASE WHEN created_at > now() - interval '15 minutes' THEN audio ELSE NULL END AS audio,
+      created_at FROM events
     WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [uid]));
 }));
 
