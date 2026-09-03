@@ -835,6 +835,7 @@ app.post('/api/admin/message', auth, requireAdmin, wrap(async (req,res) => {
   const target = await q1('SELECT id FROM users WHERE id=$1', [uid]);
   if (!target) return res.status(400).json({ error:'Jugador inválido' });
   await q('INSERT INTO admin_messages (user_id,text,audio) VALUES ($1,$2,$3)', [uid, text, audio]);
+  ovlInvalidate(uid);   // el overlay del destinatario lo recibe en su próximo poll (sin esperar el TTL)
   res.json({ ok:true });
 }));
 // El overlay sondea sus mensajes recientes (últimos 5 min) por Riot ID. Sin auth (solo lectura de lo propio).
@@ -846,29 +847,52 @@ async function ownerIdByRiotid(riotid){
   const s = await q1('SELECT user_id AS id FROM smurfs WHERE lower(riotid)=lower($1)', [riotid]);
   return s ? s.id : null;
 }
+// EGRESS: el overlay sondea shells (12s) y mensajes (8s). Sin caché, CADA poll pega a Supabase.
+// Cacheamos por usuario en memoria (Render): el poll se sirve sin tocar la DB. TTL corto +
+// invalidación al enviar → la entrega sigue siendo instantánea (el envío borra el caché del destino).
+const RID_UID = new Map();     // ridLower -> { at, uid }  (resolución rid→usuario; casi nunca cambia)
+const OVL_SHELLS = new Map();  // uid -> { at, data }
+const OVL_MSGS   = new Map();  // uid -> { at, data }
+const OVL_TTL = 45000;
+async function ownerIdCached(riotid){
+  const k = riotid.toLowerCase(), c = RID_UID.get(k);
+  if (c && Date.now() - c.at < 300000) return c.uid;
+  const uid = await ownerIdByRiotid(riotid);
+  RID_UID.set(k, { at: Date.now(), uid });
+  return uid;
+}
+function ovlInvalidate(uid){ uid = Number(uid); OVL_SHELLS.delete(uid); OVL_MSGS.delete(uid); }
 
 app.get('/api/overlay/messages', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
   if (!riotid) return res.json([]);
-  const uid = await ownerIdByRiotid(riotid);
+  const uid = await ownerIdCached(riotid);
   if (!uid) return res.json([]);
-  res.json(await q(`SELECT id, text, audio, created_at FROM admin_messages
-    WHERE user_id=$1 AND created_at > now() - interval '5 minutes' ORDER BY id ASC LIMIT 10`, [uid]));
+  const c = OVL_MSGS.get(uid);
+  if (c && Date.now() - c.at < OVL_TTL) return res.json(c.data);
+  const data = await q(`SELECT id, text, audio, created_at FROM admin_messages
+    WHERE user_id=$1 AND created_at > now() - interval '5 minutes' ORDER BY id ASC LIMIT 10`, [uid]);
+  OVL_MSGS.set(uid, { at: Date.now(), data });
+  res.json(data);
 }));
 
 // Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
 app.get('/api/overlay/shells', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
   if (!riotid) return res.json([]);
-  const uid = await ownerIdByRiotid(riotid);
+  const uid = await ownerIdCached(riotid);
   if (!uid) return res.json([]);
+  const cached = OVL_SHELLS.get(uid);
+  if (cached && Date.now() - cached.at < OVL_TTL) return res.json(cached.data);
   // EGRESS: el audio (base64, hasta ~1.5 MB) solo se manda en shells RECIENTES. El overlay solo
   // reproduce las nuevas (created_at > su arranque), así que las viejas no necesitan re-bajar el
   // audio en cada poll (cada 12 s por overlay abierto) — antes ESO era el gran consumo de egress.
-  res.json(await q(`SELECT id, castigo, other AS "from", estado, extra,
+  const data = await q(`SELECT id, castigo, other AS "from", estado, extra,
       CASE WHEN created_at > now() - interval '15 minutes' THEN audio ELSE NULL END AS audio,
       created_at FROM events
-    WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [uid]));
+    WHERE user_id=$1 AND kind='received' ORDER BY id DESC LIMIT 20`, [uid]);
+  OVL_SHELLS.set(uid, { at: Date.now(), data });
+  res.json(data);
 }));
 
 // ================= PARTICIPANTES =================
@@ -915,16 +939,19 @@ app.post('/api/blueshells/launch', auth, wrap(async (req,res) => {
 
   if (bounce){
     await q("INSERT INTO events (kind,user_id,other,castigo,extra,bounce,audio) VALUES ('received',$1,$2,$3,$4,true,$5)", [req.user.id, '↩️ rebote (' + target.nickname + ')', castigo, extra, audio]);
+    ovlInvalidate(req.user.id);
     return res.json({ bounce:true, castigo, champ: display, champIcon, msg:`¡Rebotó! El castigo te toca a TI: ${castigo}` });
   }
   await q("INSERT INTO events (kind,user_id,other,castigo,extra) VALUES ('sent',$1,$2,$3,$4)", [req.user.id, target.nickname, castigo, extra]);
   await q("INSERT INTO events (kind,user_id,other,castigo,extra,audio) VALUES ('received',$1,$2,$3,$4,$5)", [target.id, req.user.nickname, castigo, extra, audio]);
+  ovlInvalidate(target.id);   // el destinatario recibe la shell en su próximo poll
   res.json({ bounce:false, castigo, target: target.nickname, champ: display, champIcon, msg:`Le lanzaste una Blue Shell a ${target.nickname}. Le tocó: ${castigo}` });
 }));
 
 app.post('/api/blueshells/:id/cumplido', auth, wrap(async (req,res) => {
   const rows = await q("UPDATE events SET estado='cumplido' WHERE id=$1 AND user_id=$2 AND kind='received' RETURNING id", [Number(req.params.id), req.user.id]);
   if (!rows.length) return res.status(404).json({ error:'No encontrado' });
+  ovlInvalidate(req.user.id);
   res.json({ ok:true });
 }));
 
@@ -960,6 +987,7 @@ app.post('/api/admin/verifications/:id/:action', auth, requireAdmin, wrap(async 
   await q('UPDATE verifications SET estado=$1 WHERE id=$2', [estado, v.id]);
   if (estado === 'aprobado')
     await q("UPDATE events SET estado='cumplido' WHERE user_id=$1 AND castigo=$2 AND kind='received' AND estado='pendiente'", [v.user_id, v.castigo]);
+    ovlInvalidate(v.user_id);
   res.json({ ok:true });
 }));
 
@@ -994,10 +1022,12 @@ app.post('/api/admin/penalty', auth, requireAdmin, wrap(async (req,res) => {
   if (!target) return res.status(400).json({ error:'Usuario inválido' });
   if (!castigo) return res.status(400).json({ error:'Falta el castigo' });
   await q("INSERT INTO events (kind,user_id,other,castigo) VALUES ('received',$1,'Organización',$2)", [target.id, castigo]);
+  ovlInvalidate(target.id);
   res.json({ ok:true });
 }));
 app.post('/api/admin/penalty/remove', auth, requireAdmin, wrap(async (req,res) => {
-  await q("DELETE FROM events WHERE id=$1 AND kind='received'", [Number(req.body && req.body.id)]);
+  const del = await q("DELETE FROM events WHERE id=$1 AND kind='received' RETURNING user_id", [Number(req.body && req.body.id)]);
+  if (del.length) ovlInvalidate(del[0].user_id);
   res.json({ ok:true });
 }));
 
