@@ -56,6 +56,17 @@ async function matchesBlob(){
   }
   return _dbMatchesCache.data;
 }
+// rid (incl. nombres viejos) -> puuid, desde match_participants. Mapa GRANDE (~13k filas) y ESTABLE
+// (solo cambia al entrar cuentas nuevas), pero se reconstruía en CADA rebuild de stats/encuentros/
+// records y en el detector de renombres → era ~11.6M filas de egress. Cacheado 10 min en memoria.
+let _ridPuuid = { at: 0, data: null };
+async function ridPuuidMap(){
+  if (_ridPuuid.data && Date.now() - _ridPuuid.at < 600000) return _ridPuuid.data;
+  const m = {};
+  try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) m[r.rid] = r.puuid; } catch {}
+  _ridPuuid = { at: Date.now(), data: m };
+  return m;
+}
 async function playerMatchCache(puuid){
   const d = await matchesBlob();
   return d && d[puuid];
@@ -481,7 +492,7 @@ function buildHistoryRow(m, puuid){
 app.get('/api/player/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();   // Express ya decodifica el parámetro
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
-  res.set('Cache-Control', 'public, max-age=90');   // ficha: Cloudflare la sirve del borde ~90s
+  res.set('Cache-Control', 'public, max-age=300');   // ficha: Cloudflare la sirve del borde ~90s
 
   // Perfil desde la caché del ranking (players.json) + usuario registrado
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
@@ -633,7 +644,7 @@ const RECORDS = [
 // Agregados por jugador del torneo (cache 60s: es global, igual para todos).
 let LB_CACHE = { at:0, players:[] };
 async function leaderboardPlayers(){
-  if (Date.now() - LB_CACHE.at < 90000) return LB_CACHE.players;
+  if (Date.now() - LB_CACHE.at < 300000) return LB_CACHE.players;
   const rows = await q(`SELECT puuid, riotid, name, champion, win, kills, deaths, assists, cs, gold, damage, vision, penta, duration, game_end
     FROM match_participants WHERE is_tournament=true`);
   const byP = {};
@@ -695,7 +706,7 @@ async function excludedSmurfRids(){
 
 app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();
-  res.set('Cache-Control', 'public, max-age=90');   // ficha completa: Cloudflare la sirve del borde ~90s
+  res.set('Cache-Control', 'public, max-age=300');   // ficha completa: Cloudflare la sirve del borde ~90s
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
   const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
   const u = await q1('SELECT nickname, realname, avatar, pos1 FROM users WHERE riotid=$1', [riotid]);
@@ -1252,15 +1263,14 @@ app.post('/api/admin/player/remove', auth, requireAdmin, wrap(async (req,res) =>
 // jugador del torneo) + los ±LP guardados en fetch_cache. Cache 60s.
 const STATS_CACHE = { at: 0, data: null };
 app.get('/api/stats', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=90');   // Cloudflare lo sirve del borde (menos hits al origen)
-  if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 90000) return res.json(STATS_CACHE.data);
+  res.set('Cache-Control', 'public, max-age=300');   // Cloudflare lo sirve del borde (menos hits al origen)
+  if (STATS_CACHE.data && Date.now() - STATS_CACHE.at < 300000) return res.json(STATS_CACHE.data);
 
   // ---- Identidad de CUENTA por PUUID (consolida renombres) + JUGADOR (dueño) ----
   // El puuid no cambia aunque cambie el Riot ID, así una cuenta renombrada cuenta como una sola.
   const snapPlayers = liveSnapshot().players || [];
   // rid (incluye nombres VIEJOS) -> acct(puuid), desde el historial crudo.
-  const acctByRid = {};
-  try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) acctByRid[r.rid] = r.puuid; } catch {}
+  const acctByRid = await ridPuuidMap();   // mapa cacheado (antes era ~13k filas por cada rebuild)
   const acctOf = rid => acctByRid[rid] || rid;
   const metaByAcct = {};   // acct(puuid|rid) -> { nm, tier, high, pos, abs, rid }
   snapPlayers.forEach((p, i) => {
@@ -1465,8 +1475,8 @@ app.get('/api/stats', wrap(async (req, res) => {
 // memoria), así se detectan también los cruces como rivales, no solo los dúos. SoloQ.
 const ENC_CACHE = { at: 0, data: null };
 app.get('/api/encounters', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=90');   // Cloudflare lo sirve del borde
-  if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 90000) return res.json(ENC_CACHE.data);
+  res.set('Cache-Control', 'public, max-age=300');   // Cloudflare lo sirve del borde
+  if (ENC_CACHE.data && Date.now() - ENC_CACHE.at < 300000) return res.json(ENC_CACHE.data);
   // Nickname del torneo por cuenta (para mostrar el nick, no el summoner name).
   const meta = {};
   (liveSnapshot().players || []).forEach(p => { meta[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
@@ -1493,8 +1503,8 @@ app.get('/api/encounters', wrap(async (req, res) => {
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
 app.get('/api/records', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=90');
-  if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 90000) return res.json(RECORDS_CACHE.data);
+  res.set('Cache-Control', 'public, max-age=300');
+  if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 300000) return res.json(RECORDS_CACHE.data);
   // puuid -> Riot ID actual + nick (para OP.GG correcto aunque la cuenta se haya renombrado).
   const players = liveSnapshot().players || [];
   const ridByPuuid = {}, nickByRid = {};
@@ -1694,8 +1704,7 @@ async function detectRenames(){
   for (const s of await q("SELECT id, riotid FROM smurfs WHERE coalesce(riotid,'')<>''")) watch.push({ kind:'smurf',  id:s.id, rid:s.riotid });
   for (const r of await q("SELECT riotid    FROM roster WHERE coalesce(riotid,'')<>''")) watch.push({ kind:'roster',          rid:r.riotid });
   // puuid por rid desde el historial crudo (sin gastar llamadas a Riot para resolver).
-  const rid2puuid = {};
-  for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) rid2puuid[r.rid] = r.puuid;
+  const rid2puuid = await ridPuuidMap();   // mapa cacheado (evita re-escanear match_participants)
   for (const w of watch){
     const puuid = rid2puuid[(w.rid || '').toLowerCase()]; if (!puuid) continue;
     const cur = await accountByPuuid(puuid, KEY);
