@@ -184,6 +184,7 @@
   .acc-tag.ptag.pro{ color:#000; background:#e9ff1f; border:1px solid #e9ff1f; }
   .acc-tag.ptag.streamer{ color:#fff; background:rgba(145,70,255,.9); border:1px solid #9146ff; }
   .acc-tag.ptag.competitivo{ color:#053; background:#5eead4; border:1px solid #5eead4; }
+  .acc-tag.ptag.god{ color:#1a1205; background:linear-gradient(180deg,#ffe07a,#f0b429); border:1px solid #ffd24a; box-shadow:0 0 6px rgba(255,210,74,.5); }
   .team-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 7px; border-radius:5px; vertical-align:middle; display:inline-block; }
   .tag-stack{ display:inline-flex; flex-direction:column; gap:3px; align-items:flex-start; vertical-align:middle; }
   .tag-stack:empty{ display:none; }
@@ -303,6 +304,7 @@
   .lg-ptag.pro{ color:#000; background:#e9ff1f; }
   .lg-ptag.streamer{ color:#fff; background:#9146ff; }
   .lg-ptag.competitivo{ color:#000; background:#5eead4; }
+  .lg-ptag.god{ color:#1a1205; background:linear-gradient(180deg,#ffe07a,#f0b429); box-shadow:0 0 6px rgba(255,210,74,.5); }
   .lg-rank{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; margin-top:1px; }
   .lg-rank .tdot{ width:6px; height:6px; border-radius:50%; }
   .lg-pos{ font-size:12px; font-weight:800; color:var(--up); white-space:nowrap; }
@@ -828,7 +830,7 @@ async function loadTeams(fresh){
 }
 // Etiquetas de torneo (Riot ID -> {tag,team}) y de jugador (PRO/Streamer/Competitivo).
 let TOURNEY_MAP = {}, PTAGS = {};
-const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
+const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo', GOD:'GOD' };
 function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_MAP[nrid(rid)] || null; }
 // Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está en un torneo, se considera
 // "Competitivo" por defecto — SALVO nuestros 4 equipos UChile (no son competitivos externos).

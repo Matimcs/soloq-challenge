@@ -92,7 +92,7 @@ async function refreshRoster(){
   try { const r = await fetch(`${BACKEND}/api/tourney-players`); if (r.ok) tourneyMap = rekey(await r.json()); } catch {}
   try { const r = await fetch(`${BACKEND}/api/player-tags`);    if (r.ok) playerTags = rekey(await r.json()); } catch {}
 }
-const TAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
+const TAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo', GOD:'GOD' };
 function loadRoster(){ return rosterCache; }
 
 async function loadDDragon(){

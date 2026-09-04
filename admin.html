@@ -153,13 +153,14 @@
       <!-- Etiquetas de jugador -->
       <div class="box">
         <h2>Etiquetas de jugador <span class="n" id="tg-count"></span></h2>
-        <div class="sub" style="margin:-6px 0 12px">Etiqueta una cuenta como <b>PRO</b>, <b>Streamer</b> o <b>Competitivo</b> (jugadores de torneo tier 2-3). Aparece en el ranking y en Live Games.</div>
+        <div class="sub" style="margin:-6px 0 12px">Etiqueta una cuenta como <b>PRO</b>, <b>Streamer</b>, <b>Competitivo</b> (jugadores de torneo tier 2-3) o <b style="color:#f0b429">GOD</b> (jugadores que consideramos god). Aparece en el ranking y en Live Games.</div>
         <div class="drop-row">
           <input type="text" id="tg-riotid" placeholder="Riot ID (Nombre#TAG), ej: rakyz#sbm">
           <select id="tg-tag" style="flex:0 0 auto;min-width:150px">
             <option value="PRO">PRO</option>
             <option value="STREAMER">Streamer</option>
             <option value="COMPETITIVO">Competitivo</option>
+            <option value="GOD">GOD</option>
           </select>
           <button class="btn btn-accent" id="tg-add">Etiquetar</button>
         </div>
@@ -552,7 +553,7 @@
     $('msg-clear').addEventListener('click', ()=>{ recordedAudio=null; $('msg-preview').style.display='none'; $('msg-preview').src=''; $('msg-clear').style.display='none'; });
 
     // ---- Etiquetas de jugador (PRO / Streamer / Competitivo) ----
-    const TG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo' };
+    const TG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo', GOD:'GOD' };
     async function renderTags(){
       let list = []; try { list = await SQC.api('/admin/player-tags'); } catch(e){ return; }
       $('tg-count').textContent = `(${list.length})`;

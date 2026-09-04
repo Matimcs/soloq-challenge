@@ -399,15 +399,17 @@ app.get('/api/tourney-players', wrap(async (req,res) => {
   _tourneyPlayers = { at: Date.now(), map: await buildTourneyMap() };
   res.json(_tourneyPlayers.map);
 }));
-// Etiquetas de jugador (PRO / Streamer / Competitivo). Público (ranking + live games).
-const PLAYER_TAGS = new Set(['PRO', 'STREAMER', 'COMPETITIVO']);
+// Etiquetas de jugador (PRO / Streamer / Competitivo / GOD). Público (ranking + live games).
+const PLAYER_TAGS = new Set(['PRO', 'STREAMER', 'COMPETITIVO', 'GOD']);
+// Etiquetas por defecto (jugadores fijados en código). El admin puede sobreescribirlas desde el panel.
+const DEFAULT_TAGS = { 'el financiero#las': 'GOD' };
 let _tagsCache = { at: 0, data: null };
 function invalidateTags(){ _tagsCache = { at: 0, data: null }; }
 app.get('/api/player-tags', wrap(async (req,res) => {
   res.set('Cache-Control', 'public, max-age=120');
   if (_tagsCache.data && Date.now() - _tagsCache.at < 120000) return res.json(_tagsCache.data);
   const rows = await q('SELECT riotid, tag FROM player_tags');
-  const out = {}; rows.forEach(r => { out[r.riotid.toLowerCase()] = r.tag; });
+  const out = { ...DEFAULT_TAGS }; rows.forEach(r => { out[r.riotid.toLowerCase()] = r.tag; });   // la DB pisa el default
   _tagsCache = { at: Date.now(), data: out };
   res.json(out);
 }));
