@@ -339,7 +339,11 @@ async function updatePlayerStats(puuid, entry){
     if (!me) continue;
     await saveParticipants(id, m.info);   // guarda los 10 participantes en la DB (idempotente)
     await saveMatch(id, m);               // guarda la partida COMPLETA
-    const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '' };
+    // Remake: partida abortada temprano (early surrender / alguien no cargó). No otorga LP (±0).
+    // Se detecta por duración corta (< 5 min) o por el flag de Riot en el participante.
+    const dur = m.info.gameDuration || 0;
+    const remake = dur > 0 && dur < 300 || !!me.gameEndedInEarlySurrender;
+    const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '', remake };
     store.games.unshift(g); fetched.push(g);
   }
   store.games = store.games.slice(0, 20);
@@ -380,15 +384,20 @@ async function updatePlayerStats(puuid, entry){
   if (cur != null && store.lastAbsLP != null) {
     // Partidas a atribuir desde el último LP conocido: el PENDIENTE del ciclo anterior (si lo hay,
     // LP que aún no había propagado) + las NUEVAS de este ciclo (viejo→nuevo). Riot no da el LP por
-    // partida, así que el "neto" (cur - lastAbsLP) se reparte entre estas partidas.
+    // partida, así que el "neto" (cur - lastAbsLP) se reparte entre estas partidas. Los REMAKES no
+    // dan LP → siempre 0 (y no quedan "pendientes" esperando un delta que nunca llega).
     const pend = (store.lpGames[0] && store.lpGames[0].pending) ? store.lpGames[0] : null;
-    const list = [...(pend ? [{ win: pend.win, end: pend.end }] : []),
-                  ...fetched.map(g => ({ win: g.win, end: g.end }))];
+    const list = [...(pend ? [{ win: pend.win, end: pend.end, remake: !!pend.remake }] : []),
+                  ...fetched.map(g => ({ win: g.win, end: g.end, remake: !!g.remake }))];
     const net = cur - store.lastAbsLP;
     const N = list.length;
     if (N >= 1 && Math.abs(net) <= 100 * N) {   // descarta saltos raros (promo de tier, decay, reset)
-      if (N === 1 && net === 0) {
-        // Una sola partida y el LP aún no propagó → queda PENDIENTE (se confirma el próximo ciclo).
+      if (N === 1 && list[0].remake) {
+        // Remake: 0 LP CONFIRMADO (no pendiente, no aegis).
+        if (pend) { pend.delta = 0; delete pend.pending; pend.remake = true; }
+        else store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, remake: true });
+      } else if (N === 1 && net === 0) {
+        // Una sola partida (no remake) y el LP aún no propagó → queda PENDIENTE (se confirma después).
         if (!pend) store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, pending: true });
       } else if (N === 1) {
         // Una sola partida con el LP ya movido → atribución directa (caso normal, ±LP exacto).
@@ -396,15 +405,16 @@ async function updatePlayerStats(puuid, entry){
         else store.lpGames.unshift({ win: list[0].win, delta: net, end: list[0].end });
         countAegis(net);
       } else {
-        // VARIAS partidas en un ciclo: no se puede separar el LP exacto de cada una, así que se
-        // reparte el neto por V/D usando el LP típico reciente. Se marcan como estimadas (est) para
-        // no contarlas como aegis (evita el "doble" fantasma de 2 partidas sumadas).
+        // VARIAS partidas en un ciclo: no se puede separar el LP exacto de cada una. Los remakes van
+        // 0; el neto se reparte por V/D (LP típico reciente) SOLO entre las que dan LP. Marcadas como
+        // estimadas (est) para no contarlas como aegis (evita el "doble" fantasma de 2 partidas).
         const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
-        let est = list.map(g => g.win ? mag : -mag);
-        const per = (net - est.reduce((a, b) => a + b, 0)) / N;   // reparte el residuo por igual
-        est = est.map(d => Math.round(d + per));
-        if (pend) store.lpGames.shift();                          // quita el pendiente; se re-inserta estimado
-        for (let i = 0; i < N; i++) store.lpGames.unshift({ win: list[i].win, delta: est[i], end: list[i].end, est: true });
+        const nonRemake = list.filter(g => !g.remake).length || 1;
+        let est = list.map(g => g.remake ? 0 : (g.win ? mag : -mag));
+        const per = (net - est.reduce((a, b) => a + b, 0)) / nonRemake;   // el residuo solo a las que dan LP
+        est = est.map((d, i) => list[i].remake ? 0 : Math.round(d + per));
+        if (pend) store.lpGames.shift();                          // quita el pendiente; se re-inserta
+        for (let i = 0; i < N; i++) store.lpGames.unshift({ win: list[i].win, delta: est[i], end: list[i].end, est: !list[i].remake, remake: list[i].remake });
       }
       store.lpGames = store.lpGames.slice(0, 40);
     }

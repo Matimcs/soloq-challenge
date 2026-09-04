@@ -1567,13 +1567,13 @@ app.use(express.static(ROOT, {
 
 // ---- Runner embebido (opcional) ----
 // Si RIOT_API_KEY está en el entorno, el propio server actualiza el ranking
-// corriendo fetch-data.js cada INTERVAL_SEC (por defecto 120s). Así NO hace
+// corriendo fetch-data.js cada INTERVAL_SEC (por defecto 90s). Así NO hace
 // falta correr el runner en un PC: todo vive en la nube. La key nunca se
 // expone al navegador (solo la usa el proceso del server).
 function startEmbeddedRunner(){
   if (!process.env.RIOT_API_KEY) return;
   const { spawn } = require('child_process');
-  const INTERVAL = (Number(process.env.INTERVAL_SEC) || 120) * 1000;
+  const INTERVAL = (Number(process.env.INTERVAL_SEC) || 90) * 1000;   // más frecuente = live games más frescos (ojo rate limit Riot)
   const CACHE_DIR = path.join(ROOT, 'cache');
   const CACHE_FILES = { puuids:'puuids.json', ranks:'ranks.json', matches:'matches.json', encounters:'encounters.json', regions:'regions.json', positions:'positions.json', ddragon:'ddragon.json' };
   // Escribe roster-extra.json (cuentas agregadas por el admin) para que fetch-data las incluya.
