@@ -438,6 +438,34 @@ app.post('/api/admin/player-tag', auth, requireAdmin, wrap(async (req,res) => {
 app.get('/api/admin/player-tags', auth, requireAdmin, wrap(async (req,res) =>
   res.json(await q('SELECT riotid, tag, updated_at FROM player_tags ORDER BY updated_at DESC'))));
 
+// ---- APUESTA: ¿quién llega antes a Challenger, Krok o Petu? (vota cualquier jugador logueado) ----
+const BET_ID = 'chall_krok_petu';
+const BET_CHOICES = new Set(['krok', 'petu']);
+// Lee el uid del token si viene (sin obligar a estar logueado), para devolver el voto propio.
+async function optionalUid(req){
+  const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return null;
+  try { return jwt.verify(t, JWT_SECRET).uid; } catch { return null; }
+}
+async function betTally(uid){
+  const rows = await q('SELECT choice, count(*)::int c FROM bet_votes WHERE bet_id=$1 GROUP BY choice', [BET_ID]);
+  const out = { krok:0, petu:0, mine:null };
+  rows.forEach(r => { if (r.choice === 'krok' || r.choice === 'petu') out[r.choice] = r.c; });
+  if (uid){ const m = await q1('SELECT choice FROM bet_votes WHERE bet_id=$1 AND user_id=$2', [BET_ID, uid]); out.mine = m ? m.choice : null; }
+  return out;
+}
+app.get('/api/bet-votes', wrap(async (req,res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await betTally(await optionalUid(req)));
+}));
+app.post('/api/bet-vote', auth, wrap(async (req,res) => {
+  const choice = ((req.body && req.body.choice) || '').trim().toLowerCase();
+  if (!BET_CHOICES.has(choice)) return res.status(400).json({ error:'Voto inválido' });
+  await q(`INSERT INTO bet_votes (bet_id, user_id, choice, updated_at) VALUES ($1,$2,$3,now())
+           ON CONFLICT (bet_id, user_id) DO UPDATE SET choice=EXCLUDED.choice, updated_at=now()`, [BET_ID, req.user.id, choice]);
+  res.json(await betTally(req.user.id));
+}));
+
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
 app.get('/api/me/smurfs', auth, wrap(async (req,res) =>
   res.json(await q('SELECT id, riotid FROM smurfs WHERE user_id=$1 ORDER BY id', [req.user.id]))));

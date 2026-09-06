@@ -218,6 +218,14 @@ async function init(){
       loser_maps INT  NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Votos de la APUESTA (quién llega antes a Challenger, etc.). Un voto por jugador logueado y apuesta.
+    CREATE TABLE IF NOT EXISTS bet_votes (
+      bet_id     TEXT    NOT NULL,
+      user_id    INTEGER NOT NULL,
+      choice     TEXT    NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (bet_id, user_id)
+    );
     -- Etiqueta manual de un jugador (PRO / Streamer / Competitivo), la pone el admin.
     CREATE TABLE IF NOT EXISTS player_tags (
       riotid     TEXT PRIMARY KEY,
