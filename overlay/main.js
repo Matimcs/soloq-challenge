@@ -73,7 +73,9 @@ function saveSettings(){ try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(se
 let DEBUG_LOG; try { DEBUG_LOG = path.join(app.getPath('userData'), 'overlay-debug.log'); } catch { DEBUG_LOG = path.join(__dirname, 'overlay-debug.log'); }
 function dlog(m){ try { fs.appendFileSync(DEBUG_LOG, `[${new Date().toISOString()}] ${m}\n`); } catch {} }
 
-let DD = null, myRidForShells = null;
+// Recuerda la última cuenta detectada para poder recibir Blue Shells/mensajes AUNQUE LoL esté
+// cerrado o en la pantalla de login (antes, sin LoL abierto y logueado, no llegaban).
+let DD = null, myRidForShells = settings.lastRid || null;
 const OVERLAY_START = Date.now();
 let shownShellIds = new Set(Array.isArray(settings.shownShellIds) ? settings.shownShellIds : []);
 let shownMsgIds  = new Set(Array.isArray(settings.shownMsgIds)  ? settings.shownMsgIds  : []);
@@ -504,8 +506,9 @@ async function poll(){
       const inSoloQ = (queueId === 420 || isPractice) && phase === 'InProgress';
 
       const myRid = (me && !me.error) ? `${me.gameName}#${me.tagLine}` : null;
-      if (myRid !== myRidForShells) dlog('myRid = ' + myRid);
-      myRidForShells = myRid;
+      // Solo actualiza (y persiste) con una cuenta REAL; si LoL está en login (myRid null) se
+      // conserva la última conocida para seguir recibiendo shells/mensajes.
+      if (myRid && myRid !== myRidForShells){ dlog('myRid = ' + myRid); myRidForShells = myRid; settings.lastRid = myRid; saveSettings(); }
       const players = roster.players || [];
       const idx = players.findIndex(p => p.rid === myRid);
       const standing = idx >= 0 ? players[idx] : null;
