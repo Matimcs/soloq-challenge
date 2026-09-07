@@ -27,7 +27,15 @@
     padding:11px 14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
   .tab:hover{ color:#fff; }
   .tab.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab{ position:relative; }
+  .tab-badge{ display:none; margin-left:6px; font-size:9px; font-weight:800; color:#000; background:var(--down); border-radius:999px; padding:1px 6px; vertical-align:middle; letter-spacing:0; }
   .panel{ display:none; } .panel.active{ display:block; }
+  /* Récord nuevo/cambiado: resalta la card la primera vez que lo ves */
+  .rec-banner{ display:flex; align-items:center; gap:8px; background:linear-gradient(180deg,rgba(52,211,153,.14),rgba(52,211,153,.04)); border:1px solid rgba(52,211,153,.4); color:var(--up); border-radius:12px; padding:10px 14px; font-size:13px; font-weight:700; margin-bottom:14px; }
+  .card.rec-new{ border-color:var(--up); box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.25); animation:recpulse 1.6s ease 2; }
+  @keyframes recpulse{ 0%,100%{ box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.15); } 50%{ box-shadow:0 0 0 1px var(--up), 0 0 30px rgba(52,211,153,.5); } }
+  .rec-new-badge{ margin-left:8px; font-size:9px; font-weight:800; color:#000; background:var(--up); border-radius:5px; padding:2px 6px; letter-spacing:.04em; vertical-align:middle; }
+  .card.rec-new .rowl:first-of-type{ background:rgba(52,211,153,.08); border-radius:8px; }
 
   /* Cards */
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
@@ -153,7 +161,7 @@
       <button class="tab" data-t="elo">ELO</button>
       <button class="tab" data-t="coinc">COINCIDENCIAS</button>
       <button class="tab" data-t="rivales">CONTRINCANTES</button>
-      <button class="tab" data-t="records">RÉCORDS</button>
+      <button class="tab" data-t="records">RÉCORDS<span class="tab-badge" id="rec-tab-badge"></span></button>
     </div>
 
     <div class="panel active" id="p-tops"><div class="loading">Cargando estadísticas…</div></div>
@@ -179,15 +187,35 @@
     document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
     $('p-'+b.dataset.t).classList.add('active');
     if (b.dataset.t==='elo' && DATA){ drawChart(); drawAvgChart(); }
-    if (b.dataset.t==='records'){ loadRecords(); }
+    if (b.dataset.t==='records'){ loadRecords(true); }
   });
 
   // ---- RÉCORDS ----
-  let RECORDS = null;
-  async function loadRecords(){
-    if (RECORDS){ renderRecords(); return; }
-    try { const r = await fetch('/api/records', { cache:'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status); RECORDS = await r.json(); renderRecords(); }
-    catch(e){ $('p-records').innerHTML = '<div class="empty">No se pudieron cargar los récords.<br><small>'+esc(e.message)+'</small></div>'; }
+  let RECORDS = null, REC_CHANGED = new Set();
+  // Detecta qué categorías de récord cambiaron desde la última vez que las viste (firma del backend).
+  function computeRecChanged(){
+    REC_CHANGED = new Set();
+    if (!RECORDS || !RECORDS._sig) return;
+    let seen = null; try { seen = JSON.parse(localStorage.getItem('sqc_rec_seen') || 'null'); } catch {}
+    if (seen){ for (const k in RECORDS._sig){ if (RECORDS._sig[k] !== seen[k]) REC_CHANGED.add(k); } }   // sin 'seen' (1ra vez): nada nuevo
+    const tb = $('rec-tab-badge');
+    if (tb){ if (REC_CHANGED.size){ tb.textContent = REC_CHANGED.size; tb.style.display = ''; } else tb.style.display = 'none'; }
+  }
+  // Marca los récords como VISTOS: guarda la firma, limpia los badges y refresca el del nav.
+  function markRecordsSeen(){
+    if (!RECORDS || !RECORDS._sig) return;
+    try { localStorage.setItem('sqc_rec_seen', JSON.stringify(RECORDS._sig)); } catch {}
+    const tb = $('rec-tab-badge'); if (tb) tb.style.display = 'none';
+    if (window.SQC && SQC.navBadges) SQC.navBadges();
+  }
+  async function loadRecords(view){
+    if (!RECORDS){
+      try { const r = await fetch('/api/records', { cache:'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status); RECORDS = await r.json(); }
+      catch(e){ $('p-records').innerHTML = '<div class="empty">No se pudieron cargar los récords.<br><small>'+esc(e.message)+'</small></div>'; return; }
+      computeRecChanged();
+    }
+    renderRecords();
+    if (view) markRecordsSeen();   // recién al ABRIR la pestaña se marca como visto
   }
   const LOG_REG = { LA2:'las', LA1:'lan', NA1:'na', EUW1:'euw', EUN1:'eune', KR:'kr', BR1:'br', OC1:'oce', TR1:'tr', RU:'ru', JP1:'jp' };
   function logMatchUrl(matchId){
@@ -201,26 +229,30 @@
       <div class="meta"><div class="nm">${esc(r.nm)}</div><div class="games">${detail}${link}</div></div>
       <div class="val">${value}</div></div>`;
   }
-  function recCard(title, cap, list, detailFn, valueFn, opggOn=true){
+  function recCard(key, title, cap, list, detailFn, valueFn, opggOn=true){
+    const isNew = REC_CHANGED.has(key);
     const rows = (list||[]).map((r,i)=>recRow(r,i,detailFn(r),valueFn(r),opggOn)).join('');
-    return `<div class="card"><h3>${title}</h3><div class="cap">${cap}</div>${rows||'<div class="empty">Sin datos</div>'}</div>`;
+    return `<div class="card ${isNew?'rec-new':''}"><h3>${title}${isNew?'<span class="rec-new-badge">NUEVO</span>':''}</h3><div class="cap">${cap}</div>${rows||'<div class="empty">Sin datos</div>'}</div>`;
   }
   function renderRecords(){
     const R = RECORDS || {};
     const kdaLine = r => `${r.k}/${r.d}/${r.a} · ${esc(r.champ)}`;
     const cLine   = r => `${esc(r.champ)} · ${r.k}/${r.d}/${r.a}`;
     const cmMin   = r => `${esc(r.champ)} · ${r.durMin} min`;
-    $('p-records').innerHTML = `<div class="grid">`
-      + recCard('MEJOR KDA', 'Mayor KDA en una partida (empate: menos muertes)', R.kdaBest, kdaLine, r=>r.kda)
-      + recCard('PEOR KDA', 'Menor KDA en una partida (empate: más muertes)', R.kdaWorst, kdaLine, r=>r.kda)
-      + recCard('MÁS KILLS', 'Más asesinatos en una sola partida', R.kills, cLine, r=>r.k)
-      + recCard('MÁS MUERTES', 'Más muertes en una sola partida', R.deaths, cLine, r=>r.d)
-      + recCard('MÁS ASISTENCIAS', 'Más asistencias en una sola partida', R.assists, cLine, r=>r.a)
-      + recCard('MÁS CS', 'Más súbditos en una sola partida', R.cs, cmMin, r=>r.cs)
-      + recCard('MÁS VISIÓN', 'Mayor puntuación de visión en una partida', R.vision, cmMin, r=>r.vis)
-      + recCard('PARTIDA MÁS LARGA', 'Mayor duración de partida', R.duration, cLine, r=>`${r.durMin} min`)
-      + recCard('RACHA DE VICTORIAS', 'Más victorias seguidas', R.winStreak, ()=>'seguidas', r=>r.value, false)
-      + recCard('RACHA DE DERROTAS', 'Más derrotas seguidas', R.loseStreak, ()=>'seguidas', r=>r.value, false)
+    const banner = REC_CHANGED.size
+      ? `<div class="rec-banner">✨ ${REC_CHANGED.size} récord${REC_CHANGED.size===1?'':'s'} nuevo${REC_CHANGED.size===1?'':'s'} — resaltado${REC_CHANGED.size===1?'':'s'} abajo</div>`
+      : '';
+    $('p-records').innerHTML = banner + `<div class="grid">`
+      + recCard('kdaBest', 'MEJOR KDA', 'Mayor KDA en una partida (empate: menos muertes)', R.kdaBest, kdaLine, r=>r.kda)
+      + recCard('kdaWorst', 'PEOR KDA', 'Menor KDA en una partida (empate: más muertes)', R.kdaWorst, kdaLine, r=>r.kda)
+      + recCard('kills', 'MÁS KILLS', 'Más asesinatos en una sola partida', R.kills, cLine, r=>r.k)
+      + recCard('deaths', 'MÁS MUERTES', 'Más muertes en una sola partida', R.deaths, cLine, r=>r.d)
+      + recCard('assists', 'MÁS ASISTENCIAS', 'Más asistencias en una sola partida', R.assists, cLine, r=>r.a)
+      + recCard('cs', 'MÁS CS', 'Más súbditos en una sola partida', R.cs, cmMin, r=>r.cs)
+      + recCard('vision', 'MÁS VISIÓN', 'Mayor puntuación de visión en una partida', R.vision, cmMin, r=>r.vis)
+      + recCard('duration', 'PARTIDA MÁS LARGA', 'Mayor duración de partida', R.duration, cLine, r=>`${r.durMin} min`)
+      + recCard('winStreak', 'RACHA DE VICTORIAS', 'Más victorias seguidas', R.winStreak, ()=>'seguidas', r=>r.value, false)
+      + recCard('loseStreak', 'RACHA DE DERROTAS', 'Más derrotas seguidas', R.loseStreak, ()=>'seguidas', r=>r.value, false)
       + `</div>`;
   }
 
@@ -544,6 +576,7 @@
 
   SQC.preNav(); SQC.mountNav();
   load();
+  loadRecords(false);   // precarga récords para mostrar el badge de "nuevo" en la pestaña (sin marcar visto)
 </script>
 </body>
 </html>

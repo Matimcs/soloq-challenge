@@ -1111,7 +1111,7 @@ app.post('/api/ingest', wrap(async (req,res) => {
 app.get('/api/nav-counts', (req,res) => {
   const live = (liveData && Array.isArray(liveData.liveGames)) ? liveData.liveGames.length : 0;
   const encEnds = (liveData && Array.isArray(liveData.encounters)) ? liveData.encounters.map(e => e.end || 0) : [];
-  res.json({ live, encEnds });
+  res.json({ live, encEnds, recSig: _recSig });   // recSig: firma de récords (para el badge de Estadísticas)
 });
 // players.json (el que se consulta cada 30s por polling): cacheable ~20s → Cloudflare lo
 // sirve del borde y baja la banda. players.js es la carga INICIAL de cada página (script tag):
@@ -1530,6 +1530,14 @@ app.get('/api/encounters', wrap(async (req, res) => {
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
+let _recSig = {};   // firma por categoría (nm|valor del #1) para detectar récords nuevos/cambiados
+function recordsSig(R){
+  const V = { kdaBest:r=>r.kda, kdaWorst:r=>r.kda, kills:r=>r.k, deaths:r=>r.d, assists:r=>r.a,
+              cs:r=>r.cs, vision:r=>r.vis, duration:r=>r.durMin, winStreak:r=>r.value, loseStreak:r=>r.value };
+  const s = {};
+  for (const k in V){ const t = (R[k] || [])[0]; s[k] = t ? ((t.nm || '') + '|' + V[k](t)) : ''; }
+  return s;
+}
 app.get('/api/records', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 300000) return res.json(RECORDS_CACHE.data);
@@ -1566,6 +1574,8 @@ app.get('/api/records', wrap(async (req, res) => {
   RECORDS_CACHE.data = { kdaBest: kdaBest.map(map), kdaWorst: kdaWorst.map(map), cs: cs.map(map), duration: dur.map(map),
     kills: kills.map(map), deaths: deaths.map(map), assists: assists.map(map), vision: vision.map(map),
     winStreak: streaks(wmax), loseStreak: streaks(lmax) };
+  _recSig = recordsSig(RECORDS_CACHE.data);
+  RECORDS_CACHE.data._sig = _recSig;   // firma incluida en la respuesta (para resaltar lo nuevo)
   RECORDS_CACHE.at = Date.now();
   res.json(RECORDS_CACHE.data);
 }));
