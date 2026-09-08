@@ -185,6 +185,7 @@
   .acc-tag.ptag.streamer{ color:#fff; background:rgba(145,70,255,.9); border:1px solid #9146ff; }
   .acc-tag.ptag.competitivo{ color:#053; background:#5eead4; border:1px solid #5eead4; }
   .acc-tag.ptag.god{ color:#1a1205; background:linear-gradient(180deg,#ffe07a,#f0b429); border:1px solid #ffd24a; box-shadow:0 0 6px rgba(255,210,74,.5); }
+  .acc-tag.afk{ color:#f87171; background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.4); }
   .team-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 7px; border-radius:5px; vertical-align:middle; display:inline-block; }
   .tag-stack{ display:inline-flex; flex-direction:column; gap:3px; align-items:flex-start; vertical-align:middle; }
   .tag-stack:empty{ display:none; }
@@ -998,6 +999,17 @@ const TIERV_ = { IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6,
 const DIVV_ = { I:3, II:2, III:1, IV:0, '':0 };
 function absLPf(p){ if(!p.tier||p.tier==='UNRANKED') return 0; if(HIGH_ELO.has(p.tier)) return 2800+(p.lp||0); return (TIERV_[p.tier]||0)*400+(DIVV_[p.div]||0)*100+(p.lp||0); }
 
+// AFK: la cuenta no juega una SoloQ rankeada hace más de 14 días. Se deduce de la última
+// partida trackeada (formT[].t = gameEndTimestamp de las últimas SoloQ). Si no hay partidas
+// trackeadas no se marca (no podemos afirmarlo).
+const AFK_MS = 14 * 24 * 60 * 60 * 1000;
+function lastSoloQ(p){ const ts = ((p && p.formT) || []).map(g => (g && g.t) || 0); return ts.length ? Math.max(...ts) : 0; }
+function afkBadge(p){
+  const t = lastSoloQ(p);
+  if (!t || (Date.now() - t) <= AFK_MS) return '';
+  const days = Math.floor((Date.now() - t) / 86400000);
+  return `<span class="acc-tag afk" title="Sin SoloQ rankeada hace ${days} días">AFK</span>`;
+}
 function rowHTML(p, extraCls='', extraAttr=''){
   const pos = p.rankPos;
   const wr  = Math.round(p.w/((p.w+p.l)||1)*100);
@@ -1012,7 +1024,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
         ${avaHtml(p.rid, p.nm)}
         <div><div class="nm">${NICK_BY_RID[rl] || p.nm}</div><div class="rid">${p.rid}</div></div>
-        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${ptagOf(p.rid) ? `<span class="acc-tag ptag ${ptagOf(p.rid).toLowerCase()}">${PTAG_LABEL[ptagOf(p.rid)]||ptagOf(p.rid)}</span>` : ''}</span>
+        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${ptagOf(p.rid) ? `<span class="acc-tag ptag ${ptagOf(p.rid).toLowerCase()}">${PTAG_LABEL[ptagOf(p.rid)]||ptagOf(p.rid)}</span>` : ''}${afkBadge(p)}</span>
         ${badges}
       </div></td>
       <td>${roleCell(p)}</td>
