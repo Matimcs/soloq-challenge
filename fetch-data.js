@@ -25,8 +25,11 @@ const RIOT_IDS = [
   'Yoyobox#1899', 'SKT T1 seiya157#LAS', 'Kriida#7777', 'HudsonHornet#gueon',
   'Yutsero#LAS', 'Lacosabuena#LAS', 'Dekai#LAS', 'vishh#LAS', 'kıwı#wıkı',
   'elmaio04#LAS', 'DeSean#Elba', 'Henry Miller#379',
-  'AntisionistaSion#SMURF', 'Hunßatz#LAS', 'pancho pistolas2#LAS',
+  'Hunßatz#LAS', 'pancho pistolas2#LAS',
 ];
+// NOTA: 'AntisionistaSion#SMURF' se renombró a 'Maio#Fidd' (smurf de user 1 en la DB → llega vía
+// roster-extra.json). Se quitó de esta lista fija porque, aunque Riot ya devuelve 404 para el nombre
+// viejo, el puuidCache persistido lo resolvía igual y ganaba el dedup por puuid, tapando a Maio#Fidd.
 // Cuentas agregadas manualmente desde el admin (el server escribe roster-extra.json desde la DB).
 try {
   const extra = JSON.parse(fs.readFileSync(path.join(__dirname, 'roster-extra.json'), 'utf8'));
@@ -160,6 +163,15 @@ function loadJSON(f, def){ try { return JSON.parse(fs.readFileSync(f,'utf8')); }
 const MATCH_FILE = path.join(CACHE_DIR, 'matches.json');
 const ENC_FILE   = path.join(CACHE_DIR, 'encounters.json');
 const puuidCache = loadJSON(PUUID_FILE, {});   // "RiotId#TAG" -> puuid  (nunca caduca)
+// Purga de puuids MUERTOS: si una cuenta se renombró, su viejo Riot ID puede seguir cacheado
+// apuntando a un puuid que ya no resuelve (p.ej. AntisionistaSion#SMURF → Maio#Fidd). Ese puuid
+// muerto además choca en el dedup por-puuid y tapa a la cuenta con su nombre nuevo. Borramos toda
+// entrada que apunte a un puuid muerto conocido para forzar UNA re-resolución fresca contra Riot;
+// una vez recacheado el puuid bueno, esta purga deja de aplicar (self-healing, idempotente).
+const DEAD_PUUIDS = new Set([
+  '6ALB0UuINXTL7rhqtk_sssLfwUVw2_RONjsmdrWB8giwsxtEXKChBMS7LaSTLrnxRA0MPbiZ19ZGLQ', // AntisionistaSion#SMURF (renombrada a Maio#Fidd)
+]);
+for (const k of Object.keys(puuidCache)) if (DEAD_PUUIDS.has(puuidCache[k])) delete puuidCache[k];
 const rankStore  = loadJSON(RANK_FILE,  {});   // puuid -> { entry, at }
 const matchStore = loadJSON(MATCH_FILE, {});   // puuid -> { games:[{id,win,champ,end}], lastAbsLP, lpGames:[{win,delta}] }
 const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
