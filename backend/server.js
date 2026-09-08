@@ -619,22 +619,50 @@ app.get('/api/match/:matchId', wrap(async (req,res) => {
   const id = (req.params.matchId || '').trim();
   const blob = (await matchBlobs([id]))[id];   // caché en memoria (partida inmutable)
   if (!blob || !blob.info) return res.status(404).json({ error:'Partida no guardada' });
-  res.set('Cache-Control', 'public, max-age=86400, immutable');   // el JSON no cambia → Cloudflare lo cachea
+  res.set('Cache-Control', 'public, max-age=120');   // el JSON es inmutable pero las asignaciones no
   const info = blob.info;
   const trackedRids = new Set(((liveData && liveData.players) || []).map(p => (p.rid||'').toLowerCase()));
   const parts = (info.participants || []).map(p => {
     const gn = p.riotIdGameName || p.summonerName || '', tg = p.riotIdTagline || '';
     const rid = gn ? (tg ? `${gn}#${tg}` : gn) : '';
     return {
-      name: gn, tag: tg, champion: p.championName, teamId: p.teamId, win: !!p.win, position: p.teamPosition || '',
+      name: gn, tag: tg, puuid: p.puuid || '', champion: p.championName, teamId: p.teamId, win: !!p.win, position: p.teamPosition || '',
       spells: [p.summoner1Id, p.summoner2Id], keystone: ksOf(p), secStyle: secOf(p),
       k: p.kills||0, d: p.deaths||0, a: p.assists||0, cs: (p.totalMinionsKilled||0)+(p.neutralMinionsKilled||0),
       items: [p.item0,p.item1,p.item2,p.item3,p.item4,p.item5].map(x=>x||0), trinket: p.item6||0,
       tracked: rid ? trackedRids.has(rid.toLowerCase()) : false,
     };
   });
-  res.json({ duration: info.gameDuration||0, queueId: info.queueId,
+  // Asignaciones manuales de esta partida (account sharing): puuid -> nick del jugador asignado.
+  const assigned = {};
+  try {
+    const rows = await q('SELECT puuid, user_id FROM game_assignments WHERE match_id=$1', [id]);
+    if (rows.length){ const us = await q('SELECT id, nickname FROM users WHERE id = ANY($1)', [rows.map(r=>r.user_id)]);
+      const nick = {}; us.forEach(u => nick[u.id] = u.nickname);
+      rows.forEach(r => { assigned[r.puuid] = nick[r.user_id] || null; }); }
+  } catch {}
+  res.json({ duration: info.gameDuration||0, queueId: info.queueId, assigned,
     blue: parts.filter(p=>p.teamId===100), red: parts.filter(p=>p.teamId===200) });
+}));
+
+// El admin asigna una partida a un jugador (account sharing): en esta partida, la cuenta (puuid o
+// riotid) la jugaba `userId`. userId vacío = quita la asignación. Afecta stats/dúos/encuentros.
+app.post('/api/admin/game-assign', auth, requireAdmin, wrap(async (req,res) => {
+  const matchId = ((req.body && req.body.matchId) || '').trim();
+  let puuid = ((req.body && req.body.puuid) || '').trim();
+  const riotid = ((req.body && req.body.riotid) || '').trim();
+  const userId = (req.body && req.body.userId) ? Number(req.body.userId) : 0;
+  if (!matchId) return res.status(400).json({ error:'Falta matchId' });
+  if (!puuid && riotid){ const r = await q1("SELECT puuid FROM match_participants WHERE match_id=$1 AND lower(riotid)=lower($2) AND coalesce(puuid,'')<>'' LIMIT 1", [matchId, riotid]); puuid = r && r.puuid; }
+  if (!puuid) return res.status(400).json({ error:'No pude identificar la cuenta en esa partida' });
+  if (!userId){ await q('DELETE FROM game_assignments WHERE match_id=$1 AND puuid=$2', [matchId, puuid]); }
+  else {
+    const u = await q1('SELECT id, nickname FROM users WHERE id=$1', [userId]); if (!u) return res.status(400).json({ error:'Jugador inválido' });
+    await q(`INSERT INTO game_assignments (match_id, puuid, user_id, updated_at) VALUES ($1,$2,$3,now())
+             ON CONFLICT (match_id, puuid) DO UPDATE SET user_id=EXCLUDED.user_id, updated_at=now()`, [matchId, puuid, userId]);
+  }
+  STATS_CACHE.at = 0; ENC_CACHE.at = 0;   // que el cambio se vea sin esperar el cache
+  res.json({ ok:true });
 }));
 
 // ---- Ficha COMPLETA: evolución de elo + Premios (ranking entre jugadores) + récords ----
@@ -1369,11 +1397,30 @@ app.get('/api/stats', wrap(async (req, res) => {
   const repRid = {}, repAcct = {};   // clave de jugador -> rid/acct representativo (para nick/tier/OP.GG)
   const verd = {}, duel = {};
   let coincCount = 0;
+  // CUENTAS PRESTADAS: en las partidas donde coincide `partnerRid`, la participación del dueño de
+  // `ownerRid` la jugaba en realidad `realRid` → se reasigna esa participación (solo esas partidas).
+  const LENTS = [
+    { ownerRid:'voidpages#111', partnerRid:'matotomatoxd#las', realRid:'sionantisionista#sas' },   // Sion jugó la cuenta de Kriideastoraa con matotomatoxd
+  ].map(o => ({ owner: playerOf(acctOf(o.ownerRid.toLowerCase())), partner: playerOf(acctOf(o.partnerRid.toLowerCase())),
+                real: playerOf(acctOf(o.realRid.toLowerCase())), realRid: o.realRid, realAcct: acctOf(o.realRid.toLowerCase()) }))
+   .filter(o => o.owner && o.partner && o.real && o.owner !== o.real);
+  LENTS.forEach(o => { if (!repRid[o.real]){ repRid[o.real] = o.realRid; repAcct[o.real] = o.realAcct; } });   // nick/OP.GG correctos para el dueño real
+  // Asignaciones manuales por partida (account sharing, las pone el admin): match_id|puuid -> 'u'+user_id.
+  const gameAssign = {};
+  try { for (const r of await q('SELECT match_id, puuid, user_id FROM game_assignments')) gameAssign[r.match_id + '|' + r.puuid] = 'u' + r.user_id; } catch {}
   for (const mid in byMatch) {
     const ps = byMatch[mid]; if (ps.length < 2) continue; coincCount++;
+    // Dueño EFECTIVO por partida: 1) asignación manual del admin, 2) cuenta prestada (partner presente).
+    const ownersHere = new Set(ps.map(p => playerOf(p.acct)));
+    const effOwner = acct => {
+      const a = gameAssign[mid + '|' + acct]; if (a) return a;
+      const base = playerOf(acct);
+      for (const o of LENTS){ if (base === o.owner && ownersHere.has(o.partner)) return o.real; }
+      return base;
+    };
     for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
       const A = ps[i], B = ps[j];
-      const pa = playerOf(A.acct), pb = playerOf(B.acct);
+      const pa = effOwner(A.acct), pb = effOwner(B.acct);
       if (pa === pb) continue;   // dos cuentas de la misma persona: no es dúo ni duelo
       if (!repRid[pa]){ repRid[pa] = A.rid; repAcct[pa] = A.acct; }
       if (!repRid[pb]){ repRid[pb] = B.rid; repAcct[pb] = B.acct; }
@@ -1381,7 +1428,7 @@ app.get('/api/stats', wrap(async (req, res) => {
       const dd = duel[kk] || (duel[kk] = { a: key[0], b: key[1], aw: 0, bw: 0, together: 0, tw: 0 });
       if (A.team === B.team) { dd.together++; if (A.win) dd.tw++; continue; }   // aliados (dúo): guarda V/D juntos
       const dec = A.win !== B.win; if (!dec) continue;         // debe haber ganador/perdedor
-      const winner = A.win ? A : B; const wKey = playerOf(winner.acct);
+      const winner = A.win ? A : B; const wKey = effOwner(winner.acct);
       verd[pa] = verd[pa] || { wins: 0, duels: 0 }; verd[pb] = verd[pb] || { wins: 0, duels: 0 };
       verd[pa].duels++; verd[pb].duels++; verd[wKey].wins++;
       if (wKey === dd.a) dd.aw++; else dd.bw++;

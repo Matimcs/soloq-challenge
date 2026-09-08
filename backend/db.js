@@ -218,6 +218,15 @@ async function init(){
       loser_maps INT  NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Asignación manual de una partida a un jugador (account sharing): en esta partida, la cuenta
+    -- con este puuid la jugaba en realidad el user_id indicado. Lo pone el admin desde el historial.
+    CREATE TABLE IF NOT EXISTS game_assignments (
+      match_id   TEXT    NOT NULL,
+      puuid      TEXT    NOT NULL,
+      user_id    INTEGER NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (match_id, puuid)
+    );
     -- Votos de la APUESTA (quién llega antes a Challenger, etc.). Un voto por jugador logueado y apuesta.
     CREATE TABLE IF NOT EXISTS bet_votes (
       bet_id     TEXT    NOT NULL,

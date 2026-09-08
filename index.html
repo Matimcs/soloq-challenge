@@ -478,6 +478,10 @@
   .mb-name{ font-size:12px; font-weight:600; display:flex; align-items:center; gap:4px; }
   .mb-nm{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .mb-name .lg-team, .mb-name .lg-ptag{ flex-shrink:0; }
+  .mb-asg{ flex-shrink:0; font-size:8.5px; font-weight:800; color:#fff; background:var(--purple); border-radius:5px; padding:1px 5px; }
+  .mb-assign{ flex-shrink:0; margin-left:4px; background:rgba(192,132,252,.14); border:1px solid rgba(192,132,252,.4); color:var(--purple); font-family:var(--font); font-size:11px; cursor:pointer; border-radius:6px; padding:2px 6px; line-height:1; }
+  .mb-assign:hover{ background:rgba(192,132,252,.3); }
+  .mb-assign-sel{ flex-shrink:0; margin-left:4px; font-family:var(--font); font-size:11px; max-width:140px; background:var(--panel-2); color:var(--text); border:1px solid var(--line-strong); border-radius:6px; }
   .mb-sub{ font-size:10px; color:var(--muted); }
   .mb-items{ display:flex; gap:2px; flex-shrink:0; }
   .mb-it{ width:16px; height:16px; border-radius:3px; background:#000; }
@@ -1641,10 +1645,10 @@ async function toggleMatchBoard(head){
   if (!board.hidden){ board.hidden = true; board.innerHTML = ''; exp.textContent = '▾'; row.classList.remove('open'); return; }
   if (!mid){ return; }
   board.hidden = false; row.classList.add('open'); exp.textContent = '▴'; board.innerHTML = '<div class="pd-empty sm">Cargando partida…</div>';
-  try { const r = await fetch('/api/match/' + encodeURIComponent(mid), { cache:'no-store' }); if (!r.ok) throw 0; board.innerHTML = renderMatchBoard(await r.json()); }
+  try { const r = await fetch('/api/match/' + encodeURIComponent(mid), { cache:'no-store' }); if (!r.ok) throw 0; board.innerHTML = renderMatchBoard(await r.json(), mid); }
   catch { board.innerHTML = '<div class="pd-empty sm">No se pudo cargar la partida.</div>'; }
 }
-function mbRow(p){
+function mbRow(p, mid, assigned){
   const items = [...p.items.map(id => id ? `<img class="mb-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'),
     p.trinket ? `<img class="mb-it" src="${itemUrl(p.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'].join('');
   // Tags de torneo/etiquetas del jugador (mismo criterio que Live Games: tag del torneo + PRO/GOD/…).
@@ -1654,15 +1658,53 @@ function mbRow(p){
   const teamBadge = tourney ? `<span class="lg-team ${ours?'ours':''}" title="${escAttr(tourney.team||'')}">${escAttr(tourney.tag || tourney.team || '')}</span>` : '';
   const pg = rid ? ptagOf(rid) : null;   // el tag de equipo ya implica "Competitivo": no lo repetimos
   const pt = (pg && pg !== 'COMPETITIVO') ? `<span class="lg-ptag ${pg.toLowerCase()}">${PTAG_LABEL[pg]||pg}</span>` : '';
+  // Account sharing: quién jugó de verdad esta cuenta en esta partida (asignación del admin).
+  const asg = (assigned && p.puuid) ? assigned[p.puuid] : null;
+  const asgBadge = asg ? `<span class="mb-asg" title="Asignada por admin (account sharing)">→ ${escAttr(asg)}</span>` : '';
+  const mbAdmin = (()=>{ try { return localStorage.getItem('sqc_admin') === '1'; } catch(e){ return false; } })();
+  const assignBtn = (mbAdmin && mid) ? `<button class="mb-assign" title="Asignar esta partida a un jugador" data-mid="${escAttr(mid)}" data-rid="${escAttr(rid)}" data-puuid="${escAttr(p.puuid||'')}" data-name="${escAttr(p.name||'')}">✎</button>` : '';
   return `<div class="mb-p ${p.tracked?'trk':''}">
     <img class="mb-champ" src="${champImg(p.champion)}" onerror="this.style.visibility='hidden'">${spellStack(p.spells)}${runeStack(p.keystone,p.secStyle)}
-    <div class="mb-info"><div class="mb-name"><span class="mb-nm">${p.name||''}</span>${teamBadge}${pt}</div><div class="mb-sub">${p.k}/${p.d}/${p.a} · ${p.cs} CS</div></div>
-    <div class="mb-items">${items}</div></div>`;
+    <div class="mb-info"><div class="mb-name"><span class="mb-nm">${p.name||''}</span>${teamBadge}${pt}${asgBadge}</div><div class="mb-sub">${p.k}/${p.d}/${p.a} · ${p.cs} CS</div></div>
+    <div class="mb-items">${items}</div>${assignBtn}</div>`;
 }
-function renderMatchBoard(md){
-  const side = (rows,cls,label) => `<div class="mb-side ${cls}"><div class="mb-sh">${label}</div>${(rows||[]).map(mbRow).join('')}</div>`;
+function renderMatchBoard(md, mid){
+  const side = (rows,cls,label) => `<div class="mb-side ${cls}"><div class="mb-sh">${label}</div>${(rows||[]).map(p=>mbRow(p, mid, md.assigned||{})).join('')}</div>`;
   return `<div class="mb">${side(md.blue,'blue','Equipo azul')}${side(md.red,'red','Equipo rojo')}</div>`;
 }
+// ---- Admin: asignar una partida a un jugador (account sharing) desde el scoreboard del historial ----
+let ASSIGN_PLAYERS = null;
+async function loadAssignPlayers(){
+  if (ASSIGN_PLAYERS) return ASSIGN_PLAYERS;
+  try { ASSIGN_PLAYERS = await SQC.api('/participants'); } catch(e){ ASSIGN_PLAYERS = []; }
+  return ASSIGN_PLAYERS;
+}
+async function reloadBoard(row){
+  const head = row && row.querySelector('.m-head'); if (!head) return;
+  const board = row.querySelector('.m-board'), mid = head.dataset.mid;
+  try { const r = await fetch('/api/match/' + encodeURIComponent(mid), { cache:'no-store' }); if (r.ok) board.innerHTML = renderMatchBoard(await r.json(), mid); } catch {}
+}
+// Clic en ✎ → despliega un selector de jugadores en esa fila.
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.mb-assign'); if (!btn) return;
+  const players = await loadAssignPlayers();
+  const sel = document.createElement('select'); sel.className = 'mb-assign-sel';
+  sel.dataset.mid = btn.dataset.mid; sel.dataset.rid = btn.dataset.rid; sel.dataset.puuid = btn.dataset.puuid;
+  sel.innerHTML = `<option value="">— asignar "${escAttr((btn.dataset.name||'').slice(0,18))}" a… —</option>`
+    + players.map(p => `<option value="${p.id}">${escAttr(p.nickname)}</option>`).join('')
+    + `<option value="__clear">— quitar asignación —</option>`;
+  btn.replaceWith(sel); sel.focus();
+});
+// Elegir un jugador → guarda la asignación y recarga ese scoreboard.
+document.addEventListener('change', async e => {
+  const sel = e.target.closest('.mb-assign-sel'); if (!sel) return;
+  const v = sel.value; if (!v) return;
+  const userId = v === '__clear' ? '' : Number(v);
+  try {
+    await SQC.api('/admin/game-assign', { method:'POST', body:{ matchId: sel.dataset.mid, puuid: sel.dataset.puuid, riotid: sel.dataset.rid, userId } });
+    await reloadBoard(sel.closest('.m-row'));
+  } catch(err){ alert(err.message || 'No se pudo asignar'); }
+});
 function renderStats(c, data){
   const s = data.stats;
   if (!s){ c.innerHTML = `<div class="pd-empty">Aún no hay stats guardadas para este jugador.</div>`; return; }
