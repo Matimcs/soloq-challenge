@@ -475,7 +475,9 @@
   .mb-p.trk{ background:linear-gradient(90deg,rgba(52,211,153,.12),transparent); border:1px solid rgba(52,211,153,.4); }
   .mb-champ{ width:28px; height:28px; border-radius:6px; flex-shrink:0; }
   .mb-info{ flex:1; min-width:0; }
-  .mb-name{ font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mb-name{ font-size:12px; font-weight:600; display:flex; align-items:center; gap:4px; }
+  .mb-nm{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  .mb-name .team-tag, .mb-name .lg-ptag{ flex-shrink:0; }
   .mb-sub{ font-size:10px; color:var(--muted); }
   .mb-items{ display:flex; gap:2px; flex-shrink:0; }
   .mb-it{ width:16px; height:16px; border-radius:3px; background:#000; }
@@ -1645,9 +1647,14 @@ async function toggleMatchBoard(head){
 function mbRow(p){
   const items = [...p.items.map(id => id ? `<img class="mb-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'),
     p.trinket ? `<img class="mb-it" src="${itemUrl(p.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="mb-it e"></span>'].join('');
+  // Tags de torneo/etiquetas del jugador (mismo criterio que el ranking/live games).
+  const rid = p.tag ? ((p.name||'') + '#' + p.tag) : (p.name || '');
+  const tt = rid ? teamTag(rid) : '';
+  const pg = rid ? ptagOf(rid) : null;
+  const pt = pg ? `<span class="lg-ptag ${pg.toLowerCase()}">${PTAG_LABEL[pg]||pg}</span>` : '';
   return `<div class="mb-p ${p.tracked?'trk':''}">
     <img class="mb-champ" src="${champImg(p.champion)}" onerror="this.style.visibility='hidden'">${spellStack(p.spells)}${runeStack(p.keystone,p.secStyle)}
-    <div class="mb-info"><div class="mb-name">${p.name||''}</div><div class="mb-sub">${p.k}/${p.d}/${p.a} · ${p.cs} CS</div></div>
+    <div class="mb-info"><div class="mb-name"><span class="mb-nm">${p.name||''}</span>${tt}${pt}</div><div class="mb-sub">${p.k}/${p.d}/${p.a} · ${p.cs} CS</div></div>
     <div class="mb-items">${items}</div></div>`;
 }
 function renderMatchBoard(md){
