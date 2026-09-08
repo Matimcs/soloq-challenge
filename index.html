@@ -1952,7 +1952,7 @@ function simRankTargets(){
 function simLabel(p){ const div = HIGH_ELO.has(p.tier)?'':(p.div?' '+p.div:''); return niceTier(p.tier)+div+(p.lp!=null?' · '+p.lp+' LP':''); }
 function simFill(){
   const opts = (PLAYERS||[]).slice().sort((a,b)=>absLPf(b)-absLPf(a))
-    .map(p=>`<option value="${escAttr(p.rid)}">${p.nm} — ${simLabel(p)}</option>`).join('');
+    .map(p=>`<option value="${escAttr(p.rid)}">${p.rid} — ${simLabel(p)}</option>`).join('');
   document.getElementById('sim-me').innerHTML = opts;
   document.getElementById('sim-target').innerHTML = opts;
   document.getElementById('sim-rank').innerHTML = simRankTargets().map((r,i)=>`<option value="${i}">${r.label}</option>`).join('');
@@ -1963,15 +1963,15 @@ function simCompute(){
   let targetAbs, targetLabel;
   if(document.getElementById('sim-mode').value==='player'){
     const t = (PLAYERS||[]).find(p=>p.rid===document.getElementById('sim-target').value);
-    if(!t){ box.innerHTML=''; return; } targetAbs=absLPf(t); targetLabel=t.nm+' ('+simLabel(t)+')';
+    if(!t){ box.innerHTML=''; return; } targetAbs=absLPf(t); targetLabel=t.rid+' ('+simLabel(t)+')';
   } else { const rt = simRankTargets()[+document.getElementById('sim-rank').value]; targetAbs=rt.abs; targetLabel=rt.label; }
   const gap = targetAbs - absLPf(me);
-  if(gap<=0){ box.innerHTML = `<div class="sim-msg">¡${me.nm} ya está en ${targetLabel} o por encima! 🎉</div>`; return; }
+  if(gap<=0){ box.innerHTML = `<div class="sim-msg">¡${me.rid} ya está en ${targetLabel} o por encima! 🎉</div>`; return; }
   const wins = Math.ceil(gap / SIM_LP_PER_WIN);
   const cards = [0.55,0.60,0.65,0.70].map(r=>{ const games=Math.ceil(wins/(2*r-1)), W=Math.round(games*r), L=games-W;
     return `<div class="sim-wr-c"><div class="r">${Math.round(r*100)}% win rate</div><div class="g">${games} games</div><div class="wl">${W}W • ${L}L</div></div>`; }).join('');
   box.innerHTML = `<div class="sim-need"><div class="kick">NECESITAS</div><div class="big">${wins} WINS</div>
-      <div class="path"><b>${me.nm} · ${simLabel(me)}</b> → <b>${targetLabel}</b> · ~${gap} LP</div></div>
+      <div class="path"><b>${me.rid} · ${simLabel(me)}</b> → <b>${targetLabel}</b> · ~${gap} LP</div></div>
       <div class="sim-wr">${cards}</div>
       <div class="path" style="text-align:center;margin-top:10px;font-size:11px">Estimado con ~${SIM_LP_PER_WIN} LP por victoria.</div>`;
 }
