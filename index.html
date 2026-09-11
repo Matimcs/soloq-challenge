@@ -1024,7 +1024,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
         ${avaHtml(p.rid, p.nm)}
         <div><div class="nm">${NICK_BY_RID[rl] || p.nm}</div><div class="rid">${p.rid}</div></div>
-        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${ptagOf(p.rid) ? `<span class="acc-tag ptag ${ptagOf(p.rid).toLowerCase()}">${PTAG_LABEL[ptagOf(p.rid)]||ptagOf(p.rid)}</span>` : ''}${afkBadge(p)}</span>
+        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${ptagOf(p.rid) ? `<span class="acc-tag ptag ${ptagOf(p.rid).toLowerCase()}">${PTAG_LABEL[ptagOf(p.rid)]||ptagOf(p.rid)}</span>` : ''}</span>${afkBadge(p)}
         ${badges}
       </div></td>
       <td>${roleCell(p)}</td>
