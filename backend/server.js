@@ -1348,6 +1348,14 @@ app.get('/api/stats', wrap(async (req, res) => {
   for (const o in ownerAccts){ const accts = [...new Set(ownerAccts[o])]; if (accts.length < 2) continue;
     accts.sort((a, b) => ((metaByAcct[b] && metaByAcct[b].abs) || 0) - ((metaByAcct[a] && metaByAcct[a].abs) || 0));
     accts.slice(1).forEach(a => excludeAcct.add(a)); }
+  // Mejor cuenta de cada dueño (mayor LP absoluto presente en el ranking): para mostrar SU elo real
+  // (Master/GM/Chall) y no el de un smurf de menor elo que casualmente apareció primero en una coincidencia.
+  const ownerBest = {};
+  for (const o in ownerAccts){
+    const best = [...new Set(ownerAccts[o])].filter(a => metaByAcct[a])
+      .sort((a, b) => (metaByAcct[b].abs || 0) - (metaByAcct[a].abs || 0))[0];
+    if (best) ownerBest[o] = best;
+  }
 
   // ---- TOPS: agregado por CUENTA (consolidada por puuid) ----
   // CS/min excluye el rol support (UTILITY). Kills/muertes/asistencias van PROMEDIADAS por partida.
@@ -1435,7 +1443,8 @@ app.get('/api/stats', wrap(async (req, res) => {
     }
   }
   // Meta de un JUGADOR: nick del registrado (o nombre de la cuenta si no está registrada) + tier/high.
-  const pmeta = pkey => { const rid = repRid[pkey] || pkey; const m = metaByAcct[repAcct[pkey]] || {};
+  const pmeta = pkey => { const rid = repRid[pkey] || pkey;
+    const m = metaByAcct[ownerBest[pkey]] || metaByAcct[repAcct[pkey]] || {};   // elo del MAIN del jugador, no del smurf
     return { rid, nm: ownerNick[pkey] || m.nm || rid.split('#')[0], high: !!m.high }; };
   const verdugos = Object.entries(verd).map(([pkey, s]) => ({ ...pmeta(pkey), wins: s.wins, duels: s.duels,
       wr: s.duels ? Math.round(s.wins / s.duels * 100) : 0 }))
