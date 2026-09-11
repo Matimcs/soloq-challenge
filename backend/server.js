@@ -1469,7 +1469,8 @@ app.get('/api/stats', wrap(async (req, res) => {
     .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), games: d.together, wins: d.tw, wr: Math.round(d.tw / d.together * 100),
       lo: wilson(d.tw, d.together, false), hi: wilson(d.tw, d.together, true) }));
   const duosBest = duosAll.slice().sort((x, y) => y.lo - x.lo || y.games - x.games).slice(0, 8);
-  const duosWorst = duosAll.slice().sort((x, y) => x.hi - y.hi || y.games - x.games).slice(0, 8);
+  // Un dúo con winrate POSITIVo (>50%) no puede figurar entre los "peores".
+  const duosWorst = duosAll.filter(d => d.wr <= 50).sort((x, y) => x.hi - y.hi || y.games - x.games).slice(0, 8);
 
   // ---- CONTRINCANTES externos: rivales AJENOS al torneo, por victorias/derrotas nuestras ----
   // Cada partida guardada trae los 10 jugadores; los que NO son del torneo son "contrincantes".
