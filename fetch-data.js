@@ -409,8 +409,13 @@ async function updatePlayerStats(puuid, entry){
         if (pend) { pend.delta = 0; delete pend.pending; pend.remake = true; }
         else store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, remake: true });
       } else if (N === 1 && net === 0) {
-        // Una sola partida (no remake) y el LP aún no propagó → queda PENDIENTE (se confirma después).
-        if (!pend) store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, pending: true });
+        // Una sola partida (no remake) y el LP NO se movió. Dos casos:
+        //  (a) el LP aún no propagó (lag de 1-2 min) → queda PENDIENTE y se confirma en un ciclo futuro.
+        //  (b) la partida no movió LP de verdad: DERROTA MITIGADA (un aliado se fue AFK → -0 LP) o
+        //      victoria sin LP. Se detecta como pediste: si tras el tiempo de propagación (~3 min) el
+        //      LP sigue sin moverse, se CONFIRMA en 0 (así la siguiente victoria se atribuye completa).
+        if (!pend) store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, pending: true, pendAt: Date.now() });
+        else if (pend.pendAt && (Date.now() - pend.pendAt) > 3 * 60 * 1000) { pend.delta = 0; delete pend.pending; }
       } else if (N === 1) {
         // Una sola partida con el LP ya movido → atribución directa (caso normal, ±LP exacto).
         if (pend) { pend.delta = net; delete pend.pending; }
