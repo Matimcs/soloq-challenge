@@ -642,7 +642,7 @@
   <!-- Popup de apuesta: carrera a Challenger (Krok vs Petu) -->
   <div id="bet-popup" class="hidden">
     <div class="bet-h"><span>🎰</span><span class="t">LA APUESTA</span><button class="bet-x" id="bet-x" title="Cerrar">✕</button></div>
-    <div class="bet-sub">¿Quién llega antes a <b style="color:var(--gold)">Diamante</b>?</div>
+    <div class="bet-sub">Carrera inversa: ¿quién <b>cae</b> primero a <b style="color:var(--gold)">Diamante</b>?</div>
     <div class="bet-body" id="bet-body"></div>
     <div class="bet-vote" id="bet-vote"></div>
     <div class="bet-foot">🏁 meta: <span id="bet-goal">—</span></div>
@@ -1998,7 +1998,7 @@ SQC.preNav(); SQC.mountNav();
 /* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
 if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 
-/* ===== Popup de apuesta: ¿quién llega antes a Diamante, Krok o Petu? ===== */
+/* ===== Popup de apuesta: carrera INVERSA — ¿quién cae primero a Diamante, Krok o Petu? ===== */
 const BET_A = { rid:'krok#deus', nm:'Krok' }, BET_B = { rid:'petu#99999', nm:'Petu' };
 function betFind(players, c){
   return players.find(p => (p.rid||'').toLowerCase() === c.rid)
@@ -2011,19 +2011,22 @@ function paintBet(data){
   const players = (data && data.players) || [];
   const A = betFind(players, BET_A), B = betFind(players, BET_B);
   if (!A || !B){ box.classList.add('hidden'); return; }
-  const GOAL = 2400;   // Diamante = Diamante IV 0 LP, en LP absoluto (misma escala que absLPf)
+  // Carrera INVERSA: gana quien PIERDE y cae primero a Diamante (= salir de Master, abs < 2800).
+  const GOAL = 2800;     // caer a Diamante = bajar de Master, en LP absoluto (misma escala que absLPf)
+  const WINDOW = 1000;   // zona de peligro (~últimos 1000 LP de Master) para la barra de proximidad
   const APEX = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
   const betRank = p => { const t = p.tier || 'UNRANKED'; const nice = t.charAt(0) + t.slice(1).toLowerCase();
     const div = (APEX.has(t) || !p.div) ? '' : ' ' + p.div; return nice + div + ' · ' + (p.lp || 0) + ' LP'; };
   const lpA = absLPf(A), lpB = absLPf(B);
-  const leader = lpA >= lpB ? A : B;
+  const leader = lpA <= lpB ? A : B;   // menos LP = más cerca de caer = va ganando la carrera inversa
   document.getElementById('bet-goal').textContent = 'Diamante';
   const row = (p, lp) => {
-    const lead = p === leader, pct = Math.min(100, lp / GOAL * 100), done = lp >= GOAL;
+    const rem = lp - GOAL, done = rem <= 0;   // rem = LP que le faltan por perder para caer a Diamante
+    const lead = p === leader, pct = done ? 100 : Math.max(0, Math.min(100, (WINDOW - rem) / WINDOW * 100));
     return `<div class="bet-row ${lead ? 'lead' : ''}">
-      <div class="r-top">${lead ? '<span title="Va ganando">👑</span> ' : ''}<span class="r-nm">${escAttr(p.nm || '')}</span><span class="r-lp">${betRank(p)}</span></div>
+      <div class="r-top">${lead ? '<span title="Va cayendo primero">👑</span> ' : ''}<span class="r-nm">${escAttr(p.nm || '')}</span><span class="r-lp">${betRank(p)}</span></div>
       <div class="bet-bar"><span style="width:${pct.toFixed(1)}%"></span></div>
-      <div class="bet-gap">${done ? '🏆 ¡Ya es Diamante!' : ('faltan ' + (GOAL - lp) + ' LP')}</div></div>`;
+      <div class="bet-gap">${done ? '🏁 ¡Cayó a Diamante!' : ('faltan ' + rem + ' LP por perder')}</div></div>`;
   };
   document.getElementById('bet-body').innerHTML = row(A, lpA) + row(B, lpB);
   box.classList.remove('hidden');
