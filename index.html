@@ -642,7 +642,7 @@
   <!-- Popup de apuesta: carrera a Challenger (Krok vs Petu) -->
   <div id="bet-popup" class="hidden">
     <div class="bet-h"><span>🎰</span><span class="t">LA APUESTA</span><button class="bet-x" id="bet-x" title="Cerrar">✕</button></div>
-    <div class="bet-sub">¿Quién llega antes a <b style="color:var(--gold)">Challenger</b>?</div>
+    <div class="bet-sub">¿Quién llega antes a <b style="color:var(--gold)">Diamante</b>?</div>
     <div class="bet-body" id="bet-body"></div>
     <div class="bet-vote" id="bet-vote"></div>
     <div class="bet-foot">🏁 meta: <span id="bet-goal">—</span></div>
@@ -1998,7 +1998,7 @@ SQC.preNav(); SQC.mountNav();
 /* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
 if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 
-/* ===== Popup de apuesta: ¿quién llega antes a Challenger, Krok o Petu? ===== */
+/* ===== Popup de apuesta: ¿quién llega antes a Diamante, Krok o Petu? ===== */
 const BET_A = { rid:'krok#deus', nm:'Krok' }, BET_B = { rid:'petu#99999', nm:'Petu' };
 function betFind(players, c){
   return players.find(p => (p.rid||'').toLowerCase() === c.rid)
@@ -2009,18 +2009,21 @@ function paintBet(data){
   let closed = false; try { closed = localStorage.getItem('betClosed') === '1'; } catch (e) {}
   if (closed){ box.classList.add('hidden'); return; }
   const players = (data && data.players) || [];
-  const chall = data && data.cutoffs && data.cutoffs.chall;
   const A = betFind(players, BET_A), B = betFind(players, BET_B);
-  if (!A || !B || !chall){ box.classList.add('hidden'); return; }
-  const lpA = Math.max(0, absLPf(A) - 2800), lpB = Math.max(0, absLPf(B) - 2800);   // LP apex (0 en la base de Master)
+  if (!A || !B){ box.classList.add('hidden'); return; }
+  const GOAL = 2400;   // Diamante = Diamante IV 0 LP, en LP absoluto (misma escala que absLPf)
+  const APEX = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
+  const betRank = p => { const t = p.tier || 'UNRANKED'; const nice = t.charAt(0) + t.slice(1).toLowerCase();
+    const div = (APEX.has(t) || !p.div) ? '' : ' ' + p.div; return nice + div + ' · ' + (p.lp || 0) + ' LP'; };
+  const lpA = absLPf(A), lpB = absLPf(B);
   const leader = lpA >= lpB ? A : B;
-  document.getElementById('bet-goal').textContent = chall + ' LP';
+  document.getElementById('bet-goal').textContent = 'Diamante';
   const row = (p, lp) => {
-    const lead = p === leader, pct = Math.min(100, chall ? lp / chall * 100 : 0), done = lp >= chall;
+    const lead = p === leader, pct = Math.min(100, lp / GOAL * 100), done = lp >= GOAL;
     return `<div class="bet-row ${lead ? 'lead' : ''}">
-      <div class="r-top">${lead ? '<span title="Va ganando">👑</span> ' : ''}<span class="r-nm">${escAttr(p.nm || '')}</span><span class="r-lp">${lp} LP</span></div>
+      <div class="r-top">${lead ? '<span title="Va ganando">👑</span> ' : ''}<span class="r-nm">${escAttr(p.nm || '')}</span><span class="r-lp">${betRank(p)}</span></div>
       <div class="bet-bar"><span style="width:${pct.toFixed(1)}%"></span></div>
-      <div class="bet-gap">${done ? '🏆 ¡Ya es Challenger!' : ('faltan ' + (chall - lp) + ' LP')}</div></div>`;
+      <div class="bet-gap">${done ? '🏆 ¡Ya es Diamante!' : ('faltan ' + (GOAL - lp) + ' LP')}</div></div>`;
   };
   document.getElementById('bet-body').innerHTML = row(A, lpA) + row(B, lpB);
   box.classList.remove('hidden');

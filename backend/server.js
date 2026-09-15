@@ -439,7 +439,7 @@ app.get('/api/admin/player-tags', auth, requireAdmin, wrap(async (req,res) =>
   res.json(await q('SELECT riotid, tag, updated_at FROM player_tags ORDER BY updated_at DESC'))));
 
 // ---- APUESTA: ¿quién llega antes a Challenger, Krok o Petu? (vota cualquier jugador logueado) ----
-const BET_ID = 'chall_krok_petu';
+const BET_ID = 'dia_krok_petu';   // carrera a Diamante (id nuevo => votos reiniciados)
 const BET_CHOICES = new Set(['krok', 'petu']);
 // Lee el uid del token si viene (sin obligar a estar logueado), para devolver el voto propio.
 async function optionalUid(req){
