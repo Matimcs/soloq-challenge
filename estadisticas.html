@@ -35,7 +35,8 @@
   .card.rec-new{ border-color:var(--up); box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.25); animation:recpulse 1.6s ease 2; }
   @keyframes recpulse{ 0%,100%{ box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.15); } 50%{ box-shadow:0 0 0 1px var(--up), 0 0 30px rgba(52,211,153,.5); } }
   .rec-new-badge{ margin-left:8px; font-size:9px; font-weight:800; color:#000; background:var(--up); border-radius:5px; padding:2px 6px; letter-spacing:.04em; vertical-align:middle; }
-  .card.rec-new .rowl:first-of-type{ background:rgba(52,211,153,.08); border-radius:8px; }
+  .nm .rec-new-badge{ margin-left:6px; padding:1px 5px; font-size:8px; }
+  .rowl.rec-row-new{ background:rgba(52,211,153,.12); border-radius:8px; box-shadow:inset 0 0 0 1px rgba(52,211,153,.4); }
 
   /* Cards */
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
@@ -191,13 +192,25 @@
   });
 
   // ---- RÉCORDS ----
-  let RECORDS = null, REC_CHANGED = new Set();
+  let RECORDS = null, REC_CHANGED = new Set(), SEEN_ENTRIES = null;
+  // Valor de firma por categoría (debe coincidir EXACTO con recordsSig del backend).
+  const SIG_VAL = { kdaBest:r=>r.kda, kdaWorst:r=>r.kda, kills:r=>r.k, deaths:r=>r.d, assists:r=>r.a,
+                    cs:r=>r.cs, vision:r=>r.vis, duration:r=>r.durMin, winStreak:r=>r.value, loseStreak:r=>r.value };
+  const sigKey = (key, r) => (r.nm || '') + '|' + (SIG_VAL[key] ? SIG_VAL[key](r) : '');
+  // ¿esta fila es una ENTRADA nueva al top-5 (no estaba la última vez que viste los récords)?
+  const rowIsNew = (key, r) => !!(SEEN_ENTRIES && SEEN_ENTRIES[key] && !SEEN_ENTRIES[key].has(sigKey(key, r)));
   // Detecta qué categorías de récord cambiaron desde la última vez que las viste (firma del backend).
   function computeRecChanged(){
-    REC_CHANGED = new Set();
+    REC_CHANGED = new Set(); SEEN_ENTRIES = null;
     if (!RECORDS || !RECORDS._sig) return;
     let seen = null; try { seen = JSON.parse(localStorage.getItem('sqc_rec_seen') || 'null'); } catch {}
-    if (seen){ for (const k in RECORDS._sig){ if (RECORDS._sig[k] !== seen[k]) REC_CHANGED.add(k); } }   // sin 'seen' (1ra vez): nada nuevo
+    if (seen){   // sin 'seen' (1ra vez): nada nuevo
+      SEEN_ENTRIES = {};
+      for (const k in RECORDS._sig){
+        SEEN_ENTRIES[k] = new Set(String(seen[k] || '').split(';').filter(Boolean));   // entradas top-5 ya vistas
+        if (RECORDS._sig[k] !== seen[k]) REC_CHANGED.add(k);
+      }
+    }
     const tb = $('rec-tab-badge');
     if (tb){ if (REC_CHANGED.size){ tb.textContent = REC_CHANGED.size; tb.style.display = ''; } else tb.style.display = 'none'; }
   }
@@ -222,16 +235,16 @@
     const p = String(matchId||'').split('_'); const gid = p[1]; if (!gid) return null;
     return `https://www.leagueofgraphs.com/match/${LOG_REG[p[0]]||'las'}/${encodeURIComponent(gid)}`;
   }
-  function recRow(r, i, detail, value, linkOn){
+  function recRow(r, i, detail, value, linkOn, rowNew){
     const url = linkOn ? logMatchUrl(r.matchId) : null;
     const link = url ? ` · <a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">Ver partida ↗</a>` : '';
-    return `<div class="rowl"><div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
-      <div class="meta"><div class="nm">${esc(r.nm)}</div><div class="games">${detail}${link}</div></div>
+    return `<div class="rowl ${rowNew?'rec-row-new':''}"><div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
+      <div class="meta"><div class="nm">${esc(r.nm)}${rowNew?'<span class="rec-new-badge">NUEVO</span>':''}</div><div class="games">${detail}${link}</div></div>
       <div class="val">${value}</div></div>`;
   }
   function recCard(key, title, cap, list, detailFn, valueFn, opggOn=true){
     const isNew = REC_CHANGED.has(key);
-    const rows = (list||[]).map((r,i)=>recRow(r,i,detailFn(r),valueFn(r),opggOn)).join('');
+    const rows = (list||[]).map((r,i)=>recRow(r,i,detailFn(r),valueFn(r),opggOn,rowIsNew(key,r))).join('');
     return `<div class="card ${isNew?'rec-new':''}"><h3>${title}${isNew?'<span class="rec-new-badge">NUEVO</span>':''}</h3><div class="cap">${cap}</div>${rows||'<div class="empty">Sin datos</div>'}</div>`;
   }
   function renderRecords(){

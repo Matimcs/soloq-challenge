@@ -1587,12 +1587,14 @@ app.get('/api/encounters', wrap(async (req, res) => {
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
-let _recSig = {};   // firma por categoría (nm|valor del #1) para detectar récords nuevos/cambiados
-function recordsSig(R){
-  const V = { kdaBest:r=>r.kda, kdaWorst:r=>r.kda, kills:r=>r.k, deaths:r=>r.d, assists:r=>r.a,
+let _recSig = {};   // firma por categoría (nm|valor de cada uno del top-5) para detectar entradas nuevas
+const REC_SIG_V = { kdaBest:r=>r.kda, kdaWorst:r=>r.kda, kills:r=>r.k, deaths:r=>r.d, assists:r=>r.a,
               cs:r=>r.cs, vision:r=>r.vis, duration:r=>r.durMin, winStreak:r=>r.value, loseStreak:r=>r.value };
+function recordsSig(R){
   const s = {};
-  for (const k in V){ const t = (R[k] || [])[0]; s[k] = t ? ((t.nm || '') + '|' + V[k](t)) : ''; }
+  // Firma el TOP-5 completo de cada categoría: así cualquier ENTRADA nueva al top-5 (no solo el #1)
+  // cambia la firma y dispara la notificación de "récord nuevo".
+  for (const k in REC_SIG_V){ s[k] = (R[k] || []).slice(0, 5).map(t => (t.nm || '') + '|' + REC_SIG_V[k](t)).join(';'); }
   return s;
 }
 app.get('/api/records', wrap(async (req, res) => {
