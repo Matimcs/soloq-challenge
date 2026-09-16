@@ -1604,6 +1604,21 @@ app.get('/api/records', wrap(async (req, res) => {
   const players = liveSnapshot().players || [];
   const ridByPuuid = {}, nickByRid = {};
   players.forEach(p => { if (p.puuid) ridByPuuid[p.puuid] = p.rid; nickByRid[(p.rid || '').toLowerCase()] = p.nm; });
+  // Nickname del JUGADOR REGISTRADO por puuid: si la cuenta (main o smurf) es de un usuario, en Records
+  // mostramos SU nick, no el nombre de la cuenta (p.ej. Maio#AZIR -> "Kriideastoraa").
+  const rid2puuid = await ridPuuidMap();
+  const userNick = {}, ownerNickByPuuid = {};
+  try {
+    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users")){
+      userNick['u' + u.id] = (u.nickname || '').trim();
+      const pu = u.rid && rid2puuid[u.rid];
+      if (pu && userNick['u' + u.id]) ownerNickByPuuid[pu] = userNick['u' + u.id];
+    }
+    for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")){
+      const pu = rid2puuid[s.rid];
+      if (pu && userNick['u' + s.user_id]) ownerNickByPuuid[pu] = userNick['u' + s.user_id];
+    }
+  } catch {}
   const N = 5;
   const K='coalesce(kills,0)', D='coalesce(deaths,0)', A='coalesce(assists,0)', CS='coalesce(cs,0)', DUR='coalesce(duration,0)', VIS='coalesce(vision,0)';
   const cols = `name, lower(riotid) rid, puuid, champion, match_id, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
@@ -1616,7 +1631,7 @@ app.get('/api/records', wrap(async (req, res) => {
     topBy(`${CS} DESC`), topBy(`${DUR} DESC`), topBy(`${K} DESC`), topBy(`${D} DESC`), topBy(`${A} DESC`), topBy(`${VIS} DESC`),
   ]);
   const map = r => { const rid = ridByPuuid[r.puuid] || r.rid;
-    return { nm: nickByRid[(rid || '').toLowerCase()] || r.name || (r.rid || '').split('#')[0], rid, matchId: r.match_id,
+    return { nm: ownerNickByPuuid[r.puuid] || nickByRid[(rid || '').toLowerCase()] || r.name || (r.rid || '').split('#')[0], rid, matchId: r.match_id,
       champ: r.champion, k:+r.k, d:+r.d, a:+r.a, kda:+(((+r.k) + (+r.a)) / Math.max(1, +r.d)).toFixed(2),
       cs:+r.cs, durMin: Math.round((+r.dur) / 60), vis:+r.vis }; };
   // Rachas de victorias/derrotas por cuenta (consecutivas en el tiempo); dedup por jugador (máx).
@@ -1625,7 +1640,7 @@ app.get('/api/records', wrap(async (req, res) => {
   const wmax = {}, lmax = {};
   for (const puuid in byP){ let cw=0, cl=0, mw=0, ml=0;
     byP[puuid].forEach(w => { if (w){ cw++; cl=0; } else { cl++; cw=0; } if (cw>mw) mw=cw; if (cl>ml) ml=cl; });
-    const rid = ridByPuuid[puuid]; const nm = rid ? (nickByRid[(rid||'').toLowerCase()] || rid.split('#')[0]) : null;
+    const rid = ridByPuuid[puuid]; const nm = ownerNickByPuuid[puuid] || (rid ? (nickByRid[(rid||'').toLowerCase()] || rid.split('#')[0]) : null);
     if (!nm) continue;
     if (mw > (wmax[nm]||0)) wmax[nm]=mw; if (ml > (lmax[nm]||0)) lmax[nm]=ml;
   }
