@@ -203,7 +203,7 @@
   function computeRecChanged(){
     REC_CHANGED = new Set(); SEEN_ENTRIES = null;
     if (!RECORDS || !RECORDS._sig) return;
-    let seen = null; try { seen = JSON.parse(localStorage.getItem('sqc_rec_seen') || 'null'); } catch {}
+    let seen = null; try { seen = JSON.parse(localStorage.getItem('sqc_rec_seen2') || 'null'); } catch {}
     if (seen){   // sin 'seen' (1ra vez): nada nuevo
       SEEN_ENTRIES = {};
       for (const k in RECORDS._sig){
@@ -217,7 +217,7 @@
   // Marca los récords como VISTOS: guarda la firma, limpia los badges y refresca el del nav.
   function markRecordsSeen(){
     if (!RECORDS || !RECORDS._sig) return;
-    try { localStorage.setItem('sqc_rec_seen', JSON.stringify(RECORDS._sig)); } catch {}
+    try { localStorage.setItem('sqc_rec_seen2', JSON.stringify(RECORDS._sig)); } catch {}
     const tb = $('rec-tab-badge'); if (tb) tb.style.display = 'none';
     if (window.SQC && SQC.navBadges) SQC.navBadges();
   }

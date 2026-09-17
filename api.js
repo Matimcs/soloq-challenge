@@ -83,8 +83,8 @@ window.SQC = (function(){
   function updateRecBadge(recSig){
     if (!recSig || Object.keys(recSig).length === 0) return;   // aún no se han calculado los récords
     const sigStr = JSON.stringify(recSig);
-    let seen = ''; try { seen = localStorage.getItem('sqc_rec_seen') || ''; } catch {}
-    if (!seen && sigStr){ try { localStorage.setItem('sqc_rec_seen', sigStr); } catch {} seen = sigStr; }   // 1ra vez: guarda sin avisar
+    let seen = ''; try { seen = localStorage.getItem('sqc_rec_seen2') || ''; } catch {}
+    if (!seen && sigStr){ try { localStorage.setItem('sqc_rec_seen2', sigStr); } catch {} seen = sigStr; }   // 1ra vez: guarda sin avisar
     let n = 0;
     if (sigStr && seen && sigStr !== seen){ try { const old = JSON.parse(seen); for (const k in recSig){ if (recSig[k] !== old[k]) n++; } } catch { n = 1; } }
     document.querySelectorAll('a[href="estadisticas.html"]').forEach(link => {
