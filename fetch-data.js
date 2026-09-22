@@ -22,7 +22,7 @@ const PLATFORM = 'la2';        // league-v4 / spectator-v5  (LAS = la2)
 
 const RIOT_IDS = [
   'SionAntisionista#SAS', 'Krok#DEUS', 'Petu#99999', 'Plüs#SICK', 'Sunless#0410',
-  'Yoyobox#1899', 'SKT T1 seiya157#LAS', 'Kriida#7777', 'HudsonHornet#gueon',
+  'Yoyobox#1899', 'Kriida#7777', 'HudsonHornet#gueon',
   'Yutsero#LAS', 'Lacosabuena#LAS', 'Dekai#LAS', 'vishh#LAS', 'kıwı#wıkı',
   'elmaio04#LAS', 'DeSean#Elba', 'Henry Miller#379',
   'Hunßatz#LAS', 'pancho pistolas2#LAS',
@@ -170,6 +170,7 @@ const puuidCache = loadJSON(PUUID_FILE, {});   // "RiotId#TAG" -> puuid  (nunca 
 // una vez recacheado el puuid bueno, esta purga deja de aplicar (self-healing, idempotente).
 const DEAD_PUUIDS = new Set([
   '6ALB0UuINXTL7rhqtk_sssLfwUVw2_RONjsmdrWB8giwsxtEXKChBMS7LaSTLrnxRA0MPbiZ19ZGLQ', // AntisionistaSion#SMURF (renombrada a Maio#Fidd)
+  'fbrgBpMeobdDNVDORgXcp4rSxcA6a48O4rBPwOzDSOBPv2Haag4jvBN7XMuDsZxvi-MkuJK_aBst4Q', // SKT T1 seiya157#LAS (renombrada a Minitas Hunter#zzz, smurf de vijseia)
 ]);
 for (const k of Object.keys(puuidCache)) if (DEAD_PUUIDS.has(puuidCache[k])) delete puuidCache[k];
 const rankStore  = loadJSON(RANK_FILE,  {});   // puuid -> { entry, at }
