@@ -1395,24 +1395,8 @@ app.get('/api/stats', wrap(async (req, res) => {
                pos: x.pos, games: g, wins: p.w || 0, value: g ? (p.w || 0) / g * 100 : 0 }; })
     .sort((a, b) => b.value - a.value || b.games - a.games)
     .slice(0, 5);
-  // RÉCORD DE LP: peak absoluto por cuenta (base sembrada + runner lo sube). Consolidado por jugador (máx), top 5.
-  let peakLp = [];
-  try {
-    const peakRows = await q('SELECT lower(rid) rid, peak_abs FROM peak_lp');
-    const peakByOwner = {};
-    for (const r of peakRows){
-      const acct = acctByRid[r.rid] || r.rid;
-      const owner = playerOf(acct);
-      const cur = peakByOwner[owner];
-      if (!cur || +r.peak_abs > cur.abs) peakByOwner[owner] = { abs: +r.peak_abs, rid: r.rid, acct };
-    }
-    peakLp = Object.entries(peakByOwner).map(([owner, v]) => {
-      const m = metaByAcct[v.acct] || {};
-      return { rid: v.rid, nm: m.nm || v.rid.split('#')[0], high: v.abs >= 2800, value: v.abs };
-    }).sort((a, b) => b.value - a.value).slice(0, 5);
-  } catch {}
   const tops = { kills: topN('kavg', 5, 10), deaths: topN('davg', 5, 10), assists: topN('aavg', 5, 10),
-    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10), winrate, peakLp };
+    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10), winrate };
 
   // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
   // Identidad por CUENTA = puuid (consolida renombres) y por JUGADOR = dueño (main+smurfs).
@@ -1671,7 +1655,24 @@ app.get('/api/records', wrap(async (req, res) => {
     if (mw > (wmax[nm]||0)) wmax[nm]=mw; if (ml > (lmax[nm]||0)) lmax[nm]=ml;
   }
   const streaks = obj => Object.entries(obj).filter(([,v]) => v>=2).map(([nm,value]) => ({ nm, value })).sort((a,b) => b.value-a.value).slice(0, N);
-  RECORDS_CACHE.data = { kdaBest: kdaBest.map(map), kdaWorst: kdaWorst.map(map), cs: cs.map(map), duration: dur.map(map),
+  // RÉCORD DE LP: peak absoluto por cuenta (base sembrada + runner lo sube). Consolidado por jugador, top 5.
+  let peakLp = [];
+  try {
+    const peakRows = await q('SELECT lower(rid) rid, peak_abs FROM peak_lp');
+    const byKey = {};
+    for (const r of peakRows){
+      const pu = rid2puuid[r.rid];
+      const key = (pu && ownerNickByPuuid[pu]) || r.rid;   // agrupa por dueño registrado; si no, por cuenta
+      const cur = byKey[key];
+      if (!cur || +r.peak_abs > cur.abs) byKey[key] = { abs: +r.peak_abs, rid: r.rid, puuid: pu };
+    }
+    peakLp = Object.values(byKey).map(v => {
+      const rid = ridByPuuid[v.puuid] || v.rid;
+      const nm = (v.puuid && ownerNickByPuuid[v.puuid]) || nickByRid[(rid || '').toLowerCase()] || v.rid.split('#')[0];
+      return { rid, nm, high: v.abs >= 2800, value: v.abs };
+    }).sort((a, b) => b.value - a.value).slice(0, 5);
+  } catch {}
+  RECORDS_CACHE.data = { peakLp, kdaBest: kdaBest.map(map), kdaWorst: kdaWorst.map(map), cs: cs.map(map), duration: dur.map(map),
     kills: kills.map(map), deaths: deaths.map(map), assists: assists.map(map), vision: vision.map(map),
     winStreak: streaks(wmax), loseStreak: streaks(lmax) };
   _recSig = recordsSig(RECORDS_CACHE.data);

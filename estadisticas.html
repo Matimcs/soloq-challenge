@@ -252,10 +252,17 @@
     const kdaLine = r => `${r.k}/${r.d}/${r.a} · ${esc(r.champ)}`;
     const cLine   = r => `${esc(r.champ)} · ${r.k}/${r.d}/${r.a}`;
     const cmMin   = r => `${esc(r.champ)} · ${r.durMin} min`;
+    const peakFmt = abs => {
+      if (abs >= 2800) return (abs-2800)+' LP';
+      const TN=['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], DN=['IV','III','II','I'];
+      const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100)), lp=rem-di*100;
+      return `${TN[ti]} ${DN[di]} · ${lp} LP`;
+    };
     const banner = REC_CHANGED.size
       ? `<div class="rec-banner">✨ ${REC_CHANGED.size} récord${REC_CHANGED.size===1?'':'s'} nuevo${REC_CHANGED.size===1?'':'s'} — resaltado${REC_CHANGED.size===1?'':'s'} abajo</div>`
       : '';
     $('p-records').innerHTML = banner + `<div class="grid">`
+      + topCard('RÉCORD DE LP', 'LP máximo alcanzado en la season', R.peakLp, peakFmt, ()=>'pico de la season')
       + recCard('kdaBest', 'MEJOR KDA', 'Mayor KDA en una partida (empate: menos muertes)', R.kdaBest, kdaLine, r=>r.kda)
       + recCard('kdaWorst', 'PEOR KDA', 'Menor KDA en una partida (empate: más muertes)', R.kdaWorst, kdaLine, r=>r.kda)
       + recCard('kills', 'MÁS KILLS', 'Más asesinatos en una sola partida', R.kills, cLine, r=>r.k)
@@ -286,14 +293,7 @@
     const int0 = v => Math.round(v).toLocaleString('es-CL');
     const pct = v => Math.round(v)+'%';
     const wlDetail = p => `${p.wins}V·${p.games-p.wins}D · ${p.games} partidas`;
-    const peakFmt = abs => {
-      if (abs >= 2800) return (abs-2800)+' LP';
-      const TN=['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], DN=['IV','III','II','I'];
-      const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100)), lp=rem-di*100;
-      return `${TN[ti]} ${DN[di]} · ${lp} LP`;
-    };
     $('p-tops').innerHTML = `<div class="grid">
-      ${topCard('RÉCORD DE LP','LP máximo alcanzado en la season', t.peakLp, peakFmt, ()=>'pico de la season')}
       ${topCard('WINRATE','Mejor winrate de la season (mín. 30 partidas)', t.winrate, pct, wlDetail)}
       ${topCard('KILLS','Promedio de asesinatos por partida (mín. 10)', t.kills, avg1)}
       ${topCard('MUERTES','Promedio de muertes por partida (mín. 10)', t.deaths, avg1)}
