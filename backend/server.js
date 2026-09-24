@@ -1385,8 +1385,18 @@ app.get('/api/stats', wrap(async (req, res) => {
   const topN = (key, n = 5, minGames = 0, gf = 'games') => rowsA.filter(x => x[gf] >= minGames)
     .sort((x, y) => y[key] - x[key]).slice(0, n)
     .map(x => ({ rid: x.rid, nm: x.nm, tier: x.tier, high: x.high, pos: x.pos, games: x[gf], value: x[key] }));
+  // Winrate de la SEASON (del ranking, no de las partidas trackeadas): 1 cuenta por jugador
+  // (la mejor, misma exclusión que los demás tops), mín. 30 partidas rankeadas.
+  const winrate = snapPlayers
+    .map((p, i) => ({ p, pos: i + 1, acct: acctByRid[(p.rid || '').toLowerCase()] || p.puuid || (p.rid || '').toLowerCase() }))
+    .filter(x => !excludeAcct.has(x.acct) && ((x.p.w || 0) + (x.p.l || 0)) >= 30)
+    .map(x => { const p = x.p, g = (p.w || 0) + (p.l || 0);
+      return { rid: p.rid, nm: p.nm, tier: p.tier || 'UNRANKED', high: ['MASTER','GRANDMASTER','CHALLENGER'].includes(p.tier),
+               pos: x.pos, games: g, wins: p.w || 0, value: g ? (p.w || 0) / g * 100 : 0 }; })
+    .sort((a, b) => b.value - a.value || b.games - a.games)
+    .slice(0, 5);
   const tops = { kills: topN('kavg', 5, 10), deaths: topN('davg', 5, 10), assists: topN('aavg', 5, 10),
-    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10) };
+    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10), winrate };
 
   // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
   // Identidad por CUENTA = puuid (consolida renombres) y por JUGADOR = dueño (main+smurfs).

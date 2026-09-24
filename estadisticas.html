@@ -270,11 +270,11 @@
   }
 
   // ---- TOPS ----
-  function topCard(title, cap, list, fmt){
+  function topCard(title, cap, list, fmt, detailFn){
     const rows = (list||[]).map((p,i) => `
       <div class="rowl">
         <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
-        <div class="meta"><div class="nm">${esc(p.nm)}${eloTag(p.high)}</div><div class="games">${p.games} partidas</div></div>
+        <div class="meta"><div class="nm">${esc(p.nm)}${eloTag(p.high)}</div><div class="games">${detailFn?detailFn(p):(p.games+' partidas')}</div></div>
         <div class="val">${fmt(p.value)}</div>
       </div>`).join('');
     return `<div class="card"><h3>${title}</h3><div class="cap">${cap}</div>${rows||'<div class="empty">Sin datos</div>'}</div>`;
@@ -284,7 +284,10 @@
     const avg1 = v => (Math.round(v*10)/10).toFixed(1);
     const dec = v => (Math.round(v*100)/100).toFixed(2);
     const int0 = v => Math.round(v).toLocaleString('es-CL');
+    const pct = v => Math.round(v)+'%';
+    const wlDetail = p => `${p.wins}V·${p.games-p.wins}D · ${p.games} partidas`;
     $('p-tops').innerHTML = `<div class="grid">
+      ${topCard('WINRATE','Mejor winrate de la season (mín. 30 partidas)', t.winrate, pct, wlDetail)}
       ${topCard('KILLS','Promedio de asesinatos por partida (mín. 10)', t.kills, avg1)}
       ${topCard('MUERTES','Promedio de muertes por partida (mín. 10)', t.deaths, avg1)}
       ${topCard('ASISTENCIAS','Promedio de asistencias por partida (mín. 10)', t.assists, avg1)}
