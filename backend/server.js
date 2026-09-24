@@ -1395,8 +1395,24 @@ app.get('/api/stats', wrap(async (req, res) => {
                pos: x.pos, games: g, wins: p.w || 0, value: g ? (p.w || 0) / g * 100 : 0 }; })
     .sort((a, b) => b.value - a.value || b.games - a.games)
     .slice(0, 5);
+  // RÉCORD DE LP: peak absoluto por cuenta (base sembrada + runner lo sube). Consolidado por jugador (máx), top 5.
+  let peakLp = [];
+  try {
+    const peakRows = await q('SELECT lower(rid) rid, peak_abs FROM peak_lp');
+    const peakByOwner = {};
+    for (const r of peakRows){
+      const acct = acctByRid[r.rid] || r.rid;
+      const owner = playerOf(acct);
+      const cur = peakByOwner[owner];
+      if (!cur || +r.peak_abs > cur.abs) peakByOwner[owner] = { abs: +r.peak_abs, rid: r.rid, acct };
+    }
+    peakLp = Object.entries(peakByOwner).map(([owner, v]) => {
+      const m = metaByAcct[v.acct] || {};
+      return { rid: v.rid, nm: m.nm || v.rid.split('#')[0], high: v.abs >= 2800, value: v.abs };
+    }).sort((a, b) => b.value - a.value).slice(0, 5);
+  } catch {}
   const tops = { kills: topN('kavg', 5, 10), deaths: topN('davg', 5, 10), assists: topN('aavg', 5, 10),
-    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10), winrate };
+    csmin: topN('csmin', 5, 10, 'gamesNs'), goldmin: topN('goldmin', 5, 10), kda: topN('kda', 5, 10), winrate, peakLp };
 
   // ---- COINCIDENCIAS: verdugos + duelos (solo en equipos contrarios) ----
   // Identidad por CUENTA = puuid (consolida renombres) y por JUGADOR = dueño (main+smurfs).
@@ -1788,6 +1804,11 @@ function startEmbeddedRunner(){
         liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
         // Persiste el ranking recién construido para el próximo arranque (redeploy sin ranking viejo).
         try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(liveData)]); } catch {}
+        // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (base sembrada a mano).
+        try { for (const pl of (liveData.players || [])){ const abs = absLPof(pl.tier, pl.div, pl.lp); if (abs == null) continue;
+          await q(`INSERT INTO peak_lp (rid, peak_abs, updated_at) VALUES ($1,$2,now())
+                   ON CONFLICT (rid) DO UPDATE SET peak_abs=GREATEST(peak_lp.peak_abs, EXCLUDED.peak_abs), updated_at=now()`,
+                  [(pl.rid || '').toLowerCase(), abs]); } } catch {}
       }
       catch (e){ console.error('Runner embebido:', e.message); }
       await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));

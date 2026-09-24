@@ -90,6 +90,11 @@ async function init(){
       riotid     TEXT PRIMARY KEY,
       created_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS peak_lp (        -- LP absoluto MÁXIMO alcanzado por cuenta (record de LP)
+      rid        TEXT PRIMARY KEY,              -- riotid en minúsculas
+      peak_abs   INTEGER NOT NULL,              -- LP absoluto (Master=2800+apexLP; sub = tier*400+div*100+lp)
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS match_participants ( -- datos crudos: cada participante de cada partida de un jugador del torneo (historial para stats)
       match_id      TEXT,
       puuid         TEXT,
