@@ -654,14 +654,18 @@
   function renderMenciones(){
     const list = (MENCIONES && MENCIONES.menciones) || [];
     if (!list.length){ $('p-menciones').innerHTML = '<div class="empty">Aún no hay menciones.</div>'; return; }
-    const card = m => `<div class="mcard">
+    const card = m => {
+      const url = m.matchId ? logMatchUrl(m.matchId) : null;
+      const link = url ? ` · <a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">Ver partida ↗</a>` : '';
+      return `<div class="mcard">
       <div class="mc-emoji">${m.emoji||'🏅'}</div>
       <div class="mc-body">
         <div class="mc-title">${esc(m.title)}</div>
         <div class="mc-sub">${esc(m.sub||'')}</div>
         <div class="mc-win"><span class="mc-nm">${esc(m.nm)}</span><span class="mc-val">${esc(m.value||'')}</span></div>
-        ${m.detail?`<div class="mc-det">${esc(m.detail)}</div>`:''}
+        ${m.detail?`<div class="mc-det">${esc(m.detail)}${link}</div>`:(link?`<div class="mc-det">${link.replace(/^ · /,'')}</div>`:'')}
       </div></div>`;
+    };
     $('p-menciones').innerHTML = `<div class="kpi">Premios (mayormente) de la vergüenza 😅 — sacados del historial del torneo.</div>`
       + `<div class="mgrid">${list.map(card).join('')}</div>`;
   }
