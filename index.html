@@ -1228,7 +1228,7 @@ function sideHtml(label, cls, rows, bans){
     </div>`;
 }
 function gameCard(g){
-  const avatars = g.tracked.map(t => avaHtml(null, t.nm, 'lg-ava')).join('');
+  const avatars = g.tracked.map(t => avaHtml(null, (t.rid && NICK_BY_RID[nrid(t.rid)]) || t.nm, 'lg-ava')).join('');
   return `
     <div class="lg-card" data-gid="${g.gameId}">
       <div class="lg-head">
@@ -1399,7 +1399,8 @@ function goToLiveGame(gid){
 }
 function showEncuentro(g){
   ensureEncStyle();
-  const names = (g.tracked || []).map(t => t.nm);
+  const encNick = t => (t.rid && NICK_BY_RID[nrid(t.rid)]) || t.nm;   // nombre del dueño registrado, no el del smurf
+  const names = (g.tracked || []).map(encNick);
   const el = document.createElement('div');
   el.className = 'enc-toast';
   el.dataset.gid = g.gameId;   // para poder quitarlo cuando termine la partida
@@ -1411,7 +1412,7 @@ function showEncuentro(g){
        <button class="enc-ico-btn enc-close" title="Cerrar">${X_SVG}</button>
      </div>
      <div class="enc-body">
-       <div class="enc-avas">${(g.tracked || []).slice(0,3).map(t => avaHtml(null, t.nm, 'enc-ava')).join('')}</div>
+       <div class="enc-avas">${(g.tracked || []).slice(0,3).map(t => avaHtml(null, encNick(t), 'enc-ava')).join('')}</div>
        <div class="enc-text">
          <div class="enc-names">${names.join(', ')}</div>
          <div class="enc-sub">juntos en la misma partida</div>

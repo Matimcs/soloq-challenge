@@ -622,7 +622,7 @@ function rankText(entry) {
       queue: QUEUES[raw.gameQueueConfigId] || 'Partida',
       gameStartTime: raw.gameStartTime || 0,
       gameLength: raw.gameLength || 0,
-      tracked: trackedRows.map(r => ({ nm:r.name, position:r.position })),
+      tracked: trackedRows.map(r => ({ nm:r.name, rid: (r.name && r.tag) ? (r.name + '#' + r.tag) : null, position:r.position })),
       blue, red, bansBlue, bansRed,
     });
     const who = trackedRows.map(r => r.name).join(', ');

@@ -1506,8 +1506,13 @@ app.get('/api/stats', wrap(async (req, res) => {
   // Peores: más derrotas; en empate, primero al que MENOS le hemos ganado.
   const rivalesWorst = oppArr.slice().sort((a, b) => b.l - a.l || a.w - b.w).slice(0, 15);
 
-  // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60.
-  const historial = liveSnapshot().encounters || [];
+  // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60. Mostramos el nick del
+  // JUGADOR REGISTRADO por participante (no el nombre del smurf).
+  const historial = (liveSnapshot().encounters || []).map(e => ({ ...e,
+    players: (e.players || []).map(pl => {
+      const owner = playerOf(acctByRid[(pl.rid || '').toLowerCase()] || (pl.rid || '').toLowerCase());
+      return { ...pl, nm: ownerNick[owner] || pl.nm };
+    }) }));
 
   // ---- ELO: subidones/bajones por día + serie de evolución (desde ±LP guardados) ----
   // El caché de ±LP ya está keyeado por puuid (consolidado por cuenta); la meta también.
@@ -1575,6 +1580,17 @@ app.get('/api/encounters', wrap(async (req, res) => {
   // Nickname del torneo por cuenta (para mostrar el nick, no el summoner name).
   const meta = {};
   (liveSnapshot().players || []).forEach(p => { meta[(p.rid || '').toLowerCase()] = p.nm || (p.rid || '').split('#')[0]; });
+  // Nick del JUGADOR REGISTRADO por puuid: si la cuenta (main o smurf) es de un usuario, mostramos SU
+  // nick, no el de la cuenta (p.ej. un smurf aparece con el nombre del dueño).
+  const rid2puuid = await ridPuuidMap();
+  const uNick = {}, ownerNickByPuuid = {};
+  try {
+    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users")){ uNick['u'+u.id] = (u.nickname||'').trim();
+      const pu = u.rid && rid2puuid[u.rid]; if (pu && uNick['u'+u.id]) ownerNickByPuuid[pu] = uNick['u'+u.id]; }
+    for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")){
+      const pu = rid2puuid[s.rid]; if (pu && uNick['u'+s.user_id]) ownerNickByPuuid[pu] = uNick['u'+s.user_id]; }
+  } catch {}
+  const ownerNm = rid => ownerNickByPuuid[rid2puuid[rid]] || meta[rid];
   const rows = await q(`
     SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win,
            max(team_id) team, max(champion) champ, max(game_end) gend
@@ -1587,7 +1603,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
   for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
   const encounters = Object.entries(byMatch).map(([id, ps]) => ({
     id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
-    players: ps.map(p => ({ nm: meta[p.rid] || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })),
+    players: ps.map(p => ({ nm: ownerNm(p.rid) || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })),
   })).filter(e => e.players.length >= 2)
     .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 400);   // historial completo (antes se cortaba en 100)
   ENC_CACHE.data = { encounters };
