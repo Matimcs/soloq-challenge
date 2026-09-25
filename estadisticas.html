@@ -57,6 +57,16 @@
   .mc-nm{ font-weight:800; font-size:15px; color:#fff; }
   .mc-val{ font-weight:800; font-size:13px; color:var(--up); }
   .mc-det{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .mcard.mclick{ cursor:pointer; }
+  .mcard.mclick:hover{ border-color:var(--line-strong,rgba(255,255,255,.18)); }
+  .mc-more{ font-size:9.5px; font-weight:700; color:var(--muted-2); margin-left:8px; white-space:nowrap; }
+  .mtop{ margin-top:10px; border-top:1px solid var(--line); padding-top:8px; display:flex; flex-direction:column; gap:5px; }
+  .mtop[hidden]{ display:none; }
+  .mrow{ font-size:11.5px; line-height:1.35; }
+  .mrow .mrk{ color:var(--muted-2); font-weight:800; margin-right:5px; }
+  .mrow .mrn{ color:#fff; font-weight:700; }
+  .mrow .mrv{ color:var(--up); font-weight:800; margin-left:6px; }
+  .mrow .mrd{ color:var(--muted); font-size:10.5px; margin-left:5px; }
 
   /* Cards */
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
@@ -654,19 +664,32 @@
   function renderMenciones(){
     const list = (MENCIONES && MENCIONES.menciones) || [];
     if (!list.length){ $('p-menciones').innerHTML = '<div class="empty">Aún no hay menciones.</div>'; return; }
+    const gameLink = (mid, txt) => { const u = mid ? logMatchUrl(mid) : null; return u ? ` <a href="${u}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">${txt}</a>` : ''; };
     const card = m => {
-      const url = m.matchId ? logMatchUrl(m.matchId) : null;
-      const link = url ? ` · <a href="${url}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">Ver partida ↗</a>` : '';
-      return `<div class="mcard">
+      const w = (m.top && m.top[0]) || {};
+      const wlink = gameLink(w.matchId, '· Ver partida ↗');
+      const more = (m.top && m.top.length > 1) ? '<span class="mc-more">ver top ▾</span>' : '';
+      const rows = (m.top || []).map((t,i) => `<div class="mrow"><span class="mrk">${i+1}.</span><span class="mrn">${esc(t.nm)}</span><span class="mrv">${esc(t.value||'')}</span>${t.detail?`<span class="mrd">${esc(t.detail)}</span>`:''}${gameLink(t.matchId,'↗')}</div>`).join('');
+      return `<div class="mcard ${(m.top&&m.top.length>1)?'mclick':''}">
       <div class="mc-emoji">${m.emoji||'🏅'}</div>
       <div class="mc-body">
-        <div class="mc-title">${esc(m.title)}</div>
+        <div class="mc-title">${esc(m.title)}${more}</div>
         <div class="mc-sub">${esc(m.sub||'')}</div>
-        <div class="mc-win"><span class="mc-nm">${esc(m.nm)}</span><span class="mc-val">${esc(m.value||'')}</span></div>
-        ${m.detail?`<div class="mc-det">${esc(m.detail)}${link}</div>`:(link?`<div class="mc-det">${link.replace(/^ · /,'')}</div>`:'')}
+        <div class="mc-win"><span class="mc-nm">${esc(w.nm||'')}</span><span class="mc-val">${esc(w.value||'')}</span></div>
+        ${w.detail?`<div class="mc-det">${esc(w.detail)}${wlink}</div>`:(wlink?`<div class="mc-det">${wlink.replace(/^ · /,'').trim()}</div>`:'')}
+        <div class="mtop" hidden>${rows}</div>
       </div></div>`;
     };
     $('p-menciones').innerHTML = `<div class="mgrid">${list.map(card).join('')}</div>`;
+    if (!renderMenciones._bound){ renderMenciones._bound = true;
+      $('p-menciones').addEventListener('click', e => {
+        if (e.target.closest('a')) return;   // no togglear al clickear un link
+        const c = e.target.closest('.mcard.mclick'); if (!c) return;
+        const mt = c.querySelector('.mtop'); if (!mt) return;
+        const opening = mt.hidden; mt.hidden = !opening;
+        const mm = c.querySelector('.mc-more'); if (mm) mm.textContent = opening ? 'ver menos ▲' : 'ver top ▾';
+      });
+    }
   }
 
   async function load(){

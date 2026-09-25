@@ -1717,7 +1717,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
   const nick = o => uNick[o] || nmByOwner[o] || (String(o).includes('#') ? String(o).split('#')[0] : o);
   const absLabel = abs => { if (abs >= 2800) return (abs-2800)+' LP'; const TN=['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], DN=['IV','III','II','I']; const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100)), lp=rem-di*100; return `${TN[ti]} ${DN[di]} ${lp}LP`; };
   // Scan del historial: agregados por dueño + extremos de una partida.
-  const agg = {}; const distinctByAcct = {}, gamesByAcct = {}; let carreado = null, griefeado = null;
+  const agg = {}; const distinctByAcct = {}, gamesByAcct = {}, carreadoBy = {}, griefeadoBy = {};
   const NS = pos => !['UTILITY','SUPPORT'].includes((pos||'').toUpperCase());
   for (const r of await q(`SELECT match_id, lower(riotid) rid, champion champ, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, coalesce(duration,0) dur, win, position pos, game_end gend FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`)){
     const o = ownerOf(r.rid), acct = acctOf(r.rid);
@@ -1729,8 +1729,8 @@ app.get('/api/menciones', wrap(async (req, res) => {
     if (r.gend){ const t = chileHD(r.gend); A.days[t.d] = (A.days[t.d]||0)+1; if (t.h>=2 && t.h<6) A.night++; if (t.h>=6 && t.h<11) A.morning++; }
     if (+r.dur >= 900){   // solo partidas reales (≥15 min); descarta remakes/rendiciones tempranas
       const kda = (+r.k + +r.a)/Math.max(1,+r.d);
-      if (r.win){ if (!carreado || kda < carreado.kda) carreado = { o, champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, mid:r.match_id }; }
-      else { if (!griefeado || kda > griefeado.kda) griefeado = { o, champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, mid:r.match_id }; }
+      if (r.win){ const c = carreadoBy[o]; if (!c || kda < c.kda) carreadoBy[o] = { champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, mid:r.match_id }; }
+      else { const c = griefeadoBy[o]; if (!c || kda > c.kda) griefeadoBy[o] = { champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, mid:r.match_id }; }
     }
   }
   // Dúos (aliados) para "Dúo Tóxico" y "Pareja Inseparable".
@@ -1745,48 +1745,60 @@ app.get('/api/menciones', wrap(async (req, res) => {
         const pa = pairAgg[k] = pairAgg[k] || { a:os[i], b:os[j], w:0, l:0 }; if (won) pa.w++; else pa.l++; } }
   }
   const owners = Object.keys(agg);
-  const top = (list, keyfn) => list.slice().sort((x,y)=>keyfn(y)-keyfn(x))[0];
-  const bot = (list, keyfn) => list.slice().sort((x,y)=>keyfn(x)-keyfn(y))[0];
   const r1 = n => Math.round(n*10)/10;
   const M = [];
-  const push = (emoji, title, sub, nm, value, detail, matchId) => { if (nm != null) M.push({ emoji, title, sub, nm, value, detail: detail||'', matchId: matchId||null }); };
-  // Roasts
-  const paq = bot(owners.filter(o=>bestWR[o] && bestWR[o].g>=30), o=>bestWR[o].w/bestWR[o].g);
-  if (paq) push('📦','El Paquete','Peor winrate de la season (mín. 30)', nick(paq), Math.round(bestWR[paq].w/bestWR[paq].g*100)+'%', `${bestWR[paq].w}V·${bestWR[paq].g-bestWR[paq].w}D`);
-  const anti = top(Object.keys(dropByOwner).filter(o=>dropByOwner[o].drop>=50), o=>dropByOwner[o].drop);
-  if (anti){ const d = dropByOwner[anti]; push('📉','El Antiprime','Más LP caídos desde su pico', nick(anti), `−${d.drop} LP`, `de ${absLabel(d.peak)} a ${absLabel(d.cur)}`); }
-  if (carreado) push('🍼','Carreado','Peor KDA en una partida GANADA', nick(carreado.o), `${carreado.k}/${carreado.d}/${carreado.a}`, `KDA ${carreado.kda.toFixed(2)} · ${carreado.champ} · W`, carreado.mid);
-  if (griefeado) push('😭','Griefeado','Mejor KDA en una partida PERDIDA', nick(griefeado.o), `${griefeado.k}/${griefeado.d}/${griefeado.a}`, `KDA ${griefeado.kda.toFixed(2)} · ${griefeado.champ} · L`, griefeado.mid);
-  const inter = top(owners.filter(o=>agg[o].games>=20), o=>agg[o].deaths/agg[o].games);
-  if (inter) push('⚰️','El Inter','Más muertes por partida (mín. 20)', nick(inter), r1(agg[inter].deaths/agg[inter].games)+' muertes', `en ${agg[inter].games} partidas`);
-  const manos = bot(owners.filter(o=>agg[o].games>=20 && agg[o].durNs>0), o=>agg[o].csNs/(agg[o].durNs/60));
-  if (manos) push('🪨','Manos de Piedra','Peor CS/min sin support (mín. 20)', nick(manos), r1(agg[manos].csNs/(agg[manos].durNs/60))+' cs/min', '');
-  // Vicio
-  const noct = top(owners.filter(o=>agg[o].night>0), o=>agg[o].night);
-  if (noct) push('🦇','Noctámbulo','Más partidas entre 2 y 6 AM', nick(noct), agg[noct].night+' partidas', 'de madrugada');
-  const madr = top(owners.filter(o=>agg[o].morning>0), o=>agg[o].morning);
-  if (madr) push('🐓','Madrugador','Más partidas entre 6 y 11 AM', nick(madr), agg[madr].morning+' partidas', 'temprano');
-  const horas = top(owners, o=>agg[o].durAll);
-  if (horas) push('⏳','Horas en la Grieta','Más tiempo total jugado', nick(horas), Math.round(agg[horas].durAll/3600)+' h', `≈ ${(agg[horas].durAll/86400).toFixed(1)} días de tu vida`);
-  const mar = top(owners.map(o=>{ let mx=0,day=''; for (const d in agg[o].days) if (agg[o].days[d]>mx){ mx=agg[o].days[d]; day=d; } return { o, mx, day }; }), x=>x.mx);
-  if (mar && mar.mx) push('🏃','Maratón','Más partidas en un solo día', nick(mar.o), mar.mx+' partidas', `el ${mar.day}`);
-  // Pool
-  const ot = top(owners.filter(o=>agg[o].games>=20).map(o=>{ let mc=null,mn=0; for (const c in agg[o].champs) if (agg[o].champs[c]>mn){ mn=agg[o].champs[c]; mc=c; } return { o, pct:mn/agg[o].games, champ:mc, games:agg[o].games }; }), x=>x.pct);
-  if (ot) push('🐴','One-Trick','Más monótono: % con un solo campeón (mín. 20)', nick(ot.o), Math.round(ot.pct*100)+'%', `con ${ot.champ}`);
-  const sommDistinct = o => { const ba = bestAcctAbs[o]; return (ba && distinctByAcct[ba.acct]) ? distinctByAcct[ba.acct].size : 0; };
-  const somm = top(owners.filter(o => { const ba = bestAcctAbs[o]; return ba && (gamesByAcct[ba.acct]||0) >= 20; }), sommDistinct);
-  if (somm) push('🍷','Sommelier','Más campeones distintos en su cuenta principal (mín. 20)', nick(somm), sommDistinct(somm)+' campeones', '');
-  // Dúos
+  // rank: ordena la lista y devuelve el top-N ya formateado. dir<0 = menor gana; dir>0 = mayor gana.
+  const rank = (list, keyfn, fmt, dir, n=8) => list.slice().sort((a,b)=> dir < 0 ? keyfn(a)-keyfn(b) : keyfn(b)-keyfn(a)).slice(0, n).map(fmt);
+  const push = (emoji, title, sub, top) => { if (top && top.length) M.push({ emoji, title, sub, top }); };
   const pairs = Object.values(pairAgg);
-  const toxic = bot(pairs.filter(p=>p.w+p.l>=4), p=>p.w/(p.w+p.l));
-  if (toxic) push('☢️','Dúo Tóxico','Peor winrate jugando juntos (mín. 4)', `${nick(toxic.a)} + ${nick(toxic.b)}`, Math.round(toxic.w/(toxic.w+toxic.l)*100)+'%', `${toxic.w}V·${toxic.l}D juntos`);
-  const insep = top(pairs, p=>p.w+p.l);
-  if (insep) push('💞','Pareja Inseparable','Los que más juegan juntos', `${nick(insep.a)} + ${nick(insep.b)}`, (insep.w+insep.l)+' partidas', `${insep.w}V·${insep.l}D`);
-  const dOwners = Object.keys(duoByOwner).filter(o => (duoByOwner[o].w+duoByOwner[o].l) >= 5);
-  const trollDuo = bot(dOwners, o => duoByOwner[o].w/(duoByOwner[o].w+duoByOwner[o].l));
-  if (trollDuo){ const d = duoByOwner[trollDuo]; push('🃏','El Troll del Dúo','Peor winrate jugando en dúo (mín. 5)', nick(trollDuo), Math.round(d.w/(d.w+d.l)*100)+'%', `${d.w}V·${d.l}D en dúo`); }
-  const aegisK = top(owners, o=>aegisByOwner[o]||0);
-  if (aegisK && (aegisByOwner[aegisK]||0)>0) push('🛡️','Aegis King','Más victorias de doble LP', nick(aegisK), (aegisByOwner[aegisK])+' aegis', '');
+  const sommDistinct = o => { const ba = bestAcctAbs[o]; return (ba && distinctByAcct[ba.acct]) ? distinctByAcct[ba.acct].size : 0; };
+  // Roasts
+  push('📦','El Paquete','Peor winrate de la season (mín. 30)',
+    rank(owners.filter(o=>bestWR[o] && bestWR[o].g>=30), o=>bestWR[o].w/bestWR[o].g,
+      o=>({ nm:nick(o), value:Math.round(bestWR[o].w/bestWR[o].g*100)+'%', detail:`${bestWR[o].w}V·${bestWR[o].g-bestWR[o].w}D` }), -1));
+  push('📉','El Antiprime','Más LP caídos desde su pico',
+    rank(Object.keys(dropByOwner).filter(o=>dropByOwner[o].drop>=50), o=>dropByOwner[o].drop,
+      o=>{ const d=dropByOwner[o]; return { nm:nick(o), value:`−${d.drop} LP`, detail:`de ${absLabel(d.peak)} a ${absLabel(d.cur)}` }; }, 1));
+  push('🍼','Carreado','Peor KDA en una partida GANADA',
+    rank(Object.keys(carreadoBy), o=>carreadoBy[o].kda,
+      o=>{ const c=carreadoBy[o]; return { nm:nick(o), value:`${c.k}/${c.d}/${c.a}`, detail:`KDA ${c.kda.toFixed(2)} · ${c.champ} · W`, matchId:c.mid }; }, -1));
+  push('😭','Griefeado','Mejor KDA en una partida PERDIDA',
+    rank(Object.keys(griefeadoBy), o=>griefeadoBy[o].kda,
+      o=>{ const c=griefeadoBy[o]; return { nm:nick(o), value:`${c.k}/${c.d}/${c.a}`, detail:`KDA ${c.kda.toFixed(2)} · ${c.champ} · L`, matchId:c.mid }; }, 1));
+  push('⚰️','El Inter','Más muertes por partida (mín. 20)',
+    rank(owners.filter(o=>agg[o].games>=20), o=>agg[o].deaths/agg[o].games,
+      o=>({ nm:nick(o), value:r1(agg[o].deaths/agg[o].games)+' muertes', detail:`en ${agg[o].games} partidas` }), 1));
+  push('🪨','Manos de Piedra','Peor CS/min sin support (mín. 20)',
+    rank(owners.filter(o=>agg[o].games>=20 && agg[o].durNs>0), o=>agg[o].csNs/(agg[o].durNs/60),
+      o=>({ nm:nick(o), value:r1(agg[o].csNs/(agg[o].durNs/60))+' cs/min', detail:`en ${agg[o].games} partidas` }), -1));
+  // Vicio
+  push('🦇','Noctámbulo','Más partidas entre 2 y 6 AM',
+    rank(owners.filter(o=>agg[o].night>0), o=>agg[o].night, o=>({ nm:nick(o), value:agg[o].night+' partidas', detail:'de madrugada' }), 1));
+  push('🐓','Madrugador','Más partidas entre 6 y 11 AM',
+    rank(owners.filter(o=>agg[o].morning>0), o=>agg[o].morning, o=>({ nm:nick(o), value:agg[o].morning+' partidas', detail:'temprano' }), 1));
+  push('⏳','Horas en la Grieta','Más tiempo total jugado',
+    rank(owners, o=>agg[o].durAll, o=>({ nm:nick(o), value:Math.round(agg[o].durAll/3600)+' h', detail:`≈ ${(agg[o].durAll/86400).toFixed(1)} días` }), 1));
+  push('🏃','Maratón','Más partidas en un solo día',
+    rank(owners.map(o=>{ let mx=0,day=''; for (const d in agg[o].days) if (agg[o].days[d]>mx){ mx=agg[o].days[d]; day=d; } return { o, mx, day }; }).filter(x=>x.mx), x=>x.mx,
+      x=>({ nm:nick(x.o), value:x.mx+' partidas', detail:`el ${x.day}` }), 1));
+  // Pool
+  push('🐴','One-Trick','% con un solo campeón (mín. 20)',
+    rank(owners.filter(o=>agg[o].games>=20).map(o=>{ let mc=null,mn=0; for (const c in agg[o].champs) if (agg[o].champs[c]>mn){ mn=agg[o].champs[c]; mc=c; } return { o, pct:mn/agg[o].games, champ:mc }; }), x=>x.pct,
+      x=>({ nm:nick(x.o), value:Math.round(x.pct*100)+'%', detail:`con ${x.champ}` }), 1));
+  push('🍷','Sommelier','Más campeones distintos en su cuenta principal (mín. 20)',
+    rank(owners.filter(o=>{ const ba=bestAcctAbs[o]; return ba && (gamesByAcct[ba.acct]||0)>=20; }), sommDistinct,
+      o=>({ nm:nick(o), value:sommDistinct(o)+' campeones', detail:'' }), 1));
+  // Dúos
+  push('☢️','Dúo Tóxico','Peor winrate jugando juntos (mín. 4)',
+    rank(pairs.filter(p=>p.w+p.l>=4), p=>p.w/(p.w+p.l),
+      p=>({ nm:`${nick(p.a)} + ${nick(p.b)}`, value:Math.round(p.w/(p.w+p.l)*100)+'%', detail:`${p.w}V·${p.l}D juntos` }), -1));
+  push('💞','Pareja Inseparable','Los que más juegan juntos',
+    rank(pairs, p=>p.w+p.l, p=>({ nm:`${nick(p.a)} + ${nick(p.b)}`, value:(p.w+p.l)+' partidas', detail:`${p.w}V·${p.l}D` }), 1));
+  push('🃏','El Troll del Dúo','Peor winrate jugando en dúo (mín. 5)',
+    rank(Object.keys(duoByOwner).filter(o=>(duoByOwner[o].w+duoByOwner[o].l)>=5), o=>duoByOwner[o].w/(duoByOwner[o].w+duoByOwner[o].l),
+      o=>{ const d=duoByOwner[o]; return { nm:nick(o), value:Math.round(d.w/(d.w+d.l)*100)+'%', detail:`${d.w}V·${d.l}D en dúo` }; }, -1));
+  push('🛡️','Aegis King','Más victorias de doble LP',
+    rank(owners.filter(o=>(aegisByOwner[o]||0)>0), o=>aegisByOwner[o]||0, o=>({ nm:nick(o), value:(aegisByOwner[o])+' aegis', detail:'' }), 1));
   MENC_CACHE.data = { menciones: M };
   MENC_CACHE.at = Date.now();
   res.json(MENC_CACHE.data);
