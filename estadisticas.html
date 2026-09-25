@@ -46,6 +46,17 @@
   .tstat .tsub{ font-size:9.5px; color:var(--muted-2); margin-top:4px; line-height:1.3; }
   .tduo{ font-size:12.5px; color:var(--text); border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
   .tduo-k{ font-size:10px; color:var(--muted); font-weight:800; letter-spacing:.04em; margin-right:6px; }
+  /* Menciones */
+  .mgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+  .mcard{ display:flex; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px 14px; }
+  .mc-emoji{ font-size:29px; line-height:1; flex-shrink:0; }
+  .mc-body{ min-width:0; }
+  .mc-title{ font-weight:800; font-size:14px; color:var(--accent); letter-spacing:.02em; }
+  .mc-sub{ font-size:10.5px; color:var(--muted-2); margin:2px 0 8px; line-height:1.3; }
+  .mc-win{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .mc-nm{ font-weight:800; font-size:15px; color:#fff; }
+  .mc-val{ font-weight:800; font-size:13px; color:var(--up); }
+  .mc-det{ font-size:11px; color:var(--muted); margin-top:3px; }
 
   /* Cards */
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
@@ -172,6 +183,7 @@
       <button class="tab" data-t="coinc">COINCIDENCIAS</button>
       <button class="tab" data-t="rivales">CONTRINCANTES</button>
       <button class="tab" data-t="equipos">EQUIPOS</button>
+      <button class="tab" data-t="menciones">MENCIONES</button>
       <button class="tab" data-t="records">RÉCORDS<span class="tab-badge" id="rec-tab-badge"></span></button>
     </div>
 
@@ -180,6 +192,7 @@
     <div class="panel" id="p-coinc"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rivales"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-equipos"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-menciones"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-records"><div class="loading">Cargando…</div></div>
   </main>
 
@@ -201,6 +214,7 @@
     if (b.dataset.t==='elo' && DATA){ drawChart(); drawAvgChart(); }
     if (b.dataset.t==='records'){ loadRecords(true); }
     if (b.dataset.t==='equipos'){ loadTeamStats(); }
+    if (b.dataset.t==='menciones'){ loadMenciones(); }
   });
 
   // ---- RÉCORDS ----
@@ -627,6 +641,29 @@
     };
     $('p-equipos').innerHTML = `<div class="kpi">Sinergia: cómo rinde cada equipo <b>jugando junto</b> (2+ del mismo equipo aliados en una misma partida) vs. su nivel individual.</div>`
       + `<div class="grid">${teams.map(card).join('')}</div>`;
+  }
+
+  // ---- MENCIONES ----
+  let MENCIONES = null;
+  async function loadMenciones(){
+    if (MENCIONES){ renderMenciones(); return; }
+    try { const r = await fetch('/api/menciones', { cache:'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status);
+      MENCIONES = await r.json(); renderMenciones(); }
+    catch(e){ $('p-menciones').innerHTML = '<div class="empty">No se pudieron cargar las menciones.<br><small>'+esc(e.message)+'</small></div>'; }
+  }
+  function renderMenciones(){
+    const list = (MENCIONES && MENCIONES.menciones) || [];
+    if (!list.length){ $('p-menciones').innerHTML = '<div class="empty">Aún no hay menciones.</div>'; return; }
+    const card = m => `<div class="mcard">
+      <div class="mc-emoji">${m.emoji||'🏅'}</div>
+      <div class="mc-body">
+        <div class="mc-title">${esc(m.title)}</div>
+        <div class="mc-sub">${esc(m.sub||'')}</div>
+        <div class="mc-win"><span class="mc-nm">${esc(m.nm)}</span><span class="mc-val">${esc(m.value||'')}</span></div>
+        ${m.detail?`<div class="mc-det">${esc(m.detail)}</div>`:''}
+      </div></div>`;
+    $('p-menciones').innerHTML = `<div class="kpi">Premios (mayormente) de la vergüenza 😅 — sacados del historial del torneo.</div>`
+      + `<div class="mgrid">${list.map(card).join('')}</div>`;
   }
 
   async function load(){

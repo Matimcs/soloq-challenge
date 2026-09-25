@@ -1690,6 +1690,93 @@ app.get('/api/team-stats', wrap(async (req, res) => {
   res.json(TEAMSTATS_CACHE.data);
 }));
 
+// ---- MENCIONES: premios graciosos (roasts + vicio + pool + dúos) ----
+const MENC_CACHE = { at: 0, data: null };
+const CL_FMT = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Santiago', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', hour12:false });
+function chileHD(ts){ const o = {}; for (const x of CL_FMT.formatToParts(new Date(Number(ts)||0))) o[x.type] = x.value; return { d: `${o.year}-${o.month}-${o.day}`, h: (+o.hour) % 24 }; }
+app.get('/api/menciones', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  if (MENC_CACHE.data && Date.now() - MENC_CACHE.at < 300000) return res.json(MENC_CACHE.data);
+  const rid2puuid = await ridPuuidMap();
+  const acctOf = rid => rid2puuid[rid] || rid;
+  const uNick = {}, puuidOwner = {};
+  for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
+  for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u'+s.user_id;
+  const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
+  const nmByOwner = {}, aegisByOwner = {}, bestWR = {};
+  (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase());
+    if (!nmByOwner[o]) nmByOwner[o] = uNick[o] || p.nm;
+    aegisByOwner[o] = (aegisByOwner[o]||0) + (p.aegis||0);
+    const g = (p.w||0)+(p.l||0); const c = bestWR[o]; if (g && (!c || g > c.g)) bestWR[o] = { g, w:p.w||0 }; });
+  const nick = o => uNick[o] || nmByOwner[o] || (String(o).includes('#') ? String(o).split('#')[0] : o);
+  // Scan del historial: agregados por dueño + extremos de una partida.
+  const agg = {}; let carreado = null, griefeado = null;
+  const NS = pos => !['UTILITY','SUPPORT'].includes((pos||'').toUpperCase());
+  for (const r of await q(`SELECT lower(riotid) rid, champion champ, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, coalesce(duration,0) dur, win, position pos, game_end gend FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`)){
+    const o = ownerOf(r.rid);
+    const A = agg[o] || (agg[o] = { games:0, deaths:0, csNs:0, durNs:0, durAll:0, champs:{}, days:{}, night:0, morning:0, distinct:new Set() });
+    A.games++; A.deaths += +r.d; A.durAll += +r.dur;
+    if (NS(r.pos)){ A.csNs += +r.cs; A.durNs += +r.dur; }
+    if (r.champ){ A.champs[r.champ] = (A.champs[r.champ]||0)+1; A.distinct.add(r.champ); }
+    if (r.gend){ const t = chileHD(r.gend); A.days[t.d] = (A.days[t.d]||0)+1; if (t.h>=2 && t.h<6) A.night++; if (t.h>=6 && t.h<11) A.morning++; }
+    if (+r.dur >= 900){   // solo partidas reales (≥15 min); descarta remakes/rendiciones tempranas
+      const kda = (+r.k + +r.a)/Math.max(1,+r.d);
+      if (r.win){ if (!carreado || kda < carreado.kda) carreado = { o, champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda }; }
+      else { if (!griefeado || kda > griefeado.kda) griefeado = { o, champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda }; }
+    }
+  }
+  // Dúos (aliados) para "Dúo Tóxico" y "Pareja Inseparable".
+  const byMatch = {};
+  for (const r of await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL GROUP BY match_id, lower(riotid)`)) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  const pairAgg = {};
+  for (const mid in byMatch){ const sides = {};
+    for (const p of byMatch[mid]){ const o = ownerOf(p.rid); (sides[p.side] = sides[p.side] || new Map()).set(o, !!p.win); }
+    for (const side in sides){ const arr = [...sides[side].entries()]; if (arr.length < 2) continue; const won = arr[0][1]; const os = arr.map(x=>x[0]).sort();
+      for (let i=0;i<os.length;i++) for (let j=i+1;j<os.length;j++){ if (os[i]===os[j]) continue; const k = os[i]+'|'+os[j];
+        const pa = pairAgg[k] = pairAgg[k] || { a:os[i], b:os[j], w:0, l:0 }; if (won) pa.w++; else pa.l++; } }
+  }
+  const owners = Object.keys(agg);
+  const top = (list, keyfn) => list.slice().sort((x,y)=>keyfn(y)-keyfn(x))[0];
+  const bot = (list, keyfn) => list.slice().sort((x,y)=>keyfn(x)-keyfn(y))[0];
+  const r1 = n => Math.round(n*10)/10;
+  const M = [];
+  const push = (emoji, title, sub, nm, value, detail) => { if (nm != null) M.push({ emoji, title, sub, nm, value, detail: detail||'' }); };
+  // Roasts
+  const paq = bot(owners.filter(o=>bestWR[o] && bestWR[o].g>=30), o=>bestWR[o].w/bestWR[o].g);
+  if (paq) push('📦','El Paquete','Peor winrate de la season (mín. 30)', nick(paq), Math.round(bestWR[paq].w/bestWR[paq].g*100)+'%', `${bestWR[paq].w}V·${bestWR[paq].g-bestWR[paq].w}D`);
+  if (carreado) push('🍼','Carreado','Peor KDA en una partida GANADA', nick(carreado.o), `${carreado.k}/${carreado.d}/${carreado.a}`, `KDA ${carreado.kda.toFixed(2)} · ${carreado.champ} · W`);
+  if (griefeado) push('😭','Griefeado','Mejor KDA en una partida PERDIDA', nick(griefeado.o), `${griefeado.k}/${griefeado.d}/${griefeado.a}`, `KDA ${griefeado.kda.toFixed(2)} · ${griefeado.champ} · L`);
+  const inter = top(owners.filter(o=>agg[o].games>=20), o=>agg[o].deaths/agg[o].games);
+  if (inter) push('⚰️','El Inter','Más muertes por partida (mín. 20)', nick(inter), r1(agg[inter].deaths/agg[inter].games)+' muertes', `en ${agg[inter].games} partidas`);
+  const manos = bot(owners.filter(o=>agg[o].games>=20 && agg[o].durNs>0), o=>agg[o].csNs/(agg[o].durNs/60));
+  if (manos) push('🪨','Manos de Piedra','Peor CS/min sin support (mín. 20)', nick(manos), r1(agg[manos].csNs/(agg[manos].durNs/60))+' cs/min', '');
+  // Vicio
+  const noct = top(owners.filter(o=>agg[o].night>0), o=>agg[o].night);
+  if (noct) push('🦇','Noctámbulo','Más partidas entre 2 y 6 AM', nick(noct), agg[noct].night+' partidas', 'de madrugada');
+  const madr = top(owners.filter(o=>agg[o].morning>0), o=>agg[o].morning);
+  if (madr) push('🐓','Madrugador','Más partidas entre 6 y 11 AM', nick(madr), agg[madr].morning+' partidas', 'temprano');
+  const horas = top(owners, o=>agg[o].durAll);
+  if (horas) push('⏳','Horas en la Grieta','Más tiempo total jugado', nick(horas), Math.round(agg[horas].durAll/3600)+' h', `≈ ${(agg[horas].durAll/86400).toFixed(1)} días de tu vida`);
+  const mar = top(owners.map(o=>{ let mx=0,day=''; for (const d in agg[o].days) if (agg[o].days[d]>mx){ mx=agg[o].days[d]; day=d; } return { o, mx, day }; }), x=>x.mx);
+  if (mar && mar.mx) push('🏃','Maratón','Más partidas en un solo día', nick(mar.o), mar.mx+' partidas', `el ${mar.day}`);
+  // Pool
+  const ot = top(owners.filter(o=>agg[o].games>=20).map(o=>{ let mc=null,mn=0; for (const c in agg[o].champs) if (agg[o].champs[c]>mn){ mn=agg[o].champs[c]; mc=c; } return { o, pct:mn/agg[o].games, champ:mc, games:agg[o].games }; }), x=>x.pct);
+  if (ot) push('🐴','One-Trick','Más monótono: % con un solo campeón (mín. 20)', nick(ot.o), Math.round(ot.pct*100)+'%', `con ${ot.champ}`);
+  const somm = top(owners.filter(o=>agg[o].games>=20), o=>agg[o].distinct.size);
+  if (somm) push('🍷','Sommelier','Más campeones distintos jugados (mín. 20)', nick(somm), agg[somm].distinct.size+' campeones', '');
+  // Dúos
+  const pairs = Object.values(pairAgg);
+  const toxic = bot(pairs.filter(p=>p.w+p.l>=4), p=>p.w/(p.w+p.l));
+  if (toxic) push('☢️','Dúo Tóxico','Peor winrate jugando juntos (mín. 4)', `${nick(toxic.a)} + ${nick(toxic.b)}`, Math.round(toxic.w/(toxic.w+toxic.l)*100)+'%', `${toxic.w}V·${toxic.l}D juntos`);
+  const insep = top(pairs, p=>p.w+p.l);
+  if (insep) push('💞','Pareja Inseparable','Los que más juegan juntos', `${nick(insep.a)} + ${nick(insep.b)}`, (insep.w+insep.l)+' partidas', `${insep.w}V·${insep.l}D`);
+  const aegisK = top(owners, o=>aegisByOwner[o]||0);
+  if (aegisK && (aegisByOwner[aegisK]||0)>0) push('🛡️','Aegis King','Más victorias de doble LP', nick(aegisK), (aegisByOwner[aegisK])+' aegis', '');
+  MENC_CACHE.data = { menciones: M };
+  MENC_CACHE.at = Date.now();
+  res.json(MENC_CACHE.data);
+}));
+
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
 let _recSig = {};   // firma por categoría (nm|valor de cada uno del top-5) para detectar entradas nuevas
