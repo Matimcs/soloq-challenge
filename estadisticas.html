@@ -37,6 +37,15 @@
   .rec-new-badge{ margin-left:8px; font-size:9px; font-weight:800; color:#000; background:var(--up); border-radius:5px; padding:2px 6px; letter-spacing:.04em; vertical-align:middle; }
   .nm .rec-new-badge{ margin-left:6px; padding:1px 5px; font-size:8px; }
   .rowl.rec-row-new{ background:rgba(52,211,153,.12); border-radius:8px; box-shadow:inset 0 0 0 1px rgba(52,211,153,.4); }
+  /* Equipos */
+  .tcard h3 .tmem{ font-size:11px; color:var(--muted-2); font-weight:700; margin-left:8px; }
+  .tgrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0 4px; }
+  .tstat{ text-align:center; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px 6px; }
+  .tstat .tv{ font-size:21px; font-weight:800; }
+  .tstat .tk{ font-size:10px; color:var(--muted); margin-top:3px; letter-spacing:.03em; }
+  .tstat .tsub{ font-size:9.5px; color:var(--muted-2); margin-top:4px; line-height:1.3; }
+  .tduo{ font-size:12.5px; color:var(--text); border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+  .tduo-k{ font-size:10px; color:var(--muted); font-weight:800; letter-spacing:.04em; margin-right:6px; }
 
   /* Cards */
   .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
@@ -162,6 +171,7 @@
       <button class="tab" data-t="elo">ELO</button>
       <button class="tab" data-t="coinc">COINCIDENCIAS</button>
       <button class="tab" data-t="rivales">CONTRINCANTES</button>
+      <button class="tab" data-t="equipos">EQUIPOS</button>
       <button class="tab" data-t="records">RÉCORDS<span class="tab-badge" id="rec-tab-badge"></span></button>
     </div>
 
@@ -169,6 +179,7 @@
     <div class="panel" id="p-elo"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-coinc"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rivales"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-equipos"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-records"><div class="loading">Cargando…</div></div>
   </main>
 
@@ -189,6 +200,7 @@
     $('p-'+b.dataset.t).classList.add('active');
     if (b.dataset.t==='elo' && DATA){ drawChart(); drawAvgChart(); }
     if (b.dataset.t==='records'){ loadRecords(true); }
+    if (b.dataset.t==='equipos'){ loadTeamStats(); }
   });
 
   // ---- RÉCORDS ----
@@ -584,6 +596,37 @@
         <div class="card"><h3>MEJORES CONTRINCANTES</h3><div class="cap">A los que más les hemos ganado</div>${best||'<div class="empty">Sin datos</div>'}</div>
         <div class="card"><h3>PEORES CONTRINCANTES</h3><div class="cap">Los que más nos han ganado</div>${worst||'<div class="empty">Sin datos</div>'}</div>
       </div>`;
+  }
+
+  // ---- EQUIPOS (sinergia) ----
+  let TEAM_STATS = null;
+  async function loadTeamStats(){
+    if (TEAM_STATS){ renderTeams(); return; }
+    try { const r = await fetch('/api/team-stats', { cache:'no-store' }); if(!r.ok) throw new Error('HTTP '+r.status);
+      TEAM_STATS = await r.json(); renderTeams(); }
+    catch(e){ $('p-equipos').innerHTML = '<div class="empty">No se pudieron cargar las estadísticas de equipos.<br><small>'+esc(e.message)+'</small></div>'; }
+  }
+  function renderTeams(){
+    const teams = (TEAM_STATS && TEAM_STATS.teams) || [];
+    if (!teams.length){ $('p-equipos').innerHTML = '<div class="empty">Aún no hay datos de equipos.</div>'; return; }
+    const wrCol = v => v>=50 ? 'var(--up)' : 'var(--down)';
+    const synHtml = s => { const c = s>0?'var(--up)':(s<0?'var(--down)':'var(--muted)'); return `<span style="color:${c}">${s>0?'+':''}${s}%</span>`; };
+    const card = t => {
+      const wr = t.juntosGames ? `<span style="color:${wrCol(t.juntosWR)}">${t.juntosWR}%</span>` : '—';
+      const rec = t.juntosGames ? `${t.juntosW}V·${t.juntosL}D · ${t.juntosGames} juntos` : 'sin partidas juntos aún';
+      const duo = t.bestDuo ? `${esc(t.bestDuo.a)} <span style="color:var(--muted-2)">+</span> ${esc(t.bestDuo.b)} · <b>${t.bestDuo.wr}%</b> <span style="color:var(--muted-2)">(${t.bestDuo.w}V·${t.bestDuo.l}D)</span>` : '—';
+      return `<div class="card tcard">
+        <h3>${esc(t.team)}<span class="tmem">${t.members} jugadores</span></h3>
+        <div class="tgrid">
+          <div class="tstat"><div class="tv">${wr}</div><div class="tk">WR JUNTOS</div><div class="tsub">${rec}</div></div>
+          <div class="tstat"><div class="tv">${t.indAvg}%</div><div class="tk">WR INDIVIDUAL PROM.</div></div>
+          <div class="tstat"><div class="tv">${t.juntosGames?synHtml(t.sinergia):'—'}</div><div class="tk">SINERGIA</div><div class="tsub">juntos − individual</div></div>
+        </div>
+        <div class="tduo"><span class="tduo-k">MEJOR DÚO</span> ${duo}</div>
+      </div>`;
+    };
+    $('p-equipos').innerHTML = `<div class="kpi">Sinergia: cómo rinde cada equipo <b>jugando junto</b> (2+ del mismo equipo aliados en una misma partida) vs. su nivel individual.</div>`
+      + `<div class="grid">${teams.map(card).join('')}</div>`;
   }
 
   async function load(){

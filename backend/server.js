@@ -1629,6 +1629,67 @@ app.get('/api/encounters', wrap(async (req, res) => {
   res.json(ENC_CACHE.data);
 }));
 
+// ---- EQUIPOS: métricas de sinergia (jugando JUNTOS), no promedios que ya se ven en el leaderboard ----
+const TEAMSTATS_CACHE = { at: 0, data: null };
+app.get('/api/team-stats', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  if (TEAMSTATS_CACHE.data && Date.now() - TEAMSTATS_CACHE.at < 300000) return res.json(TEAMSTATS_CACHE.data);
+  const rid2puuid = await ridPuuidMap();
+  const acctOf = rid => rid2puuid[rid] || rid;
+  // Dueño por cuenta (main + smurfs) + nick.
+  const uNick = {}, puuidOwner = {};
+  for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
+  for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u'+s.user_id;
+  const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
+  const nmByOwner = {};   // nombre legible para cuentas NO registradas (desde el ranking)
+  (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase()); if (!nmByOwner[o]) nmByOwner[o] = p.nm; });
+  const nickOf = owner => uNick[owner] || nmByOwner[owner] || (String(owner).includes('#') ? String(owner).split('#')[0] : owner);
+  // Membresía de equipo: por DUEÑO (consolida main+smurfs).
+  const teamOfOwner = {}, teamOwners = {};
+  for (const r of await q("SELECT lower(riotid) rid, team FROM team_members WHERE coalesce(team,'')<>''")){
+    const o = ownerOf(r.rid); teamOfOwner[o] = r.team; (teamOwners[r.team] = teamOwners[r.team] || new Set()).add(o);
+  }
+  // Winrate individual (season): mejor cuenta por dueño (más partidas) desde el ranking.
+  const bestWR = {};
+  (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase()); if (!teamOfOwner[o]) return;
+    const g = (p.w||0)+(p.l||0); const cur = bestWR[o]; if (g && (!cur || g > cur.g)) bestWR[o] = { g, w:p.w||0 }; });
+  // Partidas JUNTOS (2+ del mismo equipo aliados) + parejas internas.
+  const rows = await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win
+    FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL GROUP BY match_id, lower(riotid)`);
+  const byMatch = {}; for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  const teamAgg = {}, pairAgg = {};
+  for (const mid in byMatch){
+    const bySideTeam = {};   // team -> side -> Map(owner->win)
+    for (const p of byMatch[mid]){ const o = ownerOf(p.rid), t = teamOfOwner[o]; if (!t) continue;
+      (((bySideTeam[t] = bySideTeam[t]||{})[p.side]) = bySideTeam[t][p.side] || new Map()).set(o, !!p.win); }
+    for (const t in bySideTeam) for (const side in bySideTeam[t]){
+      const arr = [...bySideTeam[t][side].entries()]; if (arr.length < 2) continue;   // 2+ aliados del equipo
+      const won = arr[0][1];
+      const ta = teamAgg[t] = teamAgg[t] || { games:0, wins:0 }; ta.games++; if (won) ta.wins++;
+      const os = arr.map(x=>x[0]).sort();
+      for (let i=0;i<os.length;i++) for (let j=i+1;j<os.length;j++){ const k = t+'|'+os[i]+'|'+os[j];
+        const pa = pairAgg[k] = pairAgg[k] || { a:os[i], b:os[j], w:0, l:0 }; if (won) pa.w++; else pa.l++; }
+    }
+  }
+  const teams = Object.keys(teamOwners).map(t => {
+    const owners = [...teamOwners[t]];
+    const wrs = owners.map(o => bestWR[o]).filter(Boolean);
+    const indAvg = wrs.length ? wrs.reduce((s,x)=>s + x.w/x.g, 0)/wrs.length*100 : 0;
+    const ta = teamAgg[t] || { games:0, wins:0 };
+    const juntosWR = ta.games ? ta.wins/ta.games*100 : 0;
+    let best = null;
+    for (const k in pairAgg){ const pa = pairAgg[k]; if (!k.startsWith(t+'|')) continue; const g = pa.w+pa.l; if (g < 2) continue;
+      const wr = pa.w/g*100; if (!best || wr > best.wr || (wr===best.wr && g > best.games))
+        best = { a: nickOf(pa.a), b: nickOf(pa.b), w:pa.w, l:pa.l, games:g, wr: Math.round(wr) }; }
+    return { team:t, members: owners.length,
+      juntosWR: Math.round(juntosWR), juntosGames: ta.games, juntosW: ta.wins, juntosL: ta.games - ta.wins,
+      indAvg: Math.round(indAvg), sinergia: Math.round(juntosWR - indAvg), bestDuo: best };
+  }).sort((a,b) => (b.juntosGames?b.juntosWR:-1) - (a.juntosGames?a.juntosWR:-1) || b.juntosGames - a.juntosGames);
+  TEAMSTATS_CACHE.data = { teams };
+  TEAMSTATS_CACHE.at = Date.now();
+  res.json(TEAMSTATS_CACHE.data);
+}));
+
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
 let _recSig = {};   // firma por categoría (nm|valor de cada uno del top-5) para detectar entradas nuevas
