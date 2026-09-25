@@ -2007,18 +2007,28 @@ function startEmbeddedRunner(){
     // players.json viejo del repo durante los ~2-3 min del primer ciclo tras un redeploy.
     try { const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data) liveData = row.data; } catch {}
     await loadCache();   // restaura el historial ±LP/aegis persistido
+    let lastPersist = 0;
+    const PERSIST_MS = (Number(process.env.PERSIST_MIN) || 30) * 60 * 1000;   // cada cuánto persistir los blobs a Supabase (antes: cada ciclo)
     for (;;){
       const t = Date.now();
       try {
-        await writeRoster(); await runOnce(); await saveCache();
-        liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));
-        // Persiste el ranking recién construido para el próximo arranque (redeploy sin ranking viejo).
-        try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(liveData)]); } catch {}
-        // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (base sembrada a mano).
-        try { for (const pl of (liveData.players || [])){ const abs = absLPof(pl.tier, pl.div, pl.lp); if (abs == null) continue;
-          await q(`INSERT INTO peak_lp (rid, peak_abs, updated_at) VALUES ($1,$2,now())
-                   ON CONFLICT (rid) DO UPDATE SET peak_abs=GREATEST(peak_lp.peak_abs, EXCLUDED.peak_abs), updated_at=now()`,
-                  [(pl.rid || '').toLowerCase(), abs]); } } catch {}
+        await writeRoster(); await runOnce();
+        liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));   // ranking fresco EN MEMORIA cada ciclo (gratis)
+        // Los blobs de caché SOLO se leen al arrancar (restaurar tras un redeploy), así que persistirlos
+        // cada 90s era ~64 GB/mes de egress a Supabase. Se persisten cada PERSIST_MS (30 min).
+        if (Date.now() - lastPersist >= PERSIST_MS){
+          lastPersist = Date.now();
+          await saveCache();
+          try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(liveData)]); } catch {}
+        }
+        // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
+        try {
+          const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp) })).filter(x => x.rid && x.abs != null);
+          if (pls.length){
+            const vals = pls.map((_, i) => `($${i*2+1},$${i*2+2})`).join(',');
+            await q(`INSERT INTO peak_lp (rid, peak_abs) VALUES ${vals} ON CONFLICT (rid) DO UPDATE SET peak_abs=GREATEST(peak_lp.peak_abs, EXCLUDED.peak_abs), updated_at=now()`, pls.flatMap(x => [x.rid, x.abs]));
+          }
+        } catch {}
       }
       catch (e){ console.error('Runner embebido:', e.message); }
       await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));
