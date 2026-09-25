@@ -1335,9 +1335,9 @@ app.get('/api/stats', wrap(async (req, res) => {
     if (!metaByAcct[acct]) metaByAcct[acct] = { nm: p.nm || rid.split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1, abs: absLPof(p.tier, p.div, p.lp) || 0, rid };
   });
   // Jugador (dueño) por cuenta: main + smurfs registrados → user id; + nick del jugador.
-  const puuidOwner = {}, ownerNick = {};
+  const puuidOwner = {}, ownerNick = {}, mainAcct = {};
   try {
-    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ puuidOwner[acctOf(u.rid)] = 'u' + u.id; ownerNick['u' + u.id] = (u.nickname || '').trim(); }
+    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ puuidOwner[acctOf(u.rid)] = 'u' + u.id; ownerNick['u' + u.id] = (u.nickname || '').trim(); mainAcct['u' + u.id] = acctOf(u.rid); }
     for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u' + s.user_id;
   } catch {}
   const playerOf = acct => puuidOwner[acct] || acct;   // jugador (dueño) del acct
@@ -1508,11 +1508,18 @@ app.get('/api/stats', wrap(async (req, res) => {
 
   // Historial de coincidencias: el snapshot en vivo ya trae las últimas 60. Mostramos el nick del
   // JUGADOR REGISTRADO por participante (no el nombre del smurf).
-  const historial = (liveSnapshot().encounters || []).map(e => ({ ...e,
-    players: (e.players || []).map(pl => {
-      const owner = playerOf(acctByRid[(pl.rid || '').toLowerCase()] || (pl.rid || '').toLowerCase());
-      return { ...pl, nm: ownerNick[owner] || pl.nm };
-    }) }));
+  // Si en la MISMA partida hay 2+ cuentas del mismo dueño (main + smurf a la vez = account sharing),
+  // la main lleva el nick del dueño y las demás su propio nombre de cuenta.
+  const historial = (liveSnapshot().encounters || []).map(e => {
+    const cnt = {}; (e.players || []).forEach(pl => { const o = playerOf(acctByRid[(pl.rid || '').toLowerCase()] || (pl.rid || '').toLowerCase()); cnt[o] = (cnt[o] || 0) + 1; });
+    return { ...e, players: (e.players || []).map(pl => {
+      const acct = acctByRid[(pl.rid || '').toLowerCase()] || (pl.rid || '').toLowerCase();
+      const o = playerOf(acct);
+      let nm = pl.nm;
+      if (ownerNick[o]) nm = ((cnt[o] || 0) <= 1 || (mainAcct[o] && acct === mainAcct[o])) ? ownerNick[o] : pl.nm;
+      return { ...pl, nm };
+    }) };
+  });
 
   // ---- ELO: subidones/bajones por día + serie de evolución (desde ±LP guardados) ----
   // El caché de ±LP ya está keyeado por puuid (consolidado por cuenta); la meta también.
@@ -1583,14 +1590,24 @@ app.get('/api/encounters', wrap(async (req, res) => {
   // Nick del JUGADOR REGISTRADO por puuid: si la cuenta (main o smurf) es de un usuario, mostramos SU
   // nick, no el de la cuenta (p.ej. un smurf aparece con el nombre del dueño).
   const rid2puuid = await ridPuuidMap();
-  const uNick = {}, ownerNickByPuuid = {};
+  const uNick = {}, puuidOwner = {}, mainPuuid = {};
   try {
     for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users")){ uNick['u'+u.id] = (u.nickname||'').trim();
-      const pu = u.rid && rid2puuid[u.rid]; if (pu && uNick['u'+u.id]) ownerNickByPuuid[pu] = uNick['u'+u.id]; }
+      const pu = u.rid && rid2puuid[u.rid]; if (pu){ puuidOwner[pu] = 'u'+u.id; mainPuuid['u'+u.id] = pu; } }
     for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")){
-      const pu = rid2puuid[s.rid]; if (pu && uNick['u'+s.user_id]) ownerNickByPuuid[pu] = uNick['u'+s.user_id]; }
+      const pu = rid2puuid[s.rid]; if (pu) puuidOwner[pu] = 'u'+s.user_id; }
   } catch {}
-  const ownerNm = rid => ownerNickByPuuid[rid2puuid[rid]] || meta[rid];
+  const ownerOf = rid => puuidOwner[rid2puuid[rid]] || rid;   // id del dueño ('u'+id) o el rid si no está registrado
+  // Nombre a mostrar por participante DENTRO de una partida: normalmente el nick del dueño; pero si en
+  // la MISMA partida hay 2+ cuentas del mismo dueño (main + smurf a la vez), no puede ser una sola
+  // persona (account sharing) → la MAIN lleva el nick del dueño y las demás su propio nombre de cuenta.
+  const dispName = (rid, ownerCountInMatch) => {
+    const acct = meta[rid] || null;
+    const o = ownerOf(rid), pu = rid2puuid[rid];
+    if (!uNick[o]) return acct;                                   // cuenta no registrada
+    if ((ownerCountInMatch[o] || 0) <= 1) return uNick[o];        // única cuenta del dueño en la partida
+    return (mainPuuid[o] && pu === mainPuuid[o]) ? uNick[o] : acct;  // main -> dueño; smurf -> cuenta
+  };
   const rows = await q(`
     SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win,
            max(team_id) team, max(champion) champ, max(game_end) gend
@@ -1601,10 +1618,11 @@ app.get('/api/encounters', wrap(async (req, res) => {
     GROUP BY match_id, lower(riotid)`);
   const byMatch = {};
   for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
-  const encounters = Object.entries(byMatch).map(([id, ps]) => ({
-    id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
-    players: ps.map(p => ({ nm: ownerNm(p.rid) || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })),
-  })).filter(e => e.players.length >= 2)
+  const encounters = Object.entries(byMatch).map(([id, ps]) => {
+    const ownerCount = {}; ps.forEach(p => { const o = ownerOf(p.rid); ownerCount[o] = (ownerCount[o] || 0) + 1; });
+    return { id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
+      players: ps.map(p => ({ nm: dispName(p.rid, ownerCount) || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })) };
+  }).filter(e => e.players.length >= 2)
     .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 400);   // historial completo (antes se cortaba en 100)
   ENC_CACHE.data = { encounters };
   ENC_CACHE.at = Date.now();

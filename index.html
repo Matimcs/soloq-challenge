@@ -1227,8 +1227,18 @@ function sideHtml(label, cls, rows, bans){
       ${rows.map(playerRow).join('')}
     </div>`;
 }
+// Nombre a mostrar de un jugador tracked: el nick del dueño; salvo que su main y una smurf del mismo
+// dueño estén en la MISMA partida (no puede ser una persona) → la main lleva el dueño y la smurf su cuenta.
+function encDisp(t, tracked){
+  const rl = t.rid ? nrid(t.rid) : null;
+  const nick = rl && NICK_BY_RID[rl];
+  if (!nick) return t.nm;   // cuenta no registrada
+  const sameOwner = (tracked || []).filter(x => x.rid && NICK_BY_RID[nrid(x.rid)] === nick).length;
+  if (sameOwner <= 1) return nick;
+  return /^smurf/i.test(LABEL_BY_RID[rl] || 'Main') ? t.nm : nick;   // smurf -> su cuenta; main -> dueño
+}
 function gameCard(g){
-  const avatars = g.tracked.map(t => avaHtml(null, (t.rid && NICK_BY_RID[nrid(t.rid)]) || t.nm, 'lg-ava')).join('');
+  const avatars = g.tracked.map(t => avaHtml(null, encDisp(t, g.tracked), 'lg-ava')).join('');
   return `
     <div class="lg-card" data-gid="${g.gameId}">
       <div class="lg-head">
@@ -1399,7 +1409,7 @@ function goToLiveGame(gid){
 }
 function showEncuentro(g){
   ensureEncStyle();
-  const encNick = t => (t.rid && NICK_BY_RID[nrid(t.rid)]) || t.nm;   // nombre del dueño registrado, no el del smurf
+  const encNick = t => encDisp(t, g.tracked);   // dueño; o la cuenta si main+smurf del mismo dueño coinciden
   const names = (g.tracked || []).map(encNick);
   const el = document.createElement('div');
   el.className = 'enc-toast';
