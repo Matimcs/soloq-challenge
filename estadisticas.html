@@ -666,8 +666,7 @@
         ${m.detail?`<div class="mc-det">${esc(m.detail)}${link}</div>`:(link?`<div class="mc-det">${link.replace(/^ · /,'')}</div>`:'')}
       </div></div>`;
     };
-    $('p-menciones').innerHTML = `<div class="kpi">Premios (mayormente) de la vergüenza 😅 — sacados del historial del torneo.</div>`
-      + `<div class="mgrid">${list.map(card).join('')}</div>`;
+    $('p-menciones').innerHTML = `<div class="mgrid">${list.map(card).join('')}</div>`;
   }
 
   async function load(){
