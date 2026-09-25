@@ -1703,14 +1703,19 @@ app.get('/api/menciones', wrap(async (req, res) => {
   for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
   for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u'+s.user_id;
   const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
-  const nmByOwner = {}, aegisByOwner = {}, bestWR = {};
+  const peakByRid = {}; try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')) peakByRid[r.rid] = +r.peak_abs; } catch {}
+  const nmByOwner = {}, aegisByOwner = {}, bestWR = {}, dropByOwner = {};
   const bestAcctAbs = {};   // dueño -> { acct, abs } de su cuenta MÁS ALTA (mayor elo) — para el Sommelier
   (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase());
     if (!nmByOwner[o]) nmByOwner[o] = uNick[o] || p.nm;
     aegisByOwner[o] = (aegisByOwner[o]||0) + (p.aegis||0);
     const g = (p.w||0)+(p.l||0); const c = bestWR[o]; if (g && (!c || g > c.g)) bestWR[o] = { g, w:p.w||0 };
-    const abs = absLPof(p.tier, p.div, p.lp); if (abs != null){ const ba = bestAcctAbs[o]; if (!ba || abs > ba.abs) bestAcctAbs[o] = { acct: acctOf((p.rid||'').toLowerCase()), abs }; } });
+    const abs = absLPof(p.tier, p.div, p.lp);
+    if (abs != null){ const ba = bestAcctAbs[o]; if (!ba || abs > ba.abs) bestAcctAbs[o] = { acct: acctOf((p.rid||'').toLowerCase()), abs };
+      const pk = peakByRid[(p.rid||'').toLowerCase()];   // caída desde el pico (El Antiprime)
+      if (pk != null){ const drop = pk - abs; const cd = dropByOwner[o]; if (drop > 0 && (!cd || drop > cd.drop)) dropByOwner[o] = { drop, peak:pk, cur:abs }; } } });
   const nick = o => uNick[o] || nmByOwner[o] || (String(o).includes('#') ? String(o).split('#')[0] : o);
+  const absLabel = abs => { if (abs >= 2800) return (abs-2800)+' LP'; const TN=['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], DN=['IV','III','II','I']; const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100)), lp=rem-di*100; return `${TN[ti]} ${DN[di]} ${lp}LP`; };
   // Scan del historial: agregados por dueño + extremos de una partida.
   const agg = {}; const distinctByAcct = {}, gamesByAcct = {}; let carreado = null, griefeado = null;
   const NS = pos => !['UTILITY','SUPPORT'].includes((pos||'').toUpperCase());
@@ -1748,6 +1753,8 @@ app.get('/api/menciones', wrap(async (req, res) => {
   // Roasts
   const paq = bot(owners.filter(o=>bestWR[o] && bestWR[o].g>=30), o=>bestWR[o].w/bestWR[o].g);
   if (paq) push('📦','El Paquete','Peor winrate de la season (mín. 30)', nick(paq), Math.round(bestWR[paq].w/bestWR[paq].g*100)+'%', `${bestWR[paq].w}V·${bestWR[paq].g-bestWR[paq].w}D`);
+  const anti = top(Object.keys(dropByOwner).filter(o=>dropByOwner[o].drop>=50), o=>dropByOwner[o].drop);
+  if (anti){ const d = dropByOwner[anti]; push('📉','El Antiprime','Más LP caídos desde su pico', nick(anti), `−${d.drop} LP`, `de ${absLabel(d.peak)} a ${absLabel(d.cur)}`); }
   if (carreado) push('🍼','Carreado','Peor KDA en una partida GANADA', nick(carreado.o), `${carreado.k}/${carreado.d}/${carreado.a}`, `KDA ${carreado.kda.toFixed(2)} · ${carreado.champ} · W`, carreado.mid);
   if (griefeado) push('😭','Griefeado','Mejor KDA en una partida PERDIDA', nick(griefeado.o), `${griefeado.k}/${griefeado.d}/${griefeado.a}`, `KDA ${griefeado.kda.toFixed(2)} · ${griefeado.champ} · L`, griefeado.mid);
   const inter = top(owners.filter(o=>agg[o].games>=20), o=>agg[o].deaths/agg[o].games);
