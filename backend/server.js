@@ -1731,10 +1731,11 @@ app.get('/api/menciones', wrap(async (req, res) => {
   // Dúos (aliados) para "Dúo Tóxico" y "Pareja Inseparable".
   const byMatch = {};
   for (const r of await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL GROUP BY match_id, lower(riotid)`)) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
-  const pairAgg = {};
+  const pairAgg = {}, duoByOwner = {};   // duoByOwner: W/L de cada jugador cuando juega EN DÚO (aliado con otro del torneo)
   for (const mid in byMatch){ const sides = {};
     for (const p of byMatch[mid]){ const o = ownerOf(p.rid); (sides[p.side] = sides[p.side] || new Map()).set(o, !!p.win); }
     for (const side in sides){ const arr = [...sides[side].entries()]; if (arr.length < 2) continue; const won = arr[0][1]; const os = arr.map(x=>x[0]).sort();
+      os.forEach(o => { const d = duoByOwner[o] = duoByOwner[o] || { w:0, l:0 }; if (won) d.w++; else d.l++; });
       for (let i=0;i<os.length;i++) for (let j=i+1;j<os.length;j++){ if (os[i]===os[j]) continue; const k = os[i]+'|'+os[j];
         const pa = pairAgg[k] = pairAgg[k] || { a:os[i], b:os[j], w:0, l:0 }; if (won) pa.w++; else pa.l++; } }
   }
@@ -1774,6 +1775,9 @@ app.get('/api/menciones', wrap(async (req, res) => {
   if (toxic) push('☢️','Dúo Tóxico','Peor winrate jugando juntos (mín. 4)', `${nick(toxic.a)} + ${nick(toxic.b)}`, Math.round(toxic.w/(toxic.w+toxic.l)*100)+'%', `${toxic.w}V·${toxic.l}D juntos`);
   const insep = top(pairs, p=>p.w+p.l);
   if (insep) push('💞','Pareja Inseparable','Los que más juegan juntos', `${nick(insep.a)} + ${nick(insep.b)}`, (insep.w+insep.l)+' partidas', `${insep.w}V·${insep.l}D`);
+  const dOwners = Object.keys(duoByOwner).filter(o => (duoByOwner[o].w+duoByOwner[o].l) >= 5);
+  const trollDuo = bot(dOwners, o => duoByOwner[o].w/(duoByOwner[o].w+duoByOwner[o].l));
+  if (trollDuo){ const d = duoByOwner[trollDuo]; push('🃏','El Troll del Dúo','Peor winrate jugando en dúo (mín. 5)', nick(trollDuo), Math.round(d.w/(d.w+d.l)*100)+'%', `${d.w}V·${d.l}D en dúo`); }
   const aegisK = top(owners, o=>aegisByOwner[o]||0);
   if (aegisK && (aegisByOwner[aegisK]||0)>0) push('🛡️','Aegis King','Más victorias de doble LP', nick(aegisK), (aegisByOwner[aegisK])+' aegis', '');
   MENC_CACHE.data = { menciones: M };
