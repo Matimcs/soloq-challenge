@@ -1721,10 +1721,10 @@ app.get('/api/menciones', wrap(async (req, res) => {
   const NS = pos => !['UTILITY','SUPPORT'].includes((pos||'').toUpperCase());
   for (const r of await q(`SELECT match_id, lower(riotid) rid, champion champ, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, coalesce(duration,0) dur, win, position pos, game_end gend FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`)){
     const o = ownerOf(r.rid), acct = acctOf(r.rid);
-    const A = agg[o] || (agg[o] = { games:0, deaths:0, csNs:0, durNs:0, durAll:0, champs:{}, days:{}, night:0, morning:0 });
+    const A = agg[o] || (agg[o] = { games:0, deaths:0, csNs:0, durNs:0, gamesNs:0, durAll:0, champs:{}, days:{}, night:0, morning:0 });
     A.games++; A.deaths += +r.d; A.durAll += +r.dur;
     gamesByAcct[acct] = (gamesByAcct[acct]||0) + 1;
-    if (NS(r.pos)){ A.csNs += +r.cs; A.durNs += +r.dur; }
+    if (NS(r.pos)){ A.csNs += +r.cs; A.durNs += +r.dur; A.gamesNs++; }
     if (r.champ){ A.champs[r.champ] = (A.champs[r.champ]||0)+1; (distinctByAcct[acct] = distinctByAcct[acct] || new Set()).add(r.champ); }
     if (r.gend){ const t = chileHD(r.gend); A.days[t.d] = (A.days[t.d]||0)+1; if (t.h>=2 && t.h<6) A.night++; if (t.h>=6 && t.h<11) A.morning++; }
     if (+r.dur >= 900){   // solo partidas reales (≥15 min); descarta remakes/rendiciones tempranas
@@ -1768,9 +1768,9 @@ app.get('/api/menciones', wrap(async (req, res) => {
   push('⚰️','El Inter','Más muertes por partida (mín. 20)',
     rank(owners.filter(o=>agg[o].games>=20), o=>agg[o].deaths/agg[o].games,
       o=>({ nm:nick(o), value:r1(agg[o].deaths/agg[o].games)+' muertes', detail:`en ${agg[o].games} partidas` }), 1));
-  push('🪨','Manos de Piedra','Peor CS/min sin support (mín. 20)',
-    rank(owners.filter(o=>agg[o].games>=20 && agg[o].durNs>0), o=>agg[o].csNs/(agg[o].durNs/60),
-      o=>({ nm:nick(o), value:r1(agg[o].csNs/(agg[o].durNs/60))+' cs/min', detail:`en ${agg[o].games} partidas` }), -1));
+  push('🪨','Manos de Piedra','Peor CS/min (mín. 20 partidas fuera de support)',
+    rank(owners.filter(o=>agg[o].gamesNs>=20 && agg[o].durNs>0), o=>agg[o].csNs/(agg[o].durNs/60),
+      o=>({ nm:nick(o), value:r1(agg[o].csNs/(agg[o].durNs/60))+' cs/min', detail:`en ${agg[o].gamesNs} partidas de carril/jungla` }), -1));
   // Vicio
   push('🦇','Noctámbulo','Más partidas entre 2 y 6 AM',
     rank(owners.filter(o=>agg[o].night>0), o=>agg[o].night, o=>({ nm:nick(o), value:agg[o].night+' partidas', detail:'de madrugada' }), 1));
