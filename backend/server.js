@@ -1428,8 +1428,8 @@ app.get('/api/stats', wrap(async (req, res) => {
            (array_agg(name       ORDER BY game_end DESC NULLS LAST))[1] nm,
            bool_or(win) win, max(team_id) team
     FROM match_participants
-    WHERE is_tournament=true AND riotid IS NOT NULL
-      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true
+    WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300   -- excluye remakes (<5min)
+      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true AND coalesce(duration,0) >= 300
                        GROUP BY match_id HAVING count(distinct ${ACCT}) >= 2)
     GROUP BY match_id, ${ACCT}`);
   const byMatch = {};
@@ -1634,8 +1634,8 @@ app.get('/api/encounters', wrap(async (req, res) => {
     SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win,
            max(team_id) team, max(champion) champ, max(game_end) gend
     FROM match_participants
-    WHERE is_tournament=true AND riotid IS NOT NULL
-      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true
+    WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300   -- excluye remakes (<5min)
+      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true AND coalesce(duration,0) >= 300
                        GROUP BY match_id HAVING count(distinct lower(riotid)) >= 2)
     GROUP BY match_id, lower(riotid)`);
   const byMatch = {};
@@ -1677,7 +1677,7 @@ app.get('/api/team-stats', wrap(async (req, res) => {
     const g = (p.w||0)+(p.l||0); const cur = bestWR[o]; if (g && (!cur || g > cur.g)) bestWR[o] = { g, w:p.w||0 }; });
   // Partidas JUNTOS (2+ del mismo equipo aliados) + parejas internas.
   const rows = await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win
-    FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL GROUP BY match_id, lower(riotid)`);
+    FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 GROUP BY match_id, lower(riotid)`);
   const byMatch = {}; for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
   const teamAgg = {}, pairAgg = {};
   for (const mid in byMatch){
@@ -1757,7 +1757,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
   }
   // Dúos (aliados) para "Dúo Tóxico" y "Pareja Inseparable".
   const byMatch = {};
-  for (const r of await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL GROUP BY match_id, lower(riotid)`)) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  for (const r of await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 GROUP BY match_id, lower(riotid)`)) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
   const pairAgg = {}, duoByOwner = {};   // duoByOwner: W/L de cada jugador cuando juega EN DÚO (aliado con otro del torneo)
   for (const mid in byMatch){ const sides = {};
     for (const p of byMatch[mid]){ const o = ownerOf(p.rid); (sides[p.side] = sides[p.side] || new Map()).set(o, !!p.win); }
