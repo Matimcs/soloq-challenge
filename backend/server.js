@@ -466,6 +466,28 @@ app.post('/api/bet-vote', auth, wrap(async (req,res) => {
   res.json(await betTally(req.user.id));
 }));
 
+// Palmaditas de apoyo (contador compartido). El cooldown de 10 min es por navegador (cliente);
+// acá solo un throttle ligero por IP anti-spam.
+const PAT_ID = 'palmadita_yoyo';
+const _patLastIp = new Map();
+app.get('/api/palmadita', wrap(async (req,res) => {
+  res.set('Cache-Control', 'no-store');
+  const r = await q1('SELECT n FROM counters WHERE name=$1', [PAT_ID]);
+  res.json({ count: r ? Number(r.n) : 0 });
+}));
+app.post('/api/palmadita', wrap(async (req,res) => {
+  const ip = (req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+  const now = Date.now();
+  if (ip && (now - (_patLastIp.get(ip) || 0)) < 3000){   // 1 cada 3s por IP
+    const r = await q1('SELECT n FROM counters WHERE name=$1', [PAT_ID]);
+    return res.json({ count: r ? Number(r.n) : 0 });
+  }
+  if (ip) _patLastIp.set(ip, now);
+  const r = await q1(`INSERT INTO counters (name, n, updated_at) VALUES ($1, 1, now())
+                      ON CONFLICT (name) DO UPDATE SET n = counters.n + 1, updated_at = now() RETURNING n`, [PAT_ID]);
+  res.json({ count: r ? Number(r.n) : 1 });
+}));
+
 // Cuentas smurf del jugador (asociadas a su cuenta). Aparecen en el ranking con su nick + etiqueta.
 app.get('/api/me/smurfs', auth, wrap(async (req,res) =>
   res.json(await q('SELECT id, riotid FROM smurfs WHERE user_id=$1 ORDER BY id', [req.user.id]))));
