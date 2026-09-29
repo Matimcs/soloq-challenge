@@ -58,6 +58,44 @@
   .dle-share{ margin-top:12px; font-family:inherit; font-size:14px; font-weight:800; padding:11px 22px; border-radius:10px; border:0; background:var(--accent); color:#000; cursor:pointer; }
   .dle-giveup{ display:block; margin:16px auto 40px; font-family:inherit; font-size:12px; color:var(--muted-2); background:none; border:0; cursor:pointer; text-decoration:underline; }
   .dle-giveup[hidden]{ display:none; }
+
+  .dle-tabs{ display:flex; gap:6px; margin:14px 0 4px; }
+  .dle-tabs button{ font-family:inherit; font-size:12.5px; font-weight:700; padding:8px 14px; border-radius:999px; border:1px solid var(--line-strong); background:var(--panel-2); color:var(--muted); cursor:pointer; }
+  .dle-tabs button.on{ background:var(--accent); color:#000; border-color:var(--accent); }
+
+  .cgrid{ overflow-x:auto; padding-bottom:4px; -webkit-overflow-scrolling:touch; }
+  .cg-h, .crw{ display:grid; grid-template-columns:74px 84px 56px 56px 72px 72px 54px 56px 56px; gap:5px; min-width:620px; }
+  .cg-h{ font-size:9px; font-weight:800; letter-spacing:.03em; color:var(--muted-2); padding:0 2px 4px; }
+  .cg-h span{ text-align:center; }
+  .crw{ margin-bottom:6px; }
+  .ccell{ padding:8px 4px; border-radius:9px; text-align:center; font-size:11.5px; font-weight:700; background:var(--panel-2); border:1px solid var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; min-height:52px; }
+  .ccell.ok{ background:rgba(52,211,153,.18); border-color:rgba(52,211,153,.5); }
+  .ccell.bad{ background:rgba(251,113,133,.13); border-color:rgba(251,113,133,.35); }
+  .ccell.ico{ padding:4px; }
+  .ccell.ico img, .ccell.ico .ph{ width:34px; height:34px; border-radius:8px; object-fit:cover; background:var(--panel); display:grid; place-items:center; font-size:14px; font-weight:800; color:var(--muted); }
+  .ccell .arw{ font-size:14px; line-height:1; }
+  .ccell .sm{ font-size:9px; color:var(--muted-2); font-weight:600; }
+
+  .dle-gate{ text-align:center; background:var(--panel); border:1px solid var(--line-strong); border-radius:14px; padding:34px 20px; }
+  .dle-gate .big{ font-size:18px; font-weight:800; }
+  .dle-gate .sub{ margin:8px 0 18px; }
+  .dle-gate a{ display:inline-block; font-family:inherit; font-size:14px; font-weight:800; padding:11px 24px; border-radius:10px; background:var(--accent); color:#000; }
+
+  .dle-board{ margin:34px 0 60px; }
+  .dle-board h2{ font-size:15px; font-weight:800; letter-spacing:.02em; margin-bottom:4px; }
+  .dle-board .sub{ margin:0 0 12px; }
+  .bd-h, .bd-r{ display:grid; grid-template-columns:30px 1fr .8fr .8fr .8fr; gap:8px; align-items:center; }
+  .bd-h{ font-size:9px; font-weight:800; letter-spacing:.04em; color:var(--muted-2); padding:0 10px 6px; }
+  .bd-h span{ text-align:center; } .bd-h span:nth-child(2){ text-align:left; }
+  .bd-r{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 10px; margin-bottom:6px; }
+  .bd-r .pos{ font-weight:800; color:var(--muted-2); text-align:center; font-variant-numeric:tabular-nums; }
+  .bd-r .who{ display:flex; align-items:center; gap:8px; font-weight:800; font-size:13.5px; min-width:0; }
+  .bd-r .who img, .bd-r .who .ph{ width:24px; height:24px; border-radius:50%; object-fit:cover; flex:0 0 auto; background:var(--panel); display:grid; place-items:center; font-size:11px; color:var(--muted); }
+  .bd-r .who span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .bd-r .v{ text-align:center; font-weight:700; font-size:13px; font-variant-numeric:tabular-nums; }
+  .bd-r .v small{ display:block; font-size:9px; color:var(--muted-2); font-weight:600; }
+  .bd-r.me{ border-color:rgba(233,255,31,.45); background:rgba(233,255,31,.06); }
+  .bd-top1 .pos{ color:var(--gold); }
 </style>
 <link rel="stylesheet" href="nav.css?v=2">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -76,7 +114,7 @@
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
       <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
     </nav>
-    <script>(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};s('nav-blueshell');s('nav-ticket');if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <script>(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
     <div class="nav-right">
       <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
       <button class="logout-link" id="logout" style="display:none">Salir</button>
@@ -85,7 +123,8 @@
 
   <main class="wrap">
     <h1>SoloQdle <span class="dle-n" id="dle-n"></span></h1>
-    <div class="sub">Adivina de qué jugador del torneo son estas partidas. Solo ves el <b>KDA</b> y si <b>ganó o perdió</b> — ni campeón, ni ítems, ni rol.</div>
+    <div class="dle-tabs" id="dle-tabs"></div>
+    <div class="sub" id="dle-sub"></div>
     <div id="dle-app"><div class="sub" style="text-align:center;padding:40px 0">Cargando…</div></div>
   </main>
 
@@ -101,13 +140,26 @@ function absLabel(abs){ if (abs == null) return '—'; if (abs >= 2800) return (
   return `${TN[ti]} ${DN[di]}`; }
 const arw = d => d==='up' ? '<span class="arw" style="color:var(--up)">▲</span>' : d==='down' ? '<span class="arw" style="color:var(--down)">▼</span>' : d==='eq' ? '<span class="arw" style="color:var(--gold)">✓</span>' : '';
 
-let DLE = null, STATE = null, sel = -1, acList = [];
+const MODES = {
+  classic: { label:'🧩 Clásico',     short:'clásico',  guess:'/soloqdle2/guess', reveal:'/soloqdle2/reveal',
+             sub:'Adivina el jugador por sus <b>atributos</b>. Cada intento pinta en <span style="color:var(--up)">verde</span> lo que coincide y las flechas ▲/▼ te dicen si el jugador correcto tiene más o menos. Solo cuenta la <b>cuenta más alta</b> de cada jugador.' },
+  games:   { label:'🎮 Por partidas', short:'partidas', guess:'/soloqdle/guess',  reveal:'/soloqdle/reveal',
+             sub:'Adivina de qué jugador del torneo son estas partidas. Solo ves el <b>KDA</b> y si <b>ganó o perdió</b> — ni campeón, ni ítems, ni rol.' },
+};
+const TABS = [ {id:'classic'}, {id:'games'}, {id:'board', label:'🏆 Scoreboard'} ];
+const roleLbl = r => r || '—';
+let DLE = null, ME = null, MODE = 'classic', sel = -1, acList = [], BOARD = null;
+const ST = { games:null, classic:null };
+const S = () => ST[MODE];
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function stateKey(m){ return 'dle_' + m + '_' + (DLE ? DLE.date : 'x'); }
+function loadState(m){ try { return JSON.parse(localStorage.getItem(stateKey(m)) || 'null'); } catch(e){ return null; } }
+function saveState(){ try { localStorage.setItem(stateKey(MODE), JSON.stringify(S())); } catch(e){} }
+function freshState(){ return { rows:[], done:false, won:false, answerNm:null }; }
 
-function stateKey(){ return 'dle_' + (DLE ? DLE.date : 'x'); }
-function loadState(){ try { return JSON.parse(localStorage.getItem(stateKey()) || 'null'); } catch(e){ return null; } }
-function saveState(){ try { localStorage.setItem(stateKey(), JSON.stringify(STATE)); } catch(e){} }
-
+// ---------- Pistas del modo "por partidas" ----------
 function cluesHTML(){
+  if (!DLE.clueGames) return '';
   return `<div class="dle-clues"><div class="ch">ÚLTIMAS PARTIDAS DE ESTE JUGADOR</div>`
     + DLE.clueGames.map((g,i) => `<div class="grow">
         <span class="gi">${i+1}</span>
@@ -115,7 +167,7 @@ function cluesHTML(){
         <span class="gd">${g.durMin} min</span>
         <span class="gr ${g.win?'w':'l'}">${g.win?'VICTORIA':'DERROTA'}</span></div>`).join('') + `</div>`;
 }
-function guessRow(r){   // r: {nm, team, eloAbs, peakAbs, games, cmp, correct}
+function guessRowGames(r){
   const cell = (label, sub, cls) => `<div class="gcell ${cls||''}">${label}${sub?`<span class="sm">${sub}</span>`:''}</div>`;
   return `<div class="grw">
     ${cell(esc(r.nm),'','nm '+(r.correct?'ok':'bad'))}
@@ -124,36 +176,69 @@ function guessRow(r){   // r: {nm, team, eloAbs, peakAbs, games, cmp, correct}
     ${cell(absLabel(r.peakAbs), arw(r.cmp.peak))}
     ${cell(r.games, arw(r.cmp.games))}</div>`;
 }
-function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+// ---------- Grilla del modo "clásico" ----------
+function guessRowClassic(r){
+  const cls = c => c==='match'?'ok':(c==='no'?'bad':'');
+  const num = (label, dir) => `<div class="ccell ${dir==='eq'?'ok':''}">${label}${arw(dir)}</div>`;
+  const cat = (label, c) => `<div class="ccell ${cls(c)}">${esc(label)}</div>`;
+  const ico = r.avatar ? `<img src="${esc(r.avatar)}">` : `<span class="ph">${esc((r.nm||'?').slice(0,1).toUpperCase())}</span>`;
+  return `<div class="crw">
+    <div class="ccell ico ${r.correct?'ok':''}">${ico}<span class="sm">${esc((r.nm||'').slice(0,7))}</span></div>
+    ${cat(abbrevTeam(r.team), r.cmp.team)}
+    ${cat(roleLbl(r.roleMost), r.cmp.roleMost)}
+    ${cat(roleLbl(r.roleLeast), r.cmp.roleLeast)}
+    ${num(absLabel(r.eloAbs), r.cmp.elo)}
+    ${num(absLabel(r.peakAbs), r.cmp.peak)}
+    ${num(r.wr!=null?r.wr+'%':'—', r.cmp.wr)}
+    ${num(r.kda!=null?r.kda:'—', r.cmp.kda)}
+    ${num(r.games, r.cmp.games)}</div>`;
+}
+function classicBody(st){
+  const rowsH = st.rows.length ? `<div class="cgrid"><div class="cg-h">
+      <span>Jugador</span><span>Equipo</span><span>Rol +</span><span>Rol −</span><span>Elo</span><span>Peak</span><span>WR</span><span>KDA</span><span>Games</span></div>`
+      + st.rows.map(guessRowClassic).join('') + `</div>` : '';
+  return { legend: `Intentos: <b>${st.rows.length}/${MAX}</b> · Rol + = más jugado, Rol − = menos jugado.`, rowsH };
+}
+
+function renderTabs(){
+  $('dle-tabs').innerHTML = TABS.map(t =>
+    `<button data-m="${t.id}" class="${t.id===MODE?'on':''}">${t.label || MODES[t.id].label}</button>`).join('');
+  $('dle-tabs').querySelectorAll('button').forEach(b => b.onclick = () => setMode(b.dataset.m));
+  $('dle-sub').innerHTML = MODE==='board' ? 'Ranking global e histórico del SoloQdle — combina ambos modos.' : MODES[MODE].sub;
+}
 function render(){
-  const done = STATE.done;
-  const guessesH = STATE.rows.length ? `<div class="gcol-h"><span>Jugador</span><span>Equipo</span><span>Elo</span><span>Peak</span><span>Games</span></div>`
-      + STATE.rows.map(guessRow).join('') : '';
+  renderTabs();
+  if (MODE === 'board'){ renderBoard(); return; }
+  if (!ME){ showGate(); return; }
+  if (!DLE){ $('dle-app').innerHTML = '<div class="sub" style="text-align:center;padding:40px 0">No se pudo cargar el juego.</div>'; return; }
+  const st = S(), done = st.done;
+  let bodyTop, legend, rowsH;
+  if (MODE === 'classic'){ bodyTop = ''; const cb = classicBody(st); legend = cb.legend; rowsH = cb.rowsH; }
+  else { bodyTop = cluesHTML(); legend = `Intentos: <b>${st.rows.length}/${MAX}</b> · al fallar te digo si el correcto tiene más ▲ / menos ▼ de elo, peak LP y partidas, y si es del mismo equipo.`;
+         rowsH = st.rows.length ? `<div class="gcol-h"><span>Jugador</span><span>Equipo</span><span>Elo</span><span>Peak</span><span>Games</span></div>` + st.rows.map(guessRowGames).join('') : ''; }
   let resultH = '';
   if (done){
-    resultH = `<div class="dle-result"><div class="big">${STATE.won ? '🎉 ¡Correcto!' : '💀 Fin'} <span class="ans">${esc(STATE.answerNm||'')}</span></div>
-      <div class="sub" style="margin:6px 0 0">${STATE.won ? `Lo sacaste en ${STATE.rows.length} intento${STATE.rows.length===1?'':'s'}.` : 'Vuelve mañana por otro.'}</div>
+    resultH = `<div class="dle-result"><div class="big">${st.won ? '🎉 ¡Correcto!' : '💀 Fin'} <span class="ans">${esc(st.answerNm||'')}</span></div>
+      <div class="sub" style="margin:6px 0 0">${st.won ? `Lo sacaste en ${st.rows.length} intento${st.rows.length===1?'':'s'}.` : 'Vuelve mañana por otro.'}</div>
       <button class="dle-share" id="dle-share">📋 Compartir</button></div>`;
   }
-  $('dle-app').innerHTML = cluesHTML()
+  $('dle-app').innerHTML = bodyTop
     + (done ? '' : `<div class="dle-guessbox"><input id="dle-input" placeholder="Escribe un jugador…" autocomplete="off"><div class="dle-ac" id="dle-ac"></div></div>
-        <div class="dle-legend">Intentos: <b>${STATE.rows.length}/${MAX}</b> · al fallar te digo si el correcto tiene más ▲ / menos ▼ de elo, peak LP y partidas, y si es del mismo equipo.</div>`)
-    + `<div class="dle-guesses">${guessesH}</div>` + resultH
+        <div class="dle-legend">${legend}</div>`)
+    + (MODE==='classic' ? rowsH : `<div class="dle-guesses">${rowsH}</div>`) + resultH
     + (done ? '' : `<button class="dle-giveup" id="dle-giveup">Me rindo y ver la respuesta</button>`);
   wire();
 }
+function setMode(m){ if (m===MODE) return; if (m!=='board' && !MODES[m]) return; MODE = m; if (m!=='board' && !ST[m]) ST[m] = loadState(m) || freshState(); sel = -1; acList = []; render(); if (m==='board') loadBoard(); }
+
 function wire(){
   const input = $('dle-input');
-  if (input){
-    input.addEventListener('input', onInput);
-    input.addEventListener('keydown', onKey);
-    input.focus();
-  }
+  if (input){ input.addEventListener('input', onInput); input.addEventListener('keydown', onKey); input.focus(); }
   const gu = $('dle-giveup'); if (gu) gu.addEventListener('click', giveUp);
   const sh = $('dle-share'); if (sh) sh.addEventListener('click', share);
 }
-function guessedKeys(){ return new Set(STATE.rows.map(r => r.key)); }
+function guessedKeys(){ return new Set(S().rows.map(r => r.key)); }
 function onInput(){
   const q = $('dle-input').value.trim().toLowerCase(); sel = -1;
   const used = guessedKeys();
@@ -169,30 +254,74 @@ function onKey(e){
 function paintSel(){ $('dle-ac').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('sel',i===sel)); }
 
 async function guess(key){
-  if (STATE.done || guessedKeys().has(key)) return;
-  let r; try { r = await SQC.api('/soloqdle/guess', { method:'POST', body:{ key } }); } catch(e){ return; }
-  STATE.rows.push({ key, nm:r.guess.nm, team:r.guess.team, eloAbs:r.guess.eloAbs, peakAbs:r.guess.peakAbs, games:r.guess.games, cmp:r.cmp, correct:r.correct });
-  if (r.correct){ STATE.done = true; STATE.won = true; STATE.answerNm = r.answer && r.answer.nm; }
-  else if (STATE.rows.length >= MAX){ STATE.done = true; STATE.won = false; try { const a = await SQC.api('/soloqdle/reveal'); STATE.answerNm = a.nm; } catch(e){} }
+  const st = S(), cfg = MODES[MODE];
+  if (st.done || guessedKeys().has(key)) return;
+  let r; try { r = await SQC.api(cfg.guess, { method:'POST', body:{ key } }); } catch(e){ return; }
+  st.rows.push({ key, ...r.guess, cmp:r.cmp, correct:r.correct });
+  if (r.correct){ st.done = true; st.won = true; st.answerNm = r.answer && r.answer.nm; postResult(); }
+  else if (st.rows.length >= MAX){ st.done = true; st.won = false; try { const a = await SQC.api(cfg.reveal); st.answerNm = a.nm; } catch(e){} postResult(); }
   saveState(); render();
 }
 async function giveUp(){
+  const st = S(), cfg = MODES[MODE];
   if (!confirm('¿Rendirte y ver la respuesta?')) return;
-  STATE.done = true; STATE.won = false;
-  try { const a = await SQC.api('/soloqdle/reveal'); STATE.answerNm = a.nm; } catch(e){}
-  saveState(); render();
+  st.done = true; st.won = false;
+  try { const a = await SQC.api(cfg.reveal); st.answerNm = a.nm; } catch(e){}
+  postResult(); saveState(); render();
+}
+function postResult(){
+  const st = S(); const mode = MODE;
+  if (st.posted) return; st.posted = true;
+  SQC.api('/soloqdle/result', { method:'POST', body:{ mode, solved: !!st.won, guesses: st.rows.length, gaveUp: !st.won } })
+    .then(() => loadBoard()).catch(() => {});
 }
 function share(){
-  const grid = STATE.rows.map(r => r.correct ? '🟩' : '🟥').join('');
-  const line = `SoloQdle ${DLE.number ? '#'+DLE.number : ''} — ${STATE.won ? STATE.rows.length+'/'+MAX : 'X/'+MAX}\n${grid}\nsoloquchile.cl/soloqdle.html`;
+  const st = S();
+  const grid = st.rows.map(r => r.correct ? '🟩' : '🟥').join('');
+  const line = `SoloQdle ${DLE.number ? '#'+DLE.number : ''} (${MODES[MODE].short}) — ${st.won ? st.rows.length+'/'+MAX : 'X/'+MAX}\n${grid}\nsoloquchile.cl/soloqdle.html`;
   const btn = $('dle-share');
   (navigator.clipboard ? navigator.clipboard.writeText(line) : Promise.reject()).then(()=>{ btn.textContent='✅ Copiado'; }).catch(()=>{ prompt('Copia tu resultado:', line); });
 }
 
+async function loadBoard(){
+  try { BOARD = (await SQC.api('/soloqdle/leaderboard?t=' + Date.now())).board || []; } catch(e){ BOARD = BOARD || []; }
+  if (MODE === 'board') renderBoard();
+}
+function renderBoard(){
+  const el = $('dle-app');
+  if (BOARD === null){ el.innerHTML = `<div class="sub" style="text-align:center;padding:40px 0">Cargando scoreboard…</div>`; loadBoard(); return; }
+  if (!BOARD.length){ el.innerHTML = `<div class="dle-board"><div class="sub" style="text-align:center;padding:30px 0">Aún nadie ha jugado. ¡Sé el primero!</div></div>`; return; }
+  const myNm = ME && ME.nickname;
+  const cell = (v, lbl) => `<div class="v">${v}<small>${lbl}</small></div>`;
+  el.innerHTML = `<div class="dle-board">
+    <div class="bd-h"><span>#</span><span>Jugador</span><span>Racha</span><span>Mejor</span><span>Resueltos</span></div>`
+    + BOARD.map((p,i) => {
+        const mine = myNm && p.nm === myNm;
+        const ava = p.avatar ? `<img src="${esc(p.avatar)}">` : `<span class="ph">${esc((p.nm||'?').slice(0,1).toUpperCase())}</span>`;
+        return `<div class="bd-r ${i===0?'bd-top1':''} ${mine?'me':''}">
+          <div class="pos">${i+1}</div>
+          <div class="who">${ava}<span>${esc(p.nm)}</span></div>
+          ${cell((p.streak||0)+(p.streak?' 🔥':''),'días')}
+          ${cell(p.best||0,'récord')}
+          ${cell(p.total||0, p.avg?('~'+p.avg+' int'):'')}</div>`;
+      }).join('') + `</div>`;
+}
+
+function showGate(){
+  $('dle-app').innerHTML = `<div class="dle-gate">
+    <div class="big">🔒 Inicia sesión para jugar</div>
+    <div class="sub">El SoloQdle es solo para jugadores registrados del torneo. Inicia sesión para adivinar y competir por la racha.</div>
+    <a href="cuenta.html">Iniciar sesión</a></div>`;
+}
+
 (async function init(){
-  try { DLE = await SQC.api('/soloqdle'); } catch(e){ $('dle-app').innerHTML = '<div class="sub" style="text-align:center;padding:40px 0">No se pudo cargar el juego.</div>'; return; }
-  $('dle-n').textContent = DLE.number ? '#'+DLE.number : '';
-  STATE = loadState() || { rows:[], done:false, won:false, answerNm:null };
+  loadBoard();
+  try { ME = await SQC.me(); } catch(e){ ME = null; }
+  if (ME){
+    try { DLE = await SQC.api('/soloqdle'); $('dle-n').textContent = DLE.number ? '#'+DLE.number : ''; } catch(e){}
+    ST.games   = loadState('games')   || freshState();
+    ST.classic = loadState('classic') || freshState();
+  }
   render();
 })();
 </script>

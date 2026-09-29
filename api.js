@@ -28,7 +28,8 @@ window.SQC = (function(){
     const g = id => document.getElementById(id);
     const acc = g('nav-account'), logout = g('logout');
     if (user){
-      ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
+      // Blue Shells y Tickets ocultos por ahora (se re-activan quitando este comentario):
+      // ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
       // Botón "Descargar app" (overlay) para jugadores con sesión — se inyecta en la navbar.
       const nr = document.querySelector('.nav-right');
       if (nr && !g('nav-download')){

@@ -1828,35 +1828,65 @@ app.get('/api/menciones', wrap(async (req, res) => {
 
 // ---- SOLOQDLE: adivina el jugador del torneo por sus últimas partidas (diario, compartible) ----
 const DLE_CACHE = { date: null, data: null };
+const DLE_MAX = 8;   // intentos máximos por día (debe coincidir con MAX del frontend)
 const DLE_EPOCH = Date.UTC(2026, 8, 29);   // 2026-09-29 => SoloQdle #1
+const DLE_POS = { TOP:'TOP', JUNGLE:'JNG', MIDDLE:'MID', BOTTOM:'ADC', UTILITY:'SUP' };   // normaliza posiciones a 5 roles
+// Ambos modos consideran SOLO la cuenta más alta (mejor elo) de cada jugador y sus partidas en esa cuenta.
 async function buildDle(today){
   const rid2puuid = await ridPuuidMap();
-  const acctOf = rid => rid2puuid[rid] || rid;
-  const uNick = {}, puuidOwner = {};
-  for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
+  const acctOf = rid => rid2puuid[rid] || rid;   // rid -> puuid (identifica la cuenta)
+  const uNick = {}, puuidOwner = {}, avByOwner = {};
+  for (const u of await q("SELECT id, nickname, avatar, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); avByOwner['u'+u.id] = u.avatar || null; puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
   for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u'+s.user_id;
   const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
   const teamOf = {};
   try { for (const r of await q("SELECT lower(riotid) rid, team FROM team_members WHERE coalesce(team,'')<>''")) teamOf[ownerOf(r.rid)] = r.team; } catch {}
-  const nmByOwner = {}, eloByOwner = {};
-  (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase());
-    if (!nmByOwner[o]) nmByOwner[o] = uNick[o] || p.nm;
-    const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > (eloByOwner[o] ?? -1)) eloByOwner[o] = abs; });
-  const peakByOwner = {};
-  try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')){ const o = ownerOf(r.rid); if (+r.peak_abs > (peakByOwner[o]||0)) peakByOwner[o] = +r.peak_abs; } } catch {}
-  const byOwnerGames = {};
-  for (const r of await q("SELECT lower(riotid) rid, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
-    const o = ownerOf(r.rid); (byOwnerGames[o] = byOwnerGames[o] || []).push(r);
+  // elo actual POR CUENTA (puuid) desde el snapshot en vivo
+  const absByAcct = {}, nmByAcct = {};
+  (liveSnapshot().players || []).forEach(p => { const acct = acctOf((p.rid||'').toLowerCase());
+    if (!nmByAcct[acct]) nmByAcct[acct] = p.nm;
+    const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > (absByAcct[acct] ?? -1)) absByAcct[acct] = abs; });
+  // peak POR CUENTA
+  const peakByAcct = {};
+  try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')){ const acct = acctOf(r.rid); if (+r.peak_abs > (peakByAcct[acct]||0)) peakByAcct[acct] = +r.peak_abs; } } catch {}
+  // partidas, roles, winrate y KDA POR CUENTA
+  const gamesByAcct = {}, posByAcct = {}, winByAcct = {}, kdaByAcct = {};
+  for (const r of await q("SELECT lower(riotid) rid, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, position pos, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
+    const acct = acctOf(r.rid); (gamesByAcct[acct] = gamesByAcct[acct] || []).push(r);
+    const pos = DLE_POS[(r.pos||'').toUpperCase()]; if (pos){ (posByAcct[acct] = posByAcct[acct] || {})[pos] = (posByAcct[acct][pos]||0) + 1; }
+    const w = winByAcct[acct] = winByAcct[acct] || { w:0, n:0 }; w.n++; if (r.win) w.w++;
+    const kd = kdaByAcct[acct] = kdaByAcct[acct] || { k:0, d:0, a:0 }; kd.k += +r.k; kd.d += +r.d; kd.a += +r.a;
   }
-  const players = Object.keys(byOwnerGames).filter(o => uNick[o] && byOwnerGames[o].length >= 15)
-    .map(o => ({ key:o, nm: nmByOwner[o] || uNick[o], team: teamOf[o] || null, eloAbs: eloByOwner[o] ?? null, peakAbs: peakByOwner[o] ?? null, games: byOwnerGames[o].length }))
-    .sort((a,b) => a.nm.localeCompare(b.nm));
-  const seed = [...today].reduce((h,c) => (h*31 + c.charCodeAt(0)) >>> 0, 7);
-  const answer = players[seed % players.length];
-  const clueGames = (byOwnerGames[answer.key] || []).slice(0, 5).map(g => ({ k:+g.k, d:+g.d, a:+g.a, win: !!g.win, durMin: Math.round(+g.dur/60) }));
+  // mejor cuenta (mayor elo; si no hay elo, la de más partidas) por dueño
+  const acctsByOwner = {};
+  Object.keys(puuidOwner).forEach(acct => { const o = puuidOwner[acct]; (acctsByOwner[o] = acctsByOwner[o] || []).push(acct); });
+  const bestAcctOf = o => (acctsByOwner[o] || []).slice()
+    .sort((a,b) => (absByAcct[b] ?? -1) - (absByAcct[a] ?? -1) || (gamesByAcct[b]||[]).length - (gamesByAcct[a]||[]).length)[0];
+  const roleMost  = c => c ? Object.keys(c).sort((a,b)=> c[b]-c[a] || a.localeCompare(b))[0] : null;
+  const roleLeast = c => c ? Object.keys(c).sort((a,b)=> c[a]-c[b] || a.localeCompare(b))[0] : null;
+
+  const players = [];
+  for (const o of Object.keys(acctsByOwner)){
+    if (!uNick[o]) continue;
+    const a = bestAcctOf(o); if (!a) continue;
+    const gs = gamesByAcct[a] || []; if (gs.length < 15) continue;
+    const w = winByAcct[a], kd = kdaByAcct[a];
+    players.push({ key:o, nm: uNick[o] || nmByAcct[a], avatar: avByOwner[o] || null, team: teamOf[o] || null,
+      eloAbs: absByAcct[a] ?? null, peakAbs: peakByAcct[a] ?? null, games: gs.length,
+      roleMost: roleMost(posByAcct[a]), roleLeast: roleLeast(posByAcct[a]),
+      wr: (w && w.n) ? Math.round(w.w*100/w.n) : null,
+      kda: kd ? Math.round(((kd.k + kd.a) / Math.max(1, kd.d)) * 100) / 100 : null,
+      _clues: gs.slice(0, 5).map(g => ({ k:+g.k, d:+g.d, a:+g.a, win: !!g.win, durMin: Math.round(+g.dur/60) })) });
+  }
+  players.sort((a,b) => a.nm.localeCompare(b.nm));
+  const hash = salt => [...(today+salt)].reduce((h,c) => (h*31 + c.charCodeAt(0)) >>> 0, 7);
+  const answer  = players[hash('') % players.length];        // modo "por partidas"
+  const answer2 = players[hash('|classic') % players.length]; // modo "clásico" (otro jugador el mismo día)
+  const clueGames = (answer && answer._clues) || [];
   const number = Math.floor((Date.parse(today+'T12:00:00Z') - DLE_EPOCH) / 86400000) + 1;
-  const attrs = {}; players.forEach(p => attrs[p.key] = p);
-  return { date: today, number, clueGames, players: players.map(p => ({ key:p.key, nm:p.nm })), answerKey: answer.key, attrs };
+  const attrs = {}; players.forEach(p => { const { _clues, ...rest } = p; attrs[p.key] = rest; });
+  return { date: today, number, clueGames, players: players.map(p => ({ key:p.key, nm:p.nm })),
+           answerKey: answer.key, answer2Key: answer2.key, attrs };
 }
 async function getDle(){ const today = chileHD(Date.now()).d; if (DLE_CACHE.date === today && DLE_CACHE.data) return DLE_CACHE.data; const d = await buildDle(today); DLE_CACHE.date = today; DLE_CACHE.data = d; return d; }
 app.get('/api/soloqdle', wrap(async (req, res) => {
@@ -1864,7 +1894,7 @@ app.get('/api/soloqdle', wrap(async (req, res) => {
   const d = await getDle();
   res.json({ date: d.date, number: d.number, clueGames: d.clueGames, players: d.players });
 }));
-app.post('/api/soloqdle/guess', wrap(async (req, res) => {
+app.post('/api/soloqdle/guess', auth, wrap(async (req, res) => {
   const key = ((req.body && req.body.key) || '').toString();
   const d = await getDle();
   const g = d.attrs[key]; if (!g) return res.status(400).json({ error: 'jugador inválido' });
@@ -1875,7 +1905,78 @@ app.post('/api/soloqdle/guess', wrap(async (req, res) => {
     cmp: { team: (g.team && ans.team) ? (g.team === ans.team ? 'match' : 'no') : 'na', elo: dir(ans.eloAbs, g.eloAbs), peak: dir(ans.peakAbs, g.peakAbs), games: dir(ans.games, g.games) },
     answer: correct ? { nm: ans.nm } : undefined });
 }));
-app.get('/api/soloqdle/reveal', wrap(async (req, res) => { const d = await getDle(); res.json({ nm: d.attrs[d.answerKey].nm }); }));
+app.get('/api/soloqdle/reveal', auth, wrap(async (req, res) => { const d = await getDle(); res.json({ nm: d.attrs[d.answerKey].nm }); }));
+
+// ---- SOLOQDLE modo "clásico": adivina el jugador por sus atributos (grilla estilo LoLdle) ----
+app.get('/api/soloqdle2', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  const d = await getDle();
+  res.json({ date: d.date, number: d.number, players: d.players });
+}));
+function dleGuess2(g, ans){
+  const dir = (a, b) => (a == null || b == null) ? 'na' : a > b ? 'up' : a < b ? 'down' : 'eq';   // ¿el CORRECTO tiene más que el guess?
+  const same = (a, b) => (a == null || b == null) ? 'na' : (a === b ? 'match' : 'no');
+  return {
+    guess: { nm: g.nm, avatar: g.avatar, team: g.team, roleMost: g.roleMost, roleLeast: g.roleLeast, eloAbs: g.eloAbs, peakAbs: g.peakAbs, wr: g.wr, kda: g.kda, games: g.games },
+    cmp: { team: same(g.team, ans.team), roleMost: same(g.roleMost, ans.roleMost), roleLeast: same(g.roleLeast, ans.roleLeast),
+           elo: dir(ans.eloAbs, g.eloAbs), peak: dir(ans.peakAbs, g.peakAbs), wr: dir(ans.wr, g.wr), kda: dir(ans.kda, g.kda), games: dir(ans.games, g.games) },
+  };
+}
+app.post('/api/soloqdle2/guess', auth, wrap(async (req, res) => {
+  const key = ((req.body && req.body.key) || '').toString();
+  const d = await getDle();
+  const g = d.attrs[key]; if (!g) return res.status(400).json({ error: 'jugador inválido' });
+  const ans = d.attrs[d.answer2Key], correct = key === d.answer2Key;
+  res.json({ correct, ...dleGuess2(g, ans), answer: correct ? { nm: ans.nm } : undefined });
+}));
+app.get('/api/soloqdle2/reveal', auth, wrap(async (req, res) => { const d = await getDle(); res.json({ nm: d.attrs[d.answer2Key].nm }); }));
+
+// Registra el resultado del día por modo (idempotente: no pisa un día ya resuelto con uno peor). Alimenta el scoreboard.
+app.post('/api/soloqdle/result', auth, wrap(async (req, res) => {
+  const d = await getDle();
+  const b = req.body || {};
+  const mode = b.mode === 'classic' ? 'classic' : 'games';
+  const solved = !!b.solved, gaveUp = !!b.gaveUp;
+  const guesses = Math.max(1, Math.min(DLE_MAX, Number(b.guesses) || DLE_MAX));
+  await q(`INSERT INTO soloqdle_results (user_id, day, mode, solved, guesses, gave_up, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6, now())
+           ON CONFLICT (user_id, day, mode) DO UPDATE SET
+             solved   = soloqdle_results.solved OR EXCLUDED.solved,
+             guesses  = CASE WHEN EXCLUDED.solved AND (NOT soloqdle_results.solved OR EXCLUDED.guesses < soloqdle_results.guesses)
+                             THEN EXCLUDED.guesses ELSE soloqdle_results.guesses END,
+             gave_up  = soloqdle_results.gave_up OR EXCLUDED.gave_up,
+             updated_at = now()`,
+    [req.user.id, d.date, mode, solved, guesses, gaveUp]);
+  res.json({ ok: true });
+}));
+// Scoreboard: mejores jugadores del SoloQdle (racha actual, mejor racha, total resueltos, promedio de intentos).
+app.get('/api/soloqdle/leaderboard', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  const today = chileHD(Date.now()).d;
+  const yday = chileHD(Date.now() - 86400000).d;
+  const rows = await q(`SELECT r.user_id, r.day, r.solved, r.guesses, u.nickname, u.avatar
+                        FROM soloqdle_results r JOIN users u ON u.id = r.user_id
+                        ORDER BY r.user_id, r.day`);
+  const byUser = {};
+  for (const r of rows){ (byUser[r.user_id] = byUser[r.user_id] || { nm: (r.nickname||'').trim(), avatar: r.avatar || null, days: [] }).days.push(r); }
+  const dayBefore = ds => { const t = Date.parse(ds + 'T12:00:00Z') - 86400000; return chileHD(t).d; };
+  const board = Object.values(byUser).map(u => {
+    const solvedDays = u.days.filter(d => d.solved).map(d => d.day);
+    const set = new Set(solvedDays);
+    const total = solvedDays.length;
+    const sumG = u.days.filter(d => d.solved).reduce((s,d) => s + (+d.guesses||0), 0);
+    const avg = total ? sumG / total : 0;
+    // Mejor racha (días consecutivos resueltos, en cualquier momento)
+    let best = 0; for (const day of set){ if (!set.has(dayBefore(day))){ let n = 0, cur = day; while (set.has(cur)){ n++; cur = /*día siguiente*/ chileHD(Date.parse(cur+'T12:00:00Z') + 86400000).d; } best = Math.max(best, n); } }
+    // Racha actual (consecutiva terminando hoy o ayer)
+    let curStreak = 0; let anchor = set.has(today) ? today : (set.has(yday) ? yday : null);
+    while (anchor && set.has(anchor)){ curStreak++; anchor = dayBefore(anchor); }
+    return { nm: u.nm, avatar: u.avatar, total, streak: curStreak, best, avg: Math.round(avg*100)/100 };
+  }).filter(u => u.total > 0)
+    .sort((a,b) => b.streak - a.streak || b.total - a.total || a.avg - b.avg || a.nm.localeCompare(b.nm))
+    .slice(0, 50);
+  res.json({ board });
+}));
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
@@ -1992,6 +2093,7 @@ app.use(express.static(ROOT, {
 // falta correr el runner en un PC: todo vive en la nube. La key nunca se
 // expone al navegador (solo la usa el proceso del server).
 function startEmbeddedRunner(){
+  if (process.env.NO_RUNNER) return;   // para desarrollo/preview: arranca el server sin el runner de Riot
   if (!process.env.RIOT_API_KEY) return;
   const { spawn } = require('child_process');
   const INTERVAL = (Number(process.env.INTERVAL_SEC) || 90) * 1000;   // más frecuente = live games más frescos (ojo rate limit Riot)

@@ -95,6 +95,17 @@ async function init(){
       n          BIGINT NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    CREATE TABLE IF NOT EXISTS soloqdle_results ( -- resultado diario del SoloQdle por usuario y modo (para el scoreboard)
+      user_id    INTEGER NOT NULL,
+      day        TEXT NOT NULL,                  -- 'YYYY-MM-DD' (día de Chile)
+      mode       TEXT NOT NULL DEFAULT 'games',  -- 'games' (por partidas) | 'classic' (por atributos)
+      solved     BOOLEAN NOT NULL DEFAULT false,
+      guesses    INTEGER NOT NULL DEFAULT 0,     -- intentos usados (si resolvió); tope si se rindió
+      gave_up    BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      updated_at TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (user_id, day, mode)
+    );
     CREATE TABLE IF NOT EXISTS peak_lp (        -- LP absoluto MÁXIMO alcanzado por cuenta (record de LP)
       rid        TEXT PRIMARY KEY,              -- riotid en minúsculas
       peak_abs   INTEGER NOT NULL,              -- LP absoluto (Master=2800+apexLP; sub = tier*400+div*100+lp)
