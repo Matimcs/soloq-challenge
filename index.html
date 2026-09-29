@@ -601,12 +601,12 @@
   .sim-msg{ text-align:center; font-size:15px; font-weight:700; color:var(--up); padding:20px 0; }
 
   /* Popup de apoyo (esquina inferior izquierda): Palmadita para Yoyo */
-  #pat-popup{ position:fixed; left:14px; bottom:14px; width:242px; z-index:70; background:var(--panel);
+  #pat-popup{ position:fixed; left:14px; bottom:14px; width:min(242px, calc(100vw - 24px)); z-index:70; background:var(--panel);
     border:1px solid var(--line-strong); border-radius:14px; box-shadow:0 16px 44px rgba(0,0,0,.55); overflow:hidden;
     animation:betin .35s ease; }
   @keyframes betin{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
   #pat-popup.hidden{ display:none; }
-  @media(max-width:900px){ #pat-popup{ display:none; } }
+  @media(max-width:560px){ #pat-popup{ left:10px; right:10px; bottom:10px; width:auto; } }
   .pat-h{ display:flex; align-items:center; gap:7px; padding:9px 12px; background:linear-gradient(180deg,rgba(52,211,153,.16),rgba(52,211,153,.03)); border-bottom:1px solid var(--line); }
   .pat-h .t{ font-size:12px; font-weight:800; letter-spacing:.08em; color:var(--up); }
   .pat-x{ margin-left:auto; cursor:pointer; color:var(--muted-2); font-size:15px; line-height:1; border:0; background:none; padding:0; }
