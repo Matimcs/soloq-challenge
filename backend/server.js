@@ -1826,6 +1826,57 @@ app.get('/api/menciones', wrap(async (req, res) => {
   res.json(MENC_CACHE.data);
 }));
 
+// ---- SOLOQDLE: adivina el jugador del torneo por sus últimas partidas (diario, compartible) ----
+const DLE_CACHE = { date: null, data: null };
+const DLE_EPOCH = Date.UTC(2026, 8, 29);   // 2026-09-29 => SoloQdle #1
+async function buildDle(today){
+  const rid2puuid = await ridPuuidMap();
+  const acctOf = rid => rid2puuid[rid] || rid;
+  const uNick = {}, puuidOwner = {};
+  for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
+  for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u'+s.user_id;
+  const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
+  const teamOf = {};
+  try { for (const r of await q("SELECT lower(riotid) rid, team FROM team_members WHERE coalesce(team,'')<>''")) teamOf[ownerOf(r.rid)] = r.team; } catch {}
+  const nmByOwner = {}, eloByOwner = {};
+  (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase());
+    if (!nmByOwner[o]) nmByOwner[o] = uNick[o] || p.nm;
+    const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > (eloByOwner[o] ?? -1)) eloByOwner[o] = abs; });
+  const peakByOwner = {};
+  try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')){ const o = ownerOf(r.rid); if (+r.peak_abs > (peakByOwner[o]||0)) peakByOwner[o] = +r.peak_abs; } } catch {}
+  const byOwnerGames = {};
+  for (const r of await q("SELECT lower(riotid) rid, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
+    const o = ownerOf(r.rid); (byOwnerGames[o] = byOwnerGames[o] || []).push(r);
+  }
+  const players = Object.keys(byOwnerGames).filter(o => uNick[o] && byOwnerGames[o].length >= 15)
+    .map(o => ({ key:o, nm: nmByOwner[o] || uNick[o], team: teamOf[o] || null, eloAbs: eloByOwner[o] ?? null, peakAbs: peakByOwner[o] ?? null, games: byOwnerGames[o].length }))
+    .sort((a,b) => a.nm.localeCompare(b.nm));
+  const seed = [...today].reduce((h,c) => (h*31 + c.charCodeAt(0)) >>> 0, 7);
+  const answer = players[seed % players.length];
+  const clueGames = (byOwnerGames[answer.key] || []).slice(0, 5).map(g => ({ k:+g.k, d:+g.d, a:+g.a, win: !!g.win, durMin: Math.round(+g.dur/60) }));
+  const number = Math.floor((Date.parse(today+'T12:00:00Z') - DLE_EPOCH) / 86400000) + 1;
+  const attrs = {}; players.forEach(p => attrs[p.key] = p);
+  return { date: today, number, clueGames, players: players.map(p => ({ key:p.key, nm:p.nm })), answerKey: answer.key, attrs };
+}
+async function getDle(){ const today = chileHD(Date.now()).d; if (DLE_CACHE.date === today && DLE_CACHE.data) return DLE_CACHE.data; const d = await buildDle(today); DLE_CACHE.date = today; DLE_CACHE.data = d; return d; }
+app.get('/api/soloqdle', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  const d = await getDle();
+  res.json({ date: d.date, number: d.number, clueGames: d.clueGames, players: d.players });
+}));
+app.post('/api/soloqdle/guess', wrap(async (req, res) => {
+  const key = ((req.body && req.body.key) || '').toString();
+  const d = await getDle();
+  const g = d.attrs[key]; if (!g) return res.status(400).json({ error: 'jugador inválido' });
+  const ans = d.attrs[d.answerKey], correct = key === d.answerKey;
+  const dir = (a, b) => (a == null || b == null) ? 'na' : a > b ? 'up' : a < b ? 'down' : 'eq';   // ¿el CORRECTO tiene más que el guess?
+  res.json({ correct,
+    guess: { nm: g.nm, team: g.team, eloAbs: g.eloAbs, peakAbs: g.peakAbs, games: g.games },
+    cmp: { team: (g.team && ans.team) ? (g.team === ans.team ? 'match' : 'no') : 'na', elo: dir(ans.eloAbs, g.eloAbs), peak: dir(ans.peakAbs, g.peakAbs), games: dir(ans.games, g.games) },
+    answer: correct ? { nm: ans.nm } : undefined });
+}));
+app.get('/api/soloqdle/reveal', wrap(async (req, res) => { const d = await getDle(); res.json({ nm: d.attrs[d.answerKey].nm }); }));
+
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
 let _recSig = {};   // firma por categoría (nm|valor de cada uno del top-5) para detectar entradas nuevas

@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — SoloQdle</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-strong:rgba(255,255,255,.16);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:680px; margin:0 auto; padding:0 20px; }
+  h1{ font-size:30px; font-weight:700; margin-top:8px; } h1 .dle-n{ color:var(--accent); }
+  .sub{ color:var(--muted); font-size:13.5px; line-height:1.45; margin:6px 0 20px; }
+
+  .dle-clues{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:6px 8px; margin-bottom:16px; }
+  .dle-clues .ch{ font-size:10px; font-weight:800; letter-spacing:.06em; color:var(--muted-2); padding:8px 8px 4px; }
+  .grow{ display:grid; grid-template-columns:22px 1fr auto auto; align-items:center; gap:10px; padding:8px 10px; border-radius:9px; }
+  .grow + .grow{ margin-top:2px; }
+  .grow:nth-child(even){ background:rgba(255,255,255,.02); }
+  .grow .gi{ color:var(--muted-2); font-weight:800; font-size:12px; }
+  .grow .gk{ font-weight:800; font-size:15px; font-variant-numeric:tabular-nums; }
+  .grow .gk .d{ color:var(--down); }
+  .grow .gd{ font-size:11px; color:var(--muted-2); }
+  .grow .gr{ font-weight:800; font-size:11px; letter-spacing:.05em; padding:2px 9px; border-radius:6px; }
+  .gr.w{ color:#05271d; background:var(--up); } .gr.l{ color:#fff; background:var(--down); }
+
+  .dle-guessbox{ position:relative; }
+  #dle-input{ width:100%; font-family:inherit; font-size:15px; padding:13px 14px; border-radius:12px; border:1px solid var(--line-strong); background:var(--panel-2); color:var(--text); }
+  #dle-input:focus{ outline:none; border-color:var(--accent); }
+  #dle-input:disabled{ opacity:.5; }
+  .dle-ac{ position:absolute; left:0; right:0; top:54px; z-index:20; background:var(--panel-2); border:1px solid var(--line-strong); border-radius:12px; overflow:hidden; max-height:260px; overflow-y:auto; box-shadow:0 14px 40px rgba(0,0,0,.5); }
+  .dle-ac:empty{ display:none; }
+  .dle-ac button{ display:block; width:100%; text-align:left; font-family:inherit; font-size:14px; font-weight:600; color:var(--text); background:none; border:0; padding:11px 14px; cursor:pointer; }
+  .dle-ac button:hover, .dle-ac button.sel{ background:rgba(233,255,31,.1); }
+  .dle-legend{ font-size:11px; color:var(--muted-2); margin:9px 2px 16px; line-height:1.4; }
+
+  .dle-guesses{ display:flex; flex-direction:column; gap:6px; }
+  .gcol-h, .grw{ display:grid; grid-template-columns:1.4fr 1fr .9fr .9fr .8fr; gap:6px; }
+  .gcol-h{ font-size:9px; font-weight:800; letter-spacing:.04em; color:var(--muted-2); padding:0 4px 2px; }
+  .gcol-h span{ text-align:center; } .gcol-h span:first-child{ text-align:left; }
+  .gcell{ padding:9px 6px; border-radius:9px; text-align:center; font-size:12px; font-weight:700; background:var(--panel-2); border:1px solid var(--line); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; min-height:46px; }
+  .gcell.nm{ text-align:left; align-items:flex-start; font-size:13.5px; font-weight:800; }
+  .gcell.ok{ background:rgba(52,211,153,.18); border-color:rgba(52,211,153,.5); }
+  .gcell.bad{ background:rgba(251,113,133,.13); border-color:rgba(251,113,133,.35); }
+  .gcell .arw{ font-size:15px; line-height:1; }
+  .gcell .sm{ font-size:9.5px; color:var(--muted-2); font-weight:600; }
+
+  .dle-result{ margin-top:18px; text-align:center; background:var(--panel); border:1px solid var(--line-strong); border-radius:14px; padding:18px; }
+  .dle-result .big{ font-size:19px; font-weight:800; }
+  .dle-result .ans{ color:var(--accent); }
+  .dle-share{ margin-top:12px; font-family:inherit; font-size:14px; font-weight:800; padding:11px 22px; border-radius:10px; border:0; background:var(--accent); color:#000; cursor:pointer; }
+  .dle-giveup{ display:block; margin:16px auto 40px; font-family:inherit; font-size:12px; color:var(--muted-2); background:none; border:0; cursor:pointer; text-decoration:underline; }
+  .dle-giveup[hidden]{ display:none; }
+</style>
+<link rel="stylesheet" href="nav.css?v=2">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav" style="max-width:1000px">
+    <div class="nav-left"><a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a></div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games</a>
+      <a href="encuentros.html">Encuentros</a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="torneos.html">Torneos</a>
+      <a href="soloqdle.html" class="active">SoloQdle</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};s('nav-blueshell');s('nav-ticket');if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <h1>SoloQdle <span class="dle-n" id="dle-n"></span></h1>
+    <div class="sub">Adivina de qué jugador del torneo son estas partidas. Solo ves el <b>KDA</b> y si <b>ganó o perdió</b> — ni campeón, ni ítems, ni rol.</div>
+    <div id="dle-app"><div class="sub" style="text-align:center;padding:40px 0">Cargando…</div></div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+SQC.preNav(); SQC.mountNav();
+const $ = id => document.getElementById(id);
+const MAX = 8;
+const abbrevTeam = t => t ? ({'Zenith':'Zenith','Hundred Blossom':'H. Blossom','Tide':'Tide','Exilium':'Exilium'}[t] || t) : '—';
+function absLabel(abs){ if (abs == null) return '—'; if (abs >= 2800) return (abs-2800)+' LP';
+  const TN=['Hierro','Bronce','Plata','Oro','Plat','Esm','Dia'], DN=['IV','III','II','I'];
+  const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100)), lp=rem-di*100;
+  return `${TN[ti]} ${DN[di]}`; }
+const arw = d => d==='up' ? '<span class="arw" style="color:var(--up)">▲</span>' : d==='down' ? '<span class="arw" style="color:var(--down)">▼</span>' : d==='eq' ? '<span class="arw" style="color:var(--gold)">✓</span>' : '';
+
+let DLE = null, STATE = null, sel = -1, acList = [];
+
+function stateKey(){ return 'dle_' + (DLE ? DLE.date : 'x'); }
+function loadState(){ try { return JSON.parse(localStorage.getItem(stateKey()) || 'null'); } catch(e){ return null; } }
+function saveState(){ try { localStorage.setItem(stateKey(), JSON.stringify(STATE)); } catch(e){} }
+
+function cluesHTML(){
+  return `<div class="dle-clues"><div class="ch">ÚLTIMAS PARTIDAS DE ESTE JUGADOR</div>`
+    + DLE.clueGames.map((g,i) => `<div class="grow">
+        <span class="gi">${i+1}</span>
+        <span class="gk">${g.k}/<span class="d">${g.d}</span>/${g.a}</span>
+        <span class="gd">${g.durMin} min</span>
+        <span class="gr ${g.win?'w':'l'}">${g.win?'VICTORIA':'DERROTA'}</span></div>`).join('') + `</div>`;
+}
+function guessRow(r){   // r: {nm, team, eloAbs, peakAbs, games, cmp, correct}
+  const cell = (label, sub, cls) => `<div class="gcell ${cls||''}">${label}${sub?`<span class="sm">${sub}</span>`:''}</div>`;
+  return `<div class="grw">
+    ${cell(esc(r.nm),'','nm '+(r.correct?'ok':'bad'))}
+    ${cell(abbrevTeam(r.team),'', r.cmp.team==='match'?'ok':(r.cmp.team==='no'?'bad':''))}
+    ${cell(absLabel(r.eloAbs), arw(r.cmp.elo))}
+    ${cell(absLabel(r.peakAbs), arw(r.cmp.peak))}
+    ${cell(r.games, arw(r.cmp.games))}</div>`;
+}
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function render(){
+  const done = STATE.done;
+  const guessesH = STATE.rows.length ? `<div class="gcol-h"><span>Jugador</span><span>Equipo</span><span>Elo</span><span>Peak</span><span>Games</span></div>`
+      + STATE.rows.map(guessRow).join('') : '';
+  let resultH = '';
+  if (done){
+    resultH = `<div class="dle-result"><div class="big">${STATE.won ? '🎉 ¡Correcto!' : '💀 Fin'} <span class="ans">${esc(STATE.answerNm||'')}</span></div>
+      <div class="sub" style="margin:6px 0 0">${STATE.won ? `Lo sacaste en ${STATE.rows.length} intento${STATE.rows.length===1?'':'s'}.` : 'Vuelve mañana por otro.'}</div>
+      <button class="dle-share" id="dle-share">📋 Compartir</button></div>`;
+  }
+  $('dle-app').innerHTML = cluesHTML()
+    + (done ? '' : `<div class="dle-guessbox"><input id="dle-input" placeholder="Escribe un jugador…" autocomplete="off"><div class="dle-ac" id="dle-ac"></div></div>
+        <div class="dle-legend">Intentos: <b>${STATE.rows.length}/${MAX}</b> · al fallar te digo si el correcto tiene más ▲ / menos ▼ de elo, peak LP y partidas, y si es del mismo equipo.</div>`)
+    + `<div class="dle-guesses">${guessesH}</div>` + resultH
+    + (done ? '' : `<button class="dle-giveup" id="dle-giveup">Me rindo y ver la respuesta</button>`);
+  wire();
+}
+function wire(){
+  const input = $('dle-input');
+  if (input){
+    input.addEventListener('input', onInput);
+    input.addEventListener('keydown', onKey);
+    input.focus();
+  }
+  const gu = $('dle-giveup'); if (gu) gu.addEventListener('click', giveUp);
+  const sh = $('dle-share'); if (sh) sh.addEventListener('click', share);
+}
+function guessedKeys(){ return new Set(STATE.rows.map(r => r.key)); }
+function onInput(){
+  const q = $('dle-input').value.trim().toLowerCase(); sel = -1;
+  const used = guessedKeys();
+  acList = q ? DLE.players.filter(p => !used.has(p.key) && p.nm.toLowerCase().includes(q)).slice(0,8) : [];
+  $('dle-ac').innerHTML = acList.map((p,i)=>`<button data-k="${p.key}">${esc(p.nm)}</button>`).join('');
+  $('dle-ac').querySelectorAll('button').forEach(b => b.onclick = () => guess(b.dataset.k));
+}
+function onKey(e){
+  if (e.key==='ArrowDown'){ e.preventDefault(); sel=Math.min(sel+1,acList.length-1); paintSel(); }
+  else if (e.key==='ArrowUp'){ e.preventDefault(); sel=Math.max(sel-1,0); paintSel(); }
+  else if (e.key==='Enter'){ e.preventDefault(); const p = acList[sel>=0?sel:0]; if (p) guess(p.key); }
+}
+function paintSel(){ $('dle-ac').querySelectorAll('button').forEach((b,i)=>b.classList.toggle('sel',i===sel)); }
+
+async function guess(key){
+  if (STATE.done || guessedKeys().has(key)) return;
+  let r; try { r = await SQC.api('/soloqdle/guess', { method:'POST', body:{ key } }); } catch(e){ return; }
+  STATE.rows.push({ key, nm:r.guess.nm, team:r.guess.team, eloAbs:r.guess.eloAbs, peakAbs:r.guess.peakAbs, games:r.guess.games, cmp:r.cmp, correct:r.correct });
+  if (r.correct){ STATE.done = true; STATE.won = true; STATE.answerNm = r.answer && r.answer.nm; }
+  else if (STATE.rows.length >= MAX){ STATE.done = true; STATE.won = false; try { const a = await SQC.api('/soloqdle/reveal'); STATE.answerNm = a.nm; } catch(e){} }
+  saveState(); render();
+}
+async function giveUp(){
+  if (!confirm('¿Rendirte y ver la respuesta?')) return;
+  STATE.done = true; STATE.won = false;
+  try { const a = await SQC.api('/soloqdle/reveal'); STATE.answerNm = a.nm; } catch(e){}
+  saveState(); render();
+}
+function share(){
+  const grid = STATE.rows.map(r => r.correct ? '🟩' : '🟥').join('');
+  const line = `SoloQdle ${DLE.number ? '#'+DLE.number : ''} — ${STATE.won ? STATE.rows.length+'/'+MAX : 'X/'+MAX}\n${grid}\nsoloquchile.cl/soloqdle.html`;
+  const btn = $('dle-share');
+  (navigator.clipboard ? navigator.clipboard.writeText(line) : Promise.reject()).then(()=>{ btn.textContent='✅ Copiado'; }).catch(()=>{ prompt('Copia tu resultado:', line); });
+}
+
+(async function init(){
+  try { DLE = await SQC.api('/soloqdle'); } catch(e){ $('dle-app').innerHTML = '<div class="sub" style="text-align:center;padding:40px 0">No se pudo cargar el juego.</div>'; return; }
+  $('dle-n').textContent = DLE.number ? '#'+DLE.number : '';
+  STATE = loadState() || { rows:[], done:false, won:false, answerNm:null };
+  render();
+})();
+</script>
+</body>
+</html>
