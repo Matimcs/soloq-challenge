@@ -1868,6 +1868,7 @@ async function buildDle(today){
   const players = [];
   for (const o of Object.keys(acctsByOwner)){
     if (!uNick[o]) continue;
+    if (!teamOf[o]) continue;   // por ahora: jugadores sin equipo (p.ej. nemesis, omidal) quedan fuera del pool
     const a = bestAcctOf(o); if (!a) continue;
     const gs = gamesByAcct[a] || []; if (gs.length < 15) continue;
     const w = winByAcct[a], kd = kdaByAcct[a];
