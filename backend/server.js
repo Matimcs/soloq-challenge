@@ -1841,11 +1841,12 @@ async function buildDle(today){
   const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
   const teamOf = {};
   try { for (const r of await q("SELECT lower(riotid) rid, team FROM team_members WHERE coalesce(team,'')<>''")) teamOf[ownerOf(r.rid)] = r.team; } catch {}
-  // elo actual POR CUENTA (puuid) desde el snapshot en vivo
-  const absByAcct = {}, nmByAcct = {};
+  // elo actual y winrate ranked POR CUENTA (puuid) desde el snapshot en vivo
+  const absByAcct = {}, nmByAcct = {}, wlByAcct = {};
   (liveSnapshot().players || []).forEach(p => { const acct = acctOf((p.rid||'').toLowerCase());
     if (!nmByAcct[acct]) nmByAcct[acct] = p.nm;
-    const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > (absByAcct[acct] ?? -1)) absByAcct[acct] = abs; });
+    const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > (absByAcct[acct] ?? -1)) absByAcct[acct] = abs;
+    if (p.w != null && p.l != null && !wlByAcct[acct]) wlByAcct[acct] = { w: +p.w, l: +p.l }; });   // W/L ranked oficial (igual que el resto del sitio)
   // peak POR CUENTA
   const peakByAcct = {};
   try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')){ const acct = acctOf(r.rid); if (+r.peak_abs > (peakByAcct[acct]||0)) peakByAcct[acct] = +r.peak_abs; } } catch {}
@@ -1875,7 +1876,8 @@ async function buildDle(today){
     players.push({ key:o, nm: uNick[o] || nmByAcct[a], avatar: avByOwner[o] || null, team: teamOf[o] || null,
       eloAbs: absByAcct[a] ?? null, peakAbs: peakByAcct[a] ?? null, games: gs.length,
       roleMost: roleMost(posByAcct[a]), roleLeast: roleLeast(posByAcct[a]),
-      wr: (w && w.n) ? Math.round(w.w*100/w.n) : null,
+      wr: (wlByAcct[a] && (wlByAcct[a].w + wlByAcct[a].l)) ? Math.round(wlByAcct[a].w * 100 / (wlByAcct[a].w + wlByAcct[a].l))
+          : ((w && w.n) ? Math.round(w.w*100/w.n) : null),   // winrate ranked oficial; fallback al historial capturado
       kda: kd ? Math.round(((kd.k + kd.a) / Math.max(1, kd.d)) * 100) / 100 : null,
       _games: gs.map(g => ({ k:+g.k, d:+g.d, a:+g.a, win: !!g.win, durMin: Math.round(+g.dur/60) })) });
   }
