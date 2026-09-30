@@ -1833,47 +1833,59 @@ const DLE_EPOCH = Date.UTC(2026, 8, 29);   // 2026-09-29 => SoloQdle #1
 const DLE_POS = { TOP:'TOP', JUNGLE:'JNG', MIDDLE:'MID', BOTTOM:'ADC', UTILITY:'SUP' };   // normaliza posiciones a 5 roles
 // Ambos modos consideran SOLO la cuenta más alta (mejor elo) de cada jugador y sus partidas en esa cuenta.
 async function buildDle(today){
-  const rid2puuid = await ridPuuidMap();
-  const acctOf = rid => rid2puuid[rid] || rid;   // rid -> puuid (identifica la cuenta)
+  // Todo se agrupa por PUUID (columna directa en historial y snapshot): así renames y espacios
+  // raros en el Riot ID ("shr uzi #las1" vs "shr uzi#las1") no separan la misma cuenta.
+  const rid2puuidHist = await ridPuuidMap();
+  const nrid = r => (r||'').toLowerCase().replace(/\s*#\s*/, '#').trim();   // normaliza espacios alrededor del #
+  const rid2puuid = {};   // rid normalizado -> puuid (snapshot primero, luego historial)
+  (liveSnapshot().players || []).forEach(p => { if (p.rid && p.puuid) rid2puuid[nrid(p.rid)] = p.puuid; });
+  for (const [r, pu] of Object.entries(rid2puuidHist)){ const k = nrid(r); if (!rid2puuid[k]) rid2puuid[k] = pu; }
+  const puuidOf = rid => rid2puuid[nrid(rid)] || null;
+
   const uNick = {}, puuidOwner = {}, avByOwner = {};
-  for (const u of await q("SELECT id, nickname, avatar, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); avByOwner['u'+u.id] = u.avatar || null; puuidOwner[acctOf(u.rid)] = 'u'+u.id; }
-  for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u'+s.user_id;
-  const ownerOf = rid => puuidOwner[acctOf((rid||'').toLowerCase())] || (rid||'').toLowerCase();
+  for (const u of await q("SELECT id, nickname, avatar, riotid FROM users WHERE coalesce(riotid,'')<>''")){ uNick['u'+u.id] = (u.nickname||'').trim(); avByOwner['u'+u.id] = u.avatar || null; const pu = puuidOf(u.riotid); if (pu) puuidOwner[pu] = 'u'+u.id; }
+  for (const s of await q("SELECT user_id, riotid FROM smurfs WHERE coalesce(riotid,'')<>''")){ const pu = puuidOf(s.riotid); if (pu) puuidOwner[pu] = 'u'+s.user_id; }
+  const ownerOf = puuid => puuidOwner[puuid] || puuid;
   const teamOf = {};
-  try { for (const r of await q("SELECT lower(riotid) rid, team FROM team_members WHERE coalesce(team,'')<>''")) teamOf[ownerOf(r.rid)] = r.team; } catch {}
+  try { for (const r of await q("SELECT riotid, team FROM team_members WHERE coalesce(team,'')<>''")){ const pu = puuidOf(r.riotid); if (pu) teamOf[ownerOf(pu)] = r.team; } } catch {}
   // elo actual y winrate ranked POR CUENTA (puuid) desde el snapshot en vivo
   const absByAcct = {}, nmByAcct = {}, wlByAcct = {};
-  (liveSnapshot().players || []).forEach(p => { const acct = acctOf((p.rid||'').toLowerCase());
+  (liveSnapshot().players || []).forEach(p => { const acct = p.puuid; if (!acct) return;
     if (!nmByAcct[acct]) nmByAcct[acct] = p.nm;
     const abs = absLPof(p.tier, p.div, p.lp); if (abs != null && abs > (absByAcct[acct] ?? -1)) absByAcct[acct] = abs;
     if (p.w != null && p.l != null && !wlByAcct[acct]) wlByAcct[acct] = { w: +p.w, l: +p.l }; });   // W/L ranked oficial (igual que el resto del sitio)
   // peak POR CUENTA
   const peakByAcct = {};
-  try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')){ const acct = acctOf(r.rid); if (+r.peak_abs > (peakByAcct[acct]||0)) peakByAcct[acct] = +r.peak_abs; } } catch {}
-  // partidas, roles, winrate y KDA POR CUENTA
+  try { for (const r of await q('SELECT rid, peak_abs FROM peak_lp')){ const acct = puuidOf(r.rid); if (acct && +r.peak_abs > (peakByAcct[acct]||0)) peakByAcct[acct] = +r.peak_abs; } } catch {}
+  // partidas, roles, winrate y KDA POR CUENTA (puuid)
   const gamesByAcct = {}, posByAcct = {}, winByAcct = {}, kdaByAcct = {};
-  for (const r of await q("SELECT lower(riotid) rid, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, position pos, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
-    const acct = acctOf(r.rid); (gamesByAcct[acct] = gamesByAcct[acct] || []).push(r);
+  for (const r of await q("SELECT puuid acct, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, position pos, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
+    const acct = r.acct; (gamesByAcct[acct] = gamesByAcct[acct] || []).push(r);
     const pos = DLE_POS[(r.pos||'').toUpperCase()]; if (pos){ (posByAcct[acct] = posByAcct[acct] || {})[pos] = (posByAcct[acct][pos]||0) + 1; }
     const w = winByAcct[acct] = winByAcct[acct] || { w:0, n:0 }; w.n++; if (r.win) w.w++;
     const kd = kdaByAcct[acct] = kdaByAcct[acct] || { k:0, d:0, a:0 }; kd.k += +r.k; kd.d += +r.d; kd.a += +r.a;
   }
-  // mejor cuenta (mayor elo; si no hay elo, la de más partidas) por dueño
-  const acctsByOwner = {};
-  Object.keys(puuidOwner).forEach(acct => { const o = puuidOwner[acct]; (acctsByOwner[o] = acctsByOwner[o] || []).push(acct); });
-  const bestAcctOf = o => (acctsByOwner[o] || []).slice()
-    .sort((a,b) => (absByAcct[b] ?? -1) - (absByAcct[a] ?? -1) || (gamesByAcct[b]||[]).length - (gamesByAcct[a]||[]).length)[0];
+  // Cuentas por JUGADOR (dueño) desde el snapshot (registradas o no), como el filtro "1 CUENTA" del ranking.
+  const accsByOwner = {};   // owner -> [{ acct, abs, nm }]
+  (liveSnapshot().players || []).forEach(p => { const acct = p.puuid; if (!acct) return;
+    const owner = ownerOf(acct), abs = absLPof(p.tier, p.div, p.lp);
+    (accsByOwner[owner] = accsByOwner[owner] || []).push({ acct, abs: abs ?? null, nm: uNick[owner] || p.nm }); });
+  // Mejor cuenta = la de mayor elo ENTRE las que tienen suficientes partidas trackeadas (para armar el puzzle).
+  // Así un smurf altísimo pero sin historial no deja al jugador fuera (p.ej. Gonza: su GM tiene 0 games, se usa su main).
+  const MIN_GAMES = 15;
+  const bestOf = o => (accsByOwner[o] || []).filter(x => (gamesByAcct[x.acct]||[]).length >= MIN_GAMES)
+    .sort((a,b) => (b.abs ?? -1) - (a.abs ?? -1))[0];
   const roleMost  = c => c ? Object.keys(c).sort((a,b)=> c[b]-c[a] || a.localeCompare(b))[0] : null;
   const roleLeast = c => c ? Object.keys(c).sort((a,b)=> c[a]-c[b] || a.localeCompare(b))[0] : null;
 
   const players = [];
-  for (const o of Object.keys(acctsByOwner)){
-    if (!uNick[o]) continue;
-    if (!teamOf[o]) continue;   // por ahora: jugadores sin equipo (p.ej. nemesis, omidal) quedan fuera del pool
-    const a = bestAcctOf(o); if (!a) continue;
-    const gs = gamesByAcct[a] || []; if (gs.length < 15) continue;
+  for (const o of Object.keys(accsByOwner)){
+    if (!teamOf[o]) continue;   // los sin equipo quedan fuera del pool (p.ej. nemesis, omidal)
+    const best = bestOf(o); if (!best) continue;
+    const a = best.acct;
+    const gs = gamesByAcct[a] || [];
     const w = winByAcct[a], kd = kdaByAcct[a];
-    players.push({ key:o, nm: uNick[o] || nmByAcct[a], avatar: avByOwner[o] || null, team: teamOf[o] || null,
+    players.push({ key:o, nm: uNick[o] || best.nm || nmByAcct[a], avatar: avByOwner[o] || null, team: teamOf[o] || null,
       eloAbs: absByAcct[a] ?? null, peakAbs: peakByAcct[a] ?? null, games: gs.length,
       roleMost: roleMost(posByAcct[a]), roleLeast: roleLeast(posByAcct[a]),
       wr: (wlByAcct[a] && (wlByAcct[a].w + wlByAcct[a].l)) ? Math.round(wlByAcct[a].w * 100 / (wlByAcct[a].w + wlByAcct[a].l))
