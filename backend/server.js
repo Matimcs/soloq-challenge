@@ -1877,15 +1877,18 @@ async function buildDle(today){
       roleMost: roleMost(posByAcct[a]), roleLeast: roleLeast(posByAcct[a]),
       wr: (w && w.n) ? Math.round(w.w*100/w.n) : null,
       kda: kd ? Math.round(((kd.k + kd.a) / Math.max(1, kd.d)) * 100) / 100 : null,
-      _clues: gs.slice(0, 5).map(g => ({ k:+g.k, d:+g.d, a:+g.a, win: !!g.win, durMin: Math.round(+g.dur/60) })) });
+      _games: gs.map(g => ({ k:+g.k, d:+g.d, a:+g.a, win: !!g.win, durMin: Math.round(+g.dur/60) })) });
   }
   players.sort((a,b) => a.nm.localeCompare(b.nm));
   const hash = salt => [...(today+salt)].reduce((h,c) => (h*31 + c.charCodeAt(0)) >>> 0, 7);
   const answer  = players[hash('') % players.length];        // modo "por partidas"
   const answer2 = players[hash('|classic') % players.length]; // modo "clásico" (otro jugador el mismo día)
-  const clueGames = (answer && answer._clues) || [];
+  // 5 partidas CONSECUTIVAS con inicio aleatorio (determinista por día): no siempre las últimas, para dificultar hacer trampa.
+  const all = (answer && answer._games) || [];
+  const off = all.length > 5 ? (hash('|clue') % (all.length - 5 + 1)) : 0;
+  const clueGames = all.slice(off, off + 5);
   const number = Math.floor((Date.parse(today+'T12:00:00Z') - DLE_EPOCH) / 86400000) + 1;
-  const attrs = {}; players.forEach(p => { const { _clues, ...rest } = p; attrs[p.key] = rest; });
+  const attrs = {}; players.forEach(p => { const { _games, ...rest } = p; attrs[p.key] = rest; });
   return { date: today, number, clueGames, players: players.map(p => ({ key:p.key, nm:p.nm })),
            answerKey: answer.key, answer2Key: answer2.key, attrs };
 }
