@@ -182,27 +182,6 @@ const POS_FILE = path.join(CACHE_DIR, 'positions.json');
 const posStore = loadJSON(POS_FILE, {});       // puuid -> [{t, pos}]  (historial de posición para el ±puestos 24h)
 let REQ_COUNT = 0;                             // requests reales a Riot este ciclo
 
-// ===== Lotes rotativos =====
-// Con muchas cuentas (uLeague ~218) no se pueden consultar TODAS cada ciclo sin reventar el
-// rate limit de Riot. Cada ciclo se refresca por completo solo un LOTE; a los demás se les
-// arrastra su dato del snapshot anterior (players.json). Así se cubre a todos en varios ciclos
-// (p.ej. 275 cuentas / lote 30 ≈ 10 ciclos ≈ 15 min) sin 429.
-const BATCH_FILE = path.join(CACHE_DIR, 'batch.json');
-const BATCH_SIZE = Math.max(1, Number(process.env.BATCH_SIZE) || 30);
-// Si hay pocas cuentas, se procesan todas (sin rotación).
-const BATCH_ON = RIOT_IDS.length > BATCH_SIZE;
-let batchOffset = 0;
-try { batchOffset = (JSON.parse(fs.readFileSync(BATCH_FILE, 'utf8')).offset) || 0; } catch {}
-// Snapshot anterior para arrastrar a las cuentas que no toca este lote.
-let PREV_PLAYERS = [];
-try { PREV_PLAYERS = (JSON.parse(fs.readFileSync(path.join(__dirname, 'players.json'), 'utf8')).players) || []; } catch {}
-const prevByRid = {}; PREV_PLAYERS.forEach(p => { if (p && p.rid) prevByRid[p.rid.toLowerCase()] = p; });
-// IDs a consultar a fondo este ciclo (lote); el resto se arrastra.
-const BATCH_IDS = BATCH_ON
-  ? Array.from({length: Math.min(BATCH_SIZE, RIOT_IDS.length)}, (_, i) => RIOT_IDS[(batchOffset + i) % RIOT_IDS.length])
-  : RIOT_IDS.slice();
-const BATCH_SET = new Set(BATCH_IDS.map(s => s.toLowerCase()));
-
 // Puestos subidos (+) o bajados (−) en las últimas 24h respecto a la posición actual.
 function movePos24h(snaps, curPos, now){
   if (!Array.isArray(snaps) || !snaps.length) return 0;
@@ -516,8 +495,7 @@ function rankText(entry) {
   const players = [];
   const rawByPlayer = [];  // {puuid, raw}
   const seenPuuids = new Set();   // evita duplicados (misma cuenta con distinto casing/tag)
-  if (BATCH_ON) console.log(`(lote ${batchOffset}..${batchOffset+BATCH_IDS.length-1} de ${RIOT_IDS.length} cuentas; el resto se arrastra del ciclo anterior)`);
-  for (const rid of BATCH_IDS) {
+  for (const rid of RIOT_IDS) {
     process.stdout.write(`→ ${rid} ... `);
     try {
       const puuid = await getPuuid(rid); await sleep(110);
@@ -560,21 +538,6 @@ function rankText(entry) {
       if (soloRaw) rawByPlayer.push({ puuid, raw: soloRaw });
       console.log(`${tier} ${div} ${entry?entry.leaguePoints+'LP':''}`.trim() + (soloRaw ? ' [EN SOLOQ]' : ''));
     } catch (e) { console.log('ERROR ' + e.message); }
-  }
-
-  // Arrastre: cuentas que NO entraron en el lote de este ciclo mantienen su último dato
-  // conocido (del players.json anterior), sin llamar a Riot. Se revisan de nuevo cuando les
-  // toque el lote. Se limpia inGame para no dejar tarjetas LIVE fantasma.
-  if (BATCH_ON){
-    for (const rid of RIOT_IDS){
-      if (BATCH_SET.has(rid.toLowerCase())) continue;
-      const prev = prevByRid[rid.toLowerCase()];
-      if (!prev || !prev.puuid || seenPuuids.has(prev.puuid)) continue;
-      seenPuuids.add(prev.puuid);
-      players.push({ ...prev, inGame:false, game:null });
-    }
-    // Avanza el puntero del lote para el próximo ciclo.
-    try { fs.writeFileSync(BATCH_FILE, JSON.stringify({ offset: (batchOffset + BATCH_SIZE) % RIOT_IDS.length })); } catch {}
   }
 
   // Orden del ranking y mapa de posiciones
