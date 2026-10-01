@@ -371,11 +371,19 @@ let _tourneyPlayers = { at: 0, map: {} };
 function normRid(s){ return (s || '').trim().toLowerCase().replace(/\s*#\s*/g, '#'); }
 async function buildTourneyMap(){
   const map = {};
+  // 1) uLeague PRINCIPAL: rosters del torneo en curso (uleague-data.json).
+  try {
+    const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'uleague-data.json'), 'utf8'));
+    (d.teams || []).forEach(t => (t.players || []).forEach(p => {
+      const rid = normRid(typeof p === 'string' ? p : p.rid); if (rid) map[rid] = { tag: t.name || '', team: t.name || '' };
+    }));
+  } catch {}
+  // 2) UDPORROS de RESPALDO: solo cuentas/equipos que NO estén ya en uLeague (uLeague manda).
   try {
     const m = fs.readFileSync(path.join(ROOT, 'torneo-data.js'), 'utf8').match(/window\.TDATA\s*=\s*([\s\S]*);\s*$/);
     const data = m ? JSON.parse(m[1]) : { teams: [] };
     (data.teams || []).forEach(t => (t.players || []).forEach(p => {
-      const rid = normRid(p.rid); if (rid) map[rid] = { tag: t.tag || '', team: t.team || '' };
+      const rid = normRid(p.rid); if (rid && !map[rid]) map[rid] = { tag: t.tag || '', team: t.team || '' };
     }));
   } catch {}
   // Propaga el equipo del torneo a TODAS las cuentas de un jugador (registradas o vinculadas a mano),

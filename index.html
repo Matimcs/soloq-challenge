@@ -890,7 +890,8 @@ const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo', 
 function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_MAP[nrid(rid)] || null; }
 // Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está en un torneo, se considera
 // "Competitivo" por defecto — SALVO nuestros 4 equipos UChile (no son competitivos externos).
-const OUR_TEAMS = new Set(['uch zenith','hundred blossoms','uch exilium','uch tide']);
+// Nuestros equipos en uLeague (UCH A/B/C/D) + los de UDPORROS (respaldo). No llevan "Competitivo".
+const OUR_TEAMS = new Set(['uch a','uch b','uch c','uch d','uch zenith','hundred blossoms','uch exilium','uch tide']);
 // Equipos de la UNIVERSIDAD ajenos a la organización: no son "competitivos externos", así que
 // sus jugadores NO llevan el tag "Competitivo" (pero tampoco se resaltan como nuestros).
 const UNI_TEAMS = new Set(['los 420']);
