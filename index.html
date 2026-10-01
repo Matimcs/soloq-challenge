@@ -489,6 +489,16 @@
   .mb-it{ width:16px; height:16px; border-radius:3px; background:#000; }
   .mb-it.e{ background:rgba(255,255,255,.05); }
   .pd-stats{ display:grid; grid-template-columns:repeat(auto-fill, minmax(140px,1fr)); gap:10px; }
+  .pd-duels{ margin-top:14px; }
+  .pd-duels-h{ font-size:12px; font-weight:800; letter-spacing:.02em; margin-bottom:7px; }
+  .pd-duels-h span{ font-size:11px; font-weight:600; color:var(--muted); letter-spacing:0; }
+  .dbar{ display:flex; height:30px; border-radius:9px; overflow:hidden; border:1px solid var(--line); }
+  .dbar-w, .dbar-l{ display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700; color:#05271d; min-width:0; transition:flex-grow .3s ease; white-space:nowrap; }
+  .dbar-w{ background:linear-gradient(90deg,#2fbd84,#34d399); }
+  .dbar-l{ background:linear-gradient(90deg,#fb7185,#e5546b); color:#2b0a10; }
+  .dbar-w b, .dbar-l b{ font-weight:800; margin-right:3px; }
+  .dbar-lbl{ display:flex; justify-content:space-between; font-size:10.5px; font-weight:700; margin-top:5px; }
+  .dbar-lbl .w{ color:var(--up); } .dbar-lbl .l{ color:var(--down); }
   .pd-stat{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; }
   .pd-stat .v{ font-size:20px; font-weight:800; font-variant-numeric:tabular-nums; }
   .pd-stat .v.pink{ color:#ff6ba6; } .pd-stat .v.gold{ color:var(--gold); } .pd-stat .v.orange{ color:#ff9d4a; } .pd-stat .v.up{ color:var(--up); }
@@ -1746,7 +1756,21 @@ function renderStats(c, data){
       <div class="pd-stat"><div class="v">${s.avgDurMin} min</div><div class="k">Duración media</div></div>
       <div class="pd-stat"><div class="v">${s.maxDurMin} min</div><div class="k">Más larga</div></div>
     </div>
+    ${duelsBar(data.duels)}
     <div class="pd-empty" style="margin-top:10px">La evolución de elo llegará con la ficha completa.</div>`;
+}
+// Barra de Duelos: izquierda = victorias (verde), derecha = derrotas (rojo), proporcional al %.
+function duelsBar(d){
+  if (!d || (d.w + d.l) === 0) return '';
+  const tot = d.w + d.l, wr = Math.round(d.w / tot * 100);
+  return `<div class="pd-duels">
+    <div class="pd-duels-h">⚔️ Duelos <span>vs otros participantes · ${tot} en total</span></div>
+    <div class="dbar">
+      <div class="dbar-w" style="flex-grow:${d.w}">${d.w ? `<b>${d.w}</b> V` : ''}</div>
+      <div class="dbar-l" style="flex-grow:${d.l}">${d.l ? `<b>${d.l}</b> D` : ''}</div>
+    </div>
+    <div class="dbar-lbl"><span class="w">${wr}% ganados</span><span class="l">${100-wr}% perdidos</span></div>
+  </div>`;
 }
 function renderPremios(c){ c.innerHTML = `<div class="pd-empty">Los Premios y objetivos están en la ficha completa. <a href="#" onclick="event.preventDefault();this.closest('.pd').querySelector('.pd-full').click()" style="color:var(--accent);font-weight:700">Ver ficha completa →</a></div>`; }
 function renderBS(c, data){

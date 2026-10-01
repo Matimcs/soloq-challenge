@@ -609,6 +609,19 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     }
   }
 
+  // Duelos: V/D del jugador contra OTROS participantes del torneo (en el equipo contrario).
+  let duels = null;
+  if (puuid){
+    const dr = await q(`SELECT mp1.win, count(*)::int n
+      FROM match_participants mp1
+      JOIN match_participants mp2 ON mp2.match_id = mp1.match_id AND mp2.is_tournament = true
+        AND mp2.puuid <> mp1.puuid AND mp2.team_id <> mp1.team_id AND coalesce(mp2.puuid,'') <> ''
+      WHERE mp1.puuid = $1 AND mp1.is_tournament = true AND coalesce(mp1.duration,0) >= 300
+      GROUP BY mp1.win`, [puuid]);
+    let w = 0, l = 0; dr.forEach(r => { if (r.win) w = r.n; else l = r.n; });
+    if (w + l > 0) duels = { w, l };
+  }
+
   // Blue Shells (si es un usuario registrado)
   let blueshells = null;
   if (u){
@@ -633,7 +646,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     w: lp ? lp.w : (stats?stats.wins:0), l: lp ? lp.l : (stats?stats.losses:0),
     form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
   };
-  res.json({ profile, history, stats, blueshells, ddragonVersion: liveData && liveData.ddragonVersion });
+  res.json({ profile, history, stats, duels, blueshells, ddragonVersion: liveData && liveData.ddragonVersion });
 }));
 
 // Scoreboard completo de una partida guardada (para el desglose "tipo live games").
