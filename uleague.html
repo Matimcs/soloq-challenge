@@ -381,7 +381,11 @@ let SIM=null;
 function simAbs(name){ const t=DATA.teams.find(x=>x.name===name); if(!t)return -1; const r=t.players.map(p=>p.rank&&p.rank.abs).filter(x=>x!=null); return r.length?r.reduce((a,b)=>a+b,0)/r.length:-1; }
 function simReset(){
   const teams={}; DATA.teams.forEach(t=>teams[t.name]={name:t.name,ours:t.ours,w:0,l:0,status:'live'});
-  const r1=((DATA.swiss[0]&&DATA.swiss[0].buckets[0])?DATA.swiss[0].buckets[0].matches:[]).map(m=>({a:m.a,b:m.b,w:null}));
+  // Las partidas de la Fase Suiza usan el nombre "canon" (p.ej. DUOC), pero los equipos van por
+  // nombre de display (DUOC UC). Mapeamos canon→display para que calcen y se registren bien.
+  const dispOf={}; DATA.teams.forEach(t=>{ dispOf[t.canon]=t.name; dispOf[t.name]=t.name; });
+  const fix=n=>dispOf[n]||n;
+  const r1=((DATA.swiss[0]&&DATA.swiss[0].buckets[0])?DATA.swiss[0].buckets[0].matches:[]).map(m=>({a:fix(m.a),b:fix(m.b),w:null}));
   SIM={teams, rounds:[{n:1,bo:'BO1',matches:r1}], bracket:null, phase:'swiss'};
   recomputeSwiss(); renderSim();
 }
