@@ -77,7 +77,7 @@ function grid(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankr
   for (const row of shEq){
     for (const col of COLS){
       const cell=(row[col]||'').trim(); if(!cell) continue;
-      if (teamSet.has(canon(cell))){ const t={ name:cell, canon:canon(cell), ours:OURS.has(cell), players:[] }; curByCol[col]=t; teams.push(t); }
+      if (teamSet.has(canon(cell))){ const disp=cell.replace(/^UTALCA\b/i,'UTAL'); const t={ name:disp, canon:canon(cell), ours:OURS.has(disp), players:[] }; curByCol[col]=t; teams.push(t); }
       else if (curByCol[col]) curByCol[col].players.push(cell);
     }
   }
