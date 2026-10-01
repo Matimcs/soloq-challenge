@@ -468,7 +468,7 @@ app.post('/api/bet-vote', auth, wrap(async (req,res) => {
 
 // Palmaditas de apoyo (contador compartido). El cooldown de 10 min es por navegador (cliente);
 // acá solo un throttle ligero por IP anti-spam.
-const PAT_ID = 'palmadita_yoyo';
+const PAT_ID = 'acaricia_matotomato';
 const _patLastIp = new Map();
 app.get('/api/palmadita', wrap(async (req,res) => {
   res.set('Cache-Control', 'no-store');

@@ -614,6 +614,7 @@
   .pat-body{ padding:13px 12px; text-align:center; }
   .pat-msg{ font-size:13.5px; color:var(--text); line-height:1.4; }
   .pat-msg .pat-lp{ color:var(--down); }
+  .pat-img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:12px; margin:10px 0 12px; display:block; }
   .pat-sub{ font-size:11px; color:var(--muted); margin:8px 0 12px; line-height:1.35; }
   .pat-btn{ width:100%; font-family:inherit; cursor:pointer; font-size:14px; font-weight:800; padding:10px; border-radius:10px; border:0; background:var(--up); color:#05271d; transition:transform .1s ease, filter .1s ease; }
   .pat-btn:hover:not(:disabled){ filter:brightness(1.08); }
@@ -629,14 +630,13 @@
 </head>
 <body>
 
-  <!-- Popup de apoyo: Palmadita para Yoyo -->
+  <!-- Popup: Acaricia a Matotomato -->
   <div id="pat-popup" class="hidden">
-    <div class="pat-h"><span>🫂</span><span class="t">APOYO</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
+    <div class="pat-h"><span>🐶</span><span class="t">ACARICIA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
     <div class="pat-body">
-      <div class="pat-msg"><b>Yoyo</b> perdió <b class="pat-lp">282 LP</b> en un día 😔</div>
-      <div class="pat-rank" id="pat-rank" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
-      <div class="pat-sub">Haz click en "Palmadita" para mandarle tu apoyo!</div>
-      <button class="pat-btn" id="pat-btn">👋 Palmadita</button>
+      <div class="pat-msg"><b>Acaricia a Matotomato</b></div>
+      <img class="pat-img" src="matotomato.webp" alt="Matotomato" loading="lazy">
+      <button class="pat-btn" id="pat-btn">🐾 Acariciar</button>
       <div class="pat-count" id="pat-count">—</div>
     </div>
   </div>
@@ -2003,35 +2003,25 @@ SQC.preNav(); SQC.mountNav();
 /* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
 if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 
-/* ===== Popup de apoyo: Palmadita para Yoyo (yoyo#box) ===== */
+/* ===== Popup: Acaricia a Matotomato ===== */
 (function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
   let closed = false; try { closed = localStorage.getItem('patClosed') === '1'; } catch (e) {}
   if (closed){ box.classList.add('hidden'); return; }
-  const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), rankEl = document.getElementById('pat-rank');
+  const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count');
   const COOLDOWN = 10 * 60 * 1000, KEY = 'patLast';
-  const APEX = new Set(['MASTER','GRANDMASTER','CHALLENGER']);
   let count = 0, timer = null;
-  // Rango actual de yoyo#box (se re-pinta cuando llegan datos frescos del ranking).
-  function paintRank(){
-    const P = (typeof PLAYERS !== 'undefined' && PLAYERS) || (window.DATA && DATA.players) || [];
-    const p = P.find(x => (x.rid||'').toLowerCase() === 'yoyo#box') || P.find(x => (x.nm||'').toLowerCase() === 'yoyobox');
-    if (!rankEl) return;
-    if (!p || !p.tier || p.tier === 'UNRANKED'){ rankEl.innerHTML = p ? 'Ahora: <b style="color:var(--text)">Unranked</b>' : ''; return; }
-    const nice = p.tier.charAt(0) + p.tier.slice(1).toLowerCase(); const div = (APEX.has(p.tier) || !p.div) ? '' : ' ' + p.div;
-    rankEl.innerHTML = `Ahora: <b style="color:var(--text)">${nice}${div} · ${p.lp||0} LP</b>`;
-  }
-  window.__patRank = paintRank;
+  window.__patRank = function(){};   // ya no se usa (lo llama el refresco del ranking)
   const lastPat = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
-  function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> palmadita${count===1?'':'s'} enviada${count===1?'':'s'}`; }
+  function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> caricia${count===1?'':'s'} enviada${count===1?'':'s'}`; }
   function refreshBtn(){
     const left = COOLDOWN - (Date.now() - lastPat());
     if (left > 0){ btn.disabled = true; const m = Math.floor(left/60000), s = Math.floor(left%60000/1000);
-      btn.textContent = `🫂 Gracias · ${m}:${String(s).padStart(2,'0')}`; clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
-    else { btn.disabled = false; btn.textContent = '👋 Palmadita'; clearTimeout(timer); }
+      btn.textContent = `🐾 Gracias · ${m}:${String(s).padStart(2,'0')}`; clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
+    else { btn.disabled = false; btn.textContent = '🐾 Acariciar'; clearTimeout(timer); }
   }
   function pop(){ const s = document.createElement('span'); s.className = 'pat-pop';
-    s.textContent = ['👏','🫂','💪','❤️','🙌'][Math.floor(Math.random()*5)];
+    s.textContent = ['🐶','🐾','❤️','🙌','😊'][Math.floor(Math.random()*5)];
     s.style.left = (12 + Math.random()*66) + '%'; s.style.bottom = '46px'; box.appendChild(s); setTimeout(() => s.remove(), 1000); }
   async function load(){ try { if (window.SQC && SQC.api){ const d = await SQC.api('/palmadita'); count = (d && d.count) || 0; paintCount(); } } catch (e) {} }
   async function send(){
@@ -2043,7 +2033,7 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   const x = document.getElementById('pat-x');
   if (x) x.addEventListener('click', () => { try { localStorage.setItem('patClosed', '1'); } catch (e) {} box.classList.add('hidden'); });
   btn.addEventListener('click', send);
-  box.classList.remove('hidden'); paintRank(); refreshBtn(); load();
+  box.classList.remove('hidden'); refreshBtn(); load();
 })();
 </script>
 </body>
