@@ -218,10 +218,11 @@
   /* ±LP */
   .dlp{ font-size:12px; font-weight:600; display:flex; gap:9px; font-variant-numeric:tabular-nums; }
   .dlp .u{ color:var(--up); } .dlp .d{ color:var(--down); }
+  .dlp.even .u, .dlp.even .d{ color:var(--gold); }   /* ni ganó ni perdió PL (quedó justo) */
 
   /* racha: sparkline de forma reciente */
   .spark{ width:72px; height:26px; overflow:visible; display:block; }
-  .spark.up{ color:var(--up); } .spark.down{ color:var(--down); }
+  .spark.up{ color:var(--up); } .spark.down{ color:var(--down); } .spark.flat{ color:var(--gold); }
   .spark polyline{ filter:drop-shadow(0 0 3px currentColor); }
 
   /* aegis (of valor): partidas con ~doble LP */
@@ -946,9 +947,10 @@ function sparkline(form){
     const yy = H - 2 - ((v - min) / range) * (H - 4);
     return `${x.toFixed(1)},${yy.toFixed(1)}`;
   });
-  const rising = pts[pts.length-1] >= pts[0];
+  const net = pts[pts.length-1] - pts[0];
+  const cls = net===0 ? 'flat' : (net>0 ? 'up' : 'down');   // plana (ni ganó ni perdió) → amarillo
   const [lx,ly] = coords[coords.length-1].split(',');
-  return `<svg class="spark ${rising?'up':'down'}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+  return `<svg class="spark ${cls}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <polyline points="${coords.join(' ')}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${lx}" cy="${ly}" r="2" fill="currentColor"/>
   </svg>`;
@@ -1025,7 +1027,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
       <td>${eloEl(p)}</td>
       <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
       <td>${sparkline(p.form)}</td>
-      <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
+      <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp ${(p.up===p.down && p.up>0)?'even':''}"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
       <td>${aegisEl(p.aegis)}</td>
       <td><a class="opgg" href="${opggUrl(p.rid)}" target="_blank" rel="noopener">OP.GG</a></td>
     </tr>`;
