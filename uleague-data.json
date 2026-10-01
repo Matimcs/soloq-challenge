@@ -3,7 +3,7 @@
  "edition": "Clausura 2026",
  "game": "League of Legends",
  "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
- "updatedAt": "2026-10-01T04:55:32.094Z",
+ "updatedAt": "2026-10-01T05:18:19.037Z",
  "startDate": "2026-10-03",
  "phases": [
   {
@@ -57,22 +57,50 @@
     {
      "rid": "1Žeus Tactico#최고신",
      "nm": "1Žeus Tactico",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 75,
+      "w": 25,
+      "l": 9,
+      "abs": 2375
+     }
     },
     {
      "rid": "kaii#adc",
      "nm": "kaii",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1303,
+      "w": 456,
+      "l": 427,
+      "abs": 4103
+     }
     },
     {
      "rid": "Ronin#33s",
      "nm": "Ronin",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 165,
+      "w": 44,
+      "l": 38,
+      "abs": 2965
+     }
     },
     {
      "rid": "KEKW 2023#LAS",
      "nm": "KEKW 2023",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 550,
+      "w": 151,
+      "l": 134,
+      "abs": 3350
+     }
     },
     {
      "rid": "Chivoo#Lupeeh",
@@ -89,37 +117,86 @@
     {
      "rid": "MD PASHEN#MDE",
      "nm": "MD PASHEN",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1004,
+      "w": 279,
+      "l": 180,
+      "abs": 3804
+     }
     },
     {
      "rid": "pablobk#LAS",
      "nm": "pablobk",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 43,
+      "w": 42,
+      "l": 29,
+      "abs": 2743
+     }
     },
     {
      "rid": "Cyanuro#Evlyn",
      "nm": "Cyanuro",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 75,
+      "w": 245,
+      "l": 252,
+      "abs": 2775
+     }
     },
     {
      "rid": "always deafen#LAS1",
      "nm": "always deafen",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 192,
+      "w": 150,
+      "l": 133,
+      "abs": 2992
+     }
     },
     {
      "rid": "Jechua20#2021",
      "nm": "Jechua20",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 20,
+      "w": 85,
+      "l": 106,
+      "abs": 2820
+     }
     },
     {
      "rid": "DK DestroyLonely#ALILY",
      "nm": "DK DestroyLonely",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 407,
+      "w": 419,
+      "l": 418,
+      "abs": 3207
+     }
     },
     {
      "rid": "XIVBlackbas#black",
      "nm": "XIVBlackbas",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 75,
+      "w": 343,
+      "l": 327,
+      "abs": 2775
+     }
     }
    ]
   },
@@ -131,32 +208,74 @@
     {
      "rid": "GTCJR#Nicky",
      "nm": "GTCJR",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 522,
+      "w": 124,
+      "l": 106,
+      "abs": 3322
+     }
     },
     {
      "rid": "God Peo#ATRIX",
      "nm": "God Peo",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 75,
+      "w": 167,
+      "l": 131,
+      "abs": 2775
+     }
     },
     {
      "rid": "Chickblo12#LAS",
      "nm": "Chickblo12",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 452,
+      "w": 470,
+      "l": 497,
+      "abs": 3252
+     }
     },
     {
      "rid": "yellowclaw#melou",
      "nm": "yellowclaw",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 368,
+      "w": 118,
+      "l": 105,
+      "abs": 3168
+     }
     },
     {
      "rid": "Jinllo#Mango",
      "nm": "Jinllo",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 3,
+      "w": 85,
+      "l": 75,
+      "abs": 2303
+     }
     },
     {
      "rid": "InsertName#Pog",
      "nm": "InsertName",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 75,
+      "w": 90,
+      "l": 75,
+      "abs": 2375
+     }
     }
    ]
   },
@@ -168,17 +287,38 @@
     {
      "rid": "DeadSky#LAS",
      "nm": "DeadSky",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 75,
+      "w": 11,
+      "l": 14,
+      "abs": 2375
+     }
     },
     {
      "rid": "Shoyo Yoshida#LAS",
      "nm": "Shoyo Yoshida",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 127,
+      "w": 45,
+      "l": 36,
+      "abs": 2927
+     }
     },
     {
      "rid": "rush P90 manito#LAS",
      "nm": "rush P90 manito",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "II",
+      "lp": 50,
+      "w": 14,
+      "l": 18,
+      "abs": 2250
+     }
     },
     {
      "rid": "Popet0n#LAS",
@@ -188,22 +328,50 @@
     {
      "rid": "Føxsen#666",
      "nm": "Føxsen",
-     "rank": null
+     "rank": {
+      "tier": "BRONZE",
+      "div": "II",
+      "lp": 0,
+      "w": 3,
+      "l": 7,
+      "abs": 600
+     }
     },
     {
      "rid": "Kursinho#GOD",
      "nm": "Kursinho",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "I",
+      "lp": 26,
+      "w": 19,
+      "l": 26,
+      "abs": 1926
+     }
     },
     {
      "rid": "nicolas0lavarria#LAS",
      "nm": "nicolas0lavarria",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 20,
+      "w": 131,
+      "l": 100,
+      "abs": 2820
+     }
     },
     {
      "rid": "Gekarmoh#TUSK",
      "nm": "Gekarmoh",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 25,
+      "w": 13,
+      "l": 16,
+      "abs": 2425
+     }
     }
    ]
   },
@@ -215,42 +383,98 @@
     {
      "rid": "Che copete#LoL",
      "nm": "Che copete",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 307,
+      "w": 329,
+      "l": 313,
+      "abs": 3107
+     }
     },
     {
      "rid": "Krok#DEUS",
      "nm": "Krok",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 964,
+      "w": 767,
+      "l": 747,
+      "abs": 3764
+     }
     },
     {
      "rid": "k1sseshugs#xoxo",
      "nm": "k1sseshugs",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 153,
+      "w": 445,
+      "l": 399,
+      "abs": 2953
+     }
     },
     {
      "rid": "Nadie#UCH",
      "nm": "Nadie",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 189,
+      "w": 125,
+      "l": 107,
+      "abs": 2989
+     }
     },
     {
      "rid": "Yoyobox#1899",
      "nm": "Yoyobox",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 51,
+      "w": 404,
+      "l": 394,
+      "abs": 2851
+     }
     },
     {
      "rid": "Muspe#777",
      "nm": "Muspe",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1150,
+      "w": 552,
+      "l": 545,
+      "abs": 3950
+     }
     },
     {
      "rid": "Miss All Sünday#WE0NA",
      "nm": "Miss All Sünday",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 314,
+      "w": 229,
+      "l": 202,
+      "abs": 3114
+     }
     },
     {
      "rid": "insano3000#unvio",
      "nm": "insano3000",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 83,
+      "w": 263,
+      "l": 258,
+      "abs": 2883
+     }
     }
    ]
   },
@@ -262,32 +486,74 @@
     {
      "rid": "Dekai#LAS",
      "nm": "Dekai",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 91,
+      "w": 36,
+      "l": 39,
+      "abs": 2691
+     }
     },
     {
      "rid": "Minitas Hunter#zzz",
      "nm": "Minitas Hunter",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 537,
+      "w": 184,
+      "l": 172,
+      "abs": 3337
+     }
     },
     {
      "rid": "Tathamet#LAS",
      "nm": "Tathamet",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 85,
+      "w": 20,
+      "l": 17,
+      "abs": 2585
+     }
     },
     {
      "rid": "Sunless#0410",
      "nm": "Sunless",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 984,
+      "w": 130,
+      "l": 108,
+      "abs": 3784
+     }
     },
     {
      "rid": "Lacosabuena#LAS",
      "nm": "Lacosabuena",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 222,
+      "w": 131,
+      "l": 125,
+      "abs": 3022
+     }
     },
     {
      "rid": "DeSean#Elba",
      "nm": "DeSean",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 30,
+      "w": 14,
+      "l": 12,
+      "abs": 2530
+     }
     }
    ]
   },
@@ -299,42 +565,98 @@
     {
      "rid": "Kriida#7777",
      "nm": "Kriida",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 325,
+      "w": 280,
+      "l": 273,
+      "abs": 3125
+     }
     },
     {
      "rid": "HudsonHornet#gueon",
      "nm": "HudsonHornet",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 253,
+      "w": 318,
+      "l": 289,
+      "abs": 3053
+     }
     },
     {
      "rid": "Petu#99999",
      "nm": "Petu",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 721,
+      "w": 289,
+      "l": 264,
+      "abs": 3521
+     }
     },
     {
      "rid": "vishh#LAS",
      "nm": "vishh",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 45,
+      "w": 375,
+      "l": 356,
+      "abs": 2845
+     }
     },
     {
      "rid": "Maio#BARD",
      "nm": "Maio",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 5,
+      "w": 406,
+      "l": 390,
+      "abs": 2705
+     }
     },
     {
      "rid": "Manuel#vlaki",
      "nm": "Manuel",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 832,
+      "w": 281,
+      "l": 247,
+      "abs": 3632
+     }
     },
     {
      "rid": "Jotaaaa#MLJS",
      "nm": "Jotaaaa",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "III",
+      "lp": 87,
+      "w": 600,
+      "l": 581,
+      "abs": 2187
+     }
     },
     {
      "rid": "carloco69#LAS",
      "nm": "carloco69",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 614,
+      "w": 425,
+      "l": 402,
+      "abs": 3414
+     }
     }
    ]
   },
@@ -346,37 +668,86 @@
     {
      "rid": "Plüs#SICK",
      "nm": "Plüs",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 800,
+      "w": 176,
+      "l": 135,
+      "abs": 3600
+     }
     },
     {
      "rid": "SionAntisionista#SAS",
      "nm": "SionAntisionista",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 698,
+      "w": 314,
+      "l": 301,
+      "abs": 3498
+     }
     },
     {
      "rid": "kıwı#wıkı",
      "nm": "kıwı",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 19,
+      "w": 214,
+      "l": 219,
+      "abs": 2419
+     }
     },
     {
      "rid": "matotomatoxd#LAS",
      "nm": "matotomatoxd",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 6,
+      "w": 334,
+      "l": 351,
+      "abs": 2506
+     }
     },
     {
      "rid": "Yutsero#LAS",
      "nm": "Yutsero",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 172,
+      "w": 433,
+      "l": 444,
+      "abs": 2972
+     }
     },
     {
      "rid": "Pumajuego#LAS",
      "nm": "Pumajuego",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 75,
+      "w": 395,
+      "l": 382,
+      "abs": 2775
+     }
     },
     {
      "rid": "henrymiller#379",
      "nm": "henrymiller",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 6,
+      "w": 98,
+      "l": 80,
+      "abs": 2406
+     }
     }
    ]
   },
@@ -388,27 +759,62 @@
     {
      "rid": "UCT Argonavth#LAS1",
      "nm": "UCT Argonavth",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1372,
+      "w": 315,
+      "l": 303,
+      "abs": 4172
+     }
     },
     {
      "rid": "UCT Eritro#666",
      "nm": "UCT Eritro",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1477,
+      "w": 177,
+      "l": 123,
+      "abs": 4277
+     }
     },
     {
      "rid": "UCT Das#PAPS",
      "nm": "UCT Das",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 83,
+      "w": 177,
+      "l": 185,
+      "abs": 2883
+     }
     },
     {
      "rid": "UCT soguzx#zzx",
      "nm": "UCT soguzx",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 145,
+      "w": 191,
+      "l": 165,
+      "abs": 2945
+     }
     },
     {
      "rid": "UCT Beusfy#00000",
      "nm": "UCT Beusfy",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 498,
+      "w": 123,
+      "l": 110,
+      "abs": 3298
+     }
     }
    ]
   },
@@ -420,32 +826,74 @@
     {
      "rid": "Vishete#LAS",
      "nm": "Vishete",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 17,
+      "w": 79,
+      "l": 63,
+      "abs": 2817
+     }
     },
     {
      "rid": "AleK#cueca",
      "nm": "AleK",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 91,
+      "w": 116,
+      "l": 121,
+      "abs": 2491
+     }
     },
     {
      "rid": "Jungla Holandés#1412",
      "nm": "Jungla Holandés",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 37,
+      "w": 166,
+      "l": 154,
+      "abs": 2437
+     }
     },
     {
      "rid": "SC JeanPolnareff#JOJO",
      "nm": "SC JeanPolnareff",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 24,
+      "w": 73,
+      "l": 61,
+      "abs": 2424
+     }
     },
     {
      "rid": "alvarorex777OMG#papoi",
      "nm": "alvarorex777OMG",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "II",
+      "lp": 32,
+      "w": 13,
+      "l": 14,
+      "abs": 2232
+     }
     },
     {
      "rid": "Duki#UwU",
      "nm": "Duki",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 23,
+      "w": 100,
+      "l": 91,
+      "abs": 2723
+     }
     }
    ]
   },
@@ -457,32 +905,74 @@
     {
      "rid": "getFrosted#151",
      "nm": "getFrosted",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 751,
+      "w": 410,
+      "l": 383,
+      "abs": 3551
+     }
     },
     {
      "rid": "michaelolise11#vamp",
      "nm": "michaelolise11",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 55,
+      "w": 219,
+      "l": 201,
+      "abs": 2855
+     }
     },
     {
      "rid": "Cherry#Aqua",
      "nm": "Cherry",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 165,
+      "w": 254,
+      "l": 239,
+      "abs": 2965
+     }
     },
     {
      "rid": "maxigod#6767",
      "nm": "maxigod",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 5,
+      "w": 79,
+      "l": 32,
+      "abs": 2805
+     }
     },
     {
      "rid": "Kiefer#LASS",
      "nm": "Kiefer",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 2546,
+      "w": 217,
+      "l": 101,
+      "abs": 5346
+     }
     },
     {
      "rid": "Jeff Bezos#LAS",
      "nm": "Jeff Bezos",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 39,
+      "w": 95,
+      "l": 87,
+      "abs": 2839
+     }
     }
    ]
   },
@@ -494,37 +984,86 @@
     {
      "rid": "Dakotah#T1WIN",
      "nm": "Dakotah",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "II",
+      "lp": 28,
+      "w": 146,
+      "l": 132,
+      "abs": 2228
+     }
     },
     {
      "rid": "n1llzinho#WASD",
      "nm": "n1llzinho",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 23,
+      "w": 196,
+      "l": 176,
+      "abs": 2323
+     }
     },
     {
      "rid": "Ðeepwokeη#Ys0",
      "nm": "Ðeepwokeη",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "I",
+      "lp": 67,
+      "w": 86,
+      "l": 85,
+      "abs": 1967
+     }
     },
     {
      "rid": "ChunRavel#NMCL",
      "nm": "ChunRavel",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 47,
+      "w": 368,
+      "l": 357,
+      "abs": 2447
+     }
     },
     {
      "rid": "Pequeño Capibara#hola",
      "nm": "Pequeño Capibara",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 22,
+      "w": 253,
+      "l": 233,
+      "abs": 2522
+     }
     },
     {
      "rid": "cachorrâo#sech",
      "nm": "cachorrâo",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 34,
+      "w": 25,
+      "l": 13,
+      "abs": 2534
+     }
     },
     {
      "rid": "DucktorMonty#baker",
      "nm": "DucktorMonty",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "IV",
+      "lp": 18,
+      "w": 79,
+      "l": 71,
+      "abs": 2018
+     }
     }
    ]
   },
@@ -536,22 +1075,50 @@
     {
      "rid": "3nder#ezzz",
      "nm": "3nder",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 204,
+      "w": 444,
+      "l": 441,
+      "abs": 3004
+     }
     },
     {
      "rid": "Rey Kimera#Never",
      "nm": "Rey Kimera",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 35,
+      "w": 167,
+      "l": 147,
+      "abs": 2835
+     }
     },
     {
      "rid": "exte#las",
      "nm": "exte",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 722,
+      "w": 197,
+      "l": 177,
+      "abs": 3522
+     }
     },
     {
      "rid": "fernanelcrack#4444",
      "nm": "fernanelcrack",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 657,
+      "w": 117,
+      "l": 82,
+      "abs": 3457
+     }
     },
     {
      "rid": "Đean#WILD",
@@ -561,17 +1128,38 @@
     {
      "rid": "Xander#017",
      "nm": "Xander",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1005,
+      "w": 185,
+      "l": 158,
+      "abs": 3805
+     }
     },
     {
      "rid": "Costo hundido#TTTTT",
      "nm": "Costo hundido",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 110,
+      "w": 395,
+      "l": 389,
+      "abs": 2910
+     }
     },
     {
      "rid": "Diegors#0000",
      "nm": "Diegors",
-     "rank": null
+     "rank": {
+      "tier": "GOLD",
+      "div": "II",
+      "lp": 62,
+      "w": 86,
+      "l": 82,
+      "abs": 1462
+     }
     }
    ]
   },
@@ -583,37 +1171,86 @@
     {
      "rid": "Pichito#LAS1",
      "nm": "Pichito",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1735,
+      "w": 217,
+      "l": 181,
+      "abs": 4535
+     }
     },
     {
      "rid": "Stargazer7#LAS",
      "nm": "Stargazer7",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1345,
+      "w": 428,
+      "l": 410,
+      "abs": 4145
+     }
     },
     {
      "rid": "Lukes#nvm",
      "nm": "Lukes",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1204,
+      "w": 146,
+      "l": 122,
+      "abs": 4004
+     }
     },
     {
      "rid": "Tynek#Kiss",
      "nm": "Tynek",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 53,
+      "w": 119,
+      "l": 110,
+      "abs": 2753
+     }
     },
     {
      "rid": "Dangeflow#Sebax",
      "nm": "Dangeflow",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 831,
+      "w": 369,
+      "l": 349,
+      "abs": 3631
+     }
     },
     {
      "rid": "Hebi#frost",
      "nm": "Hebi",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 411,
+      "w": 145,
+      "l": 133,
+      "abs": 3211
+     }
     },
     {
      "rid": "Chocolo#MSc",
      "nm": "Chocolo",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 190,
+      "w": 337,
+      "l": 342,
+      "abs": 2990
+     }
     }
    ]
   },
@@ -625,27 +1262,62 @@
     {
      "rid": "373#Ruby",
      "nm": "373",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1522,
+      "w": 339,
+      "l": 315,
+      "abs": 4322
+     }
     },
     {
      "rid": "lynko#005",
      "nm": "lynko",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 101,
+      "w": 507,
+      "l": 535,
+      "abs": 2901
+     }
     },
     {
      "rid": "Skadoonish#LAS1",
      "nm": "Skadoonish",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 555,
+      "w": 259,
+      "l": 256,
+      "abs": 3355
+     }
     },
     {
      "rid": "Οldest Dream#orv",
      "nm": "Οldest Dream",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 445,
+      "w": 412,
+      "l": 382,
+      "abs": 3245
+     }
     },
     {
      "rid": "Sant1n #kata",
      "nm": "Sant1n ",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 631,
+      "w": 380,
+      "l": 323,
+      "abs": 3431
+     }
     },
     {
      "rid": "Peter pyker #milo",
@@ -660,7 +1332,14 @@
     {
      "rid": "shutdownxzoe#LAS",
      "nm": "shutdownxzoe",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 75,
+      "w": 118,
+      "l": 110,
+      "abs": 2675
+     }
     }
    ]
   },
@@ -672,12 +1351,26 @@
     {
      "rid": "Kripistobal #USM",
      "nm": "Kripistobal ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 11,
+      "w": 445,
+      "l": 426,
+      "abs": 2611
+     }
     },
     {
      "rid": "Nachomater#CTLG",
      "nm": "Nachomater",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 20,
+      "w": 259,
+      "l": 246,
+      "abs": 2520
+     }
     },
     {
      "rid": "King mesura#kyuvst",
@@ -687,22 +1380,50 @@
     {
      "rid": "moonlight#16180",
      "nm": "moonlight",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 544,
+      "w": 214,
+      "l": 170,
+      "abs": 3344
+     }
     },
     {
      "rid": "Manjar Con Pann#LAS",
      "nm": "Manjar Con Pann",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 5,
+      "w": 141,
+      "l": 134,
+      "abs": 2805
+     }
     },
     {
      "rid": "Gravis#RYO",
      "nm": "Gravis",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 0,
+      "w": 140,
+      "l": 150,
+      "abs": 2800
+     }
     },
     {
      "rid": "Skelia#Homan",
      "nm": "Skelia",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 75,
+      "w": 135,
+      "l": 145,
+      "abs": 2375
+     }
     }
    ]
   },
@@ -719,37 +1440,86 @@
     {
      "rid": "Tapia4#LAS",
      "nm": "Tapia4",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 334,
+      "w": 247,
+      "l": 217,
+      "abs": 3134
+     }
     },
     {
      "rid": "Brechaqueo#las",
      "nm": "Brechaqueo",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 28,
+      "w": 40,
+      "l": 51,
+      "abs": 2428
+     }
     },
     {
      "rid": "PanConLimón #ALO",
      "nm": "PanConLimón ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 50,
+      "w": 326,
+      "l": 336,
+      "abs": 2550
+     }
     },
     {
      "rid": "lunanova #las",
      "nm": "lunanova ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 42,
+      "w": 449,
+      "l": 431,
+      "abs": 2742
+     }
     },
     {
      "rid": "mtrix #las1",
      "nm": "mtrix ",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 467,
+      "w": 145,
+      "l": 127,
+      "abs": 3267
+     }
     },
     {
      "rid": "soo ho #LAS",
      "nm": "soo ho ",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "III",
+      "lp": 22,
+      "w": 55,
+      "l": 58,
+      "abs": 1722
+     }
     },
     {
      "rid": "Josecontildenlae#JTA",
      "nm": "Josecontildenlae",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "II",
+      "lp": 79,
+      "w": 83,
+      "l": 78,
+      "abs": 2279
+     }
     }
    ]
   },
@@ -761,42 +1531,98 @@
     {
      "rid": "ˇ ˆ ˇ ˇ#unu",
      "nm": "ˇ ˆ ˇ ˇ",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 70,
+      "w": 70,
+      "l": 75,
+      "abs": 2870
+     }
     },
     {
      "rid": "GG No Tengo JG#3516",
      "nm": "GG No Tengo JG",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "IV",
+      "lp": 74,
+      "w": 85,
+      "l": 86,
+      "abs": 2074
+     }
     },
     {
      "rid": "Pucho#gosu",
      "nm": "Pucho",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 75,
+      "w": 204,
+      "l": 208,
+      "abs": 2875
+     }
     },
     {
      "rid": "Sejoy0#8677",
      "nm": "Sejoy0",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 106,
+      "w": 147,
+      "l": 142,
+      "abs": 2906
+     }
     },
     {
      "rid": "Kaniewest#MBDTF",
      "nm": "Kaniewest",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 102,
+      "w": 547,
+      "l": 527,
+      "abs": 2902
+     }
     },
     {
      "rid": "Harry Kayn#9999",
      "nm": "Harry Kayn",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 42,
+      "w": 381,
+      "l": 359,
+      "abs": 2542
+     }
     },
     {
      "rid": "Zoro220#LAS",
      "nm": "Zoro220",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "II",
+      "lp": 57,
+      "w": 45,
+      "l": 40,
+      "abs": 2257
+     }
     },
     {
      "rid": "N N #172",
      "nm": "N N ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 75,
+      "w": 165,
+      "l": 132,
+      "abs": 2675
+     }
     }
    ]
   },
@@ -808,37 +1634,86 @@
     {
      "rid": "MarceSato#T T",
      "nm": "MarceSato",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1228,
+      "w": 442,
+      "l": 423,
+      "abs": 4028
+     }
     },
     {
      "rid": "Francesco FIUUU#LAS",
      "nm": "Francesco FIUUU",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 95,
+      "w": 117,
+      "l": 82,
+      "abs": 2895
+     }
     },
     {
      "rid": "cow#bored",
      "nm": "cow",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1146,
+      "w": 229,
+      "l": 192,
+      "abs": 3946
+     }
     },
     {
      "rid": "Kindless #0804",
      "nm": "Kindless ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 75,
+      "w": 157,
+      "l": 114,
+      "abs": 2775
+     }
     },
     {
      "rid": "Jisoo#y11",
      "nm": "Jisoo",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 20,
+      "w": 77,
+      "l": 67,
+      "abs": 2820
+     }
     },
     {
      "rid": "P u n c h#Pain",
      "nm": "P u n c h",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1319,
+      "w": 288,
+      "l": 239,
+      "abs": 4119
+     }
     },
     {
      "rid": "keria 1 completo #las",
      "nm": "keria 1 completo ",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 783,
+      "w": 281,
+      "l": 284,
+      "abs": 3583
+     }
     }
    ]
   },
@@ -850,37 +1725,86 @@
     {
      "rid": "KarmaYikes#9722",
      "nm": "KarmaYikes",
-     "rank": null
+     "rank": {
+      "tier": "IRON",
+      "div": "III",
+      "lp": 87,
+      "w": 63,
+      "l": 88,
+      "abs": 187
+     }
     },
     {
      "rid": "Laval#LAS",
      "nm": "Laval",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 408,
+      "w": 347,
+      "l": 338,
+      "abs": 3208
+     }
     },
     {
      "rid": "José José#gmhrd",
      "nm": "José José",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 94,
+      "w": 112,
+      "l": 104,
+      "abs": 2494
+     }
     },
     {
      "rid": "Dargus#mvp",
      "nm": "Dargus",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 75,
+      "w": 45,
+      "l": 43,
+      "abs": 2375
+     }
     },
     {
      "rid": "King Geedorah#DOOOM",
      "nm": "King Geedorah",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 244,
+      "w": 250,
+      "l": 237,
+      "abs": 3044
+     }
     },
     {
      "rid": "Elchocolaton#CTM",
      "nm": "Elchocolaton",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "III",
+      "lp": 3,
+      "w": 27,
+      "l": 26,
+      "abs": 1703
+     }
     },
     {
      "rid": "VICHOHACK#LAS",
      "nm": "VICHOHACK",
-     "rank": null
+     "rank": {
+      "tier": "GOLD",
+      "div": "I",
+      "lp": 86,
+      "w": 57,
+      "l": 49,
+      "abs": 1586
+     }
     }
    ]
   },
@@ -892,22 +1816,50 @@
     {
      "rid": "Flipy #Loop",
      "nm": "Flipy ",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "III",
+      "lp": 28,
+      "w": 125,
+      "l": 121,
+      "abs": 1728
+     }
     },
     {
      "rid": "Creampy#XDD",
      "nm": "Creampy",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 0,
+      "w": 319,
+      "l": 304,
+      "abs": 2800
+     }
     },
     {
      "rid": "Cero#9189",
      "nm": "Cero",
-     "rank": null
+     "rank": {
+      "tier": "GOLD",
+      "div": "IV",
+      "lp": 1,
+      "w": 58,
+      "l": 58,
+      "abs": 1201
+     }
     },
     {
      "rid": "sech987#LAS",
      "nm": "sech987",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "II",
+      "lp": 27,
+      "w": 107,
+      "l": 107,
+      "abs": 1827
+     }
     },
     {
      "rid": "IElCocosLOK1",
@@ -922,12 +1874,26 @@
     {
      "rid": "Ogg#aaa",
      "nm": "Ogg",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "III",
+      "lp": 49,
+      "w": 39,
+      "l": 37,
+      "abs": 1749
+     }
     },
     {
      "rid": "merluzini #135BP",
      "nm": "merluzini ",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "IV",
+      "lp": 0,
+      "w": 56,
+      "l": 69,
+      "abs": 2000
+     }
     }
    ]
   },
@@ -939,27 +1905,62 @@
     {
      "rid": "mon laferte fan #salvi",
      "nm": "mon laferte fan ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 62,
+      "w": 164,
+      "l": 128,
+      "abs": 2662
+     }
     },
     {
      "rid": "Hustl333r#Preda",
      "nm": "Hustl333r",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 316,
+      "w": 146,
+      "l": 141,
+      "abs": 3116
+     }
     },
     {
      "rid": "Gridmi#viktr",
      "nm": "Gridmi",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1095,
+      "w": 274,
+      "l": 242,
+      "abs": 3895
+     }
     },
     {
      "rid": "Rico#TEA",
      "nm": "Rico",
-     "rank": null
+     "rank": {
+      "tier": "GOLD",
+      "div": "I",
+      "lp": 16,
+      "w": 61,
+      "l": 62,
+      "abs": 1516
+     }
     },
     {
      "rid": "donatello #MID17",
      "nm": "donatello ",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 253,
+      "w": 265,
+      "l": 257,
+      "abs": 3053
+     }
     },
     {
      "rid": "⁦shelao⁩#⁦SSS⁩",
@@ -976,32 +1977,74 @@
     {
      "rid": "NEEDB12#LAS1",
      "nm": "NEEDB12",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 146,
+      "w": 511,
+      "l": 516,
+      "abs": 2946
+     }
     },
     {
      "rid": "Ñandú#snsc",
      "nm": "Ñandú",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 195,
+      "w": 117,
+      "l": 71,
+      "abs": 2995
+     }
     },
     {
      "rid": "Fax flm#LAS",
      "nm": "Fax flm",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 910,
+      "w": 315,
+      "l": 289,
+      "abs": 3710
+     }
     },
     {
      "rid": "Koelliu#111",
      "nm": "Koelliu",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1130,
+      "w": 520,
+      "l": 503,
+      "abs": 3930
+     }
     },
     {
      "rid": "Moma#420",
      "nm": "Moma",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 462,
+      "w": 187,
+      "l": 167,
+      "abs": 3262
+     }
     },
     {
      "rid": "noon#030",
      "nm": "noon",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 793,
+      "w": 240,
+      "l": 219,
+      "abs": 3593
+     }
     }
    ]
   },
@@ -1013,37 +2056,86 @@
     {
      "rid": "Multiwaifus#ADO",
      "nm": "Multiwaifus",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 602,
+      "w": 454,
+      "l": 440,
+      "abs": 3402
+     }
     },
     {
      "rid": "Lolnes#LAS",
      "nm": "Lolnes",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 36,
+      "w": 209,
+      "l": 216,
+      "abs": 2836
+     }
     },
     {
      "rid": "Moruga#jg777",
      "nm": "Moruga",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 382,
+      "w": 264,
+      "l": 256,
+      "abs": 3182
+     }
     },
     {
      "rid": "Nibbamin#LACRA",
      "nm": "Nibbamin",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1170,
+      "w": 338,
+      "l": 306,
+      "abs": 3970
+     }
     },
     {
      "rid": "Bedless#Sashi",
      "nm": "Bedless",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1457,
+      "w": 143,
+      "l": 102,
+      "abs": 4257
+     }
     },
     {
      "rid": "Benjitapro2010#DAT",
      "nm": "Benjitapro2010",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1150,
+      "w": 208,
+      "l": 183,
+      "abs": 3950
+     }
     },
     {
      "rid": "hikeN#hkn",
      "nm": "hikeN",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 536,
+      "w": 183,
+      "l": 156,
+      "abs": 3336
+     }
     }
    ]
   },
@@ -1055,32 +2147,74 @@
     {
      "rid": "Brazil1anGod#BRA",
      "nm": "Brazil1anGod",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 277,
+      "w": 195,
+      "l": 185,
+      "abs": 3077
+     }
     },
     {
      "rid": "Posséidon#nnnnn",
      "nm": "Posséidon",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 35,
+      "w": 236,
+      "l": 219,
+      "abs": 2635
+     }
     },
     {
      "rid": "yungvfx#666",
      "nm": "yungvfx",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 654,
+      "w": 311,
+      "l": 279,
+      "abs": 3454
+     }
     },
     {
      "rid": "LLEFLIGHT CHOA #CHOA",
      "nm": "LLEFLIGHT CHOA ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 38,
+      "w": 73,
+      "l": 84,
+      "abs": 2638
+     }
     },
     {
      "rid": "B castro G#castr",
      "nm": "B castro G",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 278,
+      "w": 139,
+      "l": 117,
+      "abs": 3078
+     }
     },
     {
      "rid": "Alee#31426",
      "nm": "Alee",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 18,
+      "w": 175,
+      "l": 160,
+      "abs": 2518
+     }
     }
    ]
   },
@@ -1092,37 +2226,86 @@
     {
      "rid": "Insomnia#eve",
      "nm": "Insomnia",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 86,
+      "w": 263,
+      "l": 272,
+      "abs": 2686
+     }
     },
     {
      "rid": "LUCARIOH#LAS",
      "nm": "LUCARIOH",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 0,
+      "w": 190,
+      "l": 171,
+      "abs": 2400
+     }
     },
     {
      "rid": "Escr0Tit0#CLP",
      "nm": "Escr0Tit0",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 44,
+      "w": 185,
+      "l": 171,
+      "abs": 2544
+     }
     },
     {
      "rid": "Barlon#meeps",
      "nm": "Barlon",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 75,
+      "w": 92,
+      "l": 79,
+      "abs": 2675
+     }
     },
     {
      "rid": "Duho#ftit",
      "nm": "Duho",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 20,
+      "w": 41,
+      "l": 38,
+      "abs": 2720
+     }
     },
     {
      "rid": "Rchay Erome#Richi",
      "nm": "Rchay Erome",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "II",
+      "lp": 98,
+      "w": 173,
+      "l": 151,
+      "abs": 2298
+     }
     },
     {
      "rid": "6 lukas justas#kuroh",
      "nm": "6 lukas justas",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 75,
+      "w": 155,
+      "l": 144,
+      "abs": 2675
+     }
     }
    ]
   },
@@ -1134,32 +2317,74 @@
     {
      "rid": "Reybeys #krkas",
      "nm": "Reybeys ",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "IV",
+      "lp": 65,
+      "w": 24,
+      "l": 22,
+      "abs": 2065
+     }
     },
     {
      "rid": "Green2030#LAS",
      "nm": "Green2030",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 45,
+      "w": 160,
+      "l": 143,
+      "abs": 2345
+     }
     },
     {
      "rid": "Ninja Precoz #Zen",
      "nm": "Ninja Precoz ",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "III",
+      "lp": 28,
+      "w": 99,
+      "l": 85,
+      "abs": 2128
+     }
     },
     {
      "rid": "Gatitomancer#FAKER",
      "nm": "Gatitomancer",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 39,
+      "w": 58,
+      "l": 63,
+      "abs": 2439
+     }
     },
     {
      "rid": "Yose#1983",
      "nm": "Yose",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 35,
+      "w": 199,
+      "l": 186,
+      "abs": 2635
+     }
     },
     {
      "rid": "Sexmund Freud#FREUD",
      "nm": "Sexmund Freud",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 39,
+      "w": 37,
+      "l": 41,
+      "abs": 2639
+     }
     }
    ]
   },
@@ -1171,32 +2396,74 @@
     {
      "rid": "majalejeman#las",
      "nm": "majalejeman",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "II",
+      "lp": 59,
+      "w": 172,
+      "l": 172,
+      "abs": 1859
+     }
     },
     {
      "rid": "elsrgatito#las",
      "nm": "elsrgatito",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "IV",
+      "lp": 79,
+      "w": 75,
+      "l": 67,
+      "abs": 1679
+     }
     },
     {
      "rid": "eternallamb#las",
      "nm": "eternallamb",
-     "rank": null
+     "rank": {
+      "tier": "PLATINUM",
+      "div": "IV",
+      "lp": 69,
+      "w": 65,
+      "l": 72,
+      "abs": 1669
+     }
     },
     {
      "rid": "matikuri#las",
      "nm": "matikuri",
-     "rank": null
+     "rank": {
+      "tier": "GOLD",
+      "div": "I",
+      "lp": 55,
+      "w": 48,
+      "l": 42,
+      "abs": 1555
+     }
     },
     {
      "rid": "Kurosãki Ichigo #Enf",
      "nm": "Kurosãki Ichigo ",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "III",
+      "lp": 8,
+      "w": 85,
+      "l": 82,
+      "abs": 2108
+     }
     },
     {
      "rid": "panconquezo318#lpg",
      "nm": "panconquezo318",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "IV",
+      "lp": 96,
+      "w": 90,
+      "l": 74,
+      "abs": 2096
+     }
     }
    ]
   },
@@ -1208,32 +2475,74 @@
     {
      "rid": "UC Xiao#1313",
      "nm": "UC Xiao",
-     "rank": null
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 75,
+      "w": 9,
+      "l": 8,
+      "abs": 2375
+     }
     },
     {
      "rid": "UC Neøn#6253",
      "nm": "UC Neøn",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 375,
+      "w": 194,
+      "l": 198,
+      "abs": 3175
+     }
     },
     {
      "rid": "UC alexkidd#TKL",
      "nm": "UC alexkidd",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 639,
+      "w": 223,
+      "l": 198,
+      "abs": 3439
+     }
     },
     {
      "rid": "Cookie#M505",
      "nm": "Cookie",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 544,
+      "w": 162,
+      "l": 145,
+      "abs": 3344
+     }
     },
     {
      "rid": "Heza#perry",
      "nm": "Heza",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 1277,
+      "w": 256,
+      "l": 207,
+      "abs": 4077
+     }
     },
     {
      "rid": "dEHuMAnizEd#susu",
      "nm": "dEHuMAnizEd",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 923,
+      "w": 161,
+      "l": 114,
+      "abs": 3723
+     }
     },
     {
      "rid": "Cuish#001",
@@ -1243,7 +2552,14 @@
     {
      "rid": "chovski#LAS",
      "nm": "chovski",
-     "rank": null
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1931,
+      "w": 246,
+      "l": 200,
+      "abs": 4731
+     }
     }
    ]
   },
@@ -1255,17 +2571,38 @@
     {
      "rid": "UC Rash #UCR",
      "nm": "UC Rash ",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 274,
+      "w": 341,
+      "l": 348,
+      "abs": 3074
+     }
     },
     {
      "rid": "mijoyy#top",
      "nm": "mijoyy",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 597,
+      "w": 155,
+      "l": 120,
+      "abs": 3397
+     }
     },
     {
      "rid": "Demerzel#1999",
      "nm": "Demerzel",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 7,
+      "w": 461,
+      "l": 472,
+      "abs": 2707
+     }
     },
     {
      "rid": "Jøseabaran⁩#⁦LAS⁩",
@@ -1275,22 +2612,50 @@
     {
      "rid": "despair#enso",
      "nm": "despair",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 121,
+      "w": 290,
+      "l": 272,
+      "abs": 2921
+     }
     },
     {
      "rid": "Maben#CLP",
      "nm": "Maben",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 998,
+      "w": 327,
+      "l": 292,
+      "abs": 3798
+     }
     },
     {
      "rid": "mitsu #rinri",
      "nm": "mitsu ",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "III",
+      "lp": 80,
+      "w": 261,
+      "l": 269,
+      "abs": 2580
+     }
     },
     {
      "rid": "JUDINI#cafe",
      "nm": "JUDINI",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 637,
+      "w": 700,
+      "l": 667,
+      "abs": 3437
+     }
     }
    ]
   },
@@ -1302,32 +2667,74 @@
     {
      "rid": "Winteroh#pupu",
      "nm": "Winteroh",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 18,
+      "w": 46,
+      "l": 33,
+      "abs": 2718
+     }
     },
     {
      "rid": "Benlox44#LAS",
      "nm": "Benlox44",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 228,
+      "w": 167,
+      "l": 162,
+      "abs": 3028
+     }
     },
     {
      "rid": "hide on papoi#PAPOI",
      "nm": "hide on papoi",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "IV",
+      "lp": 0,
+      "w": 143,
+      "l": 137,
+      "abs": 2400
+     }
     },
     {
      "rid": "fragnight#LAS",
      "nm": "fragnight",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 75,
+      "w": 56,
+      "l": 57,
+      "abs": 2675
+     }
     },
     {
      "rid": "DatCursed#LAS",
      "nm": "DatCursed",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 348,
+      "w": 325,
+      "l": 319,
+      "abs": 3148
+     }
     },
     {
      "rid": "Kasane Teto#xdlol",
      "nm": "Kasane Teto",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 188,
+      "w": 156,
+      "l": 165,
+      "abs": 2988
+     }
     }
    ]
   },
@@ -1339,27 +2746,62 @@
     {
      "rid": "Tank#PSQ",
      "nm": "Tank",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 75,
+      "w": 293,
+      "l": 270,
+      "abs": 2675
+     }
     },
     {
      "rid": "xXporotosXx#LAS",
      "nm": "xXporotosXx",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 671,
+      "w": 360,
+      "l": 337,
+      "abs": 3471
+     }
     },
     {
      "rid": "Pollococoman#POIO",
      "nm": "Pollococoman",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 40,
+      "w": 289,
+      "l": 270,
+      "abs": 2840
+     }
     },
     {
      "rid": "wonder#lass1",
      "nm": "wonder",
-     "rank": null
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 365,
+      "w": 204,
+      "l": 161,
+      "abs": 3165
+     }
     },
     {
      "rid": "Fiurius#LAS",
      "nm": "Fiurius",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "I",
+      "lp": 95,
+      "w": 293,
+      "l": 307,
+      "abs": 2795
+     }
     },
     {
      "rid": "_almohada",
@@ -1369,12 +2811,26 @@
     {
      "rid": "Shirou Ogami#1111",
      "nm": "Shirou Ogami",
-     "rank": null
+     "rank": {
+      "tier": "GRANDMASTER",
+      "div": "",
+      "lp": 965,
+      "w": 234,
+      "l": 218,
+      "abs": 3765
+     }
     },
     {
      "rid": "alliez#las",
      "nm": "alliez",
-     "rank": null
+     "rank": {
+      "tier": "DIAMOND",
+      "div": "II",
+      "lp": 34,
+      "w": 37,
+      "l": 12,
+      "abs": 2634
+     }
     }
    ]
   }

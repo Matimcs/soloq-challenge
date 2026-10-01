@@ -111,24 +111,60 @@
   .brow .seed{ font-size:9px; color:var(--muted-2); font-weight:800; width:16px; }
   .brow .bn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
-  /* Equipos */
-  .teams-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
-  .tcard{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  .tcard.ours{ border-color:rgba(125,211,252,.35); background:linear-gradient(180deg,rgba(43,108,255,.07),transparent); }
-  .tcard-h{ display:flex; align-items:center; gap:10px; padding:11px 13px; border-bottom:1px solid var(--line); }
-  .tcard-h .t{ font-size:14px; font-weight:800; } .tcard.ours .tcard-h .t{ color:var(--blue); }
-  .tcard-h .us{ margin-left:auto; font-size:9px; font-weight:800; color:#001; background:var(--blue); padding:2px 7px; border-radius:5px; }
-  .tcard ul{ list-style:none; }
-  .tcard li{ display:flex; align-items:center; gap:8px; padding:7px 13px; border-top:1px solid rgba(255,255,255,.04); font-size:12.5px; }
-  .tcard li:first-child{ border-top:none; }
-  .tcard li .pn{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .tcard li .rk{ margin-left:auto; font-size:10.5px; font-weight:700; flex:0 0 auto; }
+  /* Equipos — estilo rosters (como UDPORROS) */
+  .tgrp-h{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--blue); margin:24px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .tgrp-h:first-child{ margin-top:6px; }
+  .rosters{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  @media(max-width:820px){ .rosters{ grid-template-columns:1fr; } }
+  .rcard{ background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
+  .rcard.ours{ border-color:rgba(125,211,252,.4); }
+  .rcard-h{ display:flex; align-items:center; gap:10px; padding:14px 16px; background:linear-gradient(180deg, rgba(255,255,255,.05), transparent); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .rcard.ours .rcard-h{ background:linear-gradient(180deg, rgba(43,108,255,.16), rgba(43,108,255,.03)); }
+  .rcard-h .rt{ font-size:16px; font-weight:800; }
+  .rcard.ours .rcard-h .rt{ color:var(--blue); }
+  .rcard-h .us{ font-size:9px; font-weight:800; color:#001; background:var(--blue); padding:2px 7px; border-radius:5px; }
+  .rcard-h .ri{ font-size:10.5px; color:var(--muted-2); font-weight:700; margin-left:auto; text-align:right; }
+  .rcard-h .ravg{ font-size:10.5px; font-weight:800; padding:2px 9px; border-radius:999px; background:rgba(255,255,255,.06); border:1px solid var(--line-2); white-space:nowrap; }
+  .rcard-h .opgg{ font-size:9.5px; font-weight:800; color:var(--blue); border:1px solid rgba(125,211,252,.45); background:rgba(125,211,252,.08); padding:3px 8px; border-radius:6px; text-decoration:none; white-space:nowrap; }
+  .rcard-h .opgg:hover{ background:rgba(125,211,252,.18); }
+  .rlist{ list-style:none; }
+  .rlist li{ display:flex; align-items:center; gap:11px; padding:10px 16px; border-top:1px solid rgba(255,255,255,.05); }
+  .rlist li:first-child{ border-top:none; }
+  .rlist .logo{ width:22px; height:22px; }
+  .rlist .rinfo{ min-width:0; flex:1; }
+  .rlist .rn{ font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rlist .rid{ font-size:10.5px; color:var(--muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rlist .rk{ margin-left:auto; text-align:right; flex-shrink:0; }
+  .rlist .rk .tier{ font-size:11.5px; font-weight:800; }
+  .rlist .rk .lp{ font-size:10px; color:var(--muted); }
+  .rempty{ color:var(--muted); font-size:12.5px; padding:16px; text-align:center; }
 
   /* Simulación */
-  .sim-ctrls{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .sim-ctrls{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
   .btn{ font-family:inherit; cursor:pointer; border-radius:10px; padding:10px 16px; font-size:13px; font-weight:800; border:1px solid var(--line-2); background:var(--panel); color:#fff; }
   .btn.primary{ background:var(--accent); color:#000; border-color:var(--accent); }
   .btn.blue{ background:linear-gradient(90deg,#2b6cff,#7dd3fc); color:#001; border-color:transparent; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  /* match clickeable */
+  .srow{ background:var(--panel); border:1px solid var(--line); border-radius:11px; display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; overflow:hidden; margin-bottom:8px; }
+  .steam{ display:flex; align-items:center; gap:8px; padding:9px 12px; font-size:13px; font-weight:700; cursor:pointer; min-width:0; }
+  .steam.r{ flex-direction:row-reverse; text-align:right; }
+  .steam:hover{ background:rgba(255,255,255,.05); }
+  .steam.won{ background:rgba(52,211,153,.16); color:var(--up); }
+  .steam.lost{ color:var(--muted-2); }
+  .steam.ours{ color:var(--blue); } .steam.won.ours{ color:var(--up); }
+  .steam .smn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .steam.empty{ color:var(--muted-2); cursor:default; } .steam.empty:hover{ background:none; }
+  .svs{ display:flex; align-items:center; padding:0 10px; font-size:10px; font-weight:800; color:var(--muted-2); background:rgba(255,255,255,.03); }
+  .sbye{ font-size:10px; color:var(--muted-2); font-weight:800; }
+  .sround{ margin-bottom:16px; }
+  .sround-h{ font-size:11px; font-weight:800; letter-spacing:.04em; color:var(--muted-2); text-transform:uppercase; margin:0 2px 8px; display:flex; justify-content:space-between; }
+  .sround-h .bo{ color:var(--gold); }
+  .scol-wrap{ display:grid; grid-template-columns:1fr 1fr; gap:10px; } @media(max-width:680px){ .scol-wrap{ grid-template-columns:1fr; } }
+  .sbucket-h{ font-size:10px; font-weight:800; color:var(--gold); margin:2px 0 6px; }
+  .sstat{ display:flex; gap:6px; flex-wrap:wrap; margin:4px 0 14px; }
+  .sstat .b{ font-size:11px; font-weight:800; padding:3px 9px; border-radius:999px; border:1px solid var(--line-2); }
+  .sstat .b.q{ color:var(--up); border-color:rgba(52,211,153,.4); } .sstat .b.e{ color:var(--down); border-color:rgba(251,113,133,.35); } .sstat .b.l{ color:var(--muted); }
   .btn:hover{ filter:brightness(1.08); }
   .sim-note{ font-size:12.5px; color:var(--muted); margin:-4px 0 14px; line-height:1.5; }
   .champ{ text-align:center; padding:20px; background:linear-gradient(180deg,rgba(255,210,74,.14),transparent); border:1px solid rgba(255,210,74,.3); border-radius:16px; margin-bottom:18px; }
@@ -307,75 +343,152 @@ function renderPlayoffs(){
     `<div class="sect-h">Calendario</div><div class="timeline">${DATA.phases.filter(p=>p.key!=='suiza').map(p=>`<div class="phase"><div class="pn">${esc(p.name)}</div><div class="pd">${esc(p.dates)}</div><div class="pf">${esc(p.format)}</div></div>`).join('')}</div>`;
 }
 
-// ================= EQUIPOS =================
+// ================= EQUIPOS (rosters estilo UDPORROS) =================
+const TN_ES=['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], DN_ES=['IV','III','II','I'];
+function absFmt(abs){ if(abs==null) return null; if(abs>=2800) return 'Maestro '+(abs-2800)+' LP';
+  const ti=Math.min(6,Math.floor(abs/400)), rem=abs-ti*400, di=Math.min(3,Math.floor(rem/100)), lp=rem-di*100;
+  return TN_ES[ti]+' '+DN_ES[di]+' '+lp+' LP'; }
+function playerRow(p){
+  const nm=p.nm||(p.rid||'').split('#')[0]; const r=rankStr(p.rank);
+  return `<li>${logo(nm,false)}
+    <div class="rinfo"><div class="rn">${esc(nm)}</div><div class="rid">${esc(p.rid||'')}</div></div>
+    <div class="rk">${r?`<div class="tier" style="color:${r.c}">${esc(r.t)}</div>`:`<div class="tier" style="color:var(--muted-2);font-weight:700">Unranked</div>`}</div></li>`;
+}
+function teamCard(t){
+  const pls = t.players.slice().sort((a,b)=> ((b.rank&&b.rank.abs)||-1) - ((a.rank&&a.rank.abs)||-1));
+  const ranked = pls.filter(p=>p.rank&&p.rank.abs!=null);
+  const avg = ranked.length ? Math.round(ranked.reduce((s,p)=>s+p.rank.abs,0)/ranked.length) : null;
+  const avgBadge = avg!=null ? `<span class="ravg" title="Elo promedio del equipo">Prom <b>${esc(absFmt(avg))}</b></span>` : '';
+  const rids = t.players.map(p=>(p.rid||'').trim()).filter(Boolean);
+  const multi = 'https://www.op.gg/multisearch/las?summoners=' + rids.map(r=>encodeURIComponent(r)).join(',');
+  const opgg = rids.length ? `<a class="opgg" href="${multi}" target="_blank" rel="noopener" title="Ver el equipo completo en OP.GG">OP.GG</a>` : '';
+  return `<div class="rcard ${t.ours?'ours':''}"><div class="rcard-h">
+      ${logo(t.name,t.ours)}<span class="rt">${esc(t.name)}</span>${t.ours?'<span class="us">LA CHILE</span>':''}
+      ${avgBadge}${opgg}<span class="ri">${t.players.length} jug</span></div>
+    <ul class="rlist">${pls.map(playerRow).join('')||'<div class="rempty">Sin jugadores.</div>'}</ul></div>`;
+}
 function renderEquipos(){
-  const teams = DATA.teams.slice().sort((a,b)=> (b.ours-a.ours) || a.name.localeCompare(b.name));
-  const cards = teams.map(t=>{
-    const lis = t.players.map(p=>{ const nm=p.nm||(p.rid||'').split('#')[0]; const r=rankStr(p.rank);
-      return `<li>${logo(nm,false)}<span class="pn">${esc(nm)}</span>${r?`<span class="rk" style="color:${r.c}">${esc(r.t)}</span>`:`<span class="rk" style="color:var(--muted-2)">—</span>`}</li>`; }).join('');
-    return `<div class="tcard ${t.ours?'ours':''}"><div class="tcard-h">${logo(t.name,t.ours)}<span class="t">${esc(t.name)}</span>${t.ours?'<span class="us">LA CHILE</span>':''}</div><ul>${lis}</ul></div>`;
-  }).join('');
-  $('#tab-equipos').innerHTML = `<div class="sect-h">Equipos y rosters · ${teams.length} equipos · rangos a la última sincronización</div><div class="teams-grid">${cards}</div>`;
+  const ours = DATA.teams.filter(t=>t.ours).sort((a,b)=>a.name.localeCompare(b.name));
+  const rest = DATA.teams.filter(t=>!t.ours).sort((a,b)=>a.name.localeCompare(b.name));
+  const grp = (title,list)=> list.length ? `<div class="tgrp-h">${title}</div><div class="rosters">${list.map(teamCard).join('')}</div>` : '';
+  $('#tab-equipos').innerHTML =
+    `<div class="sect-h">Equipos y rosters · ${DATA.teams.length} equipos · multi-búsqueda OP.GG por equipo · rangos a la última sincronización</div>`
+    + grp('🔵 LA CHILE (UCH)', ours) + grp('RESTO DE EQUIPOS', rest);
 }
 
-// ================= SIMULACIÓN =================
-function simSwiss(){
-  // 32 equipos; suizo por récord; gana 3 clasifica, pierde 3 elimina.
-  let teams = DATA.teams.map(t=>({ name:t.name, ours:t.ours, w:0, l:0, done:null }));
-  const rnd = a => a.sort(()=>Math.random()-.5);
-  for(let round=1; round<=5; round++){
-    const live = teams.filter(t=>t.done===null);
-    const byRec = {};
-    live.forEach(t=>{ const k=t.w+'-'+t.l; (byRec[k]=byRec[k]||[]).push(t); });
-    Object.values(byRec).forEach(group=>{ rnd(group);
-      for(let i=0;i+1<group.length;i+=2){ const A=group[i],B=group[i+1];
-        const aw = Math.random()<0.5; (aw?A:B).w++; (aw?B:A).l++; }
-      // bye si impar
-    });
-    teams.forEach(t=>{ if(t.done===null){ if(t.w>=3)t.done='q'; else if(t.l>=3)t.done='e'; } });
-  }
-  const qual = teams.filter(t=>t.done==='q'||t.w>=3);
-  return { teams, qual: qual.slice(0,16) };
-}
-function simBracket(qual){
-  // seed por récord (3-0 arriba), sorteo simple; Bo3 single elim + 3er lugar
-  const seeded = qual.slice().sort((a,b)=> (b.w-a.w)||(a.l-b.l)).map((t,i)=>({...t,seed:i+1}));
-  const play=(a,b)=> Math.random()<0.5?a:b;
-  const pair=arr=>{ const out=[]; for(let i=0;i<arr.length/2;i++){ out.push([arr[i],arr[arr.length-1-i]]); } return out; };
-  let oct = pair(seeded);
-  const octR = oct.map(([a,b])=>({a:a.name,b:b.name,sa:'#'+a.seed,sb:'#'+b.seed,w:play(a,b).name,_a:a,_b:b}));
-  const qTeams = octR.map(m=> m.w===m.a?m._a:m._b);
-  let cua = pair(qTeams.sort((a,b)=>a.seed-b.seed));
-  const cuaR = cua.map(([a,b])=>({a:a.name,b:b.name,w:play(a,b).name,_a:a,_b:b}));
-  const sTeams = cuaR.map(m=> m.w===m.a?m._a:m._b);
-  let sem = pair(sTeams.sort((a,b)=>a.seed-b.seed));
-  const semR = sem.map(([a,b])=>({a:a.name,b:b.name,w:play(a,b).name,_a:a,_b:b}));
-  const fTeams = semR.map(m=> m.w===m.a?m._a:m._b);
-  const finR = [{a:fTeams[0].name,b:fTeams[1].name,w:play(fTeams[0],fTeams[1]).name}];
-  const champ = finR[0].w;
-  return { octavos:octR, cuartos:cuaR, semis:semR, final:finR, champ };
-}
+// ================= SIMULACIÓN INTERACTIVA (tú eliges los ganadores) =================
 let SIM=null;
-function renderSim(){
-  $('#tab-sim').innerHTML = `<div class="sect-h">Simulación completa · Suiza → Top 16 → Playoffs</div>
-    <div class="sim-note">Simula la Fase Suiza (sorteos por récord) y los playoffs al mejor de 3. Es aleatorio — dale a "Simular" las veces que quieras para ver escenarios.</div>
-    <div class="sim-ctrls">
-      <button class="btn blue" id="sim-run">🎲 Simular torneo completo</button>
-      <button class="btn" id="sim-clear">Limpiar</button></div>
-    <div id="sim-out"></div>`;
-  $('#sim-run').onclick = () => { const s=simSwiss(); const br=simBracket(s.qual); SIM={s,br}; paintSim(); };
-  $('#sim-clear').onclick = () => { SIM=null; $('#sim-out').innerHTML=''; };
-  if(SIM) paintSim();
+function simAbs(name){ const t=DATA.teams.find(x=>x.name===name); if(!t)return -1; const r=t.players.map(p=>p.rank&&p.rank.abs).filter(x=>x!=null); return r.length?r.reduce((a,b)=>a+b,0)/r.length:-1; }
+function simReset(){
+  const teams={}; DATA.teams.forEach(t=>teams[t.name]={name:t.name,ours:t.ours,w:0,l:0,status:'live'});
+  const r1=((DATA.swiss[0]&&DATA.swiss[0].buckets[0])?DATA.swiss[0].buckets[0].matches:[]).map(m=>({a:m.a,b:m.b,w:null}));
+  SIM={teams, rounds:[{n:1,bo:'BO1',matches:r1}], bracket:null, phase:'swiss'};
+  recomputeSwiss(); renderSim();
 }
-function paintSim(){
-  const {s,br}=SIM;
-  const champOurs=isOurs(br.champ);
-  const qTable = s.qual.sort((a,b)=>(b.w-a.w)||(a.l-b.l)).map((t,i)=>
-    `<tr class="${t.ours?'ours':''}"><td class="c">${i+1}</td><td class="nm">${logo(t.name,t.ours)} ${esc(t.name)}</td><td class="c">${t.w}-${t.l}</td></tr>`).join('');
-  $('#sim-out').innerHTML =
-    `<div class="champ"><div class="lbl">🏆 Campeón simulado</div><div class="nm ${champOurs?'ours':''}">${esc(br.champ)}</div></div>`+
-    `<div class="sect-h">Bracket simulado</div><div class="bracket">${bracketCols(br)}</div>`+
-    `<div class="sect-h">Top 16 (Fase Suiza)</div><table class="stand"><thead><tr><th>#</th><th>Equipo</th><th class="c">Récord</th></tr></thead><tbody>${qTable}</tbody></table>`;
+function recomputeSwiss(){
+  Object.values(SIM.teams).forEach(t=>{t.w=0;t.l=0;t.status='live';});
+  SIM.rounds.forEach(rd=>rd.matches.forEach(m=>{ if(m.w){ const lo=m.w===m.a?m.b:m.a; if(SIM.teams[m.w])SIM.teams[m.w].w++; if(lo&&lo!=='(bye)'&&SIM.teams[lo])SIM.teams[lo].l++; } }));
+  Object.values(SIM.teams).forEach(t=>{ if(t.w>=3)t.status='q'; else if(t.l>=3)t.status='e'; });
+}
+const roundDone = rd => rd.matches.length>0 && rd.matches.every(m=>m.w);
+function nextSwissRound(){
+  const last=SIM.rounds[SIM.rounds.length-1]; if(!roundDone(last))return;
+  recomputeSwiss();
+  const live=Object.values(SIM.teams).filter(t=>t.status==='live'); if(!live.length)return;
+  const played=new Set(); SIM.rounds.forEach(rd=>rd.matches.forEach(m=>{played.add(m.a+'|'+m.b);played.add(m.b+'|'+m.a);}));
+  const byRec={}; live.forEach(t=>{const k=t.w+'-'+t.l;(byRec[k]=byRec[k]||[]).push(t);});
+  const matches=[];
+  Object.keys(byRec).sort().reverse().forEach(k=>{ const g=byRec[k].slice().sort((a,b)=>simAbs(b.name)-simAbs(a.name));
+    while(g.length>1){ const a=g.shift(); let j=0; while(j<g.length&&played.has(a.name+'|'+g[j].name))j++; if(j>=g.length)j=0; const b=g.splice(j,1)[0]; matches.push({a:a.name,b:b.name,w:null,rec:k}); }
+    if(g.length) matches.push({a:g[0].name,b:'(bye)',w:g[0].name,rec:k}); });
+  const n=SIM.rounds.length+1;
+  SIM.rounds.push({n, bo:(n<=2?'BO1':'BO3'), matches});
+  recomputeSwiss(); renderSim();
+}
+function qualifiedList(){ return Object.values(SIM.teams).filter(t=>t.status==='q'); }
+function buildBracket(){
+  const seeded=qualifiedList().sort((a,b)=>(b.w-a.w)||(a.l-b.l)||simAbs(b.name)-simAbs(a.name)).slice(0,16).map((t,i)=>({name:t.name,seed:i+1}));
+  if(seeded.length<16)return;
+  const oct=[]; for(let i=0;i<8;i++) oct.push({a:seeded[i].name,b:seeded[15-i].name,sa:seeded[i].seed,sb:seeded[15-i].seed,w:null});
+  SIM.bracket={octavos:oct,cuartos:[],semis:[],final:[],tercer:[]}; SIM.phase='bracket';
+  recomputeBracket(); renderSim();
+}
+const winOf=m=>m&&m.w?m.w:null, loseOf=m=>m&&m.w?(m.w===m.a?m.b:m.a):null;
+function keepM(prev,a,b){ return {a,b,w:(prev&&prev.w&&(prev.w===a||prev.w===b))?prev.w:null}; }
+function recomputeBracket(){ const b=SIM.bracket;
+  const cu=[]; for(let i=0;i<4;i++) cu.push(keepM(b.cuartos[i],winOf(b.octavos[2*i]),winOf(b.octavos[2*i+1]))); b.cuartos=cu;
+  const se=[]; for(let i=0;i<2;i++) se.push(keepM(b.semis[i],winOf(b.cuartos[2*i]),winOf(b.cuartos[2*i+1]))); b.semis=se;
+  b.final=[keepM(b.final[0],winOf(b.semis[0]),winOf(b.semis[1]))];
+  b.tercer=[keepM(b.tercer[0],loseOf(b.semis[0]),loseOf(b.semis[1]))];
+}
+// clicks (delegación)
+function onSimClick(e){ const el=e.target.closest('[data-pick]'); if(!el)return; const pick=el.getAttribute('data-pick');
+  if(el.dataset.r!=null){ const rd=SIM.rounds[+el.dataset.r], m=rd.matches[+el.dataset.i]; if(m.b==='(bye)')return; m.w=(m.w===pick?null:pick); recomputeSwiss(); renderSim(); }
+  else if(el.dataset.br){ const arr=SIM.bracket[el.dataset.br], m=arr[+el.dataset.i]; if(!m.a||!m.b)return; m.w=(m.w===pick?null:pick); recomputeBracket(); renderSim(); } }
+function autofill(){ // ayuda: completa lo que falte al azar
+  if(SIM.phase==='swiss'){ let guard=0; while(guard++<40){ const last=SIM.rounds[SIM.rounds.length-1];
+      last.matches.forEach(m=>{ if(!m.w&&m.b!=='(bye)') m.w=Math.random()<.5?m.a:m.b; }); recomputeSwiss();
+      if(qualifiedList().length>=16){ buildBracket(); break; } if(!Object.values(SIM.teams).some(t=>t.status==='live')) break; nextSwissRound(); } }
+  if(SIM.phase==='bracket'){ ['octavos','cuartos','semis','final','tercer'].forEach(k=>{ (SIM.bracket[k]||[]).forEach(m=>{ if(m.a&&m.b&&!m.w)m.w=Math.random()<.5?m.a:m.b; }); recomputeBracket(); }); renderSim(); }
+}
+// render de un partido clickeable
+function sMatch(a,b,w,attrs){
+  const chip=(name,side)=>{ if(!name) return `<div class="steam empty ${side}">—</div>`;
+    if(name==='(bye)') return `<div class="steam empty ${side}"><span class="sbye">BYE</span></div>`;
+    const won=w===name, lost=w&&w!==name, ou=isOurs(name);
+    return `<div class="steam ${side} ${won?'won':''} ${lost?'lost':''} ${ou?'ours':''}" data-pick="${esc(name)}" ${attrs}>${logo(name,ou)}<span class="smn">${esc(name)}</span></div>`; };
+  return `<div class="srow">${chip(a,'')}<span class="svs">VS</span>${chip(b,'r')}</div>`;
+}
+function renderSim(){
+  if(!SIM){ $('#tab-sim').innerHTML=`<div class="sect-h">Simulación · elige tú los ganadores</div>
+    <div class="sim-note">Proyecta cómo debería terminar el torneo: haz click en el equipo que crees que gana cada partido y el cuadro avanza solo (Suiza → Top 16 → playoffs Bo3).</div>
+    <div class="sim-ctrls"><button class="btn blue" id="sim-start">▶ Empezar simulación</button></div>`;
+    $('#sim-start').onclick=simReset; return; }
+  const ctrls=`<div class="sim-ctrls">
+    <button class="btn" id="sim-reset">↺ Reiniciar</button>
+    <button class="btn" id="sim-auto">🎲 Autocompletar lo que falte</button>
+    ${SIM.phase==='swiss' && qualifiedList().length>=16?'<button class="btn blue" id="sim-po">🏆 Ir a Playoffs</button>':''}
+  </div>`;
+  let body;
+  if(SIM.phase==='swiss') body=renderSimSwiss(); else body=renderSimBracket();
+  $('#tab-sim').innerHTML=`<div class="sect-h">Simulación · elige tú los ganadores</div>
+    <div class="sim-note">Haz click en el equipo que crees que gana. En la Suiza: gana 3 → Top 16, pierde 3 → fuera. Los emparejamientos de cada ronda se arman por récord (como el torneo).</div>${ctrls}${body}`;
+  const g=id=>document.getElementById(id);
+  if(g('sim-reset'))g('sim-reset').onclick=simReset;
+  if(g('sim-auto'))g('sim-auto').onclick=autofill;
+  if(g('sim-po'))g('sim-po').onclick=buildBracket;
+  const tab=$('#tab-sim'); if(!tab._simBound){ tab._simBound=true; tab.addEventListener('click',onSimClick); }
+}
+function renderSimSwiss(){
+  const q=qualifiedList().length, e=Object.values(SIM.teams).filter(t=>t.status==='e').length, live=32-q-e;
+  const stat=`<div class="sstat"><span class="b q">Clasificados ${q}/16</span><span class="b e">Eliminados ${e}</span><span class="b l">En juego ${live}</span></div>`;
+  const rounds=SIM.rounds.map((rd,ri)=>{
+    const byRec={}; rd.matches.forEach((m,mi)=>{ const k=m.rec||'0-0'; (byRec[k]=byRec[k]||[]).push({m,mi}); });
+    const cols=Object.keys(byRec).sort().reverse().map(k=>`<div><div class="sbucket-h">Récord ${esc(k)}</div>`+
+      byRec[k].map(({m,mi})=>sMatch(m.a,m.b,m.w,`data-r="${ri}" data-i="${mi}"`)).join('')+`</div>`).join('');
+    const canNext = ri===SIM.rounds.length-1 && roundDone(rd) && live>0 && q<16;
+    return `<div class="sround"><div class="sround-h"><span>Ronda ${rd.n}</span><span class="bo">${rd.bo}</span></div>
+      <div class="scol-wrap">${cols}</div>
+      ${canNext?`<div style="margin-top:10px"><button class="btn primary" id="sim-next">Generar Ronda ${rd.n+1} →</button></div>`:''}</div>`;
+  }).join('');
+  setTimeout(()=>{ const n=document.getElementById('sim-next'); if(n)n.onclick=nextSwissRound; },0);
+  return stat+rounds;
+}
+function renderSimBracket(){
+  const b=SIM.bracket;
+  const champ = b.final[0] && b.final[0].w;
+  const col=(title,arr,key)=>`<div class="bcol"><div class="bcol-h">${title}</div>`+
+    (arr.length?arr:[{}]).map((m,i)=>sMatchBr(m,key,i)).join('')+`</div>`;
+  const brk=`<div class="bracket">${col('Octavos',b.octavos,'octavos')}${col('Cuartos',b.cuartos,'cuartos')}${col('Semis',b.semis,'semis')}${col('Final',b.final,'final')}</div>`;
+  const tercer=`<div class="sect-h">3er lugar</div>${sMatchBr(b.tercer[0]||{},'tercer',0)}`;
+  const champBox = champ?`<div class="champ"><div class="lbl">🏆 Campeón proyectado</div><div class="nm ${isOurs(champ)?'ours':''}">${esc(champ)}</div></div>`:'';
+  return champBox+brk+tercer;
+}
+function sMatchBr(m,key,i){ m=m||{};
+  const chip=(name)=>{ if(!name)return `<div class="brow"><span class="bn" style="color:var(--muted-2)">Por definir</span></div>`;
+    const won=m.w===name, ou=isOurs(name);
+    return `<div class="brow ${won?'win':''} ${ou?'ours':''}" data-pick="${esc(name)}" data-br="${key}" data-i="${i}" style="cursor:pointer">${m.sa&&name===m.a?'<span class=seed>#'+m.sa+'</span>':(m.sb&&name===m.b?'<span class=seed>#'+m.sb+'</span>':'')}<span class="bn">${esc(name)}</span></div>`; };
+  return `<div class="bmatch">${chip(m.a)}${chip(m.b)}</div>`;
 }
 
 // ================= TABS =================
