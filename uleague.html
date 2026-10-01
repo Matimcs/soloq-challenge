@@ -83,9 +83,13 @@
   .match{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid rgba(255,255,255,.04); font-size:13px; }
   .match:first-child{ border-top:none; }
   .match .tm{ font-weight:700; display:flex; align-items:center; gap:7px; min-width:0; }
-  .match .tm.r{ justify-content:flex-end; text-align:right; }
-  .match .tm.win{ color:var(--up); } .match .tm.lose{ color:var(--muted-2); }
-  .match .tm.ours{ color:var(--blue); }
+  .match .tm.r{ justify-content:flex-end; }
+  .match .tmx{ display:flex; flex-direction:column; min-width:0; }
+  .match .tm.r .tmx{ align-items:flex-end; text-align:right; }
+  .match .tfull{ font-size:12px; font-weight:700; line-height:1.15; }
+  .match .tcode{ font-size:9px; font-weight:800; color:var(--muted-2); letter-spacing:.02em; }
+  .match .tm.win .tfull{ color:var(--up); } .match .tm.lose .tfull{ color:var(--muted-2); }
+  .match .tm.ours .tfull{ color:var(--blue); }
   .match .vs{ font-size:10px; color:var(--muted-2); font-weight:800; }
   .logo{ width:20px; height:20px; border-radius:5px; display:grid; place-items:center; font-size:9px; font-weight:800; flex:0 0 auto; }
   .empty-note{ text-align:center; color:var(--muted); font-size:13px; padding:28px 10px; background:var(--panel); border:1px dashed var(--line-2); border-radius:14px; }
@@ -118,6 +122,10 @@
   /* Equipos — estilo rosters (como UDPORROS) */
   .tgrp-h{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--blue); margin:24px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
   .tgrp-h:first-child{ margin-top:6px; }
+  .eq-search{ width:100%; font-family:inherit; font-size:14.5px; padding:12px 15px; margin-bottom:6px; border-radius:12px;
+    border:1px solid var(--line-2); background:var(--panel-2); color:var(--text); }
+  .eq-search:focus{ outline:none; border-color:var(--blue); box-shadow:0 0 0 2px rgba(125,211,252,.18); }
+  .eq-search::placeholder{ color:var(--muted-2); }
   .rosters{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
   @media(max-width:820px){ .rosters{ grid-template-columns:1fr; } }
   .rcard{ background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
@@ -314,10 +322,11 @@ function teamStatus(team){ // récord actual y estado deducido del último bucke
 }
 function matchRow(m){
   const oa=isOurs(m.a), ob=isOurs(m.b);
+  const txt=name=>`<div class="tmx"><div class="tfull">${esc(univFull(name))}</div><div class="tcode">${esc(name)}</div></div>`;
   return `<div class="match">
-    <div class="tm r ${oa?'ours':''}">${esc(m.a)} ${logo(m.a,oa)}</div>
+    <div class="tm r ${oa?'ours':''}">${txt(m.a)}${logo(m.a,oa)}</div>
     <div class="vs">VS</div>
-    <div class="tm ${ob?'ours':''}">${logo(m.b,ob)} ${esc(m.b)}</div></div>`;
+    <div class="tm ${ob?'ours':''}">${logo(m.b,ob)}${txt(m.b)}</div></div>`;
 }
 function renderSuiza(){
   const rtabs = DATA.swiss.map(r=>{ const n=r.buckets.reduce((s,b)=>s+b.matches.length,0);
@@ -388,13 +397,28 @@ function teamCard(t){
       ${avgBadge}${opgg}<span class="ri">${t.players.length} jug</span></div>
     <ul class="rlist">${pls.map(playerRow).join('')||'<div class="rempty">Sin jugadores.</div>'}</ul></div>`;
 }
-function renderEquipos(){
-  const ours = DATA.teams.filter(t=>t.ours).sort((a,b)=>a.name.localeCompare(b.name));
-  const rest = DATA.teams.filter(t=>!t.ours).sort((a,b)=>a.name.localeCompare(b.name));
+function eqMatch(t, q){
+  if (!q) return true;
+  const hay = [t.name, univFull(t.name), ...t.players.map(p=>p.nm||''), ...t.players.map(p=>p.rid||'')].join(' · ').toLowerCase();
+  return hay.includes(q);
+}
+function renderEqResults(q){
+  q = (q||'').trim().toLowerCase();
+  const ours = DATA.teams.filter(t=>t.ours && eqMatch(t,q)).sort((a,b)=>a.name.localeCompare(b.name));
+  const rest = DATA.teams.filter(t=>!t.ours && eqMatch(t,q)).sort((a,b)=>a.name.localeCompare(b.name));
   const grp = (title,list)=> list.length ? `<div class="tgrp-h">${title}</div><div class="rosters">${list.map(teamCard).join('')}</div>` : '';
+  const total = ours.length + rest.length;
+  $('#eq-results').innerHTML = total
+    ? (grp('🔵 LA CHILE (UCH)', ours) + grp('RESTO DE EQUIPOS', rest))
+    : `<div class="empty-note">Sin resultados para "${esc(q)}".</div>`;
+}
+function renderEquipos(){
   $('#tab-equipos').innerHTML =
-    `<div class="sect-h">Equipos y rosters · ${DATA.teams.length} equipos · multi-búsqueda OP.GG por equipo · rangos a la última sincronización</div>`
-    + grp('🔵 LA CHILE (UCH)', ours) + grp('RESTO DE EQUIPOS', rest);
+    `<div class="sect-h">Equipos y rosters · ${DATA.teams.length} equipos · multi-búsqueda OP.GG por equipo</div>
+     <input id="eq-search" class="eq-search" type="search" placeholder="🔎 Busca por jugador, sigla del equipo (UCH A) o universidad…" autocomplete="off">
+     <div id="eq-results"></div>`;
+  const inp = $('#eq-search'); if (inp) inp.addEventListener('input', () => renderEqResults(inp.value));
+  renderEqResults('');
 }
 
 // ================= SIMULACIÓN INTERACTIVA (tú eliges los ganadores) =================
