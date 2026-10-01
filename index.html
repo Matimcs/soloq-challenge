@@ -880,11 +880,14 @@ function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_
 // Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está en un torneo, se considera
 // "Competitivo" por defecto — SALVO nuestros 4 equipos UChile (no son competitivos externos).
 const OUR_TEAMS = new Set(['uch zenith','hundred blossoms','uch exilium','uch tide']);
+// Equipos de la UNIVERSIDAD ajenos a la organización: no son "competitivos externos", así que
+// sus jugadores NO llevan el tag "Competitivo" (pero tampoco se resaltan como nuestros).
+const UNI_TEAMS = new Set(['los 420']);
 function ptagOf(rid){
   const explicit = PTAGS[(rid||'').toLowerCase()] || PTAGS[nrid(rid)];
   if (explicit) return explicit;
-  const t = tourneyOf(rid);
-  if (t && !OUR_TEAMS.has((t.team||'').toLowerCase())) return 'COMPETITIVO';
+  const t = tourneyOf(rid); const tm = (t && t.team || '').toLowerCase();
+  if (t && !OUR_TEAMS.has(tm) && !UNI_TEAMS.has(tm)) return 'COMPETITIVO';
   return null;
 }
 async function loadTourneyTags(){

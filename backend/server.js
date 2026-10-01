@@ -1481,6 +1481,10 @@ app.get('/api/stats', wrap(async (req, res) => {
   const verdugos = Object.entries(verd).map(([pkey, s]) => ({ ...pmeta(pkey), wins: s.wins, duels: s.duels,
       wr: s.duels ? Math.round(s.wins / s.duels * 100) : 0 }))
     .sort((a, b) => b.wins - a.wins || b.wr - a.wr).slice(0, 12);
+  // Antónimo de VERDUGOS: más DERROTAS contra otros participantes (wins=derrotas aquí, wr=% de derrota).
+  const victimas = Object.entries(verd).map(([pkey, s]) => ({ ...pmeta(pkey), wins: s.duels - s.wins, duels: s.duels,
+      wr: s.duels ? Math.round((s.duels - s.wins) / s.duels * 100) : 0 }))
+    .sort((a, b) => b.wins - a.wins || b.wr - a.wr).slice(0, 12);
   const duelos = Object.values(duel).filter(d => d.aw + d.bw > 0)
     .map(d => ({ a: pmeta(d.a), b: pmeta(d.b), aw: d.aw, bw: d.bw, together: d.together }))
     .sort((x, y) => (y.aw + y.bw) - (x.aw + x.bw)).slice(0, 30);
@@ -1594,7 +1598,7 @@ app.get('/api/stats', wrap(async (req, res) => {
     }
   }
 
-  STATS_CACHE.data = { tops, elo: { subidones, bajones, series, avgSeries }, coincidencias: { count: coincCount, verdugos, duelos, duosBest, duosWorst, historial }, contrincantes: { best: rivalesBest, worst: rivalesWorst } };
+  STATS_CACHE.data = { tops, elo: { subidones, bajones, series, avgSeries }, coincidencias: { count: coincCount, verdugos, victimas, duelos, duosBest, duosWorst, historial }, contrincantes: { best: rivalesBest, worst: rivalesWorst } };
   STATS_CACHE.at = Date.now();
   res.json(STATS_CACHE.data);
 }));
