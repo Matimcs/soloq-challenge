@@ -635,7 +635,7 @@
     <div class="pat-h"><span>🐶</span><span class="t">ACARICIA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
     <div class="pat-body">
       <div class="pat-msg"><b>Acaricia a Matotomato</b></div>
-      <img class="pat-img" src="matotomato.webp" alt="Matotomato" loading="lazy">
+      <img class="pat-img" id="pat-img" src="matotomato-triste.webp" alt="Matotomato" loading="lazy">
       <button class="pat-btn" id="pat-btn">🐾 Acariciar</button>
       <div class="pat-count" id="pat-count">—</div>
     </div>
@@ -2008,8 +2008,9 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   const box = document.getElementById('pat-popup'); if (!box) return;
   let closed = false; try { closed = localStorage.getItem('patClosed') === '1'; } catch (e) {}
   if (closed){ box.classList.add('hidden'); return; }
-  const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count');
+  const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
   const COOLDOWN = 10 * 60 * 1000, KEY = 'patLast';
+  const IMG_SAD = 'matotomato-triste.webp', IMG_HAPPY = 'matotomato.webp';
   let count = 0, timer = null;
   window.__patRank = function(){};   // ya no se usa (lo llama el refresco del ranking)
   const lastPat = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
@@ -2017,8 +2018,11 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   function refreshBtn(){
     const left = COOLDOWN - (Date.now() - lastPat());
     if (left > 0){ btn.disabled = true; const m = Math.floor(left/60000), s = Math.floor(left%60000/1000);
-      btn.textContent = `🐾 Gracias · ${m}:${String(s).padStart(2,'0')}`; clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
-    else { btn.disabled = false; btn.textContent = '🐾 Acariciar'; clearTimeout(timer); }
+      btn.textContent = `🐾 Gracias · ${m}:${String(s).padStart(2,'0')}`;
+      if (imgEl && !imgEl.src.endsWith(IMG_HAPPY)) imgEl.src = IMG_HAPPY;   // acariciado → feliz
+      clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
+    else { btn.disabled = false; btn.textContent = '🐾 Acariciar'; clearTimeout(timer);
+      if (imgEl && !imgEl.src.endsWith(IMG_SAD)) imgEl.src = IMG_SAD; }   // se puede acariciar → triste
   }
   function pop(){ const s = document.createElement('span'); s.className = 'pat-pop';
     s.textContent = ['🐶','🐾','❤️','🙌','😊'][Math.floor(Math.random()*5)];
