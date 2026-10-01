@@ -17,9 +17,14 @@ const PUUID_CACHE = path.join(__dirname, 'puuid-cache.json');
 // herramienta y quedan en uleague-data.json. NO toca el tracker principal (players.json).
 const WANT_RANKS = !process.argv.includes('--no-ranks');
 const CLUSTER = 'americas', PLATFORM = 'la2';
-// Lee la key de Riot desde backend/.env (no se commitea).
-let RIOT_KEY = process.env.RIOT_API_KEY || '';
-try { if(!RIOT_KEY) fs.readFileSync(path.join(__dirname,'..','..','backend','.env'),'utf8').split('\n').forEach(l=>{const m=l.match(/^\s*RIOT_API_KEY\s*=\s*(.*)\s*$/); if(m) RIOT_KEY=m[1].replace(/^["']|["']$/g,'').trim();}); } catch {}
+// Lee la key de Riot desde backend/.env (no se commitea). uLeague usa su PROPIA key
+// (ULEAGUE_RIOT_KEY, la de torneos) para no competir con el runner principal.
+let RIOT_KEY = process.env.ULEAGUE_RIOT_KEY || '';
+try {
+  const env = {};
+  fs.readFileSync(path.join(__dirname,'..','..','backend','.env'),'utf8').split('\n').forEach(l=>{const m=l.match(/^\s*([\w.]+)\s*=\s*(.*)\s*$/); if(m) env[m[1]]=m[2].replace(/^["']|["']$/g,'').trim();});
+  if(!RIOT_KEY) RIOT_KEY = env.ULEAGUE_RIOT_KEY || env.RIOT_API_KEY || '';
+} catch {}
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 async function riot(url){ for(let tries=0;tries<4;tries++){ const buf=await getRaw(url,{'X-Riot-Token':RIOT_KEY});
   if(buf.status===429){ const wait=(+buf.headers['retry-after']||5); console.error('  429, espero '+wait+'s'); await sleep(wait*1000); continue; }
