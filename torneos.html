@@ -855,11 +855,11 @@
     const internas=(t==='internas');
     document.getElementById('tv-udporros').style.display = internas?'none':'';
     document.getElementById('tv-internas').style.display = internas?'':'none';
-    document.querySelectorAll('.ttab-btn').forEach(b=>b.classList.toggle('active',(b.dataset.t==='internas')===internas));
+    document.querySelectorAll('.ttab-btn').forEach(b=>b.classList.toggle('active', !!b.dataset.t && b.dataset.t===(internas?'internas':'udporros')));
     if(internas){ if(history.replaceState) history.replaceState(null,'','#internas'); renderQual(); loadQual().then(renderQual); }
     else if((location.hash||'')==='#internas'){ showPage('torneo'); }
   }
-  document.querySelectorAll('.ttab-btn').forEach(b=> b.onclick = ()=>showTourn(b.dataset.t));
+  document.querySelectorAll('.ttab-btn').forEach(b=>{ if(b.dataset.t) b.onclick = ()=>showTourn(b.dataset.t); });
   (function initTourn(){
     const h=(location.hash||'').replace('#','');
     if(h==='internas') showTourn('internas'); else { showTourn('udporros'); showPage(h); }

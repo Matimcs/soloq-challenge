@@ -3,7 +3,7 @@
  "edition": "Clausura 2026",
  "game": "League of Legends",
  "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
- "updatedAt": "2026-10-01T04:23:18.661Z",
+ "updatedAt": "2026-10-01T04:55:32.094Z",
  "startDate": "2026-10-03",
  "phases": [
   {
@@ -54,11 +54,31 @@
    "canon": "UNAB A",
    "ours": false,
    "players": [
-    "1Žeus Tactico#최고신",
-    "kaii#adc",
-    "Ronin#33s",
-    "KEKW 2023#LAS",
-    "Chivoo#Lupeeh"
+    {
+     "rid": "1Žeus Tactico#최고신",
+     "nm": "1Žeus Tactico",
+     "rank": null
+    },
+    {
+     "rid": "kaii#adc",
+     "nm": "kaii",
+     "rank": null
+    },
+    {
+     "rid": "Ronin#33s",
+     "nm": "Ronin",
+     "rank": null
+    },
+    {
+     "rid": "KEKW 2023#LAS",
+     "nm": "KEKW 2023",
+     "rank": null
+    },
+    {
+     "rid": "Chivoo#Lupeeh",
+     "nm": "Chivoo",
+     "rank": null
+    }
    ]
   },
   {
@@ -66,13 +86,41 @@
    "canon": "UNAB B",
    "ours": false,
    "players": [
-    "MD PASHEN#MDE",
-    "pablobk#LAS",
-    "Cyanuro#Evlyn",
-    "always deafen#LAS1",
-    "Jechua20#2021",
-    "DK DestroyLonely#ALILY",
-    "XIVBlackbas#black"
+    {
+     "rid": "MD PASHEN#MDE",
+     "nm": "MD PASHEN",
+     "rank": null
+    },
+    {
+     "rid": "pablobk#LAS",
+     "nm": "pablobk",
+     "rank": null
+    },
+    {
+     "rid": "Cyanuro#Evlyn",
+     "nm": "Cyanuro",
+     "rank": null
+    },
+    {
+     "rid": "always deafen#LAS1",
+     "nm": "always deafen",
+     "rank": null
+    },
+    {
+     "rid": "Jechua20#2021",
+     "nm": "Jechua20",
+     "rank": null
+    },
+    {
+     "rid": "DK DestroyLonely#ALILY",
+     "nm": "DK DestroyLonely",
+     "rank": null
+    },
+    {
+     "rid": "XIVBlackbas#black",
+     "nm": "XIVBlackbas",
+     "rank": null
+    }
    ]
   },
   {
@@ -80,12 +128,36 @@
    "canon": "UNAB C",
    "ours": false,
    "players": [
-    "GTCJR#Nicky",
-    "God Peo#ATRIX",
-    "Chickblo12#LAS",
-    "yellowclaw#melou",
-    "Jinllo#Mango",
-    "InsertName#Pog"
+    {
+     "rid": "GTCJR#Nicky",
+     "nm": "GTCJR",
+     "rank": null
+    },
+    {
+     "rid": "God Peo#ATRIX",
+     "nm": "God Peo",
+     "rank": null
+    },
+    {
+     "rid": "Chickblo12#LAS",
+     "nm": "Chickblo12",
+     "rank": null
+    },
+    {
+     "rid": "yellowclaw#melou",
+     "nm": "yellowclaw",
+     "rank": null
+    },
+    {
+     "rid": "Jinllo#Mango",
+     "nm": "Jinllo",
+     "rank": null
+    },
+    {
+     "rid": "InsertName#Pog",
+     "nm": "InsertName",
+     "rank": null
+    }
    ]
   },
   {
@@ -93,14 +165,46 @@
    "canon": "UDA",
    "ours": false,
    "players": [
-    "DeadSky#LAS",
-    "Shoyo Yoshida#LAS",
-    "rush P90 manito#LAS",
-    "Popet0n#LAS",
-    "Føxsen#666",
-    "Kursinho#GOD",
-    "nicolas0lavarria#LAS",
-    "Gekarmoh#TUSK"
+    {
+     "rid": "DeadSky#LAS",
+     "nm": "DeadSky",
+     "rank": null
+    },
+    {
+     "rid": "Shoyo Yoshida#LAS",
+     "nm": "Shoyo Yoshida",
+     "rank": null
+    },
+    {
+     "rid": "rush P90 manito#LAS",
+     "nm": "rush P90 manito",
+     "rank": null
+    },
+    {
+     "rid": "Popet0n#LAS",
+     "nm": "Popet0n",
+     "rank": null
+    },
+    {
+     "rid": "Føxsen#666",
+     "nm": "Føxsen",
+     "rank": null
+    },
+    {
+     "rid": "Kursinho#GOD",
+     "nm": "Kursinho",
+     "rank": null
+    },
+    {
+     "rid": "nicolas0lavarria#LAS",
+     "nm": "nicolas0lavarria",
+     "rank": null
+    },
+    {
+     "rid": "Gekarmoh#TUSK",
+     "nm": "Gekarmoh",
+     "rank": null
+    }
    ]
   },
   {
@@ -108,14 +212,46 @@
    "canon": "UCH A",
    "ours": true,
    "players": [
-    "Che copete#LoL",
-    "Krok#DEUS",
-    "k1sseshugs#xoxo",
-    "Nadie#UCH",
-    "Yoyobox#1899",
-    "Muspe#777",
-    "Miss All Sünday#WE0NA",
-    "insano3000#unvio"
+    {
+     "rid": "Che copete#LoL",
+     "nm": "Che copete",
+     "rank": null
+    },
+    {
+     "rid": "Krok#DEUS",
+     "nm": "Krok",
+     "rank": null
+    },
+    {
+     "rid": "k1sseshugs#xoxo",
+     "nm": "k1sseshugs",
+     "rank": null
+    },
+    {
+     "rid": "Nadie#UCH",
+     "nm": "Nadie",
+     "rank": null
+    },
+    {
+     "rid": "Yoyobox#1899",
+     "nm": "Yoyobox",
+     "rank": null
+    },
+    {
+     "rid": "Muspe#777",
+     "nm": "Muspe",
+     "rank": null
+    },
+    {
+     "rid": "Miss All Sünday#WE0NA",
+     "nm": "Miss All Sünday",
+     "rank": null
+    },
+    {
+     "rid": "insano3000#unvio",
+     "nm": "insano3000",
+     "rank": null
+    }
    ]
   },
   {
@@ -123,12 +259,36 @@
    "canon": "UCH B",
    "ours": true,
    "players": [
-    "Dekai#LAS",
-    "Minitas Hunter#zzz",
-    "Tathamet#LAS",
-    "Sunless#0410",
-    "Lacosabuena#LAS",
-    "DeSean#Elba"
+    {
+     "rid": "Dekai#LAS",
+     "nm": "Dekai",
+     "rank": null
+    },
+    {
+     "rid": "Minitas Hunter#zzz",
+     "nm": "Minitas Hunter",
+     "rank": null
+    },
+    {
+     "rid": "Tathamet#LAS",
+     "nm": "Tathamet",
+     "rank": null
+    },
+    {
+     "rid": "Sunless#0410",
+     "nm": "Sunless",
+     "rank": null
+    },
+    {
+     "rid": "Lacosabuena#LAS",
+     "nm": "Lacosabuena",
+     "rank": null
+    },
+    {
+     "rid": "DeSean#Elba",
+     "nm": "DeSean",
+     "rank": null
+    }
    ]
   },
   {
@@ -136,14 +296,46 @@
    "canon": "UCH C",
    "ours": true,
    "players": [
-    "Kriida#7777",
-    "HudsonHornet#gueon",
-    "Petu#99999",
-    "vishh#LAS",
-    "Maio#BARD",
-    "Manuel#vlaki",
-    "Jotaaaa#MLJS",
-    "carloco69#LAS"
+    {
+     "rid": "Kriida#7777",
+     "nm": "Kriida",
+     "rank": null
+    },
+    {
+     "rid": "HudsonHornet#gueon",
+     "nm": "HudsonHornet",
+     "rank": null
+    },
+    {
+     "rid": "Petu#99999",
+     "nm": "Petu",
+     "rank": null
+    },
+    {
+     "rid": "vishh#LAS",
+     "nm": "vishh",
+     "rank": null
+    },
+    {
+     "rid": "Maio#BARD",
+     "nm": "Maio",
+     "rank": null
+    },
+    {
+     "rid": "Manuel#vlaki",
+     "nm": "Manuel",
+     "rank": null
+    },
+    {
+     "rid": "Jotaaaa#MLJS",
+     "nm": "Jotaaaa",
+     "rank": null
+    },
+    {
+     "rid": "carloco69#LAS",
+     "nm": "carloco69",
+     "rank": null
+    }
    ]
   },
   {
@@ -151,13 +343,41 @@
    "canon": "UCH D",
    "ours": true,
    "players": [
-    "Plüs#SICK",
-    "SionAntisionista#SAS",
-    "kıwı#wıkı",
-    "matotomatoxd#LAS",
-    "Yutsero#LAS",
-    "Pumajuego#LAS",
-    "henrymiller#379"
+    {
+     "rid": "Plüs#SICK",
+     "nm": "Plüs",
+     "rank": null
+    },
+    {
+     "rid": "SionAntisionista#SAS",
+     "nm": "SionAntisionista",
+     "rank": null
+    },
+    {
+     "rid": "kıwı#wıkı",
+     "nm": "kıwı",
+     "rank": null
+    },
+    {
+     "rid": "matotomatoxd#LAS",
+     "nm": "matotomatoxd",
+     "rank": null
+    },
+    {
+     "rid": "Yutsero#LAS",
+     "nm": "Yutsero",
+     "rank": null
+    },
+    {
+     "rid": "Pumajuego#LAS",
+     "nm": "Pumajuego",
+     "rank": null
+    },
+    {
+     "rid": "henrymiller#379",
+     "nm": "henrymiller",
+     "rank": null
+    }
    ]
   },
   {
@@ -165,11 +385,31 @@
    "canon": "UCT A",
    "ours": false,
    "players": [
-    "UCT Argonavth#LAS1",
-    "UCT Eritro#666",
-    "UCT Das#PAPS",
-    "UCT soguzx#zzx",
-    "UCT Beusfy#00000"
+    {
+     "rid": "UCT Argonavth#LAS1",
+     "nm": "UCT Argonavth",
+     "rank": null
+    },
+    {
+     "rid": "UCT Eritro#666",
+     "nm": "UCT Eritro",
+     "rank": null
+    },
+    {
+     "rid": "UCT Das#PAPS",
+     "nm": "UCT Das",
+     "rank": null
+    },
+    {
+     "rid": "UCT soguzx#zzx",
+     "nm": "UCT soguzx",
+     "rank": null
+    },
+    {
+     "rid": "UCT Beusfy#00000",
+     "nm": "UCT Beusfy",
+     "rank": null
+    }
    ]
   },
   {
@@ -177,12 +417,36 @@
    "canon": "UCT B",
    "ours": false,
    "players": [
-    "Vishete#LAS",
-    "AleK#cueca",
-    "Jungla Holandés#1412",
-    "SC JeanPolnareff#JOJO",
-    "alvarorex777OMG#papoi",
-    "Duki#UwU"
+    {
+     "rid": "Vishete#LAS",
+     "nm": "Vishete",
+     "rank": null
+    },
+    {
+     "rid": "AleK#cueca",
+     "nm": "AleK",
+     "rank": null
+    },
+    {
+     "rid": "Jungla Holandés#1412",
+     "nm": "Jungla Holandés",
+     "rank": null
+    },
+    {
+     "rid": "SC JeanPolnareff#JOJO",
+     "nm": "SC JeanPolnareff",
+     "rank": null
+    },
+    {
+     "rid": "alvarorex777OMG#papoi",
+     "nm": "alvarorex777OMG",
+     "rank": null
+    },
+    {
+     "rid": "Duki#UwU",
+     "nm": "Duki",
+     "rank": null
+    }
    ]
   },
   {
@@ -190,12 +454,36 @@
    "canon": "UDD",
    "ours": false,
    "players": [
-    "getFrosted#151",
-    "michaelolise11#vamp",
-    "Cherry#Aqua",
-    "maxigod#6767",
-    "Kiefer#LASS",
-    "Jeff Bezos#LAS"
+    {
+     "rid": "getFrosted#151",
+     "nm": "getFrosted",
+     "rank": null
+    },
+    {
+     "rid": "michaelolise11#vamp",
+     "nm": "michaelolise11",
+     "rank": null
+    },
+    {
+     "rid": "Cherry#Aqua",
+     "nm": "Cherry",
+     "rank": null
+    },
+    {
+     "rid": "maxigod#6767",
+     "nm": "maxigod",
+     "rank": null
+    },
+    {
+     "rid": "Kiefer#LASS",
+     "nm": "Kiefer",
+     "rank": null
+    },
+    {
+     "rid": "Jeff Bezos#LAS",
+     "nm": "Jeff Bezos",
+     "rank": null
+    }
    ]
   },
   {
@@ -203,13 +491,41 @@
    "canon": "PUCV",
    "ours": false,
    "players": [
-    "Dakotah#T1WIN",
-    "n1llzinho#WASD",
-    "Ðeepwokeη#Ys0",
-    "ChunRavel#NMCL",
-    "Pequeño Capibara#hola",
-    "cachorrâo#sech",
-    "DucktorMonty#baker"
+    {
+     "rid": "Dakotah#T1WIN",
+     "nm": "Dakotah",
+     "rank": null
+    },
+    {
+     "rid": "n1llzinho#WASD",
+     "nm": "n1llzinho",
+     "rank": null
+    },
+    {
+     "rid": "Ðeepwokeη#Ys0",
+     "nm": "Ðeepwokeη",
+     "rank": null
+    },
+    {
+     "rid": "ChunRavel#NMCL",
+     "nm": "ChunRavel",
+     "rank": null
+    },
+    {
+     "rid": "Pequeño Capibara#hola",
+     "nm": "Pequeño Capibara",
+     "rank": null
+    },
+    {
+     "rid": "cachorrâo#sech",
+     "nm": "cachorrâo",
+     "rank": null
+    },
+    {
+     "rid": "DucktorMonty#baker",
+     "nm": "DucktorMonty",
+     "rank": null
+    }
    ]
   },
   {
@@ -217,14 +533,46 @@
    "canon": "USACH",
    "ours": false,
    "players": [
-    "3nder#ezzz",
-    "Rey Kimera#Never",
-    "exte#las",
-    "fernanelcrack#4444",
-    "Đean#WILD",
-    "Xander#017",
-    "Costo hundido#TTTTT",
-    "Diegors#0000"
+    {
+     "rid": "3nder#ezzz",
+     "nm": "3nder",
+     "rank": null
+    },
+    {
+     "rid": "Rey Kimera#Never",
+     "nm": "Rey Kimera",
+     "rank": null
+    },
+    {
+     "rid": "exte#las",
+     "nm": "exte",
+     "rank": null
+    },
+    {
+     "rid": "fernanelcrack#4444",
+     "nm": "fernanelcrack",
+     "rank": null
+    },
+    {
+     "rid": "Đean#WILD",
+     "nm": "Đean",
+     "rank": null
+    },
+    {
+     "rid": "Xander#017",
+     "nm": "Xander",
+     "rank": null
+    },
+    {
+     "rid": "Costo hundido#TTTTT",
+     "nm": "Costo hundido",
+     "rank": null
+    },
+    {
+     "rid": "Diegors#0000",
+     "nm": "Diegors",
+     "rank": null
+    }
    ]
   },
   {
@@ -232,13 +580,41 @@
    "canon": "USM A",
    "ours": false,
    "players": [
-    "Pichito#LAS1",
-    "Stargazer7#LAS",
-    "Lukes#nvm",
-    "Tynek#Kiss",
-    "Dangeflow#Sebax",
-    "Hebi#frost",
-    "Chocolo#MSc"
+    {
+     "rid": "Pichito#LAS1",
+     "nm": "Pichito",
+     "rank": null
+    },
+    {
+     "rid": "Stargazer7#LAS",
+     "nm": "Stargazer7",
+     "rank": null
+    },
+    {
+     "rid": "Lukes#nvm",
+     "nm": "Lukes",
+     "rank": null
+    },
+    {
+     "rid": "Tynek#Kiss",
+     "nm": "Tynek",
+     "rank": null
+    },
+    {
+     "rid": "Dangeflow#Sebax",
+     "nm": "Dangeflow",
+     "rank": null
+    },
+    {
+     "rid": "Hebi#frost",
+     "nm": "Hebi",
+     "rank": null
+    },
+    {
+     "rid": "Chocolo#MSc",
+     "nm": "Chocolo",
+     "rank": null
+    }
    ]
   },
   {
@@ -246,14 +622,46 @@
    "canon": "USM B",
    "ours": false,
    "players": [
-    "373#Ruby",
-    "lynko#005",
-    "Skadoonish#LAS1",
-    "Οldest Dream#orv",
-    "Sant1n #kata",
-    "Peter pyker #milo",
-    "esclavo de karin#monki",
-    "shutdownxzoe#LAS"
+    {
+     "rid": "373#Ruby",
+     "nm": "373",
+     "rank": null
+    },
+    {
+     "rid": "lynko#005",
+     "nm": "lynko",
+     "rank": null
+    },
+    {
+     "rid": "Skadoonish#LAS1",
+     "nm": "Skadoonish",
+     "rank": null
+    },
+    {
+     "rid": "Οldest Dream#orv",
+     "nm": "Οldest Dream",
+     "rank": null
+    },
+    {
+     "rid": "Sant1n #kata",
+     "nm": "Sant1n ",
+     "rank": null
+    },
+    {
+     "rid": "Peter pyker #milo",
+     "nm": "Peter pyker ",
+     "rank": null
+    },
+    {
+     "rid": "esclavo de karin#monki",
+     "nm": "esclavo de karin",
+     "rank": null
+    },
+    {
+     "rid": "shutdownxzoe#LAS",
+     "nm": "shutdownxzoe",
+     "rank": null
+    }
    ]
   },
   {
@@ -261,13 +669,41 @@
    "canon": "USM C",
    "ours": false,
    "players": [
-    "Kripistobal #USM",
-    "Nachomater#CTLG",
-    "King mesura#kyuvst",
-    "moonlight#16180",
-    "Manjar Con Pann#LAS",
-    "Gravis#RYO",
-    "Skelia#Homan"
+    {
+     "rid": "Kripistobal #USM",
+     "nm": "Kripistobal ",
+     "rank": null
+    },
+    {
+     "rid": "Nachomater#CTLG",
+     "nm": "Nachomater",
+     "rank": null
+    },
+    {
+     "rid": "King mesura#kyuvst",
+     "nm": "King mesura",
+     "rank": null
+    },
+    {
+     "rid": "moonlight#16180",
+     "nm": "moonlight",
+     "rank": null
+    },
+    {
+     "rid": "Manjar Con Pann#LAS",
+     "nm": "Manjar Con Pann",
+     "rank": null
+    },
+    {
+     "rid": "Gravis#RYO",
+     "nm": "Gravis",
+     "rank": null
+    },
+    {
+     "rid": "Skelia#Homan",
+     "nm": "Skelia",
+     "rank": null
+    }
    ]
   },
   {
@@ -275,14 +711,46 @@
    "canon": "USM D",
    "ours": false,
    "players": [
-    "UN1CORN1oCOsm1cO",
-    "Tapia4#LAS",
-    "Brechaqueo#las",
-    "PanConLimón #ALO",
-    "lunanova #las",
-    "mtrix #las1",
-    "soo ho #LAS",
-    "Josecontildenlae#JTA"
+    {
+     "rid": "UN1CORN1oCOsm1cO",
+     "nm": "UN1CORN1oCOsm1cO",
+     "rank": null
+    },
+    {
+     "rid": "Tapia4#LAS",
+     "nm": "Tapia4",
+     "rank": null
+    },
+    {
+     "rid": "Brechaqueo#las",
+     "nm": "Brechaqueo",
+     "rank": null
+    },
+    {
+     "rid": "PanConLimón #ALO",
+     "nm": "PanConLimón ",
+     "rank": null
+    },
+    {
+     "rid": "lunanova #las",
+     "nm": "lunanova ",
+     "rank": null
+    },
+    {
+     "rid": "mtrix #las1",
+     "nm": "mtrix ",
+     "rank": null
+    },
+    {
+     "rid": "soo ho #LAS",
+     "nm": "soo ho ",
+     "rank": null
+    },
+    {
+     "rid": "Josecontildenlae#JTA",
+     "nm": "Josecontildenlae",
+     "rank": null
+    }
    ]
   },
   {
@@ -290,14 +758,46 @@
    "canon": "UCSH",
    "ours": false,
    "players": [
-    "ˇ ˆ ˇ ˇ#unu",
-    "GG No Tengo JG#3516",
-    "Pucho#gosu",
-    "Sejoy0#8677",
-    "Kaniewest#MBDTF",
-    "Harry Kayn#9999",
-    "Zoro220#LAS",
-    "N N #172"
+    {
+     "rid": "ˇ ˆ ˇ ˇ#unu",
+     "nm": "ˇ ˆ ˇ ˇ",
+     "rank": null
+    },
+    {
+     "rid": "GG No Tengo JG#3516",
+     "nm": "GG No Tengo JG",
+     "rank": null
+    },
+    {
+     "rid": "Pucho#gosu",
+     "nm": "Pucho",
+     "rank": null
+    },
+    {
+     "rid": "Sejoy0#8677",
+     "nm": "Sejoy0",
+     "rank": null
+    },
+    {
+     "rid": "Kaniewest#MBDTF",
+     "nm": "Kaniewest",
+     "rank": null
+    },
+    {
+     "rid": "Harry Kayn#9999",
+     "nm": "Harry Kayn",
+     "rank": null
+    },
+    {
+     "rid": "Zoro220#LAS",
+     "nm": "Zoro220",
+     "rank": null
+    },
+    {
+     "rid": "N N #172",
+     "nm": "N N ",
+     "rank": null
+    }
    ]
   },
   {
@@ -305,13 +805,41 @@
    "canon": "DUOC",
    "ours": false,
    "players": [
-    "MarceSato#T T",
-    "Francesco FIUUU#LAS",
-    "cow#bored",
-    "Kindless #0804",
-    "Jisoo#y11",
-    "P u n c h#Pain",
-    "keria 1 completo #las"
+    {
+     "rid": "MarceSato#T T",
+     "nm": "MarceSato",
+     "rank": null
+    },
+    {
+     "rid": "Francesco FIUUU#LAS",
+     "nm": "Francesco FIUUU",
+     "rank": null
+    },
+    {
+     "rid": "cow#bored",
+     "nm": "cow",
+     "rank": null
+    },
+    {
+     "rid": "Kindless #0804",
+     "nm": "Kindless ",
+     "rank": null
+    },
+    {
+     "rid": "Jisoo#y11",
+     "nm": "Jisoo",
+     "rank": null
+    },
+    {
+     "rid": "P u n c h#Pain",
+     "nm": "P u n c h",
+     "rank": null
+    },
+    {
+     "rid": "keria 1 completo #las",
+     "nm": "keria 1 completo ",
+     "rank": null
+    }
    ]
   },
   {
@@ -319,13 +847,41 @@
    "canon": "UMAYOR",
    "ours": false,
    "players": [
-    "KarmaYikes#9722",
-    "Laval#LAS",
-    "José José#gmhrd",
-    "Dargus#mvp",
-    "King Geedorah#DOOOM",
-    "Elchocolaton#CTM",
-    "VICHOHACK#LAS"
+    {
+     "rid": "KarmaYikes#9722",
+     "nm": "KarmaYikes",
+     "rank": null
+    },
+    {
+     "rid": "Laval#LAS",
+     "nm": "Laval",
+     "rank": null
+    },
+    {
+     "rid": "José José#gmhrd",
+     "nm": "José José",
+     "rank": null
+    },
+    {
+     "rid": "Dargus#mvp",
+     "nm": "Dargus",
+     "rank": null
+    },
+    {
+     "rid": "King Geedorah#DOOOM",
+     "nm": "King Geedorah",
+     "rank": null
+    },
+    {
+     "rid": "Elchocolaton#CTM",
+     "nm": "Elchocolaton",
+     "rank": null
+    },
+    {
+     "rid": "VICHOHACK#LAS",
+     "nm": "VICHOHACK",
+     "rank": null
+    }
    ]
   },
   {
@@ -333,14 +889,46 @@
    "canon": "UTEM A",
    "ours": false,
    "players": [
-    "Flipy #Loop",
-    "Creampy#XDD",
-    "Cero#9189",
-    "sech987#LAS",
-    "IElCocosLOK1",
-    "⁦el sin rodillas⁩#⁦5573⁩",
-    "Ogg#aaa",
-    "merluzini #135BP"
+    {
+     "rid": "Flipy #Loop",
+     "nm": "Flipy ",
+     "rank": null
+    },
+    {
+     "rid": "Creampy#XDD",
+     "nm": "Creampy",
+     "rank": null
+    },
+    {
+     "rid": "Cero#9189",
+     "nm": "Cero",
+     "rank": null
+    },
+    {
+     "rid": "sech987#LAS",
+     "nm": "sech987",
+     "rank": null
+    },
+    {
+     "rid": "IElCocosLOK1",
+     "nm": "IElCocosLOK1",
+     "rank": null
+    },
+    {
+     "rid": "⁦el sin rodillas⁩#⁦5573⁩",
+     "nm": "⁦el sin rodillas⁩",
+     "rank": null
+    },
+    {
+     "rid": "Ogg#aaa",
+     "nm": "Ogg",
+     "rank": null
+    },
+    {
+     "rid": "merluzini #135BP",
+     "nm": "merluzini ",
+     "rank": null
+    }
    ]
   },
   {
@@ -348,12 +936,36 @@
    "canon": "UTEM B",
    "ours": false,
    "players": [
-    "mon laferte fan #salvi",
-    "Hustl333r#Preda",
-    "Gridmi#viktr",
-    "Rico#TEA",
-    "donatello #MID17",
-    "⁦shelao⁩#⁦SSS⁩"
+    {
+     "rid": "mon laferte fan #salvi",
+     "nm": "mon laferte fan ",
+     "rank": null
+    },
+    {
+     "rid": "Hustl333r#Preda",
+     "nm": "Hustl333r",
+     "rank": null
+    },
+    {
+     "rid": "Gridmi#viktr",
+     "nm": "Gridmi",
+     "rank": null
+    },
+    {
+     "rid": "Rico#TEA",
+     "nm": "Rico",
+     "rank": null
+    },
+    {
+     "rid": "donatello #MID17",
+     "nm": "donatello ",
+     "rank": null
+    },
+    {
+     "rid": "⁦shelao⁩#⁦SSS⁩",
+     "nm": "⁦shelao⁩",
+     "rank": null
+    }
    ]
   },
   {
@@ -361,12 +973,36 @@
    "canon": "UDP A",
    "ours": false,
    "players": [
-    "NEEDB12#LAS1",
-    "Ñandú#snsc",
-    "Fax flm#LAS",
-    "Koelliu#111",
-    "Moma#420",
-    "noon#030"
+    {
+     "rid": "NEEDB12#LAS1",
+     "nm": "NEEDB12",
+     "rank": null
+    },
+    {
+     "rid": "Ñandú#snsc",
+     "nm": "Ñandú",
+     "rank": null
+    },
+    {
+     "rid": "Fax flm#LAS",
+     "nm": "Fax flm",
+     "rank": null
+    },
+    {
+     "rid": "Koelliu#111",
+     "nm": "Koelliu",
+     "rank": null
+    },
+    {
+     "rid": "Moma#420",
+     "nm": "Moma",
+     "rank": null
+    },
+    {
+     "rid": "noon#030",
+     "nm": "noon",
+     "rank": null
+    }
    ]
   },
   {
@@ -374,13 +1010,41 @@
    "canon": "UDP B",
    "ours": false,
    "players": [
-    "Multiwaifus#ADO",
-    "Lolnes#LAS",
-    "Moruga#jg777",
-    "Nibbamin#LACRA",
-    "Bedless#Sashi",
-    "Benjitapro2010#DAT",
-    "hikeN#hkn"
+    {
+     "rid": "Multiwaifus#ADO",
+     "nm": "Multiwaifus",
+     "rank": null
+    },
+    {
+     "rid": "Lolnes#LAS",
+     "nm": "Lolnes",
+     "rank": null
+    },
+    {
+     "rid": "Moruga#jg777",
+     "nm": "Moruga",
+     "rank": null
+    },
+    {
+     "rid": "Nibbamin#LACRA",
+     "nm": "Nibbamin",
+     "rank": null
+    },
+    {
+     "rid": "Bedless#Sashi",
+     "nm": "Bedless",
+     "rank": null
+    },
+    {
+     "rid": "Benjitapro2010#DAT",
+     "nm": "Benjitapro2010",
+     "rank": null
+    },
+    {
+     "rid": "hikeN#hkn",
+     "nm": "hikeN",
+     "rank": null
+    }
    ]
   },
   {
@@ -388,12 +1052,36 @@
    "canon": "UTAL A",
    "ours": false,
    "players": [
-    "Brazil1anGod#BRA",
-    "Posséidon#nnnnn",
-    "yungvfx#666",
-    "LLEFLIGHT CHOA #CHOA",
-    "B castro G#castr",
-    "Alee#31426"
+    {
+     "rid": "Brazil1anGod#BRA",
+     "nm": "Brazil1anGod",
+     "rank": null
+    },
+    {
+     "rid": "Posséidon#nnnnn",
+     "nm": "Posséidon",
+     "rank": null
+    },
+    {
+     "rid": "yungvfx#666",
+     "nm": "yungvfx",
+     "rank": null
+    },
+    {
+     "rid": "LLEFLIGHT CHOA #CHOA",
+     "nm": "LLEFLIGHT CHOA ",
+     "rank": null
+    },
+    {
+     "rid": "B castro G#castr",
+     "nm": "B castro G",
+     "rank": null
+    },
+    {
+     "rid": "Alee#31426",
+     "nm": "Alee",
+     "rank": null
+    }
    ]
   },
   {
@@ -401,13 +1089,41 @@
    "canon": "UTAL B",
    "ours": false,
    "players": [
-    "Insomnia#eve",
-    "LUCARIOH#LAS",
-    "Escr0Tit0#CLP",
-    "Barlon#meeps",
-    "Duho#ftit",
-    "Rchay Erome#Richi",
-    "6 lukas justas#kuroh"
+    {
+     "rid": "Insomnia#eve",
+     "nm": "Insomnia",
+     "rank": null
+    },
+    {
+     "rid": "LUCARIOH#LAS",
+     "nm": "LUCARIOH",
+     "rank": null
+    },
+    {
+     "rid": "Escr0Tit0#CLP",
+     "nm": "Escr0Tit0",
+     "rank": null
+    },
+    {
+     "rid": "Barlon#meeps",
+     "nm": "Barlon",
+     "rank": null
+    },
+    {
+     "rid": "Duho#ftit",
+     "nm": "Duho",
+     "rank": null
+    },
+    {
+     "rid": "Rchay Erome#Richi",
+     "nm": "Rchay Erome",
+     "rank": null
+    },
+    {
+     "rid": "6 lukas justas#kuroh",
+     "nm": "6 lukas justas",
+     "rank": null
+    }
    ]
   },
   {
@@ -415,12 +1131,36 @@
    "canon": "UTAL C",
    "ours": false,
    "players": [
-    "Reybeys #krkas",
-    "Green2030#LAS",
-    "Ninja Precoz #Zen",
-    "Gatitomancer#FAKER",
-    "Yose#1983",
-    "Sexmund Freud#FREUD"
+    {
+     "rid": "Reybeys #krkas",
+     "nm": "Reybeys ",
+     "rank": null
+    },
+    {
+     "rid": "Green2030#LAS",
+     "nm": "Green2030",
+     "rank": null
+    },
+    {
+     "rid": "Ninja Precoz #Zen",
+     "nm": "Ninja Precoz ",
+     "rank": null
+    },
+    {
+     "rid": "Gatitomancer#FAKER",
+     "nm": "Gatitomancer",
+     "rank": null
+    },
+    {
+     "rid": "Yose#1983",
+     "nm": "Yose",
+     "rank": null
+    },
+    {
+     "rid": "Sexmund Freud#FREUD",
+     "nm": "Sexmund Freud",
+     "rank": null
+    }
    ]
   },
   {
@@ -428,12 +1168,36 @@
    "canon": "UTAL D",
    "ours": false,
    "players": [
-    "majalejeman#las",
-    "elsrgatito#las",
-    "eternallamb#las",
-    "matikuri#las",
-    "Kurosãki Ichigo #Enf",
-    "panconquezo318#lpg"
+    {
+     "rid": "majalejeman#las",
+     "nm": "majalejeman",
+     "rank": null
+    },
+    {
+     "rid": "elsrgatito#las",
+     "nm": "elsrgatito",
+     "rank": null
+    },
+    {
+     "rid": "eternallamb#las",
+     "nm": "eternallamb",
+     "rank": null
+    },
+    {
+     "rid": "matikuri#las",
+     "nm": "matikuri",
+     "rank": null
+    },
+    {
+     "rid": "Kurosãki Ichigo #Enf",
+     "nm": "Kurosãki Ichigo ",
+     "rank": null
+    },
+    {
+     "rid": "panconquezo318#lpg",
+     "nm": "panconquezo318",
+     "rank": null
+    }
    ]
   },
   {
@@ -441,14 +1205,46 @@
    "canon": "UC A",
    "ours": false,
    "players": [
-    "UC Xiao#1313",
-    "UC Neøn#6253",
-    "UC alexkidd#TKL",
-    "Cookie#M505",
-    "Heza#perry",
-    "dEHuMAnizEd#susu",
-    "Cuish#001",
-    "chovski#LAS"
+    {
+     "rid": "UC Xiao#1313",
+     "nm": "UC Xiao",
+     "rank": null
+    },
+    {
+     "rid": "UC Neøn#6253",
+     "nm": "UC Neøn",
+     "rank": null
+    },
+    {
+     "rid": "UC alexkidd#TKL",
+     "nm": "UC alexkidd",
+     "rank": null
+    },
+    {
+     "rid": "Cookie#M505",
+     "nm": "Cookie",
+     "rank": null
+    },
+    {
+     "rid": "Heza#perry",
+     "nm": "Heza",
+     "rank": null
+    },
+    {
+     "rid": "dEHuMAnizEd#susu",
+     "nm": "dEHuMAnizEd",
+     "rank": null
+    },
+    {
+     "rid": "Cuish#001",
+     "nm": "Cuish",
+     "rank": null
+    },
+    {
+     "rid": "chovski#LAS",
+     "nm": "chovski",
+     "rank": null
+    }
    ]
   },
   {
@@ -456,14 +1252,46 @@
    "canon": "UC B",
    "ours": false,
    "players": [
-    "UC Rash #UCR",
-    "mijoyy#top",
-    "Demerzel#1999",
-    "Jøseabaran⁩#⁦LAS⁩",
-    "despair#enso",
-    "Maben#CLP",
-    "mitsu #rinri",
-    "JUDINI#cafe"
+    {
+     "rid": "UC Rash #UCR",
+     "nm": "UC Rash ",
+     "rank": null
+    },
+    {
+     "rid": "mijoyy#top",
+     "nm": "mijoyy",
+     "rank": null
+    },
+    {
+     "rid": "Demerzel#1999",
+     "nm": "Demerzel",
+     "rank": null
+    },
+    {
+     "rid": "Jøseabaran⁩#⁦LAS⁩",
+     "nm": "Jøseabaran⁩",
+     "rank": null
+    },
+    {
+     "rid": "despair#enso",
+     "nm": "despair",
+     "rank": null
+    },
+    {
+     "rid": "Maben#CLP",
+     "nm": "Maben",
+     "rank": null
+    },
+    {
+     "rid": "mitsu #rinri",
+     "nm": "mitsu ",
+     "rank": null
+    },
+    {
+     "rid": "JUDINI#cafe",
+     "nm": "JUDINI",
+     "rank": null
+    }
    ]
   },
   {
@@ -471,12 +1299,36 @@
    "canon": "UCN",
    "ours": false,
    "players": [
-    "Winteroh#pupu",
-    "Benlox44#LAS",
-    "hide on papoi#PAPOI",
-    "fragnight#LAS",
-    "DatCursed#LAS",
-    "Kasane Teto#xdlol"
+    {
+     "rid": "Winteroh#pupu",
+     "nm": "Winteroh",
+     "rank": null
+    },
+    {
+     "rid": "Benlox44#LAS",
+     "nm": "Benlox44",
+     "rank": null
+    },
+    {
+     "rid": "hide on papoi#PAPOI",
+     "nm": "hide on papoi",
+     "rank": null
+    },
+    {
+     "rid": "fragnight#LAS",
+     "nm": "fragnight",
+     "rank": null
+    },
+    {
+     "rid": "DatCursed#LAS",
+     "nm": "DatCursed",
+     "rank": null
+    },
+    {
+     "rid": "Kasane Teto#xdlol",
+     "nm": "Kasane Teto",
+     "rank": null
+    }
    ]
   },
   {
@@ -484,14 +1336,46 @@
    "canon": "UDEC",
    "ours": false,
    "players": [
-    "Tank#PSQ",
-    "xXporotosXx#LAS",
-    "Pollococoman#POIO",
-    "wonder#lass1",
-    "Fiurius#LAS",
-    "_almohada",
-    "Shirou Ogami#1111",
-    "alliez#las"
+    {
+     "rid": "Tank#PSQ",
+     "nm": "Tank",
+     "rank": null
+    },
+    {
+     "rid": "xXporotosXx#LAS",
+     "nm": "xXporotosXx",
+     "rank": null
+    },
+    {
+     "rid": "Pollococoman#POIO",
+     "nm": "Pollococoman",
+     "rank": null
+    },
+    {
+     "rid": "wonder#lass1",
+     "nm": "wonder",
+     "rank": null
+    },
+    {
+     "rid": "Fiurius#LAS",
+     "nm": "Fiurius",
+     "rank": null
+    },
+    {
+     "rid": "_almohada",
+     "nm": "_almohada",
+     "rank": null
+    },
+    {
+     "rid": "Shirou Ogami#1111",
+     "nm": "Shirou Ogami",
+     "rank": null
+    },
+    {
+     "rid": "alliez#las",
+     "nm": "alliez",
+     "rank": null
+    }
    ]
   }
  ],

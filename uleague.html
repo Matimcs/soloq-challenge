@@ -164,6 +164,7 @@
     <div class="tourn-tabs">
       <button class="ttab-btn active">🏆 uLeague <span style="opacity:.7;font-weight:700">Clausura 2026</span></button>
       <a class="ttab-btn closed" href="torneos.html">UDPORROS 2026 · cerrado</a>
+      <a class="ttab-btn" href="torneos.html#internas"><span class="dotlive"></span> Clasificatorias Internas</a>
     </div>
 
     <section class="hero">
@@ -198,15 +199,12 @@ const $ = s => document.querySelector(s);
 const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let DATA = null;
 
-// ---- rangos en vivo (desde el tracker) ----
-const RP = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players)) ? window.SQC_DATA.players : [];
-const byRid = {}; RP.forEach(p => { if(p.rid) byRid[nrid(p.rid)] = p; });
-function nrid(r){ return (r||'').toLowerCase().replace(/\s*#\s*/,'#').trim(); }
+// ---- rangos de uLeague (vienen en el fixture; independientes del ranking principal) ----
 const TCOL={CHALLENGER:'#f4c14b',GRANDMASTER:'#fb7185',MASTER:'#c084fc',DIAMOND:'#7dd3fc',EMERALD:'#34d399',PLATINUM:'#5eead4',GOLD:'#fcd34d',SILVER:'#cbd5e1',BRONZE:'#d6a06a',IRON:'#9ca3af'};
 const APEX=new Set(['MASTER','GRANDMASTER','CHALLENGER']);
-function rankStr(rid){ const p=byRid[nrid(rid)]; if(!p||!p.tier||p.tier==='UNRANKED') return null;
-  const nice=p.tier.charAt(0)+p.tier.slice(1).toLowerCase(); const div=APEX.has(p.tier)?'':(p.div?' '+p.div:'');
-  return { t:nice+div+(p.lp!=null?' '+p.lp+'LP':''), c:TCOL[p.tier]||'#fff' }; }
+function rankStr(rank){ if(!rank||!rank.tier||rank.tier==='UNRANKED') return null;
+  const nice=rank.tier.charAt(0)+rank.tier.slice(1).toLowerCase(); const div=APEX.has(rank.tier)?'':(rank.div?' '+rank.div:'');
+  return { t:nice+div+(rank.lp!=null?' '+rank.lp+'LP':''), c:TCOL[rank.tier]||'#fff' }; }
 
 // ---- logos: inicial coloreada por equipo (placeholder hasta tener imágenes) ----
 function hue(s){ let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return h%360; }
@@ -230,7 +228,7 @@ function renderResumen(){
   const ours = DATA.teams.filter(t=>t.ours);
   const cards = ours.map(t=>{
     const opp = oppOf(t.name);
-    const pls = t.players.slice(0,8).map(p=>`<span class="pl">${esc((p.split('#')[0]))}</span>`).join('');
+    const pls = t.players.slice(0,8).map(p=>`<span class="pl">${esc(p.nm||(p.rid||'').split('#')[0])}</span>`).join('');
     return `<div class="ucard"><h3>${esc(t.name)}</h3><div class="sub">${t.players.length} jugadores · U. de Chile</div>
       <div class="vs">R1 vs <b>${opp?esc(opp):'—'}</b></div>
       <div class="roster">${pls}</div></div>`;
@@ -310,11 +308,11 @@ function renderPlayoffs(){
 function renderEquipos(){
   const teams = DATA.teams.slice().sort((a,b)=> (b.ours-a.ours) || a.name.localeCompare(b.name));
   const cards = teams.map(t=>{
-    const lis = t.players.map(p=>{ const r=rankStr(p);
-      return `<li>${logo(p.split('#')[0],false)}<span class="pn">${esc(p.split('#')[0])}</span>${r?`<span class="rk" style="color:${r.c}">${esc(r.t)}</span>`:`<span class="rk" style="color:var(--muted-2)">—</span>`}</li>`; }).join('');
+    const lis = t.players.map(p=>{ const nm=p.nm||(p.rid||'').split('#')[0]; const r=rankStr(p.rank);
+      return `<li>${logo(nm,false)}<span class="pn">${esc(nm)}</span>${r?`<span class="rk" style="color:${r.c}">${esc(r.t)}</span>`:`<span class="rk" style="color:var(--muted-2)">—</span>`}</li>`; }).join('');
     return `<div class="tcard ${t.ours?'ours':''}"><div class="tcard-h">${logo(t.name,t.ours)}<span class="t">${esc(t.name)}</span>${t.ours?'<span class="us">LA CHILE</span>':''}</div><ul>${lis}</ul></div>`;
   }).join('');
-  $('#tab-equipos').innerHTML = `<div class="sect-h">Equipos y rosters · ${teams.length} equipos · los rangos se actualizan con el tracker</div><div class="teams-grid">${cards}</div>`;
+  $('#tab-equipos').innerHTML = `<div class="sect-h">Equipos y rosters · ${teams.length} equipos · rangos a la última sincronización</div><div class="teams-grid">${cards}</div>`;
 }
 
 // ================= SIMULACIÓN =================

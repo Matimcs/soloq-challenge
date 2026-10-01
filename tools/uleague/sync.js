@@ -11,6 +11,24 @@ const XLSX = require('xlsx');
 const SHEET_ID = '1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
 const OUT = path.join(__dirname, '..', '..', 'uleague-data.json');
+const PUUID_CACHE = path.join(__dirname, 'puuid-cache.json');
+
+// uLeague es INDEPENDIENTE del ranking principal del sitio: sus rangos los baja esta
+// herramienta y quedan en uleague-data.json. NO toca el tracker principal (players.json).
+const WANT_RANKS = !process.argv.includes('--no-ranks');
+const CLUSTER = 'americas', PLATFORM = 'la2';
+// Lee la key de Riot desde backend/.env (no se commitea).
+let RIOT_KEY = process.env.RIOT_API_KEY || '';
+try { if(!RIOT_KEY) fs.readFileSync(path.join(__dirname,'..','..','backend','.env'),'utf8').split('\n').forEach(l=>{const m=l.match(/^\s*RIOT_API_KEY\s*=\s*(.*)\s*$/); if(m) RIOT_KEY=m[1].replace(/^["']|["']$/g,'').trim();}); } catch {}
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+async function riot(url){ for(let tries=0;tries<4;tries++){ const buf=await getRaw(url,{'X-Riot-Token':RIOT_KEY});
+  if(buf.status===429){ const wait=(+buf.headers['retry-after']||5); console.error('  429, espero '+wait+'s'); await sleep(wait*1000); continue; }
+  if(buf.status===404) return null;
+  if(buf.status>=200&&buf.status<300){ try{return JSON.parse(buf.body);}catch{return null;} }
+  return null; } return null; }
+const TIERV={IRON:0,BRONZE:1,SILVER:2,GOLD:3,PLATINUM:4,EMERALD:5,DIAMOND:6},DIVV={IV:0,III:1,II:2,I:3};
+const NODIV=new Set(['MASTER','GRANDMASTER','CHALLENGER']);
+function absLP(t,d,lp){ t=(t||'').toUpperCase(); if(NODIV.has(t))return 2800+(+lp||0); if(TIERV[t]==null)return null; return TIERV[t]*400+(DIVV[(d||'').toUpperCase()]||0)*100+(+lp||0); }
 
 // Fechas/fases (de las bases oficiales uLeague Clausura 2026)
 const PHASES = [
@@ -26,6 +44,9 @@ const OURS = new Set(['UCH A','UCH B','UCH C','UCH D']);
 function get(url){ return new Promise((res,rej)=>{ https.get(url,{headers:{'User-Agent':'Mozilla/5.0'}},r=>{
   if(r.statusCode>=300&&r.statusCode<400&&r.headers.location) return res(get(r.headers.location));
   const chunks=[]; r.on('data',d=>chunks.push(d)); r.on('end',()=>res(Buffer.concat(chunks))); }).on('error',rej); }); }
+function getRaw(url,headers){ return new Promise((res)=>{ https.get(url,{headers:headers||{}},r=>{
+  let b=''; r.on('data',d=>b+=d); r.on('end',()=>res({status:r.statusCode,headers:r.headers,body:b})); })
+  .on('error',()=>res({status:0,headers:{},body:''})); }); }
 
 // Normaliza nombres entre hojas (Equipos usa "UTALCA A"/"DUOC UC"; Clasificatorias "UTAL A"/"DUOC")
 function canon(n){ n=(n||'').toString().trim(); if(!n) return '';
@@ -86,12 +107,34 @@ function grid(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankr
   const bracket={ octavos:[], cuartos:[], semis:[], final:[] };
   // (estructura vacía por ahora; el parser se afina cuando el fixture tenga datos)
 
+  // ---- RANGOS de uLeague (independiente del ranking principal del sitio) ----
+  const rankByRid = {};
+  if (WANT_RANKS && RIOT_KEY){
+    let puuidCache={}; try{ puuidCache=JSON.parse(fs.readFileSync(PUUID_CACHE,'utf8')); }catch{}
+    const allRids=[...new Set([].concat(...teams.map(t=>t.players)).map(s=>s.trim()).filter(r=>r.includes('#')))];
+    console.log('bajando rangos de '+allRids.length+' cuentas (pausado para no romper la API, ~'+Math.ceil(allRids.length*2.4/60)+' min)...');
+    let done=0;
+    for (const rid of allRids){
+      try {
+        let puuid=puuidCache[rid.toLowerCase()];
+        if(!puuid){ const [nm,tag]=rid.split('#'); const acc=await riot(`https://${CLUSTER}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(nm)}/${encodeURIComponent(tag||'')}`); await sleep(1200); if(acc&&acc.puuid){ puuid=acc.puuid; puuidCache[rid.toLowerCase()]=puuid; } }
+        if(puuid){ const entries=await riot(`https://${PLATFORM}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`); await sleep(1200);
+          const e=Array.isArray(entries)?entries.find(x=>x.queueType==='RANKED_SOLO_5x5'):null;
+          rankByRid[rid]= e? {tier:e.tier,div:NODIV.has(e.tier)?'':e.rank,lp:e.leaguePoints,w:e.wins,l:e.losses,abs:absLP(e.tier,e.rank,e.leaguePoints)} : null; }
+      } catch {}
+      if(++done%25===0){ console.log('  '+done+'/'+allRids.length); try{fs.writeFileSync(PUUID_CACHE,JSON.stringify(puuidCache));}catch{} }
+    }
+    try{ fs.writeFileSync(PUUID_CACHE,JSON.stringify(puuidCache)); }catch{}
+    console.log('rangos obtenidos:', Object.values(rankByRid).filter(Boolean).length+'/'+allRids.length);
+  } else if (WANT_RANKS){ console.log('⚠ sin RIOT_API_KEY — se omiten los rangos (corre con la key en backend/.env)'); }
+
   const data={
     tournament:'uLeague', edition:'Clausura 2026', game:'League of Legends',
     source:'https://docs.google.com/spreadsheets/d/'+SHEET_ID,
     updatedAt:new Date().toISOString(), startDate:'2026-10-03',
     phases:PHASES, ours:[...OURS],
-    teams: teams.map(t=>({ name:t.name, canon:t.canon, ours:t.ours, players:t.players })),
+    teams: teams.map(t=>({ name:t.name, canon:t.canon, ours:t.ours,
+      players: t.players.map(rid=>({ rid, nm: rid.split('#')[0], rank: rankByRid[rid]||null })) })),
     swiss, bracket,
   };
   fs.writeFileSync(OUT, JSON.stringify(data,null,1));
