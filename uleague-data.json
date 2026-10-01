@@ -1,0 +1,637 @@
+{
+ "tournament": "uLeague",
+ "edition": "Clausura 2026",
+ "game": "League of Legends",
+ "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
+ "updatedAt": "2026-10-01T04:23:18.661Z",
+ "startDate": "2026-10-03",
+ "phases": [
+  {
+   "key": "suiza",
+   "name": "Fase Suiza",
+   "dates": "3 – 15 oct",
+   "format": "Sistema suizo · 5 rondas · R1-2 Bo1, R3-5 Bo3",
+   "detail": "Ganas 3 → clasificas al Top 16 · Pierdes 3 → eliminado"
+  },
+  {
+   "key": "octavos",
+   "name": "Octavos de final",
+   "dates": "por confirmar",
+   "format": "Bo3 · eliminación directa",
+   "detail": "16 clasificados, sorteo por récord suizo (3-0 / 3-1 / 3-2)"
+  },
+  {
+   "key": "cuartos",
+   "name": "Cuartos de final",
+   "dates": "20 – 22 oct",
+   "format": "Bo3 · online",
+   "detail": ""
+  },
+  {
+   "key": "semis",
+   "name": "Semifinales",
+   "dates": "31 oct – 1 nov",
+   "format": "Bo3 · online",
+   "detail": ""
+  },
+  {
+   "key": "final",
+   "name": "Final (presencial)",
+   "dates": "por confirmar",
+   "format": "Bo3 · presencial en Santiago",
+   "detail": "Incluye definición por el 3er lugar"
+  }
+ ],
+ "ours": [
+  "UCH A",
+  "UCH B",
+  "UCH C",
+  "UCH D"
+ ],
+ "teams": [
+  {
+   "name": "UNAB A",
+   "canon": "UNAB A",
+   "ours": false,
+   "players": [
+    "1Žeus Tactico#최고신",
+    "kaii#adc",
+    "Ronin#33s",
+    "KEKW 2023#LAS",
+    "Chivoo#Lupeeh"
+   ]
+  },
+  {
+   "name": "UNAB B",
+   "canon": "UNAB B",
+   "ours": false,
+   "players": [
+    "MD PASHEN#MDE",
+    "pablobk#LAS",
+    "Cyanuro#Evlyn",
+    "always deafen#LAS1",
+    "Jechua20#2021",
+    "DK DestroyLonely#ALILY",
+    "XIVBlackbas#black"
+   ]
+  },
+  {
+   "name": "UNAB C",
+   "canon": "UNAB C",
+   "ours": false,
+   "players": [
+    "GTCJR#Nicky",
+    "God Peo#ATRIX",
+    "Chickblo12#LAS",
+    "yellowclaw#melou",
+    "Jinllo#Mango",
+    "InsertName#Pog"
+   ]
+  },
+  {
+   "name": "UDA",
+   "canon": "UDA",
+   "ours": false,
+   "players": [
+    "DeadSky#LAS",
+    "Shoyo Yoshida#LAS",
+    "rush P90 manito#LAS",
+    "Popet0n#LAS",
+    "Føxsen#666",
+    "Kursinho#GOD",
+    "nicolas0lavarria#LAS",
+    "Gekarmoh#TUSK"
+   ]
+  },
+  {
+   "name": "UCH A",
+   "canon": "UCH A",
+   "ours": true,
+   "players": [
+    "Che copete#LoL",
+    "Krok#DEUS",
+    "k1sseshugs#xoxo",
+    "Nadie#UCH",
+    "Yoyobox#1899",
+    "Muspe#777",
+    "Miss All Sünday#WE0NA",
+    "insano3000#unvio"
+   ]
+  },
+  {
+   "name": "UCH B",
+   "canon": "UCH B",
+   "ours": true,
+   "players": [
+    "Dekai#LAS",
+    "Minitas Hunter#zzz",
+    "Tathamet#LAS",
+    "Sunless#0410",
+    "Lacosabuena#LAS",
+    "DeSean#Elba"
+   ]
+  },
+  {
+   "name": "UCH C",
+   "canon": "UCH C",
+   "ours": true,
+   "players": [
+    "Kriida#7777",
+    "HudsonHornet#gueon",
+    "Petu#99999",
+    "vishh#LAS",
+    "Maio#BARD",
+    "Manuel#vlaki",
+    "Jotaaaa#MLJS",
+    "carloco69#LAS"
+   ]
+  },
+  {
+   "name": "UCH D",
+   "canon": "UCH D",
+   "ours": true,
+   "players": [
+    "Plüs#SICK",
+    "SionAntisionista#SAS",
+    "kıwı#wıkı",
+    "matotomatoxd#LAS",
+    "Yutsero#LAS",
+    "Pumajuego#LAS",
+    "henrymiller#379"
+   ]
+  },
+  {
+   "name": "UCT A",
+   "canon": "UCT A",
+   "ours": false,
+   "players": [
+    "UCT Argonavth#LAS1",
+    "UCT Eritro#666",
+    "UCT Das#PAPS",
+    "UCT soguzx#zzx",
+    "UCT Beusfy#00000"
+   ]
+  },
+  {
+   "name": "UCT B",
+   "canon": "UCT B",
+   "ours": false,
+   "players": [
+    "Vishete#LAS",
+    "AleK#cueca",
+    "Jungla Holandés#1412",
+    "SC JeanPolnareff#JOJO",
+    "alvarorex777OMG#papoi",
+    "Duki#UwU"
+   ]
+  },
+  {
+   "name": "UDD",
+   "canon": "UDD",
+   "ours": false,
+   "players": [
+    "getFrosted#151",
+    "michaelolise11#vamp",
+    "Cherry#Aqua",
+    "maxigod#6767",
+    "Kiefer#LASS",
+    "Jeff Bezos#LAS"
+   ]
+  },
+  {
+   "name": "PUCV",
+   "canon": "PUCV",
+   "ours": false,
+   "players": [
+    "Dakotah#T1WIN",
+    "n1llzinho#WASD",
+    "Ðeepwokeη#Ys0",
+    "ChunRavel#NMCL",
+    "Pequeño Capibara#hola",
+    "cachorrâo#sech",
+    "DucktorMonty#baker"
+   ]
+  },
+  {
+   "name": "USACH",
+   "canon": "USACH",
+   "ours": false,
+   "players": [
+    "3nder#ezzz",
+    "Rey Kimera#Never",
+    "exte#las",
+    "fernanelcrack#4444",
+    "Đean#WILD",
+    "Xander#017",
+    "Costo hundido#TTTTT",
+    "Diegors#0000"
+   ]
+  },
+  {
+   "name": "USM A",
+   "canon": "USM A",
+   "ours": false,
+   "players": [
+    "Pichito#LAS1",
+    "Stargazer7#LAS",
+    "Lukes#nvm",
+    "Tynek#Kiss",
+    "Dangeflow#Sebax",
+    "Hebi#frost",
+    "Chocolo#MSc"
+   ]
+  },
+  {
+   "name": "USM B",
+   "canon": "USM B",
+   "ours": false,
+   "players": [
+    "373#Ruby",
+    "lynko#005",
+    "Skadoonish#LAS1",
+    "Οldest Dream#orv",
+    "Sant1n #kata",
+    "Peter pyker #milo",
+    "esclavo de karin#monki",
+    "shutdownxzoe#LAS"
+   ]
+  },
+  {
+   "name": "USM C",
+   "canon": "USM C",
+   "ours": false,
+   "players": [
+    "Kripistobal #USM",
+    "Nachomater#CTLG",
+    "King mesura#kyuvst",
+    "moonlight#16180",
+    "Manjar Con Pann#LAS",
+    "Gravis#RYO",
+    "Skelia#Homan"
+   ]
+  },
+  {
+   "name": "USM D",
+   "canon": "USM D",
+   "ours": false,
+   "players": [
+    "UN1CORN1oCOsm1cO",
+    "Tapia4#LAS",
+    "Brechaqueo#las",
+    "PanConLimón #ALO",
+    "lunanova #las",
+    "mtrix #las1",
+    "soo ho #LAS",
+    "Josecontildenlae#JTA"
+   ]
+  },
+  {
+   "name": "UCSH",
+   "canon": "UCSH",
+   "ours": false,
+   "players": [
+    "ˇ ˆ ˇ ˇ#unu",
+    "GG No Tengo JG#3516",
+    "Pucho#gosu",
+    "Sejoy0#8677",
+    "Kaniewest#MBDTF",
+    "Harry Kayn#9999",
+    "Zoro220#LAS",
+    "N N #172"
+   ]
+  },
+  {
+   "name": "DUOC UC",
+   "canon": "DUOC",
+   "ours": false,
+   "players": [
+    "MarceSato#T T",
+    "Francesco FIUUU#LAS",
+    "cow#bored",
+    "Kindless #0804",
+    "Jisoo#y11",
+    "P u n c h#Pain",
+    "keria 1 completo #las"
+   ]
+  },
+  {
+   "name": "UMAYOR",
+   "canon": "UMAYOR",
+   "ours": false,
+   "players": [
+    "KarmaYikes#9722",
+    "Laval#LAS",
+    "José José#gmhrd",
+    "Dargus#mvp",
+    "King Geedorah#DOOOM",
+    "Elchocolaton#CTM",
+    "VICHOHACK#LAS"
+   ]
+  },
+  {
+   "name": "UTEM A",
+   "canon": "UTEM A",
+   "ours": false,
+   "players": [
+    "Flipy #Loop",
+    "Creampy#XDD",
+    "Cero#9189",
+    "sech987#LAS",
+    "IElCocosLOK1",
+    "⁦el sin rodillas⁩#⁦5573⁩",
+    "Ogg#aaa",
+    "merluzini #135BP"
+   ]
+  },
+  {
+   "name": "UTEM B",
+   "canon": "UTEM B",
+   "ours": false,
+   "players": [
+    "mon laferte fan #salvi",
+    "Hustl333r#Preda",
+    "Gridmi#viktr",
+    "Rico#TEA",
+    "donatello #MID17",
+    "⁦shelao⁩#⁦SSS⁩"
+   ]
+  },
+  {
+   "name": "UDP A",
+   "canon": "UDP A",
+   "ours": false,
+   "players": [
+    "NEEDB12#LAS1",
+    "Ñandú#snsc",
+    "Fax flm#LAS",
+    "Koelliu#111",
+    "Moma#420",
+    "noon#030"
+   ]
+  },
+  {
+   "name": "UDP B",
+   "canon": "UDP B",
+   "ours": false,
+   "players": [
+    "Multiwaifus#ADO",
+    "Lolnes#LAS",
+    "Moruga#jg777",
+    "Nibbamin#LACRA",
+    "Bedless#Sashi",
+    "Benjitapro2010#DAT",
+    "hikeN#hkn"
+   ]
+  },
+  {
+   "name": "UTALCA A",
+   "canon": "UTAL A",
+   "ours": false,
+   "players": [
+    "Brazil1anGod#BRA",
+    "Posséidon#nnnnn",
+    "yungvfx#666",
+    "LLEFLIGHT CHOA #CHOA",
+    "B castro G#castr",
+    "Alee#31426"
+   ]
+  },
+  {
+   "name": "UTAL B",
+   "canon": "UTAL B",
+   "ours": false,
+   "players": [
+    "Insomnia#eve",
+    "LUCARIOH#LAS",
+    "Escr0Tit0#CLP",
+    "Barlon#meeps",
+    "Duho#ftit",
+    "Rchay Erome#Richi",
+    "6 lukas justas#kuroh"
+   ]
+  },
+  {
+   "name": "UTAL C",
+   "canon": "UTAL C",
+   "ours": false,
+   "players": [
+    "Reybeys #krkas",
+    "Green2030#LAS",
+    "Ninja Precoz #Zen",
+    "Gatitomancer#FAKER",
+    "Yose#1983",
+    "Sexmund Freud#FREUD"
+   ]
+  },
+  {
+   "name": "UTAL D",
+   "canon": "UTAL D",
+   "ours": false,
+   "players": [
+    "majalejeman#las",
+    "elsrgatito#las",
+    "eternallamb#las",
+    "matikuri#las",
+    "Kurosãki Ichigo #Enf",
+    "panconquezo318#lpg"
+   ]
+  },
+  {
+   "name": "UC A",
+   "canon": "UC A",
+   "ours": false,
+   "players": [
+    "UC Xiao#1313",
+    "UC Neøn#6253",
+    "UC alexkidd#TKL",
+    "Cookie#M505",
+    "Heza#perry",
+    "dEHuMAnizEd#susu",
+    "Cuish#001",
+    "chovski#LAS"
+   ]
+  },
+  {
+   "name": "UC B",
+   "canon": "UC B",
+   "ours": false,
+   "players": [
+    "UC Rash #UCR",
+    "mijoyy#top",
+    "Demerzel#1999",
+    "Jøseabaran⁩#⁦LAS⁩",
+    "despair#enso",
+    "Maben#CLP",
+    "mitsu #rinri",
+    "JUDINI#cafe"
+   ]
+  },
+  {
+   "name": "UCN",
+   "canon": "UCN",
+   "ours": false,
+   "players": [
+    "Winteroh#pupu",
+    "Benlox44#LAS",
+    "hide on papoi#PAPOI",
+    "fragnight#LAS",
+    "DatCursed#LAS",
+    "Kasane Teto#xdlol"
+   ]
+  },
+  {
+   "name": "UDEC",
+   "canon": "UDEC",
+   "ours": false,
+   "players": [
+    "Tank#PSQ",
+    "xXporotosXx#LAS",
+    "Pollococoman#POIO",
+    "wonder#lass1",
+    "Fiurius#LAS",
+    "_almohada",
+    "Shirou Ogami#1111",
+    "alliez#las"
+   ]
+  }
+ ],
+ "swiss": [
+  {
+   "n": 1,
+   "bo": "BO1",
+   "buckets": [
+    {
+     "record": "0-0",
+     "matches": [
+      {
+       "a": "USM D",
+       "b": "UCT A"
+      },
+      {
+       "a": "UTAL B",
+       "b": "UC A"
+      },
+      {
+       "a": "UTEM B",
+       "b": "UDD"
+      },
+      {
+       "a": "UTEM A",
+       "b": "UMAYOR"
+      },
+      {
+       "a": "UCH D",
+       "b": "UTAL D"
+      },
+      {
+       "a": "DUOC",
+       "b": "USM B"
+      },
+      {
+       "a": "UDP B",
+       "b": "UTAL A"
+      },
+      {
+       "a": "UCH B",
+       "b": "UDEC"
+      },
+      {
+       "a": "UTAL C",
+       "b": "UCH C"
+      },
+      {
+       "a": "UCT B",
+       "b": "UDP A"
+      },
+      {
+       "a": "UCSH",
+       "b": "USACH"
+      },
+      {
+       "a": "USM A",
+       "b": "UNAB C"
+      },
+      {
+       "a": "PUCV",
+       "b": "UNAB B"
+      },
+      {
+       "a": "UDA",
+       "b": "UCN"
+      },
+      {
+       "a": "UCH A",
+       "b": "UNAB A"
+      },
+      {
+       "a": "USM C",
+       "b": "UC B"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "n": 2,
+   "bo": "BO1",
+   "buckets": [
+    {
+     "record": "1-0",
+     "matches": []
+    },
+    {
+     "record": "0-1",
+     "matches": []
+    }
+   ]
+  },
+  {
+   "n": 3,
+   "bo": "BO3",
+   "buckets": [
+    {
+     "record": "2-0",
+     "matches": []
+    },
+    {
+     "record": "1-1",
+     "matches": []
+    },
+    {
+     "record": "0-2",
+     "matches": []
+    }
+   ]
+  },
+  {
+   "n": 4,
+   "bo": "BO3",
+   "buckets": [
+    {
+     "record": "2-1",
+     "matches": []
+    },
+    {
+     "record": "1-2",
+     "matches": []
+    }
+   ]
+  },
+  {
+   "n": 5,
+   "bo": "BO3",
+   "buckets": [
+    {
+     "record": "2-2",
+     "matches": []
+    }
+   ]
+  }
+ ],
+ "bracket": {
+  "octavos": [],
+  "cuartos": [],
+  "semis": [],
+  "final": []
+ }
+}

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — uLeague</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#7dd3fc; --uch:#2b6cff;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1200px 600px at 50% -220px, rgba(43,108,255,.10), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 20px; }
+  main.wrap{ padding-bottom:70px; }
+
+  /* Hero */
+  .hero{ text-align:center; padding:18px 0 4px; position:relative; }
+  .hero .kicker{ font-size:11px; font-weight:800; letter-spacing:.16em; color:var(--blue); text-transform:uppercase; }
+  .hero h1{ font-size:40px; letter-spacing:-.03em; margin:4px 0 8px; font-weight:700; }
+  .hero h1 em{ font-style:normal; background:linear-gradient(90deg,#7dd3fc,#2b6cff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  .hero .lead{ color:var(--muted); font-size:14.5px; max-width:680px; margin:0 auto; line-height:1.55; }
+  .hero-meta{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:16px 0 2px; }
+  .chipm{ font-size:12px; font-weight:700; color:var(--muted); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 13px; }
+  .chipm b{ color:var(--text); } .chipm.live{ color:var(--up); border-color:rgba(52,211,153,.4); }
+
+  /* Switcher de torneo + sub-pestañas */
+  .tourn-tabs{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:16px 0 18px; }
+  .ttab-btn{ font-family:inherit; cursor:pointer; background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:9px 18px; font-size:13px; font-weight:800; display:inline-flex; align-items:center; gap:7px; }
+  .ttab-btn:hover{ color:#fff; }
+  .ttab-btn.active{ background:linear-gradient(90deg,#2b6cff,#7dd3fc); color:#001; border-color:transparent; }
+  .ttab-btn.closed{ opacity:.7; }
+  .dotlive{ width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 0 3px rgba(52,211,153,.2); display:inline-block; }
+
+  .page-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 22px; justify-content:center; }
+  .ptab-btn{ font-family:inherit; cursor:pointer; background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:11px; padding:10px 18px; font-size:13.5px; font-weight:800; display:inline-flex; align-items:center; gap:7px; }
+  .ptab-btn:hover{ color:#fff; border-color:var(--line-2); }
+  .ptab-btn.active{ background:#fff; color:#000; border-color:#fff; }
+  .ptab{ display:none; } .ptab.active{ display:block; }
+
+  .sect-h{ font-size:13px; font-weight:800; letter-spacing:.07em; color:var(--blue); margin:30px 0 14px; text-transform:uppercase; }
+  .sect-h:first-child{ margin-top:6px; }
+
+  /* Nuestros equipos */
+  .ours-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+  @media(max-width:900px){ .ours-grid{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:520px){ .ours-grid{ grid-template-columns:1fr; } }
+  .ucard{ background:linear-gradient(180deg,rgba(43,108,255,.14),rgba(43,108,255,.03)); border:1px solid rgba(125,211,252,.28); border-radius:16px; padding:16px; position:relative; overflow:hidden; }
+  .ucard::after{ content:''; position:absolute; inset:0; background:radial-gradient(360px 120px at 100% 0, rgba(125,211,252,.12), transparent 70%); pointer-events:none; }
+  .ucard h3{ font-size:20px; font-weight:800; letter-spacing:.02em; }
+  .ucard .sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .ucard .vs{ margin-top:12px; font-size:12px; color:var(--muted); }
+  .ucard .vs b{ color:#fff; }
+  .ucard .roster{ margin-top:10px; display:flex; flex-wrap:wrap; gap:5px; }
+  .ucard .pl{ font-size:10.5px; font-weight:700; color:var(--blue); background:rgba(125,211,252,.1); border:1px solid rgba(125,211,252,.2); border-radius:6px; padding:2px 7px; }
+
+  /* Timeline de fases */
+  .timeline{ display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  @media(max-width:860px){ .timeline{ grid-template-columns:1fr 1fr; } }
+  @media(max-width:460px){ .timeline{ grid-template-columns:1fr; } }
+  .phase{ background:var(--panel); border:1px solid var(--line); border-radius:13px; padding:14px; }
+  .phase .pn{ font-size:13.5px; font-weight:800; }
+  .phase .pd{ font-size:11.5px; color:var(--gold); font-weight:700; margin-top:3px; }
+  .phase .pf{ font-size:11px; color:var(--muted); margin-top:7px; line-height:1.4; }
+  .phase .px{ font-size:10.5px; color:var(--muted-2); margin-top:6px; line-height:1.4; }
+  .phase.on{ border-color:rgba(125,211,252,.5); box-shadow:0 0 0 1px rgba(125,211,252,.25) inset; }
+
+  /* Fase suiza */
+  .round-tabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; }
+  .rtab{ font-family:inherit; cursor:pointer; background:var(--panel); border:1px solid var(--line); color:var(--muted); border-radius:9px; padding:8px 14px; font-size:12.5px; font-weight:800; }
+  .rtab.active{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .rtab:disabled{ opacity:.4; cursor:not-allowed; }
+  .buckets{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+  .bucket{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .bucket-h{ padding:10px 14px; font-size:12px; font-weight:800; letter-spacing:.04em; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center; }
+  .bucket-h .rec{ color:var(--gold); } .bucket-h .bo{ font-size:10px; color:var(--muted-2); }
+  .match{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:8px; padding:10px 12px; border-top:1px solid rgba(255,255,255,.04); font-size:13px; }
+  .match:first-child{ border-top:none; }
+  .match .tm{ font-weight:700; display:flex; align-items:center; gap:7px; min-width:0; }
+  .match .tm.r{ justify-content:flex-end; text-align:right; }
+  .match .tm.win{ color:var(--up); } .match .tm.lose{ color:var(--muted-2); }
+  .match .tm.ours{ color:var(--blue); }
+  .match .vs{ font-size:10px; color:var(--muted-2); font-weight:800; }
+  .logo{ width:20px; height:20px; border-radius:5px; display:grid; place-items:center; font-size:9px; font-weight:800; flex:0 0 auto; }
+  .empty-note{ text-align:center; color:var(--muted); font-size:13px; padding:28px 10px; background:var(--panel); border:1px dashed var(--line-2); border-radius:14px; }
+
+  /* Tabla standings */
+  .stand{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .stand th,.stand td{ padding:9px 12px; text-align:left; font-size:13px; border-top:1px solid rgba(255,255,255,.05); }
+  .stand th{ font-size:10px; letter-spacing:.05em; color:var(--muted-2); text-transform:uppercase; }
+  .stand td.c,.stand th.c{ text-align:center; }
+  .stand tr.ours td{ background:linear-gradient(90deg,rgba(43,108,255,.12),transparent); }
+  .stand tr.ours .nm{ color:var(--blue); font-weight:800; }
+  .pill-st{ font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:5px; }
+  .pill-st.q{ color:#001; background:var(--up); } .pill-st.e{ color:#fff; background:var(--down); } .pill-st.p{ color:var(--muted); background:rgba(255,255,255,.07); }
+
+  /* Bracket */
+  .bracket{ display:flex; gap:26px; overflow-x:auto; padding-bottom:12px; }
+  .bcol{ display:flex; flex-direction:column; justify-content:space-around; gap:14px; min-width:190px; }
+  .bcol-h{ font-size:11px; font-weight:800; letter-spacing:.05em; color:var(--muted-2); text-transform:uppercase; text-align:center; margin-bottom:2px; }
+  .bmatch{ background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .brow{ display:flex; align-items:center; gap:7px; padding:8px 10px; font-size:12.5px; font-weight:700; }
+  .brow+.brow{ border-top:1px solid rgba(255,255,255,.06); }
+  .brow.win{ color:var(--up); } .brow.ours{ color:var(--blue); }
+  .brow .seed{ font-size:9px; color:var(--muted-2); font-weight:800; width:16px; }
+  .brow .bn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* Equipos */
+  .teams-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+  .tcard{ background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
+  .tcard.ours{ border-color:rgba(125,211,252,.35); background:linear-gradient(180deg,rgba(43,108,255,.07),transparent); }
+  .tcard-h{ display:flex; align-items:center; gap:10px; padding:11px 13px; border-bottom:1px solid var(--line); }
+  .tcard-h .t{ font-size:14px; font-weight:800; } .tcard.ours .tcard-h .t{ color:var(--blue); }
+  .tcard-h .us{ margin-left:auto; font-size:9px; font-weight:800; color:#001; background:var(--blue); padding:2px 7px; border-radius:5px; }
+  .tcard ul{ list-style:none; }
+  .tcard li{ display:flex; align-items:center; gap:8px; padding:7px 13px; border-top:1px solid rgba(255,255,255,.04); font-size:12.5px; }
+  .tcard li:first-child{ border-top:none; }
+  .tcard li .pn{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tcard li .rk{ margin-left:auto; font-size:10.5px; font-weight:700; flex:0 0 auto; }
+
+  /* Simulación */
+  .sim-ctrls{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .btn{ font-family:inherit; cursor:pointer; border-radius:10px; padding:10px 16px; font-size:13px; font-weight:800; border:1px solid var(--line-2); background:var(--panel); color:#fff; }
+  .btn.primary{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .btn.blue{ background:linear-gradient(90deg,#2b6cff,#7dd3fc); color:#001; border-color:transparent; }
+  .btn:hover{ filter:brightness(1.08); }
+  .sim-note{ font-size:12.5px; color:var(--muted); margin:-4px 0 14px; line-height:1.5; }
+  .champ{ text-align:center; padding:20px; background:linear-gradient(180deg,rgba(255,210,74,.14),transparent); border:1px solid rgba(255,210,74,.3); border-radius:16px; margin-bottom:18px; }
+  .champ .lbl{ font-size:11px; font-weight:800; letter-spacing:.1em; color:var(--gold); text-transform:uppercase; }
+  .champ .nm{ font-size:28px; font-weight:800; margin-top:4px; }
+  .champ .nm.ours{ color:var(--blue); }
+
+  .foot{ text-align:center; color:var(--muted-2); font-size:11.5px; margin-top:34px; line-height:1.6; }
+</style>
+<link rel="stylesheet" href="nav.css?v=2">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left"><a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a></div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="uleague.html" class="active">Torneos</a>
+      <a href="soloqdle.html">SoloQdle</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <div class="tourn-tabs">
+      <button class="ttab-btn active">🏆 uLeague <span style="opacity:.7;font-weight:700">Clausura 2026</span></button>
+      <a class="ttab-btn closed" href="torneos.html">UDPORROS 2026 · cerrado</a>
+    </div>
+
+    <section class="hero">
+      <div class="kicker">Liga Universitaria de Esports · League of Legends</div>
+      <h1><em>uLeague</em> Clausura 2026</h1>
+      <div class="lead">El torneo más importante: 32 equipos universitarios, fase suiza y playoffs con final presencial. La Universidad de Chile va con <b>4 equipos</b> (UCH A/B/C/D).</div>
+      <div class="hero-meta" id="hero-meta"></div>
+    </section>
+
+    <div class="page-tabs">
+      <button class="ptab-btn active" data-p="resumen">🏠 Resumen</button>
+      <button class="ptab-btn" data-p="suiza">🇨🇭 Fase Suiza</button>
+      <button class="ptab-btn" data-p="playoffs">🏆 Eliminatorias</button>
+      <button class="ptab-btn" data-p="equipos">👥 Equipos</button>
+      <button class="ptab-btn" data-p="sim">🎮 Simulación</button>
+    </div>
+
+    <section class="ptab active" id="tab-resumen"><div class="empty-note">Cargando…</div></section>
+    <section class="ptab" id="tab-suiza"></section>
+    <section class="ptab" id="tab-playoffs"></section>
+    <section class="ptab" id="tab-equipos"></section>
+    <section class="ptab" id="tab-sim"></section>
+
+    <div class="foot" id="foot"></div>
+  </main>
+
+<script src="players.js"></script>
+<script src="api.js"></script>
+<script>
+SQC.preNav && SQC.preNav(); SQC.mountNav && SQC.mountNav();
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let DATA = null;
+
+// ---- rangos en vivo (desde el tracker) ----
+const RP = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players)) ? window.SQC_DATA.players : [];
+const byRid = {}; RP.forEach(p => { if(p.rid) byRid[nrid(p.rid)] = p; });
+function nrid(r){ return (r||'').toLowerCase().replace(/\s*#\s*/,'#').trim(); }
+const TCOL={CHALLENGER:'#f4c14b',GRANDMASTER:'#fb7185',MASTER:'#c084fc',DIAMOND:'#7dd3fc',EMERALD:'#34d399',PLATINUM:'#5eead4',GOLD:'#fcd34d',SILVER:'#cbd5e1',BRONZE:'#d6a06a',IRON:'#9ca3af'};
+const APEX=new Set(['MASTER','GRANDMASTER','CHALLENGER']);
+function rankStr(rid){ const p=byRid[nrid(rid)]; if(!p||!p.tier||p.tier==='UNRANKED') return null;
+  const nice=p.tier.charAt(0)+p.tier.slice(1).toLowerCase(); const div=APEX.has(p.tier)?'':(p.div?' '+p.div:'');
+  return { t:nice+div+(p.lp!=null?' '+p.lp+'LP':''), c:TCOL[p.tier]||'#fff' }; }
+
+// ---- logos: inicial coloreada por equipo (placeholder hasta tener imágenes) ----
+function hue(s){ let h=0; for(const c of s) h=(h*31+c.charCodeAt(0))>>>0; return h%360; }
+function logo(name,ours){ const h=hue(name); const bg=ours?'linear-gradient(135deg,#2b6cff,#7dd3fc)':`hsl(${h} 45% 28%)`;
+  const ini=(name||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,3).toUpperCase();
+  return `<span class="logo" style="background:${bg};color:#fff">${esc(ini.slice(0,2))}</span>`; }
+const isOurs = name => DATA && DATA.ours.includes(name);
+
+// ================= RESUMEN =================
+function daysTo(dstr){ const d=new Date(dstr+'T00:00:00-03:00'); return Math.ceil((d-new Date())/86400000); }
+function renderResumen(){
+  const started = daysTo(DATA.startDate) <= 0;
+  $('#hero-meta').innerHTML =
+    `<span class="chipm">🏫 <b>${DATA.teams.length}</b> equipos</span>`+
+    `<span class="chipm">📅 Inicia <b>sáb 3 oct</b></span>`+
+    (started?`<span class="chipm live">● en curso</span>`:`<span class="chipm">⏳ en <b>${Math.max(0,daysTo(DATA.startDate))} días</b></span>`)+
+    `<span class="chipm">🇨🇭 Suiza → Top 16 → Bo3</span>`;
+  // nuestros equipos + rival de R1
+  const r1 = (DATA.swiss[0] && DATA.swiss[0].buckets[0]) ? DATA.swiss[0].buckets[0].matches : [];
+  const oppOf = t => { for(const m of r1){ if(m.a===t) return m.b; if(m.b===t) return m.a; } return null; };
+  const ours = DATA.teams.filter(t=>t.ours);
+  const cards = ours.map(t=>{
+    const opp = oppOf(t.name);
+    const pls = t.players.slice(0,8).map(p=>`<span class="pl">${esc((p.split('#')[0]))}</span>`).join('');
+    return `<div class="ucard"><h3>${esc(t.name)}</h3><div class="sub">${t.players.length} jugadores · U. de Chile</div>
+      <div class="vs">R1 vs <b>${opp?esc(opp):'—'}</b></div>
+      <div class="roster">${pls}</div></div>`;
+  }).join('');
+  const phases = DATA.phases.map((p,i)=>`<div class="phase ${p.key==='suiza'?'on':''}">
+      <div class="pn">${esc(p.name)}</div><div class="pd">${esc(p.dates)}</div>
+      <div class="pf">${esc(p.format)}</div>${p.detail?`<div class="px">${esc(p.detail)}</div>`:''}</div>`).join('');
+  $('#tab-resumen').innerHTML =
+    `<div class="sect-h">La Chile en uLeague</div><div class="ours-grid">${cards}</div>`+
+    `<div class="sect-h">Formato y fechas</div><div class="timeline">${phases}</div>`+
+    `<div class="sect-h">Recordatorios</div><div class="empty-note" style="text-align:left;border-style:solid">
+       • El torneo comienza el <b>sábado 3 de octubre</b>.<br>• Coordina con el capitán del equipo rival el horario del match.<br>• Fixture y bases oficiales — datos sincronizados desde el Excel de uLeague.</div>`;
+}
+
+// ================= FASE SUIZA =================
+let curRound = 1;
+function teamStatus(team){ // récord actual y estado deducido del último bucket donde aparece
+  let rec='0-0', lastRound=0;
+  DATA.swiss.forEach(r=>r.buckets.forEach(b=>b.matches.forEach(m=>{ if(m.a===team||m.b===team){ if(r.n>=lastRound){ lastRound=r.n; rec=b.record; } } })));
+  const [w,l]=rec.split('-').map(Number);
+  let st='p'; if(w>=3) st='q'; else if(l>=3) st='e';
+  return { rec, w:w||0, l:l||0, st };
+}
+function matchRow(m){
+  const oa=isOurs(m.a), ob=isOurs(m.b);
+  return `<div class="match">
+    <div class="tm r ${oa?'ours':''}">${esc(m.a)} ${logo(m.a,oa)}</div>
+    <div class="vs">VS</div>
+    <div class="tm ${ob?'ours':''}">${logo(m.b,ob)} ${esc(m.b)}</div></div>`;
+}
+function renderSuiza(){
+  const rtabs = DATA.swiss.map(r=>{ const n=r.buckets.reduce((s,b)=>s+b.matches.length,0);
+    return `<button class="rtab ${r.n===curRound?'active':''}" data-r="${r.n}" ${n===0?'disabled':''}>Ronda ${r.n} <span style="opacity:.6">${r.bo}</span></button>`; }).join('');
+  const rnd = DATA.swiss.find(r=>r.n===curRound) || DATA.swiss[0];
+  const total = rnd.buckets.reduce((s,b)=>s+b.matches.length,0);
+  let body;
+  if(total===0){ body = `<div class="empty-note">El sorteo de la Ronda ${curRound} se publica cuando termine la ronda anterior.<br>Se informa a más tardar a las 13:00 del día siguiente.</div>`; }
+  else body = `<div class="buckets">`+rnd.buckets.filter(b=>b.matches.length).map(b=>
+      `<div class="bucket"><div class="bucket-h"><span class="rec">Récord ${esc(b.record)}</span><span class="bo">${rnd.bo}</span></div>
+       ${b.matches.map(matchRow).join('')}</div>`).join('')+`</div>`;
+  // standings
+  const rows = DATA.teams.map(t=>({ t, ...teamStatus(t.name) }))
+    .sort((a,b)=> b.w-a.w || a.l-b.l || a.t.name.localeCompare(b.t.name));
+  const stand = `<table class="stand"><thead><tr><th>#</th><th>Equipo</th><th class="c">V</th><th class="c">D</th><th class="c">Estado</th></tr></thead><tbody>`+
+    rows.map((r,i)=>`<tr class="${r.t.ours?'ours':''}"><td class="c">${i+1}</td><td class="nm">${logo(r.t.name,r.t.ours)} ${esc(r.t.name)}</td>
+      <td class="c">${r.w}</td><td class="c">${r.l}</td>
+      <td class="c"><span class="pill-st ${r.st}">${r.st==='q'?'Clasificado':r.st==='e'?'Eliminado':'En juego'}</span></td></tr>`).join('')+`</tbody></table>`;
+  $('#tab-suiza').innerHTML = `<div class="sect-h">Fase Suiza · gana 3 clasificas, pierde 3 quedas fuera</div>
+    <div class="round-tabs">${rtabs}</div>${body}
+    <div class="sect-h">Tabla general</div>${stand}`;
+  $('#tab-suiza').querySelectorAll('.rtab').forEach(b=>b.onclick=()=>{ if(b.disabled)return; curRound=+b.dataset.r; renderSuiza(); });
+}
+
+// ================= ELIMINATORIAS =================
+function bracketCols(b){
+  const col=(title,matches)=>`<div class="bcol"><div class="bcol-h">${title}</div>${matches.map(m=>bm(m)).join('')}</div>`;
+  const bm=m=>{ m=m||{}; const a=m.a||'Por definir', bb=m.b||'Por definir';
+    return `<div class="bmatch">
+      <div class="brow ${m.w&&m.w===m.a?'win':''} ${isOurs(m.a)?'ours':''}"><span class="seed">${m.sa||''}</span><span class="bn">${esc(a)}</span></div>
+      <div class="brow ${m.w&&m.w===m.b?'win':''} ${isOurs(m.b)?'ours':''}"><span class="seed">${m.sb||''}</span><span class="bn">${esc(bb)}</span></div></div>`; };
+  const blank=n=>Array.from({length:n},()=>({}));
+  return col('Octavos', b.octavos.length?b.octavos:blank(8))
+       + col('Cuartos', b.cuartos.length?b.cuartos:blank(4))
+       + col('Semis', b.semis.length?b.semis:blank(2))
+       + col('Final', b.final.length?b.final:blank(1));
+}
+function renderPlayoffs(){
+  const b = (DATA.bracket && DATA.bracket.octavos) ? DATA.bracket : {octavos:[],cuartos:[],semis:[],final:[]};
+  const hasData = b.octavos.length>0;
+  $('#tab-playoffs').innerHTML = `<div class="sect-h">Eliminatorias · Top 16 · todo al mejor de 3</div>`+
+    (hasData?'':`<div class="empty-note" style="margin-bottom:16px">El bracket se define al terminar la Fase Suiza (15 oct). Los 16 clasificados se sortean por récord: 3-0, 3-1 y 3-2.<br>Mientras tanto, probá la <b>Simulación</b> 🎮 para ver cómo podría quedar.</div>`)+
+    `<div class="bracket">${bracketCols(b)}</div>`+
+    `<div class="sect-h">Calendario</div><div class="timeline">${DATA.phases.filter(p=>p.key!=='suiza').map(p=>`<div class="phase"><div class="pn">${esc(p.name)}</div><div class="pd">${esc(p.dates)}</div><div class="pf">${esc(p.format)}</div></div>`).join('')}</div>`;
+}
+
+// ================= EQUIPOS =================
+function renderEquipos(){
+  const teams = DATA.teams.slice().sort((a,b)=> (b.ours-a.ours) || a.name.localeCompare(b.name));
+  const cards = teams.map(t=>{
+    const lis = t.players.map(p=>{ const r=rankStr(p);
+      return `<li>${logo(p.split('#')[0],false)}<span class="pn">${esc(p.split('#')[0])}</span>${r?`<span class="rk" style="color:${r.c}">${esc(r.t)}</span>`:`<span class="rk" style="color:var(--muted-2)">—</span>`}</li>`; }).join('');
+    return `<div class="tcard ${t.ours?'ours':''}"><div class="tcard-h">${logo(t.name,t.ours)}<span class="t">${esc(t.name)}</span>${t.ours?'<span class="us">LA CHILE</span>':''}</div><ul>${lis}</ul></div>`;
+  }).join('');
+  $('#tab-equipos').innerHTML = `<div class="sect-h">Equipos y rosters · ${teams.length} equipos · los rangos se actualizan con el tracker</div><div class="teams-grid">${cards}</div>`;
+}
+
+// ================= SIMULACIÓN =================
+function simSwiss(){
+  // 32 equipos; suizo por récord; gana 3 clasifica, pierde 3 elimina.
+  let teams = DATA.teams.map(t=>({ name:t.name, ours:t.ours, w:0, l:0, done:null }));
+  const rnd = a => a.sort(()=>Math.random()-.5);
+  for(let round=1; round<=5; round++){
+    const live = teams.filter(t=>t.done===null);
+    const byRec = {};
+    live.forEach(t=>{ const k=t.w+'-'+t.l; (byRec[k]=byRec[k]||[]).push(t); });
+    Object.values(byRec).forEach(group=>{ rnd(group);
+      for(let i=0;i+1<group.length;i+=2){ const A=group[i],B=group[i+1];
+        const aw = Math.random()<0.5; (aw?A:B).w++; (aw?B:A).l++; }
+      // bye si impar
+    });
+    teams.forEach(t=>{ if(t.done===null){ if(t.w>=3)t.done='q'; else if(t.l>=3)t.done='e'; } });
+  }
+  const qual = teams.filter(t=>t.done==='q'||t.w>=3);
+  return { teams, qual: qual.slice(0,16) };
+}
+function simBracket(qual){
+  // seed por récord (3-0 arriba), sorteo simple; Bo3 single elim + 3er lugar
+  const seeded = qual.slice().sort((a,b)=> (b.w-a.w)||(a.l-b.l)).map((t,i)=>({...t,seed:i+1}));
+  const play=(a,b)=> Math.random()<0.5?a:b;
+  const pair=arr=>{ const out=[]; for(let i=0;i<arr.length/2;i++){ out.push([arr[i],arr[arr.length-1-i]]); } return out; };
+  let oct = pair(seeded);
+  const octR = oct.map(([a,b])=>({a:a.name,b:b.name,sa:'#'+a.seed,sb:'#'+b.seed,w:play(a,b).name,_a:a,_b:b}));
+  const qTeams = octR.map(m=> m.w===m.a?m._a:m._b);
+  let cua = pair(qTeams.sort((a,b)=>a.seed-b.seed));
+  const cuaR = cua.map(([a,b])=>({a:a.name,b:b.name,w:play(a,b).name,_a:a,_b:b}));
+  const sTeams = cuaR.map(m=> m.w===m.a?m._a:m._b);
+  let sem = pair(sTeams.sort((a,b)=>a.seed-b.seed));
+  const semR = sem.map(([a,b])=>({a:a.name,b:b.name,w:play(a,b).name,_a:a,_b:b}));
+  const fTeams = semR.map(m=> m.w===m.a?m._a:m._b);
+  const finR = [{a:fTeams[0].name,b:fTeams[1].name,w:play(fTeams[0],fTeams[1]).name}];
+  const champ = finR[0].w;
+  return { octavos:octR, cuartos:cuaR, semis:semR, final:finR, champ };
+}
+let SIM=null;
+function renderSim(){
+  $('#tab-sim').innerHTML = `<div class="sect-h">Simulación completa · Suiza → Top 16 → Playoffs</div>
+    <div class="sim-note">Simula la Fase Suiza (sorteos por récord) y los playoffs al mejor de 3. Es aleatorio — dale a "Simular" las veces que quieras para ver escenarios.</div>
+    <div class="sim-ctrls">
+      <button class="btn blue" id="sim-run">🎲 Simular torneo completo</button>
+      <button class="btn" id="sim-clear">Limpiar</button></div>
+    <div id="sim-out"></div>`;
+  $('#sim-run').onclick = () => { const s=simSwiss(); const br=simBracket(s.qual); SIM={s,br}; paintSim(); };
+  $('#sim-clear').onclick = () => { SIM=null; $('#sim-out').innerHTML=''; };
+  if(SIM) paintSim();
+}
+function paintSim(){
+  const {s,br}=SIM;
+  const champOurs=isOurs(br.champ);
+  const qTable = s.qual.sort((a,b)=>(b.w-a.w)||(a.l-b.l)).map((t,i)=>
+    `<tr class="${t.ours?'ours':''}"><td class="c">${i+1}</td><td class="nm">${logo(t.name,t.ours)} ${esc(t.name)}</td><td class="c">${t.w}-${t.l}</td></tr>`).join('');
+  $('#sim-out').innerHTML =
+    `<div class="champ"><div class="lbl">🏆 Campeón simulado</div><div class="nm ${champOurs?'ours':''}">${esc(br.champ)}</div></div>`+
+    `<div class="sect-h">Bracket simulado</div><div class="bracket">${bracketCols(br)}</div>`+
+    `<div class="sect-h">Top 16 (Fase Suiza)</div><table class="stand"><thead><tr><th>#</th><th>Equipo</th><th class="c">Récord</th></tr></thead><tbody>${qTable}</tbody></table>`;
+}
+
+// ================= TABS =================
+function showPage(p){
+  document.querySelectorAll('.ptab-btn').forEach(b=>b.classList.toggle('active',b.dataset.p===p));
+  document.querySelectorAll('.ptab').forEach(s=>s.classList.toggle('active',s.id==='tab-'+p));
+  if(history.replaceState) history.replaceState(null,'','#'+p);
+  if(p==='suiza')renderSuiza(); else if(p==='playoffs')renderPlayoffs(); else if(p==='equipos')renderEquipos(); else if(p==='sim')renderSim();
+}
+document.querySelectorAll('.ptab-btn').forEach(b=>b.onclick=()=>showPage(b.dataset.p));
+
+(async function init(){
+  try { DATA = await (await fetch('uleague-data.json?t='+Date.now(),{cache:'no-store'})).json(); }
+  catch(e){ $('#tab-resumen').innerHTML='<div class="empty-note">No se pudo cargar el fixture.</div>'; return; }
+  renderResumen();
+  const upd = DATA.updatedAt ? new Date(DATA.updatedAt).toLocaleString('es-CL') : '';
+  $('#foot').innerHTML = `Datos sincronizados desde el fixture oficial de uLeague · última actualización: ${esc(upd)}`;
+  const h=(location.hash||'').slice(1); if(['suiza','playoffs','equipos','sim'].includes(h)) showPage(h);
+})();
+</script>
+</body>
+</html>
