@@ -2006,7 +2006,7 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
 /* ===== Popup: Acaricia a Matotomato ===== */
 (function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
-  let closed = false; try { closed = localStorage.getItem('patClosed') === '1'; } catch (e) {}
+  let closed = false; try { closed = localStorage.getItem('matoClosed') === '1'; } catch (e) {}
   if (closed){ box.classList.add('hidden'); return; }
   const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
   const COOLDOWN = 10 * 60 * 1000, KEY = 'patLast';
@@ -2035,7 +2035,7 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
     try { if (window.SQC && SQC.api){ const d = await SQC.api('/palmadita', { method:'POST' }); if (d && typeof d.count === 'number'){ count = d.count; paintCount(); } } } catch (e) {}
   }
   const x = document.getElementById('pat-x');
-  if (x) x.addEventListener('click', () => { try { localStorage.setItem('patClosed', '1'); } catch (e) {} box.classList.add('hidden'); });
+  if (x) x.addEventListener('click', () => { try { localStorage.setItem('matoClosed', '1'); } catch (e) {} box.classList.add('hidden'); });
   btn.addEventListener('click', send);
   box.classList.remove('hidden'); refreshBtn(); load();
 })();
