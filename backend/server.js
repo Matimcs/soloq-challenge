@@ -1910,7 +1910,8 @@ async function buildDle(today){
     const a = best.acct;
     const gs = gamesByAcct[a] || [];
     const w = winByAcct[a], kd = kdaByAcct[a];
-    players.push({ key:o, nm: uNick[o] || best.nm || nmByAcct[a], avatar: avByOwner[o] || null, team: teamOf[o] || null,
+    const alt = [...new Set((accsByOwner[o]||[]).map(x => nmByAcct[x.acct]).filter(Boolean))];   // nombres de TODAS sus cuentas (para el autocompletar)
+    players.push({ key:o, nm: uNick[o] || best.nm || nmByAcct[a], alt, avatar: avByOwner[o] || null, team: teamOf[o] || null,
       eloAbs: absByAcct[a] ?? null, peakAbs: peakByAcct[a] ?? null, games: gs.length,
       roleMost: roleMost(posByAcct[a]), roleLeast: roleLeast(posByAcct[a]),
       wr: (wlByAcct[a] && (wlByAcct[a].w + wlByAcct[a].l)) ? Math.round(wlByAcct[a].w * 100 / (wlByAcct[a].w + wlByAcct[a].l))
@@ -1928,7 +1929,7 @@ async function buildDle(today){
   const clueGames = all.slice(off, off + 5);
   const number = Math.floor((Date.parse(today+'T12:00:00Z') - DLE_EPOCH) / 86400000) + 1;
   const attrs = {}; players.forEach(p => { const { _games, ...rest } = p; attrs[p.key] = rest; });
-  return { date: today, number, clueGames, players: players.map(p => ({ key:p.key, nm:p.nm })),
+  return { date: today, number, clueGames, players: players.map(p => ({ key:p.key, nm:p.nm, alt:p.alt })),
            answerKey: answer.key, answer2Key: answer2.key, attrs };
 }
 async function getDle(){ const today = chileHD(Date.now()).d; if (DLE_CACHE.date === today && DLE_CACHE.data) return DLE_CACHE.data; const d = await buildDle(today); DLE_CACHE.date = today; DLE_CACHE.data = d; return d; }

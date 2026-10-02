@@ -242,7 +242,7 @@ function guessedKeys(){ return new Set(S().rows.map(r => r.key)); }
 function onInput(){
   const q = $('dle-input').value.trim().toLowerCase(); sel = -1;
   const used = guessedKeys();
-  acList = q ? DLE.players.filter(p => !used.has(p.key) && p.nm.toLowerCase().includes(q)).slice(0,8) : [];
+  acList = q ? DLE.players.filter(p => !used.has(p.key) && (p.nm.toLowerCase().includes(q) || (p.alt||[]).some(a => (a||'').toLowerCase().includes(q)))).slice(0,8) : [];
   $('dle-ac').innerHTML = acList.map((p,i)=>`<button data-k="${p.key}">${esc(p.nm)}</button>`).join('');
   $('dle-ac').querySelectorAll('button').forEach(b => b.onclick = () => guess(b.dataset.k));
 }
