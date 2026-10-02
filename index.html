@@ -2042,12 +2042,11 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
 /* ===== Popup: Acaricia a Matotomato ===== */
 (function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
-  let closed = false; try { closed = localStorage.getItem('matoClosed') === '1'; } catch (e) {}
-  if (closed){ box.classList.add('hidden'); return; }
   const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
   const COOLDOWN = 10 * 60 * 1000, KEY = 'patLast';
+  const CLOSE_TTL = 10 * 60 * 1000, CKEY = 'matoClosed';   // tras cerrarlo, reaparece a los 10 min
   const IMG_SAD = 'matotomato-triste.webp', IMG_HAPPY = 'matotomato.webp';
-  let count = 0, timer = null;
+  let count = 0, timer = null, reopenT = null;
   window.__patRank = function(){};   // ya no se usa (lo llama el refresco del ranking)
   const lastPat = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
   function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> caricia${count===1?'':'s'} enviada${count===1?'':'s'}`; }
@@ -2070,10 +2069,16 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
     refreshBtn(); pop(); count++; paintCount();   // optimista
     try { if (window.SQC && SQC.api){ const d = await SQC.api('/palmadita', { method:'POST' }); if (d && typeof d.count === 'number'){ count = d.count; paintCount(); } } } catch (e) {}
   }
+  function openPopup(){ box.classList.remove('hidden'); refreshBtn(); load(); }
+  function closeFor(ms){ box.classList.add('hidden'); clearTimeout(reopenT); reopenT = setTimeout(openPopup, ms); }
   const x = document.getElementById('pat-x');
-  if (x) x.addEventListener('click', () => { try { localStorage.setItem('matoClosed', '1'); } catch (e) {} box.classList.add('hidden'); });
+  if (x) x.addEventListener('click', () => { try { localStorage.setItem(CKEY, String(Date.now())); } catch (e) {} closeFor(CLOSE_TTL); });
   btn.addEventListener('click', send);
-  box.classList.remove('hidden'); refreshBtn(); load();
+  // Estado inicial: si se cerró hace menos de 10 min, sigue oculto y reaparece al cumplirse; si no, se muestra.
+  let closedAt = 0; try { closedAt = +localStorage.getItem(CKEY) || 0; } catch (e) {}
+  const remaining = CLOSE_TTL - (Date.now() - closedAt);
+  if (closedAt && remaining > 0){ box.classList.add('hidden'); clearTimeout(reopenT); reopenT = setTimeout(openPopup, remaining); }
+  else openPopup();
 })();
 </script>
 </body>
