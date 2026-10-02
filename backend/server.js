@@ -1369,19 +1369,26 @@ app.get('/api/stats', wrap(async (req, res) => {
   // El puuid no cambia aunque cambie el Riot ID, así una cuenta renombrada cuenta como una sola.
   const snapPlayers = liveSnapshot().players || [];
   // rid (incluye nombres VIEJOS) -> acct(puuid), desde el historial crudo.
-  const acctByRid = await ridPuuidMap();   // mapa cacheado (antes era ~13k filas por cada rebuild)
-  const acctOf = rid => acctByRid[rid] || rid;
-  const metaByAcct = {};   // acct(puuid|rid) -> { nm, tier, high, pos, abs, rid }
+  // Resolución rid -> puuid robusta (snapshot + historial, normalizando espacios del '#'),
+  // para que la cuenta de un jugador calce con sus agregaciones (keyeadas por puuid) y se
+  // consolide bien aunque el rid del smurf tenga espacios raros ("shr uzi #las1").
+  const acctByRid = await ridPuuidMap();   // historial: lower(rid) -> puuid
+  const nrid = r => (r || '').toLowerCase().replace(/\s*#\s*/, '#').trim();
+  const rid2puuid = {};
+  snapPlayers.forEach(p => { if (p.rid && p.puuid) rid2puuid[nrid(p.rid)] = p.puuid; });
+  for (const [r, pu] of Object.entries(acctByRid)){ const k = nrid(r); if (!rid2puuid[k]) rid2puuid[k] = pu; }
+  const acctOf = rid => rid2puuid[nrid(rid)] || nrid(rid);
+  const metaByAcct = {};   // acct(puuid) -> { nm, tier, high, pos, abs, rid }
   snapPlayers.forEach((p, i) => {
-    const rid = (p.rid || '').toLowerCase(); const acct = acctByRid[rid] || p.puuid || rid;   // mismo acct que las agregaciones
+    const rid = (p.rid || '').toLowerCase(); const acct = p.puuid || acctOf(rid);   // mismo acct (puuid) que las agregaciones
     const high = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(p.tier);
     if (!metaByAcct[acct]) metaByAcct[acct] = { nm: p.nm || rid.split('#')[0], tier: p.tier || 'UNRANKED', high, pos: i + 1, abs: absLPof(p.tier, p.div, p.lp) || 0, rid };
   });
   // Jugador (dueño) por cuenta: main + smurfs registrados → user id; + nick del jugador.
   const puuidOwner = {}, ownerNick = {}, mainAcct = {};
   try {
-    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){ puuidOwner[acctOf(u.rid)] = 'u' + u.id; ownerNick['u' + u.id] = (u.nickname || '').trim(); mainAcct['u' + u.id] = acctOf(u.rid); }
-    for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.rid)] = 'u' + s.user_id;
+    for (const u of await q("SELECT id, nickname, riotid FROM users WHERE coalesce(riotid,'')<>''")){ puuidOwner[acctOf(u.riotid)] = 'u' + u.id; ownerNick['u' + u.id] = (u.nickname || '').trim(); mainAcct['u' + u.id] = acctOf(u.riotid); }
+    for (const s of await q("SELECT user_id, riotid FROM smurfs WHERE coalesce(riotid,'')<>''")) puuidOwner[acctOf(s.riotid)] = 'u' + s.user_id;
   } catch {}
   const playerOf = acct => puuidOwner[acct] || acct;   // jugador (dueño) del acct
   // Excluir de TOPS las cuentas secundarias de un jugador (solo cuenta la más alta).
