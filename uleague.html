@@ -86,17 +86,24 @@
   .match .tm.r{ justify-content:flex-end; }
   .match .tmx{ display:flex; flex-direction:column; min-width:0; }
   .match .tm.r .tmx{ align-items:flex-end; text-align:right; }
-  .match .tfull{ font-size:12px; font-weight:700; line-height:1.15; }
-  .match .tcode{ font-size:9px; font-weight:800; color:var(--muted-2); letter-spacing:.02em; }
+  /* línea prominente = sigla + letra (lectura rápida); debajo el nombre completo atenuado */
+  .match .tcode{ font-size:13px; font-weight:800; line-height:1.15; letter-spacing:.02em; }
+  .match .tfull{ font-size:10px; font-weight:600; color:var(--muted-2); line-height:1.1; margin-top:1px; }
   /* resultado: fondo del ganador verde suave, del perdedor rojo suave (tonos apagados) */
   .match .tm.win{ background:rgba(74,163,122,.26); box-shadow:inset 0 0 0 1px rgba(74,163,122,.3); }
   .match .tm.lose{ background:rgba(176,98,98,.2); box-shadow:inset 0 0 0 1px rgba(176,98,98,.24); }
-  .match .tm.win .tfull{ color:#8fe3bc; } .match .tm.lose .tfull{ color:var(--muted-2); }
-  .match .tm.win .tcode{ color:rgba(143,227,188,.6); }
-  .match .tm.ours .tfull{ color:var(--blue); }
+  .match .tm.win .tcode{ color:#8fe3bc; } .match .tm.lose .tcode{ color:var(--muted); }
+  .match .tm.win .tfull{ color:rgba(143,227,188,.55); }
+  .match .tm.ours .tcode{ color:var(--blue); }
   .match .uch-star{ color:#ffd84a; font-size:13px; line-height:1; flex:none; text-shadow:0 0 6px rgba(255,216,74,.4); }
-  .match .tm.win.ours .tfull{ color:#aef0d0; }
+  .match .tm.win.ours .tcode{ color:#aef0d0; }
   .match .vs{ font-size:10px; color:var(--muted-2); font-weight:800; }
+  /* botón de admin "Ganó" en cada extremo del partido (lo más alejado del centro) */
+  .match .awin{ flex:none; font-size:10px; font-weight:800; letter-spacing:.03em; padding:4px 9px; border-radius:7px;
+    border:1px solid rgba(74,163,122,.5); background:rgba(74,163,122,.12); color:#8fe3bc; cursor:pointer; white-space:nowrap; transition:background .12s; }
+  .match .awin:hover{ background:rgba(74,163,122,.28); }
+  .match .awin.on{ background:rgba(74,163,122,.9); color:#07140d; border-color:rgba(74,163,122,.9); }
+  .match .awin.l{ margin-right:auto; } .match .awin.r{ margin-left:auto; }
   .logo{ width:20px; height:20px; border-radius:5px; display:grid; place-items:center; font-size:9px; font-weight:800; flex:0 0 auto; }
   .empty-note{ text-align:center; color:var(--muted); font-size:13px; padding:28px 10px; background:var(--panel); border:1px dashed var(--line-2); border-radius:14px; }
 
@@ -108,9 +115,9 @@
   .stand tr.ours td{ background:linear-gradient(90deg,rgba(255,210,74,.16),rgba(255,210,74,.03)); }
   .stand tr.ours td:first-child{ box-shadow:inset 3px 0 0 var(--gold); }
   .stand tr.ours .unm{ color:var(--gold); }
-  .uni .unm{ font-size:13px; font-weight:700; }
-  .uni .ucode{ font-size:10px; color:var(--muted-2); font-weight:700; display:flex; align-items:center; gap:5px; margin-top:1px; }
-  .uni .ucode .logo{ width:16px; height:16px; }
+  .uni .unm{ font-size:13px; font-weight:800; letter-spacing:.02em; display:flex; align-items:center; gap:5px; }
+  .uni .unm .logo{ width:16px; height:16px; }
+  .uni .ucode{ font-size:10px; color:var(--muted-2); font-weight:600; margin-top:1px; }
   .pill-st{ font-size:9.5px; font-weight:800; padding:2px 7px; border-radius:5px; }
   .pill-st.q{ color:#001; background:var(--up); } .pill-st.e{ color:#fff; background:var(--down); } .pill-st.p{ color:var(--muted); background:rgba(255,255,255,.07); }
 
@@ -277,6 +284,22 @@ function logo(name,ours){ const h=hue(name); const bg=ours?'linear-gradient(135d
   return `<span class="logo" style="background:${bg};color:#fff">${esc(ini.slice(0,2))}</span>`; }
 const isOurs = name => DATA && DATA.ours.includes(name);
 
+// ---- admin: poner resultados a mano desde el fixture ----
+const IS_ADMIN = (()=>{ try{ if(localStorage.getItem('sqc_admin')==='1') return true;
+  const u=JSON.parse(localStorage.getItem('sqc_user')||'null'); return !!(u&&u.isAdmin); }catch(e){ return false; } })();
+const nteam = s => String(s||'').toLowerCase().replace(/\s+/g,' ').trim();
+// Ubica un partido del suizo por ronda + par de equipos (sin importar el orden).
+function findSwissMatch(round, a, b){ const wa=nteam(a), wb=nteam(b);
+  const rnd=(DATA.swiss||[]).find(r=>r.n===round); if(!rnd)return null;
+  for(const bu of rnd.buckets) for(const m of bu.matches){ const p=[nteam(m.a),nteam(m.b)];
+    if(p.includes(wa)&&p.includes(wb)) return m; }
+  return null; }
+// Aplica los resultados que puso el admin (DB) encima de los que trae el JSON (sync/Discord).
+function applyUlResults(list){ if(!Array.isArray(list))return;
+  list.forEach(r=>{ const m=findSwissMatch(r.round, r.a, r.b); if(!m)return;
+    if(!r.winner){ delete m.w; return; }
+    m.w = (nteam(m.a)===nteam(r.winner))?m.a:(nteam(m.b)===nteam(r.winner)?m.b:m.w); }); }
+
 // Nombres completos de las universidades inscritas (por sigla).
 const UNIV = {
   UNAB:'Universidad Andrés Bello', UDA:'Universidad de Atacama', UCH:'Universidad de Chile',
@@ -331,15 +354,17 @@ function teamStatus(team){ // récord real contado desde los ganadores (m.w) de 
   let st='p'; if(w>=3) st='q'; else if(l>=3) st='e';
   return { rec:w+'-'+l, w, l, st };
 }
-function matchRow(m){
+function matchRow(m, round){
   const oa=isOurs(m.a), ob=isOurs(m.b);
   const wa=m.w&&m.w===m.a, wb=m.w&&m.w===m.b;
-  const txt=name=>`<div class="tmx"><div class="tfull">${esc(univFull(name))}</div><div class="tcode">${esc(name)}</div></div>`;
+  // línea prominente = sigla+letra; debajo, el nombre completo atenuado
+  const txt=name=>`<div class="tmx"><div class="tcode">${esc(name)}</div><div class="tfull">${esc(univFull(name))}</div></div>`;
   const star=`<span class="uch-star" title="Equipo U. de Chile">★</span>`;
+  const btn=(side,team)=>IS_ADMIN&&round?`<button class="awin ${side} ${(side==='l'?wa:wb)?'on':''}" data-round="${round}" data-a="${esc(m.a)}" data-b="${esc(m.b)}" data-team="${team}" title="Marcar ganador">Ganó</button>`:'';
   return `<div class="match ${m.w?'done':''}">
-    <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${oa?star:''}${txt(m.a)}${logo(m.a,oa)}</div>
+    <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${btn('l','a')}${oa?star:''}${txt(m.a)}${logo(m.a,oa)}</div>
     <div class="vs">${m.w?'✓':'VS'}</div>
-    <div class="tm ${ob?'ours':''} ${wb?'win':''} ${m.w&&!wb?'lose':''}">${logo(m.b,ob)}${txt(m.b)}${ob?star:''}</div></div>`;
+    <div class="tm ${ob?'ours':''} ${wb?'win':''} ${m.w&&!wb?'lose':''}">${logo(m.b,ob)}${txt(m.b)}${ob?star:''}${btn('r','b')}</div></div>`;
 }
 function renderSuiza(){
   const rtabs = DATA.swiss.map(r=>{ const n=r.buckets.reduce((s,b)=>s+b.matches.length,0);
@@ -350,18 +375,33 @@ function renderSuiza(){
   if(total===0){ body = `<div class="empty-note">El sorteo de la Ronda ${curRound} se publica cuando termine la ronda anterior.<br>Se informa a más tardar a las 13:00 del día siguiente.</div>`; }
   else body = `<div class="buckets">`+rnd.buckets.filter(b=>b.matches.length).map(b=>
       `<div class="bucket"><div class="bucket-h"><span class="rec">Récord ${esc(b.record)}</span><span class="bo">${rnd.bo}</span></div>
-       ${b.matches.map(matchRow).join('')}</div>`).join('')+`</div>`;
+       ${b.matches.map(m=>matchRow(m, rnd.n)).join('')}</div>`).join('')+`</div>`;
   // standings
   const rows = DATA.teams.map(t=>({ t, ...teamStatus(t.name) }))
     .sort((a,b)=> b.w-a.w || a.l-b.l || a.t.name.localeCompare(b.t.name));
   const stand = `<table class="stand"><thead><tr><th>#</th><th>Universidad</th><th class="c">PJ</th><th class="c">V</th><th class="c">D</th><th class="c">Estado</th></tr></thead><tbody>`+
-    rows.map((r,i)=>`<tr class="${r.t.ours?'ours':''}"><td class="c">${i+1}</td><td class="nm"><div class="uni"><div class="unm">${esc(univFull(r.t.name))}</div><div class="ucode">${logo(r.t.name,r.t.ours)}${esc(r.t.name)}</div></div></td>
+    rows.map((r,i)=>`<tr class="${r.t.ours?'ours':''}"><td class="c">${i+1}</td><td class="nm"><div class="uni"><div class="unm">${logo(r.t.name,r.t.ours)}${esc(r.t.name)}</div><div class="ucode">${esc(univFull(r.t.name))}</div></div></td>
       <td class="c">${r.w+r.l}</td><td class="c">${r.w}</td><td class="c">${r.l}</td>
       <td class="c"><span class="pill-st ${r.st}">${r.st==='q'?'Clasificado':r.st==='e'?'Eliminado':'En juego'}</span></td></tr>`).join('')+`</tbody></table>`;
   $('#tab-suiza').innerHTML = `<div class="sect-h">Fase Suiza · gana 3 clasificas, pierde 3 quedas fuera</div>
     <div class="round-tabs">${rtabs}</div>${body}
     <div class="sect-h">Tabla general</div>${stand}`;
   $('#tab-suiza').querySelectorAll('.rtab').forEach(b=>b.onclick=()=>{ if(b.disabled)return; curRound=+b.dataset.r; renderSuiza(); });
+  const tS=$('#tab-suiza'); if(IS_ADMIN && !tS._ulBound){ tS._ulBound=true; tS.addEventListener('click', onUlWinClick); }
+}
+// Admin: click en "Ganó" -> fija (o alterna/borra) el ganador en el backend y re-pinta.
+async function onUlWinClick(e){
+  const btn=e.target.closest('.awin'); if(!btn)return;
+  const round=+btn.dataset.round, a=btn.dataset.a, b=btn.dataset.b, team=btn.dataset.team;
+  const picked = team==='a'?a:b;
+  const m=findSwissMatch(round,a,b);
+  const winner = (m && m.w && nteam(m.w)===nteam(picked)) ? '' : picked;  // re-click en el ganador = borrar
+  btn.disabled=true;
+  try{
+    await SQC.api('/admin/uleague-result',{method:'POST',body:{round,a,b,winner}});
+    if(m){ if(winner) m.w=(nteam(m.a)===nteam(winner))?m.a:m.b; else delete m.w; }
+    renderSuiza();
+  }catch(err){ alert('No se pudo guardar: '+err.message); btn.disabled=false; }
 }
 
 // ================= ELIMINATORIAS =================
@@ -574,6 +614,8 @@ document.querySelectorAll('.ptab-btn').forEach(b=>b.onclick=()=>showPage(b.datas
 (async function init(){
   try { DATA = await (await fetch('uleague-data.json?t='+Date.now(),{cache:'no-store'})).json(); }
   catch(e){ $('#tab-resumen').innerHTML='<div class="empty-note">No se pudo cargar el fixture.</div>'; return; }
+  // Resultados que el admin puso a mano (DB), por encima de los del JSON (sync/Discord).
+  try { applyUlResults(await (await fetch('/api/uleague-results?t='+Date.now(),{cache:'no-store'})).json()); } catch(e){}
   renderResumen();
   const upd = DATA.updatedAt ? new Date(DATA.updatedAt).toLocaleString('es-CL') : '';
   $('#foot').innerHTML = `Datos sincronizados desde el fixture oficial de uLeague · última actualización: ${esc(upd)}`;

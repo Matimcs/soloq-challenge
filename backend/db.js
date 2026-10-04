@@ -271,6 +271,19 @@ async function init(){
       created_at TIMESTAMPTZ DEFAULT now()
     );
 
+    -- Resultados de la FASE SUIZA de uLeague, puestos a mano por el admin desde el fixture.
+    -- match_id = "r{ronda}:{equipoA}__{equipoB}" con los dos equipos ordenados (par canónico);
+    -- winner = código del equipo ganador (debe ser team_a o team_b). Se fusiona en la web encima
+    -- de uleague-data.json (que trae los resultados que entran por sync/Discord).
+    CREATE TABLE IF NOT EXISTS uleague_results (
+      match_id   TEXT PRIMARY KEY,
+      round      INT  NOT NULL,
+      team_a     TEXT NOT NULL,
+      team_b     TEXT NOT NULL,
+      winner     TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
     -- porque se conecta como 'postgres' (bypassrls). Idempotente y cubre tablas futuras.
