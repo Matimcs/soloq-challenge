@@ -360,7 +360,7 @@ function matchRow(m, round){
   // línea prominente = sigla+letra; debajo, el nombre completo atenuado
   const txt=name=>`<div class="tmx"><div class="tcode">${esc(name)}</div><div class="tfull">${esc(univFull(name))}</div></div>`;
   const star=`<span class="uch-star" title="Equipo U. de Chile">★</span>`;
-  const btn=(side,team)=>IS_ADMIN&&round?`<button class="awin ${side} ${(side==='l'?wa:wb)?'on':''}" data-round="${round}" data-a="${esc(m.a)}" data-b="${esc(m.b)}" data-team="${team}" title="Marcar ganador">Ganó</button>`:'';
+  const btn=(side,team)=>IS_ADMIN&&round?`<button class="awin ${side} ${(side==='l'?wa:wb)?'on':''}" data-round="${round}" data-a="${esc(m.a)}" data-b="${esc(m.b)}" data-team="${team}" title="Marcar ganador">Ganador</button>`:'';
   return `<div class="match ${m.w?'done':''}">
     <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${btn('l','a')}${oa?star:''}${txt(m.a)}${logo(m.a,oa)}</div>
     <div class="vs">${m.w?'✓':'VS'}</div>
