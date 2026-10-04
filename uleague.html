@@ -94,6 +94,7 @@
   .match .tm.win .tfull{ color:#8fe3bc; } .match .tm.lose .tfull{ color:var(--muted-2); }
   .match .tm.win .tcode{ color:rgba(143,227,188,.6); }
   .match .tm.ours .tfull{ color:var(--blue); }
+  .match .uch-star{ color:#ffd84a; font-size:13px; line-height:1; flex:none; text-shadow:0 0 6px rgba(255,216,74,.4); }
   .match .tm.win.ours .tfull{ color:#aef0d0; }
   .match .vs{ font-size:10px; color:var(--muted-2); font-weight:800; }
   .logo{ width:20px; height:20px; border-radius:5px; display:grid; place-items:center; font-size:9px; font-weight:800; flex:0 0 auto; }
@@ -175,6 +176,8 @@
   .steam .smn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .selo{ font-size:9px; font-weight:700; color:var(--muted-2); white-space:nowrap; }
   .steam.won .selo{ color:rgba(52,211,153,.7); }
+  .srow.fixed .steam{ cursor:default; }
+  .srow.fixed .svs{ color:var(--up); font-weight:900; }
   .brow .selo{ margin-left:6px; }
   .steam.empty{ color:var(--muted-2); cursor:default; } .steam.empty:hover{ background:none; }
   .svs{ display:flex; align-items:center; padding:0 10px; font-size:10px; font-weight:800; color:var(--muted-2); background:rgba(255,255,255,.03); }
@@ -332,10 +335,11 @@ function matchRow(m){
   const oa=isOurs(m.a), ob=isOurs(m.b);
   const wa=m.w&&m.w===m.a, wb=m.w&&m.w===m.b;
   const txt=name=>`<div class="tmx"><div class="tfull">${esc(univFull(name))}</div><div class="tcode">${esc(name)}</div></div>`;
+  const star=`<span class="uch-star" title="Equipo U. de Chile">★</span>`;
   return `<div class="match ${m.w?'done':''}">
-    <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${txt(m.a)}${logo(m.a,oa)}</div>
+    <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${oa?star:''}${txt(m.a)}${logo(m.a,oa)}</div>
     <div class="vs">${m.w?'✓':'VS'}</div>
-    <div class="tm ${ob?'ours':''} ${wb?'win':''} ${m.w&&!wb?'lose':''}">${logo(m.b,ob)}${txt(m.b)}</div></div>`;
+    <div class="tm ${ob?'ours':''} ${wb?'win':''} ${m.w&&!wb?'lose':''}">${logo(m.b,ob)}${txt(m.b)}${ob?star:''}</div></div>`;
 }
 function renderSuiza(){
   const rtabs = DATA.swiss.map(r=>{ const n=r.buckets.reduce((s,b)=>s+b.matches.length,0);
@@ -446,7 +450,9 @@ function simReset(){
   // nombre de display (DUOC UC). Mapeamos canon→display para que calcen y se registren bien.
   const dispOf={}; DATA.teams.forEach(t=>{ dispOf[t.canon]=t.name; dispOf[t.name]=t.name; });
   const fix=n=>dispOf[n]||n;
-  const r1=((DATA.swiss[0]&&DATA.swiss[0].buckets[0])?DATA.swiss[0].buckets[0].matches:[]).map(m=>({a:fix(m.a),b:fix(m.b),w:null}));
+  // Pre-cargamos los resultados REALES ya jugados (m.w) y los dejamos fijos (fixed):
+  // solo se pueden elegir los partidos que aún no se jugaron.
+  const r1=((DATA.swiss[0]&&DATA.swiss[0].buckets[0])?DATA.swiss[0].buckets[0].matches:[]).map(m=>({a:fix(m.a),b:fix(m.b),w:m.w?fix(m.w):null,fixed:!!m.w}));
   SIM={teams, rounds:[{n:1,bo:'BO1',matches:r1}], bracket:null, phase:'swiss'};
   recomputeSwiss(); renderSim();
 }
@@ -488,7 +494,7 @@ function recomputeBracket(){ const b=SIM.bracket;
 }
 // clicks (delegación)
 function onSimClick(e){ const el=e.target.closest('[data-pick]'); if(!el)return; const pick=el.getAttribute('data-pick');
-  if(el.dataset.r!=null){ const rd=SIM.rounds[+el.dataset.r], m=rd.matches[+el.dataset.i]; if(m.b==='(bye)')return; m.w=(m.w===pick?null:pick); recomputeSwiss(); renderSim(); }
+  if(el.dataset.r!=null){ const rd=SIM.rounds[+el.dataset.r], m=rd.matches[+el.dataset.i]; if(m.b==='(bye)'||m.fixed)return; m.w=(m.w===pick?null:pick); recomputeSwiss(); renderSim(); }
   else if(el.dataset.br){ const arr=SIM.bracket[el.dataset.br], m=arr[+el.dataset.i]; if(!m.a||!m.b)return; m.w=(m.w===pick?null:pick); recomputeBracket(); renderSim(); } }
 function autofill(){ // ayuda: completa lo que falte al azar
   if(SIM.phase==='swiss'){ let guard=0; while(guard++<40){ const last=SIM.rounds[SIM.rounds.length-1];
@@ -497,12 +503,12 @@ function autofill(){ // ayuda: completa lo que falte al azar
   if(SIM.phase==='bracket'){ ['octavos','cuartos','semis','final','tercer'].forEach(k=>{ (SIM.bracket[k]||[]).forEach(m=>{ if(m.a&&m.b&&!m.w)m.w=Math.random()<.5?m.a:m.b; }); recomputeBracket(); }); renderSim(); }
 }
 // render de un partido clickeable
-function sMatch(a,b,w,attrs){
+function sMatch(a,b,w,attrs,fixed){
   const chip=(name,side)=>{ if(!name) return `<div class="steam empty ${side}">—</div>`;
     if(name==='(bye)') return `<div class="steam empty ${side}"><span class="sbye">BYE</span></div>`;
     const won=w===name, lost=w&&w!==name, ou=isOurs(name);
-    return `<div class="steam ${side} ${won?'won':''} ${lost?'lost':''} ${ou?'ours':''}" data-pick="${esc(name)}" ${attrs}>${logo(name,ou)}<span class="stx"><span class="smn">${esc(name)}</span>${eloTag(name)}</span></div>`; };
-  return `<div class="srow">${chip(a,'')}<span class="svs">VS</span>${chip(b,'r')}</div>`;
+    return `<div class="steam ${side} ${won?'won':''} ${lost?'lost':''} ${ou?'ours':''}" ${fixed?'':`data-pick="${esc(name)}"`} ${attrs}>${logo(name,ou)}<span class="stx"><span class="smn">${esc(name)}</span>${eloTag(name)}</span></div>`; };
+  return `<div class="srow ${fixed?'fixed':''}" ${fixed?'title="Resultado real ya jugado"':''}>${chip(a,'')}<span class="svs">${fixed?'✓':'VS'}</span>${chip(b,'r')}</div>`;
 }
 function renderSim(){
   if(!SIM){ $('#tab-sim').innerHTML=`<div class="sect-h">Simulación · elige tú los ganadores</div>
@@ -530,7 +536,7 @@ function renderSimSwiss(){
   const rounds=SIM.rounds.map((rd,ri)=>{
     const byRec={}; rd.matches.forEach((m,mi)=>{ const k=m.rec||'0-0'; (byRec[k]=byRec[k]||[]).push({m,mi}); });
     const cols=Object.keys(byRec).sort().reverse().map(k=>`<div><div class="sbucket-h">Récord ${esc(k)}</div>`+
-      byRec[k].map(({m,mi})=>sMatch(m.a,m.b,m.w,`data-r="${ri}" data-i="${mi}"`)).join('')+`</div>`).join('');
+      byRec[k].map(({m,mi})=>sMatch(m.a,m.b,m.w,`data-r="${ri}" data-i="${mi}"`,m.fixed)).join('')+`</div>`).join('');
     const canNext = ri===SIM.rounds.length-1 && roundDone(rd) && live>0 && q<16;
     return `<div class="sround"><div class="sround-h"><span>Ronda ${rd.n}</span><span class="bo">${rd.bo}</span></div>
       <div class="scol-wrap">${cols}</div>
