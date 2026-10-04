@@ -3,7 +3,7 @@
  "edition": "Clausura 2026",
  "game": "League of Legends",
  "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
- "updatedAt": "2026-10-04T01:11:36.753Z",
+ "updatedAt": "2026-10-04T21:07:17.141Z",
  "startDate": "2026-10-03",
  "phases": [
   {
@@ -2882,7 +2882,8 @@
       },
       {
        "a": "UDP B",
-       "b": "UTAL A"
+       "b": "UTAL A",
+       "w": "UDP B"
       },
       {
        "a": "UCH B",
