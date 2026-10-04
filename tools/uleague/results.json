@@ -6,6 +6,7 @@
     { "round": 1, "winner": "UCT A", "loser": "USM D" },
     { "round": 1, "winner": "UDA", "loser": "UCN" },
     { "round": 1, "winner": "UC B", "loser": "USM C" },
-    { "round": 1, "winner": "UCH C", "loser": "UTAL C" }
+    { "round": 1, "winner": "UCH C", "loser": "UTAL C" },
+    { "round": 1, "winner": "UDP A", "loser": "UCT B" }
   ]
 }
