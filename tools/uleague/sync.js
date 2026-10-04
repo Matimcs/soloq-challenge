@@ -12,6 +12,7 @@ const SHEET_ID = '1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq';
 const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`;
 const OUT = path.join(__dirname, '..', '..', 'uleague-data.json');
 const PUUID_CACHE = path.join(__dirname, 'puuid-cache.json');
+const RESULTS_FILE = path.join(__dirname, 'results.json');
 
 // uLeague es INDEPENDIENTE del ranking principal del sitio: sus rangos los baja esta
 // herramienta y quedan en uleague-data.json. NO toca el tracker principal (players.json).
@@ -107,6 +108,26 @@ function grid(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankr
     });
   }
   swiss.sort((x,y)=>x.n-y.n);
+
+  // --- RESULTADOS MANUALES (Discord): marcan ganador por match ---
+  // El Sheet no carga resultados; los traen por Discord. results.json persiste
+  // los ganadores y se fusiona en cada sync (ubicando el match por ronda + par de equipos).
+  const nteam = s => canon(String(s||'')).toLowerCase();
+  try {
+    const manual = JSON.parse(fs.readFileSync(RESULTS_FILE,'utf8'));
+    let applied=0, missed=[];
+    (manual.swiss||[]).forEach(res=>{
+      const rnd = swiss.find(r=>r.n===res.round);
+      const w=nteam(res.winner), l=nteam(res.loser);
+      let hit=false;
+      if(rnd) for(const b of rnd.buckets) for(const m of b.matches){
+        const pair=[nteam(m.a),nteam(m.b)];
+        if(pair.includes(w) && pair.includes(l)){ m.w = (nteam(m.a)===w)?m.a:m.b; hit=true; applied++; break; }
+      }
+      if(!hit) missed.push(`R${res.round} ${res.winner} vs ${res.loser}`);
+    });
+    console.log('resultados manuales aplicados:', applied + (missed.length?(' | sin match: '+missed.join('; ')):''));
+  } catch(e){ if(e.code!=='ENOENT') console.log('⚠ results.json:', e.message); }
 
   // --- ELIMINATORIAS: slots por fase (se llenan cuando haya Top16) ---
   const bracket={ octavos:[], cuartos:[], semis:[], final:[] };

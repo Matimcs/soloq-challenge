@@ -1,0 +1,11 @@
+{
+  "_comment": "Resultados manuales del torneo uLeague (los traen por Discord, el Sheet no los carga). sync.js fusiona esto al generar uleague-data.json: cada entrada marca el ganador de un match. El match se ubica por ronda + par de equipos (sin importar el orden). Usa los codigos tal cual aparecen en el fixture (ej. 'UCT A', 'UNAB B').",
+  "swiss": [
+    { "round": 1, "winner": "UNAB B", "loser": "PUCV" },
+    { "round": 1, "winner": "USACH", "loser": "UCSH" },
+    { "round": 1, "winner": "UCT A", "loser": "USM D" },
+    { "round": 1, "winner": "UDA", "loser": "UCN" },
+    { "round": 1, "winner": "UC B", "loser": "USM C" },
+    { "round": 1, "winner": "UCH C", "loser": "UTAL C" }
+  ]
+}

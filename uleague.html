@@ -313,20 +313,24 @@ function renderResumen(){
 
 // ================= FASE SUIZA =================
 let curRound = 1;
-function teamStatus(team){ // récord actual y estado deducido del último bucket donde aparece
-  let rec='0-0', lastRound=0;
-  DATA.swiss.forEach(r=>r.buckets.forEach(b=>b.matches.forEach(m=>{ if(m.a===team||m.b===team){ if(r.n>=lastRound){ lastRound=r.n; rec=b.record; } } })));
-  const [w,l]=rec.split('-').map(Number);
+function teamStatus(team){ // récord real contado desde los ganadores (m.w) de cada match jugado
+  let w=0,l=0;
+  DATA.swiss.forEach(r=>r.buckets.forEach(b=>b.matches.forEach(m=>{
+    if(!m.w) return;
+    if(m.w===team) w++;
+    else if(m.a===team||m.b===team) l++;
+  })));
   let st='p'; if(w>=3) st='q'; else if(l>=3) st='e';
-  return { rec, w:w||0, l:l||0, st };
+  return { rec:w+'-'+l, w, l, st };
 }
 function matchRow(m){
   const oa=isOurs(m.a), ob=isOurs(m.b);
+  const wa=m.w&&m.w===m.a, wb=m.w&&m.w===m.b;
   const txt=name=>`<div class="tmx"><div class="tfull">${esc(univFull(name))}</div><div class="tcode">${esc(name)}</div></div>`;
-  return `<div class="match">
-    <div class="tm r ${oa?'ours':''}">${txt(m.a)}${logo(m.a,oa)}</div>
-    <div class="vs">VS</div>
-    <div class="tm ${ob?'ours':''}">${logo(m.b,ob)}${txt(m.b)}</div></div>`;
+  return `<div class="match ${m.w?'done':''}">
+    <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${txt(m.a)}${logo(m.a,oa)}</div>
+    <div class="vs">${m.w?'✓':'VS'}</div>
+    <div class="tm ${ob?'ours':''} ${wb?'win':''} ${m.w&&!wb?'lose':''}">${logo(m.b,ob)}${txt(m.b)}</div></div>`;
 }
 function renderSuiza(){
   const rtabs = DATA.swiss.map(r=>{ const n=r.buckets.reduce((s,b)=>s+b.matches.length,0);
