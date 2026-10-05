@@ -108,6 +108,9 @@
   .empty-note{ text-align:center; color:var(--muted); font-size:13px; padding:28px 10px; background:var(--panel); border:1px dashed var(--line-2); border-radius:14px; }
 
   /* Tabla standings */
+  .sect-h.stand-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .dl-table{ font-family:inherit; cursor:pointer; text-transform:none; letter-spacing:0; font-size:12px; font-weight:800; color:var(--blue); background:rgba(125,211,252,.1); border:1px solid rgba(125,211,252,.3); border-radius:9px; padding:7px 13px; }
+  .dl-table:hover{ background:rgba(125,211,252,.2); color:#fff; }
   .stand-split{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
   @media (max-width:760px){ .stand-split{ grid-template-columns:1fr; } }
   .stand{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
@@ -392,9 +395,69 @@ function renderSuiza(){
   const stand = `<div class="stand-split">${standHalf(rows.slice(0,half),0)}${standHalf(rows.slice(half),half)}</div>`;
   $('#tab-suiza').innerHTML = `<div class="sect-h">Fase Suiza · gana 3 clasificas, pierde 3 quedas fuera</div>
     <div class="round-tabs">${rtabs}</div>${body}
-    <div class="sect-h">Tabla general</div>${stand}`;
+    <div class="sect-h stand-head">Tabla general <button class="dl-table" id="dl-stand">⬇ Descargar tabla</button></div>${stand}`;
   $('#tab-suiza').querySelectorAll('.rtab').forEach(b=>b.onclick=()=>{ if(b.disabled)return; curRound=+b.dataset.r; renderSuiza(); });
+  const db=document.getElementById('dl-stand'); if(db) db.onclick=()=>downloadStandingsImage(rows);
   const tS=$('#tab-suiza'); if(IS_ADMIN && !tS._ulBound){ tS._ulBound=true; tS.addEventListener('click', onUlWinClick); }
+}
+// ---- Descargar la tabla general como imagen PNG (dibujada en canvas, sin librerías) ----
+function roundRect(c,x,y,w,h,r){ r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
+function fitText(c,s,maxw){ if(c.measureText(s).width<=maxw) return s; while(s.length>1 && c.measureText(s+'…').width>maxw) s=s.slice(0,-1); return s+'…'; }
+function downloadStandingsImage(rows){
+  rows = rows || DATA.teams.map(t=>({t,...teamStatus(t.name)})).sort((a,b)=> b.w-a.w || a.l-b.l || a.t.name.localeCompare(b.t.name));
+  const half=Math.ceil(rows.length/2);
+  const S=2, padX=36, gap=36, colW=600, padTop=150, headH=34, rowH=56, botPad=50;
+  const W=padX*2+colW*2+gap, H=padTop+headH+rowH*half+botPad;
+  const cv=document.createElement('canvas'); cv.width=W*S; cv.height=H*S;
+  const c=cv.getContext('2d'); c.scale(S,S);
+  c.fillStyle='#0b0c10'; c.fillRect(0,0,W,H);
+  const gl=c.createRadialGradient(W/2,-120,0,W/2,-120,760); gl.addColorStop(0,'rgba(43,108,255,.13)'); gl.addColorStop(1,'rgba(43,108,255,0)'); c.fillStyle=gl; c.fillRect(0,0,W,320);
+  c.textBaseline='alphabetic'; c.textAlign='left';
+  c.fillStyle='#7dd3fc'; c.font='800 14px system-ui,Segoe UI,Arial'; c.fillText('LIGA UNIVERSITARIA DE ESPORTS · LEAGUE OF LEGENDS', padX, 46);
+  c.fillStyle='#fff'; c.font='800 32px system-ui,Segoe UI,Arial'; c.fillText('uLeague Clausura 2026 — Fase Suiza', padX, 88);
+  const upd=DATA.updatedAt?new Date(DATA.updatedAt).toLocaleString('es-CL'):'';
+  c.fillStyle='rgba(255,255,255,.42)'; c.font='600 13px system-ui,Arial'; c.fillText('soloquchile.cl'+(upd?'  ·  actualizado '+upd:''), padX, 112);
+  const drawCol=(slice,start,ox)=>{
+    c.textBaseline='middle';
+    c.fillStyle='rgba(255,255,255,.4)'; c.font='800 11px system-ui,Arial'; c.textAlign='left';
+    c.fillText('#', ox+8, padTop+headH/2); c.fillText('UNIVERSIDAD', ox+48, padTop+headH/2);
+    c.textAlign='center';
+    c.fillText('PJ', ox+colW-214, padTop+headH/2); c.fillText('V', ox+colW-176, padTop+headH/2);
+    c.fillText('D', ox+colW-140, padTop+headH/2); c.fillText('ESTADO', ox+colW-66, padTop+headH/2);
+    slice.forEach((r,i)=>{
+      const pos=start+i+1, ours=r.t.ours, name=r.t.name;
+      const ry=padTop+headH+i*rowH, mid=ry+(rowH-6)/2;
+      c.fillStyle= ours?'rgba(255,210,74,.13)':(i%2?'rgba(255,255,255,.02)':'rgba(255,255,255,.035)');
+      roundRect(c,ox,ry,colW,rowH-6,10); c.fill();
+      if(ours){ c.fillStyle='#ffd24a'; roundRect(c,ox,ry,4,rowH-6,2); c.fill(); }
+      c.textAlign='center'; c.fillStyle=ours?'#ffd24a':'rgba(255,255,255,.55)'; c.font='800 15px system-ui,Arial';
+      c.fillText(String(pos), ox+22, mid);
+      const lx=ox+40, ls=28, ly=mid-ls/2;
+      if(ours){ const lg=c.createLinearGradient(lx,ly,lx+ls,ly+ls); lg.addColorStop(0,'#2b6cff'); lg.addColorStop(1,'#7dd3fc'); c.fillStyle=lg; }
+      else c.fillStyle='hsl('+hue(name)+' 45% 28%)';
+      roundRect(c,lx,ly,ls,ls,7); c.fill();
+      c.fillStyle='#fff'; c.font='800 11px system-ui,Arial';
+      c.fillText(name.replace(/[^A-Za-z0-9]/g,'').slice(0,2).toUpperCase(), lx+ls/2, mid+0.5);
+      c.textAlign='left';
+      c.fillStyle=ours?'#ffd24a':'#fff'; c.font='800 15px system-ui,Arial'; c.fillText(name, ox+80, mid-8);
+      c.fillStyle='rgba(255,255,255,.42)'; c.font='600 11px system-ui,Arial';
+      c.fillText(fitText(c, univFull(name), colW-310), ox+80, mid+9);
+      c.textAlign='center'; c.font='800 15px system-ui,Arial';
+      c.fillStyle='rgba(255,255,255,.85)'; c.fillText(String(r.w+r.l), ox+colW-214, mid);
+      c.fillStyle='#34d399'; c.fillText(String(r.w), ox+colW-176, mid);
+      c.fillStyle='#fb7185'; c.fillText(String(r.l), ox+colW-140, mid);
+      const stTxt=r.st==='q'?'Clasificado':r.st==='e'?'Eliminado':'En juego';
+      const stFg=r.st==='q'?'#34d399':r.st==='e'?'#fb7185':'rgba(255,255,255,.5)';
+      const stBg=r.st==='q'?'rgba(52,211,153,.16)':r.st==='e'?'rgba(251,113,133,.16)':'rgba(255,255,255,.07)';
+      c.font='800 10px system-ui,Arial';
+      const pw=c.measureText(stTxt).width+18, ph=20, pr=ox+colW-14, pxl=pr-pw;
+      c.fillStyle=stBg; roundRect(c,pxl,mid-ph/2,pw,ph,10); c.fill();
+      c.fillStyle=stFg; c.textAlign='center'; c.fillText(stTxt, pxl+pw/2, mid+0.5);
+    });
+  };
+  drawCol(rows.slice(0,half),0,padX);
+  drawCol(rows.slice(half),half,padX+colW+gap);
+  cv.toBlob(b=>{ if(!b)return; const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download='uleague-tabla-suiza.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); }, 'image/png');
 }
 // Admin: click en "Ganó" -> fija (o alterna/borra) el ganador en el backend y re-pinta.
 async function onUlWinClick(e){
