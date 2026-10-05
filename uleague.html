@@ -108,6 +108,8 @@
   .empty-note{ text-align:center; color:var(--muted); font-size:13px; padding:28px 10px; background:var(--panel); border:1px dashed var(--line-2); border-radius:14px; }
 
   /* Tabla standings */
+  .stand-split{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
+  @media (max-width:760px){ .stand-split{ grid-template-columns:1fr; } }
   .stand{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
   .stand th,.stand td{ padding:9px 12px; text-align:left; font-size:13px; border-top:1px solid rgba(255,255,255,.05); }
   .stand th{ font-size:10px; letter-spacing:.05em; color:var(--muted-2); text-transform:uppercase; }
@@ -379,10 +381,15 @@ function renderSuiza(){
   // standings
   const rows = DATA.teams.map(t=>({ t, ...teamStatus(t.name) }))
     .sort((a,b)=> b.w-a.w || a.l-b.l || a.t.name.localeCompare(b.t.name));
-  const stand = `<table class="stand"><thead><tr><th>#</th><th>Universidad</th><th class="c">PJ</th><th class="c">V</th><th class="c">D</th><th class="c">Estado</th></tr></thead><tbody>`+
-    rows.map((r,i)=>`<tr class="${r.t.ours?'ours':''}"><td class="c">${i+1}</td><td class="nm"><div class="uni"><div class="unm">${logo(r.t.name,r.t.ours)}${esc(r.t.name)}</div><div class="ucode">${esc(univFull(r.t.name))}</div></div></td>
+  const standRow = (r,pos)=>`<tr class="${r.t.ours?'ours':''}"><td class="c">${pos}</td><td class="nm"><div class="uni"><div class="unm">${logo(r.t.name,r.t.ours)}${esc(r.t.name)}</div><div class="ucode">${esc(univFull(r.t.name))}</div></div></td>
       <td class="c">${r.w+r.l}</td><td class="c">${r.w}</td><td class="c">${r.l}</td>
-      <td class="c"><span class="pill-st ${r.st}">${r.st==='q'?'Clasificado':r.st==='e'?'Eliminado':'En juego'}</span></td></tr>`).join('')+`</tbody></table>`;
+      <td class="c"><span class="pill-st ${r.st}">${r.st==='q'?'Clasificado':r.st==='e'?'Eliminado':'En juego'}</span></td></tr>`;
+  // Tabla partida en dos mitades lado a lado: 1ª mitad a la izquierda, 2ª a la derecha
+  // (así se ve toda la tabla sin scrollear). En móvil se apilan.
+  const standHalf = (slice,start)=>`<table class="stand"><thead><tr><th>#</th><th>Universidad</th><th class="c">PJ</th><th class="c">V</th><th class="c">D</th><th class="c">Estado</th></tr></thead><tbody>`+
+    slice.map((r,i)=>standRow(r,start+i+1)).join('')+`</tbody></table>`;
+  const half = Math.ceil(rows.length/2);
+  const stand = `<div class="stand-split">${standHalf(rows.slice(0,half),0)}${standHalf(rows.slice(half),half)}</div>`;
   $('#tab-suiza').innerHTML = `<div class="sect-h">Fase Suiza · gana 3 clasificas, pierde 3 quedas fuera</div>
     <div class="round-tabs">${rtabs}</div>${body}
     <div class="sect-h">Tabla general</div>${stand}`;
