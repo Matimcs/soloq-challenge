@@ -115,6 +115,25 @@ function grid(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankr
   const nteam = s => canon(String(s||'')).toLowerCase();
   try {
     const manual = JSON.parse(fs.readFileSync(RESULTS_FILE,'utf8'));
+
+    // --- EMPAREJAMIENTOS MANUALES: rondas/records que el Sheet no trae (llegan por Discord) ---
+    // Solo rellena un bucket si viene vacío del Sheet (para no pisar lo oficial si algún día lo carga).
+    let pairN=0;
+    const pairings = manual.pairings || {};
+    for (const rk in pairings){
+      const n=+rk; let rnd=swiss.find(r=>r.n===n);
+      if(!rnd){ rnd={ n, bo:(n<=2?'BO1':'BO3'), buckets:[] }; swiss.push(rnd); }
+      for (const rec in pairings[rk]){
+        let bucket=rnd.buckets.find(b=>b.record===rec);
+        if(!bucket){ bucket={ record:rec, matches:[] }; rnd.buckets.push(bucket); }
+        if(bucket.matches.length) continue;   // el Sheet ya lo trajo: respetar
+        (pairings[rk][rec]||[]).forEach(p=>{ const a=canon(p[0]), b=canon(p[1]);
+          if(a&&b && teamSet.has(a) && teamSet.has(b)){ bucket.matches.push({ a, b }); pairN++; } });
+      }
+    }
+    swiss.sort((x,y)=>x.n-y.n);
+    if(pairN) console.log('emparejamientos manuales agregados:', pairN);
+
     let applied=0, missed=[];
     (manual.swiss||[]).forEach(res=>{
       const rnd = swiss.find(r=>r.n===res.round);

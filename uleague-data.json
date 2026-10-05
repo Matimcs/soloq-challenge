@@ -3,7 +3,7 @@
  "edition": "Clausura 2026",
  "game": "League of Legends",
  "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
- "updatedAt": "2026-10-04T21:07:17.141Z",
+ "updatedAt": "2026-10-05T02:44:59.202Z",
  "startDate": "2026-10-03",
  "phases": [
   {
@@ -2862,23 +2862,28 @@
       },
       {
        "a": "UTAL B",
-       "b": "UC A"
+       "b": "UC A",
+       "w": "UC A"
       },
       {
        "a": "UTEM B",
-       "b": "UDD"
+       "b": "UDD",
+       "w": "UDD"
       },
       {
        "a": "UTEM A",
-       "b": "UMAYOR"
+       "b": "UMAYOR",
+       "w": "UMAYOR"
       },
       {
        "a": "UCH D",
-       "b": "UTAL D"
+       "b": "UTAL D",
+       "w": "UCH D"
       },
       {
        "a": "DUOC",
-       "b": "USM B"
+       "b": "USM B",
+       "w": "DUOC"
       },
       {
        "a": "UDP B",
@@ -2887,7 +2892,8 @@
       },
       {
        "a": "UCH B",
-       "b": "UDEC"
+       "b": "UDEC",
+       "w": "UCH B"
       },
       {
        "a": "UTAL C",
@@ -2906,7 +2912,8 @@
       },
       {
        "a": "USM A",
-       "b": "UNAB C"
+       "b": "UNAB C",
+       "w": "USM A"
       },
       {
        "a": "PUCV",
@@ -2920,7 +2927,8 @@
       },
       {
        "a": "UCH A",
-       "b": "UNAB A"
+       "b": "UNAB A",
+       "w": "UNAB A"
       },
       {
        "a": "USM C",
@@ -2937,11 +2945,77 @@
    "buckets": [
     {
      "record": "1-0",
-     "matches": []
+     "matches": [
+      {
+       "a": "UDA",
+       "b": "UNAB B"
+      },
+      {
+       "a": "UC B",
+       "b": "UMAYOR"
+      },
+      {
+       "a": "DUOC",
+       "b": "UDP A"
+      },
+      {
+       "a": "UNAB A",
+       "b": "UCT A"
+      },
+      {
+       "a": "UDP B",
+       "b": "UCH B"
+      },
+      {
+       "a": "UCH C",
+       "b": "UC A"
+      },
+      {
+       "a": "UDD",
+       "b": "USACH"
+      },
+      {
+       "a": "USM A",
+       "b": "UCH D"
+      }
+     ]
     },
     {
      "record": "0-1",
-     "matches": []
+     "matches": [
+      {
+       "a": "UTEM A",
+       "b": "UTAL D"
+      },
+      {
+       "a": "USM D",
+       "b": "UCSH"
+      },
+      {
+       "a": "UTAL C",
+       "b": "UDEC"
+      },
+      {
+       "a": "UCN",
+       "b": "UNAB C"
+      },
+      {
+       "a": "USM B",
+       "b": "UCH A"
+      },
+      {
+       "a": "UTEM B",
+       "b": "UTAL A"
+      },
+      {
+       "a": "UCT B",
+       "b": "USM C"
+      },
+      {
+       "a": "PUCV",
+       "b": "UTAL B"
+      }
+     ]
     }
    ]
   },

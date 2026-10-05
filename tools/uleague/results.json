@@ -1,5 +1,5 @@
 {
-  "_comment": "Resultados manuales del torneo uLeague (los traen por Discord, el Sheet no los carga). sync.js fusiona esto al generar uleague-data.json: cada entrada marca el ganador de un match. El match se ubica por ronda + par de equipos (sin importar el orden). Usa los codigos tal cual aparecen en el fixture (ej. 'UCT A', 'UNAB B').",
+  "_comment": "Datos manuales del torneo uLeague (los traen por Discord; el Sheet no los carga). sync.js los fusiona al generar uleague-data.json. 'swiss' = ganador de cada match (se ubica por ronda + par de equipos, sin importar el orden). 'pairings' = emparejamientos por ronda/record cuando el Sheet no los trae. Usa los codigos canonicos del fixture (ej. 'UCT A', 'DUOC').",
   "swiss": [
     { "round": 1, "winner": "UNAB B", "loser": "PUCV" },
     { "round": 1, "winner": "USACH", "loser": "UCSH" },
@@ -8,6 +8,38 @@
     { "round": 1, "winner": "UC B", "loser": "USM C" },
     { "round": 1, "winner": "UCH C", "loser": "UTAL C" },
     { "round": 1, "winner": "UDP A", "loser": "UCT B" },
-    { "round": 1, "winner": "UDP B", "loser": "UTAL A" }
-  ]
+    { "round": 1, "winner": "UDP B", "loser": "UTAL A" },
+    { "round": 1, "winner": "UC A", "loser": "UTAL B" },
+    { "round": 1, "winner": "UDD", "loser": "UTEM B" },
+    { "round": 1, "winner": "UMAYOR", "loser": "UTEM A" },
+    { "round": 1, "winner": "UCH D", "loser": "UTAL D" },
+    { "round": 1, "winner": "UCH B", "loser": "UDEC" },
+    { "round": 1, "winner": "USM A", "loser": "UNAB C" },
+    { "round": 1, "winner": "UNAB A", "loser": "UCH A" },
+    { "round": 1, "winner": "DUOC", "loser": "USM B" }
+  ],
+  "pairings": {
+    "2": {
+      "1-0": [
+        ["UDA", "UNAB B"],
+        ["UC B", "UMAYOR"],
+        ["DUOC", "UDP A"],
+        ["UNAB A", "UCT A"],
+        ["UDP B", "UCH B"],
+        ["UCH C", "UC A"],
+        ["UDD", "USACH"],
+        ["USM A", "UCH D"]
+      ],
+      "0-1": [
+        ["UTEM A", "UTAL D"],
+        ["USM D", "UCSH"],
+        ["UTAL C", "UDEC"],
+        ["UCN", "UNAB C"],
+        ["USM B", "UCH A"],
+        ["UTEM B", "UTAL A"],
+        ["UCT B", "USM C"],
+        ["PUCV", "UTAL B"]
+      ]
+    }
+  }
 }
