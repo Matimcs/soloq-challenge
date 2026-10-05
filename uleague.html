@@ -350,11 +350,16 @@ function renderResumen(){
 // ================= FASE SUIZA =================
 let curRound = 1;
 function teamStatus(team){ // récord real contado desde los ganadores (m.w) de cada match jugado
+  // Los partidos del fixture usan el nombre CANÓNICO (p.ej. "DUOC"), pero la tabla recibe el
+  // de display ("DUOC UC"). Comparamos contra ambos para que calce (si no, no se contaba la derrota).
+  const t = DATA.teams.find(x=>x.name===team);
+  const names = new Set([team, t&&t.canon].filter(Boolean).map(s=>String(s).toLowerCase()));
+  const is = n => names.has(String(n||'').toLowerCase());
   let w=0,l=0;
   DATA.swiss.forEach(r=>r.buckets.forEach(b=>b.matches.forEach(m=>{
     if(!m.w) return;
-    if(m.w===team) w++;
-    else if(m.a===team||m.b===team) l++;
+    if(is(m.w)) w++;
+    else if(is(m.a)||is(m.b)) l++;
   })));
   let st='p'; if(w>=3) st='q'; else if(l>=3) st='e';
   return { rec:w+'-'+l, w, l, st };
