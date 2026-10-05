@@ -349,6 +349,8 @@ function renderResumen(){
 
 // ================= FASE SUIZA =================
 let curRound = 1;
+// Ronda "actual" = la última que ya tiene emparejamientos cargados (la que se está jugando).
+function currentRound(){ let last=1; (DATA.swiss||[]).forEach(r=>{ if(r.buckets.reduce((s,b)=>s+b.matches.length,0)>0) last=r.n; }); return last; }
 function teamStatus(team){ // récord real contado desde los ganadores (m.w) de cada match jugado
   // Los partidos del fixture usan el nombre CANÓNICO (p.ej. "DUOC"), pero la tabla recibe el
   // de display ("DUOC UC"). Comparamos contra ambos para que calce (si no, no se contaba la derrota).
@@ -691,6 +693,7 @@ document.querySelectorAll('.ptab-btn').forEach(b=>b.onclick=()=>showPage(b.datas
   catch(e){ $('#tab-resumen').innerHTML='<div class="empty-note">No se pudo cargar el fixture.</div>'; return; }
   // Resultados que el admin puso a mano (DB), por encima de los del JSON (sync/Discord).
   try { applyUlResults(await (await fetch('/api/uleague-results?t='+Date.now(),{cache:'no-store'})).json()); } catch(e){}
+  curRound = currentRound();   // abrir la Fase Suiza en la ronda que se está jugando
   renderResumen();
   const upd = DATA.updatedAt ? new Date(DATA.updatedAt).toLocaleString('es-CL') : '';
   $('#foot').innerHTML = `Datos sincronizados desde el fixture oficial de uLeague · última actualización: ${esc(upd)}`;
