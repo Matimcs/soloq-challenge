@@ -842,10 +842,13 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
     try {
       const s = await playerMatchCache(puuid);
       if (s && Array.isArray(s.lpGames)){
-        const lg = s.lpGames.filter(g => g.end);
+        // lpGames viene en orden ASCENDENTE (más viejo primero). Para reconstruir el elo hacia
+        // atrás desde el LP actual hay que recorrerlo del más NUEVO al más viejo; si no, los
+        // tiempos quedan desordenados y la línea zigzaguea/se cruza. Cada punto = LP tras ese game.
+        const lg = s.lpGames.filter(g => g.end).sort((a,b) => (b.end||0) - (a.end||0));
         let abs = curAbs; const pts = [{ t:Date.now(), lp:abs }];
-        for (const g of lg){ abs -= (g.delta||0); pts.push({ t:g.end, lp:abs }); }
-        eloSeries = pts.reverse();
+        for (const g of lg){ pts.push({ t:g.end, lp:abs }); abs -= (g.delta||0); }
+        eloSeries = pts.sort((a,b) => a.t - b.t);
       }
     } catch {}
   }
