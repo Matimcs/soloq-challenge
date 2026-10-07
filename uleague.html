@@ -112,6 +112,8 @@
   .sect-h.stand-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
   .dl-table{ font-family:inherit; cursor:pointer; text-transform:none; letter-spacing:0; font-size:12px; font-weight:800; color:var(--blue); background:rgba(125,211,252,.1); border:1px solid rgba(125,211,252,.3); border-radius:9px; padding:7px 13px; }
   .dl-table:hover{ background:rgba(125,211,252,.2); color:#fff; }
+  .dl-table.edit-on{ background:rgba(74,163,122,.22); border-color:rgba(74,163,122,.55); color:#8fe3bc; }
+  .dl-table.edit-on:hover{ background:rgba(74,163,122,.34); color:#fff; }
   .stand-split{ display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start; }
   @media (max-width:760px){ .stand-split{ grid-template-columns:1fr; } }
   .stand{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
@@ -354,6 +356,7 @@ function renderResumen(){
 
 // ================= FASE SUIZA =================
 let curRound = 1;
+let editMode = false;   // admin: muestra/oculta los botones "Ganador" (por defecto ocultos)
 // Ronda "actual" = la última que ya tiene emparejamientos cargados (la que se está jugando).
 function currentRound(){ let last=1; (DATA.swiss||[]).forEach(r=>{ if(r.buckets.reduce((s,b)=>s+b.matches.length,0)>0) last=r.n; }); return last; }
 function teamStatus(team){ // récord real contado desde los ganadores (m.w) de cada match jugado
@@ -377,7 +380,7 @@ function matchRow(m, round){
   // línea prominente = sigla+letra; debajo, el nombre completo atenuado
   const txt=name=>`<div class="tmx"><div class="tcode">${esc(name)}</div><div class="tfull">${esc(univFull(name))}</div></div>`;
   const star=`<span class="uch-star" title="Equipo U. de Chile">★</span>`;
-  const btn=(side,team)=>IS_ADMIN&&round?`<button class="awin ${side} ${(side==='l'?wa:wb)?'on':''}" data-round="${round}" data-a="${esc(m.a)}" data-b="${esc(m.b)}" data-team="${team}" title="Marcar ganador">Ganador</button>`:'';
+  const btn=(side,team)=>IS_ADMIN&&editMode&&round?`<button class="awin ${side} ${(side==='l'?wa:wb)?'on':''}" data-round="${round}" data-a="${esc(m.a)}" data-b="${esc(m.b)}" data-team="${team}" title="Marcar ganador">Ganador</button>`:'';
   return `<div class="match ${m.w?'done':''}">
     <div class="tm r ${oa?'ours':''} ${wa?'win':''} ${m.w&&!wa?'lose':''}">${btn('l','a')}${oa?star:''}${txt(m.a)}${logo(m.a,oa)}</div>
     <div class="vs">${m.w?'✓':'VS'}</div>
@@ -405,10 +408,12 @@ function renderSuiza(){
     slice.map((r,i)=>standRow(r,start+i+1)).join('')+`</tbody></table>`;
   const half = Math.ceil(rows.length/2);
   const stand = `<div class="stand-split">${standHalf(rows.slice(0,half),0)}${standHalf(rows.slice(half),half)}</div>`;
-  $('#tab-suiza').innerHTML = `<div class="sect-h">Fase Suiza · gana 3 clasificas, pierde 3 quedas fuera</div>
+  const editBtn = IS_ADMIN ? `<button class="dl-table ${editMode?'edit-on':''}" id="ul-edit">${editMode?'✓ Listo':'✏️ Editar resultados'}</button>` : '';
+  $('#tab-suiza').innerHTML = `<div class="sect-h stand-head"><span>Fase Suiza · gana 3 clasificas, pierde 3 quedas fuera</span>${editBtn}</div>
     <div class="round-tabs">${rtabs}</div>${body}
     <div class="sect-h stand-head">Tabla general <button class="dl-table" id="dl-stand">⬇ Descargar tabla</button></div>${stand}`;
   $('#tab-suiza').querySelectorAll('.rtab').forEach(b=>b.onclick=()=>{ if(b.disabled)return; curRound=+b.dataset.r; renderSuiza(); });
+  const eb=document.getElementById('ul-edit'); if(eb) eb.onclick=()=>{ editMode=!editMode; renderSuiza(); };
   const db=document.getElementById('dl-stand'); if(db) db.onclick=()=>downloadStandingsImage(rows);
   const tS=$('#tab-suiza'); if(IS_ADMIN && !tS._ulBound){ tS._ulBound=true; tS.addEventListener('click', onUlWinClick); }
 }
