@@ -27,7 +27,8 @@
   .hero-meta{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:16px 0 2px; }
   .chipm{ font-size:12px; font-weight:700; color:var(--muted); background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:6px 13px; }
   .chipm b{ color:var(--text); } .chipm.live{ color:var(--up); border-color:rgba(52,211,153,.4); }
-  .dl-btn{ display:inline-flex; align-items:center; gap:8px; margin-top:14px; background:linear-gradient(90deg,#2b6cff,#7dd3fc); color:#001; font-weight:800; font-size:13.5px; padding:10px 20px; border-radius:10px; }
+  .hero-btns{ display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px; }
+  .dl-btn{ display:inline-flex; align-items:center; gap:8px; background:linear-gradient(90deg,#2b6cff,#7dd3fc); color:#001; font-weight:800; font-size:13.5px; padding:10px 20px; border-radius:10px; }
   .dl-btn:hover{ filter:brightness(1.08); }
 
   /* Switcher de torneo + sub-pestañas */
@@ -247,7 +248,10 @@
       <h1><em>uLeague</em> Clausura 2026</h1>
       <div class="lead">El torneo más importante: 32 equipos universitarios, fase suiza y playoffs con final presencial. La Universidad de Chile va con <b>4 equipos</b> (UCH A/B/C/D).</div>
       <div class="hero-meta" id="hero-meta"></div>
-      <a class="dl-btn" href="reglamento-uleague-2026.pdf" download>⬇ Descargar bases (PDF)</a>
+      <div class="hero-btns">
+        <a class="dl-btn" href="reglamento-uleague-2026.pdf" download>⬇ Descargar bases (PDF)</a>
+        <a class="dl-btn" href="https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq" target="_blank" rel="noopener">📊 Ver fixture (Google Sheets)</a>
+      </div>
     </section>
 
     <div class="page-tabs">
@@ -344,10 +348,6 @@ function renderResumen(){
   $('#tab-resumen').innerHTML =
     `<div class="sect-h">La Chile en uLeague</div><div class="ours-grid">${cards}</div>`+
     `<div class="sect-h">Formato y fechas</div><div class="timeline">${phases}</div>`+
-    `<div class="sect-h">Fixture oficial</div>
-     <div style="display:flex;gap:10px;flex-wrap:wrap">
-       <a class="dl-btn" href="${esc(sheetUrl)}" target="_blank" rel="noopener">📊 Ver fixture en Google Sheets</a>
-     </div>`+
     `<div class="sect-h">Recordatorios</div><div class="empty-note" style="text-align:left;border-style:solid">
        • El torneo comienza el <b>sábado 3 de octubre</b>.<br>• Coordina con el capitán del equipo rival el horario del match.<br>• Fixture y bases oficiales — datos sincronizados desde el <a href="${esc(sheetUrl)}" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">Excel oficial de uLeague</a>.</div>`;
 }
