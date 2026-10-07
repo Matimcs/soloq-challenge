@@ -346,23 +346,25 @@ app.post('/api/admin/tourney-result', auth, requireAdmin, wrap(async (req,res) =
 const ulMatchId = (round, a, b) => 'r' + (round|0) + ':' + [String(a||'').trim(), String(b||'').trim()].sort().join('__');
 app.get('/api/uleague-results', wrap(async (req,res) => {
   res.set('Cache-Control', 'public, max-age=10');
-  const rows = await q('SELECT round, team_a, team_b, winner FROM uleague_results');
-  res.json(rows.map(r => ({ round: r.round, a: r.team_a, b: r.team_b, winner: r.winner })));
+  const rows = await q('SELECT round, team_a, team_b, winner, loser_maps FROM uleague_results');
+  res.json(rows.map(r => ({ round: r.round, a: r.team_a, b: r.team_b, winner: r.winner, loserMaps: r.loser_maps|0 })));
 }));
-// El admin fija (o borra) el ganador de un partido del suizo. winner vacío/null = borra el resultado.
+// El admin fija (o borra) el resultado de un partido del suizo. winner vacío/null = borra el resultado.
+// loserMaps = mapas que ganó el perdedor (BO3: 0 -> 2-0, 1 -> 2-1).
 app.post('/api/admin/uleague-result', auth, requireAdmin, wrap(async (req,res) => {
   const b = req.body || {};
   const round = parseInt(b.round, 10);
   const teamA = String(b.a || '').trim(), teamB = String(b.b || '').trim();
   const winner = String(b.winner || '').trim();
+  const loserMaps = Math.max(0, Math.min(2, parseInt(b.loserMaps, 10) || 0));
   if (!round || !teamA || !teamB) return res.status(400).json({ error:'Faltan datos (round, a, b)' });
   const matchId = ulMatchId(round, teamA, teamB);
   if (!winner) { await q('DELETE FROM uleague_results WHERE match_id=$1', [matchId]); return res.json({ ok:true, cleared:true }); }
   if (winner !== teamA && winner !== teamB) return res.status(400).json({ error:'El ganador debe ser uno de los dos equipos' });
-  await q(`INSERT INTO uleague_results (match_id, round, team_a, team_b, winner, updated_at) VALUES ($1,$2,$3,$4,$5,now())
-           ON CONFLICT (match_id) DO UPDATE SET winner=EXCLUDED.winner, round=EXCLUDED.round, team_a=EXCLUDED.team_a, team_b=EXCLUDED.team_b, updated_at=now()`,
-          [matchId, round, teamA, teamB, winner]);
-  res.json({ ok:true, round, a:teamA, b:teamB, winner });
+  await q(`INSERT INTO uleague_results (match_id, round, team_a, team_b, winner, loser_maps, updated_at) VALUES ($1,$2,$3,$4,$5,$6,now())
+           ON CONFLICT (match_id) DO UPDATE SET winner=EXCLUDED.winner, loser_maps=EXCLUDED.loser_maps, round=EXCLUDED.round, team_a=EXCLUDED.team_a, team_b=EXCLUDED.team_b, updated_at=now()`,
+          [matchId, round, teamA, teamB, winner, loserMaps]);
+  res.json({ ok:true, round, a:teamA, b:teamB, winner, loserMaps });
 }));
 
 // Resultados de las CLASIFICATORIAS INTERNAS (round-robin Bo3 de nuestros 4 equipos). Público.

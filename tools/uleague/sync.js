@@ -141,7 +141,7 @@ function grid(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankr
       let hit=false;
       if(rnd) for(const b of rnd.buckets) for(const m of b.matches){
         const pair=[nteam(m.a),nteam(m.b)];
-        if(pair.includes(w) && pair.includes(l)){ m.w = (nteam(m.a)===w)?m.a:m.b; hit=true; applied++; break; }
+        if(pair.includes(w) && pair.includes(l)){ m.w = (nteam(m.a)===w)?m.a:m.b; m.sc = Math.max(0, res.loserMaps|0); hit=true; applied++; break; }
       }
       if(!hit) missed.push(`R${res.round} ${res.winner} vs ${res.loser}`);
     });

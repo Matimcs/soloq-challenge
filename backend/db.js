@@ -281,8 +281,10 @@ async function init(){
       team_a     TEXT NOT NULL,
       team_b     TEXT NOT NULL,
       winner     TEXT NOT NULL,
+      loser_maps INT  NOT NULL DEFAULT 0,   -- mapas que ganó el perdedor (BO3: 0 -> 2-0, 1 -> 2-1)
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    ALTER TABLE uleague_results ADD COLUMN IF NOT EXISTS loser_maps INT NOT NULL DEFAULT 0;
 
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
