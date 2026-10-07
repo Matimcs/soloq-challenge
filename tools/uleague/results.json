@@ -16,7 +16,24 @@
     { "round": 1, "winner": "UCH B", "loser": "UDEC" },
     { "round": 1, "winner": "USM A", "loser": "UNAB C" },
     { "round": 1, "winner": "UNAB A", "loser": "UCH A" },
-    { "round": 1, "winner": "DUOC", "loser": "USM B" }
+    { "round": 1, "winner": "DUOC", "loser": "USM B" },
+
+    { "round": 2, "winner": "UDA", "loser": "UNAB B" },
+    { "round": 2, "winner": "UC B", "loser": "UMAYOR" },
+    { "round": 2, "winner": "DUOC", "loser": "UDP A" },
+    { "round": 2, "winner": "UNAB A", "loser": "UCT A" },
+    { "round": 2, "winner": "UDP B", "loser": "UCH B" },
+    { "round": 2, "winner": "UC A", "loser": "UCH C" },
+    { "round": 2, "winner": "USACH", "loser": "UDD" },
+    { "round": 2, "winner": "USM A", "loser": "UCH D" },
+    { "round": 2, "winner": "UTEM A", "loser": "UTAL D" },
+    { "round": 2, "winner": "UCSH", "loser": "USM D" },
+    { "round": 2, "winner": "UDEC", "loser": "UTAL C" },
+    { "round": 2, "winner": "UNAB C", "loser": "UCN" },
+    { "round": 2, "winner": "USM B", "loser": "UCH A" },
+    { "round": 2, "winner": "UTAL A", "loser": "UTEM B" },
+    { "round": 2, "winner": "USM C", "loser": "UCT B" },
+    { "round": 2, "winner": "UTAL B", "loser": "PUCV" }
   ],
   "pairings": {
     "2": {
@@ -39,6 +56,30 @@
         ["UTEM B", "UTAL A"],
         ["UCT B", "USM C"],
         ["PUCV", "UTAL B"]
+      ]
+    },
+    "3": {
+      "2-0": [
+        ["UC B", "UDP B"],
+        ["USM A", "USACH"],
+        ["UC A", "UDA"],
+        ["UNAB A", "DUOC"]
+      ],
+      "1-1": [
+        ["UTAL B", "UMAYOR"],
+        ["UCH B", "UTEM A"],
+        ["UCH C", "UCT A"],
+        ["USM C", "UCH D"],
+        ["USM B", "UDEC"],
+        ["UNAB C", "UTAL A"],
+        ["UDD", "UDP A"],
+        ["UNAB B", "UCSH"]
+      ],
+      "0-2": [
+        ["UCT B", "UTEM B"],
+        ["UTAL C", "USM D"],
+        ["UCN", "UTAL D"],
+        ["PUCV", "UCH A"]
       ]
     }
   }

@@ -3,7 +3,7 @@
  "edition": "Clausura 2026",
  "game": "League of Legends",
  "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
- "updatedAt": "2026-10-05T02:44:59.202Z",
+ "updatedAt": "2026-10-07T03:03:10.344Z",
  "startDate": "2026-10-03",
  "phases": [
   {
@@ -2948,35 +2948,43 @@
      "matches": [
       {
        "a": "UDA",
-       "b": "UNAB B"
+       "b": "UNAB B",
+       "w": "UDA"
       },
       {
        "a": "UC B",
-       "b": "UMAYOR"
+       "b": "UMAYOR",
+       "w": "UC B"
       },
       {
        "a": "DUOC",
-       "b": "UDP A"
+       "b": "UDP A",
+       "w": "DUOC"
       },
       {
        "a": "UNAB A",
-       "b": "UCT A"
+       "b": "UCT A",
+       "w": "UNAB A"
       },
       {
        "a": "UDP B",
-       "b": "UCH B"
+       "b": "UCH B",
+       "w": "UDP B"
       },
       {
        "a": "UCH C",
-       "b": "UC A"
+       "b": "UC A",
+       "w": "UC A"
       },
       {
        "a": "UDD",
-       "b": "USACH"
+       "b": "USACH",
+       "w": "USACH"
       },
       {
        "a": "USM A",
-       "b": "UCH D"
+       "b": "UCH D",
+       "w": "USM A"
       }
      ]
     },
@@ -2985,35 +2993,43 @@
      "matches": [
       {
        "a": "UTEM A",
-       "b": "UTAL D"
+       "b": "UTAL D",
+       "w": "UTEM A"
       },
       {
        "a": "USM D",
-       "b": "UCSH"
+       "b": "UCSH",
+       "w": "UCSH"
       },
       {
        "a": "UTAL C",
-       "b": "UDEC"
+       "b": "UDEC",
+       "w": "UDEC"
       },
       {
        "a": "UCN",
-       "b": "UNAB C"
+       "b": "UNAB C",
+       "w": "UNAB C"
       },
       {
        "a": "USM B",
-       "b": "UCH A"
+       "b": "UCH A",
+       "w": "USM B"
       },
       {
        "a": "UTEM B",
-       "b": "UTAL A"
+       "b": "UTAL A",
+       "w": "UTAL A"
       },
       {
        "a": "UCT B",
-       "b": "USM C"
+       "b": "USM C",
+       "w": "USM C"
       },
       {
        "a": "PUCV",
-       "b": "UTAL B"
+       "b": "UTAL B",
+       "w": "UTAL B"
       }
      ]
     }
@@ -3025,15 +3041,82 @@
    "buckets": [
     {
      "record": "2-0",
-     "matches": []
+     "matches": [
+      {
+       "a": "UC B",
+       "b": "UDP B"
+      },
+      {
+       "a": "USM A",
+       "b": "USACH"
+      },
+      {
+       "a": "UC A",
+       "b": "UDA"
+      },
+      {
+       "a": "UNAB A",
+       "b": "DUOC"
+      }
+     ]
     },
     {
      "record": "1-1",
-     "matches": []
+     "matches": [
+      {
+       "a": "UTAL B",
+       "b": "UMAYOR"
+      },
+      {
+       "a": "UCH B",
+       "b": "UTEM A"
+      },
+      {
+       "a": "UCH C",
+       "b": "UCT A"
+      },
+      {
+       "a": "USM C",
+       "b": "UCH D"
+      },
+      {
+       "a": "USM B",
+       "b": "UDEC"
+      },
+      {
+       "a": "UNAB C",
+       "b": "UTAL A"
+      },
+      {
+       "a": "UDD",
+       "b": "UDP A"
+      },
+      {
+       "a": "UNAB B",
+       "b": "UCSH"
+      }
+     ]
     },
     {
      "record": "0-2",
-     "matches": []
+     "matches": [
+      {
+       "a": "UCT B",
+       "b": "UTEM B"
+      },
+      {
+       "a": "UTAL C",
+       "b": "USM D"
+      },
+      {
+       "a": "UCN",
+       "b": "UTAL D"
+      },
+      {
+       "a": "PUCV",
+       "b": "UCH A"
+      }
+     ]
     }
    ]
   },
