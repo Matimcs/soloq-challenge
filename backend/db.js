@@ -293,6 +293,20 @@ async function init(){
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
     -- porque se conecta como 'postgres' (bypassrls). Idempotente y cubre tablas futuras.
+    -- Apuestas en Live Games: un usuario predice si un jugador GANA o PIERDE su partida en vivo.
+    -- result: NULL = pendiente, 'hit' = acertó, 'miss' = falló, 'void' = no cuenta (remake/anulada/sin registro).
+    CREATE TABLE IF NOT EXISTS live_bets (
+      game_id     TEXT    NOT NULL,
+      target_rid  TEXT    NOT NULL,          -- Riot ID (normalizado, minúsculas) del jugador apostado
+      user_id     INTEGER NOT NULL,
+      pick        TEXT    NOT NULL,          -- 'win' | 'lose'
+      result      TEXT,
+      created_at  TIMESTAMPTZ DEFAULT now(),
+      resolved_at TIMESTAMPTZ,
+      PRIMARY KEY (game_id, target_rid, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS live_bets_pending_idx ON live_bets (game_id) WHERE result IS NULL;
+
     -- Vista para TODAS las estadísticas: las partidas anuladas quedan fuera. security_invoker hace
     -- que respete el RLS de la tabla (si no, la vista quedaría legible por la API pública de Supabase).
     DROP VIEW IF EXISTS mp_stats;
