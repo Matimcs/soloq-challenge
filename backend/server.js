@@ -562,7 +562,7 @@ function buildHistoryRow(m, puuid){
   const dur = m.info.gameDuration || 0;
   return {
     matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
-    win: !!me.win, noLp: noLpLoss(me), champion: me.championName, position: me.teamPosition || '',
+    win: !!me.win, noLp: noLpLoss(me), voided: !!me.gameEndedInIGNBSurrender, champion: me.championName, position: me.teamPosition || '',
     k: me.kills||0, d: me.deaths||0, a: me.assists||0,
     kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
     kp: teamKills ? Math.round(((me.kills||0)+(me.assists||0))/teamKills*100) : 0,
@@ -636,7 +636,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
       coalesce(sum(damage),0)::bigint dmg, coalesce(avg(vision),0)::float vis, coalesce(sum(penta),0)::int penta,
       count(*) FILTER (WHERE first_blood)::int fb, coalesce(max(kills),0)::int rec,
       coalesce(avg(duration),0)::float avgdur, coalesce(max(duration),0)::int maxdur,
-      count(*) FILTER (WHERE win)::int wins FROM match_participants WHERE puuid=$1`, [puuid]);
+      count(*) FILTER (WHERE win)::int wins FROM mp_stats WHERE puuid=$1`, [puuid]);
     if (s && s.n){
       const durMin = Number(s.dur)/60 || 1;
       stats = { registradas:s.n, k:s.k, d:s.d, a:s.a, kda:+(((s.k+s.a)/Math.max(1,s.d)).toFixed(2)),
@@ -650,8 +650,8 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
   let duels = null;
   if (puuid){
     const dr = await q(`SELECT mp1.win, count(*)::int n
-      FROM match_participants mp1
-      JOIN match_participants mp2 ON mp2.match_id = mp1.match_id AND mp2.is_tournament = true
+      FROM mp_stats mp1
+      JOIN mp_stats mp2 ON mp2.match_id = mp1.match_id AND mp2.is_tournament = true
         AND mp2.puuid <> mp1.puuid AND mp2.team_id <> mp1.team_id AND coalesce(mp2.puuid,'') <> ''
       WHERE mp1.puuid = $1 AND mp1.is_tournament = true AND coalesce(mp1.duration,0) >= 300
       GROUP BY mp1.win`, [puuid]);
@@ -774,7 +774,7 @@ let LB_CACHE = { at:0, players:[] };
 async function leaderboardPlayers(){
   if (Date.now() - LB_CACHE.at < 300000) return LB_CACHE.players;
   const rows = await q(`SELECT puuid, riotid, name, champion, win, kills, deaths, assists, cs, gold, damage, vision, penta, duration, game_end
-    FROM match_participants WHERE is_tournament=true`);
+    FROM mp_stats WHERE is_tournament=true`);
   const byP = {};
   for (const r of rows){
     const p = byP[r.puuid] || (byP[r.puuid] = { puuid:r.puuid, riotid:r.riotid, name:(r.name || (r.riotid||'').split('#')[0] || '—'),
@@ -882,15 +882,15 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
              sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
              sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
              max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
-      FROM match_participants WHERE puuid=$1`, [puuid]);
+      FROM mp_stats WHERE puuid=$1`, [puuid]);
     const champs = await q(`
       SELECT champion, count(*) games, count(*) FILTER (WHERE win) wins,
              avg(kills) k, avg(deaths) d, avg(assists) a
-      FROM match_participants WHERE puuid=$1 AND coalesce(champion,'')<>''
+      FROM mp_stats WHERE puuid=$1 AND coalesce(champion,'')<>''
       GROUP BY champion ORDER BY games DESC, wins DESC LIMIT 8`, [puuid]);
     const roles = await q(`
       SELECT coalesce(nullif(position,''),'—') pos, count(*) games, count(*) FILTER (WHERE win) wins
-      FROM match_participants WHERE puuid=$1 GROUP BY 1 ORDER BY games DESC`, [puuid]);
+      FROM mp_stats WHERE puuid=$1 GROUP BY 1 ORDER BY games DESC`, [puuid]);
     if (a && +a.games > 0){
       const g = +a.games, durAll = +a.dur_all || 0, perMin = s => durAll > 0 ? s / (durAll / 60) : 0;
       stats = {
@@ -920,7 +920,7 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
              sum(coalesce(penta,0)) pentas, count(*) FILTER (WHERE first_blood) fb,
              sum(cs) FILTER (WHERE ${NS}) cs_ns, sum(duration) FILTER (WHERE ${NS}) dur_ns,
              max(kills) maxk, max(cs) maxcs, max(damage) maxdmg
-      FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' GROUP BY puuid`);
+      FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>'' GROUP BY puuid`);
     // Si abres una cuenta ALTA → te rankea solo entre las cuentas altas (una por jugador).
     // Si abres una cuenta BAJA (smurf excluida) → te rankea entre el TOTAL de cuentas.
     const meExcluded = exclude.has(riotid.toLowerCase());
@@ -1452,7 +1452,7 @@ app.get('/api/stats', wrap(async (req, res) => {
            sum(coalesce(cs,0))       FILTER (WHERE ${NS}) cs_ns,
            sum(coalesce(duration,0)) FILTER (WHERE ${NS}) dur_ns,
            count(*)                  FILTER (WHERE ${NS}) games_ns
-    FROM match_participants
+    FROM mp_stats
     WHERE is_tournament=true AND riotid IS NOT NULL
     GROUP BY ${ACCT}`);
   const rowsA = agg.filter(r => !excludeAcct.has(r.acct)).map(r => {
@@ -1487,9 +1487,9 @@ app.get('/api/stats', wrap(async (req, res) => {
            (array_agg(lower(riotid) ORDER BY game_end DESC NULLS LAST))[1] rid,
            (array_agg(name       ORDER BY game_end DESC NULLS LAST))[1] nm,
            bool_or(win) win, max(team_id) team
-    FROM match_participants
+    FROM mp_stats
     WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300   -- excluye remakes (<5min)
-      AND match_id IN (SELECT match_id FROM match_participants WHERE is_tournament=true AND coalesce(duration,0) >= 300
+      AND match_id IN (SELECT match_id FROM mp_stats WHERE is_tournament=true AND coalesce(duration,0) >= 300
                        GROUP BY match_id HAVING count(distinct ${ACCT}) >= 2)
     GROUP BY match_id, ${ACCT}`);
   const byMatch = {};
@@ -1573,7 +1573,7 @@ app.get('/api/stats', wrap(async (req, res) => {
   // Si su equipo perdió, nosotros les ganamos (w++); si ganó, nos ganaron (l++).
   const partRows = await q(`
     SELECT match_id, team_id, puuid, max(name) nm, max(lower(riotid)) rid, bool_or(win) win, bool_or(is_tournament) is_t
-    FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY match_id, team_id, puuid`);
+    FROM mp_stats WHERE coalesce(puuid,'')<>'' GROUP BY match_id, team_id, puuid`);
   const tournPuuids = new Set(), teamHasTourn = {};
   for (const r of partRows) if (r.is_t){ tournPuuids.add(r.puuid); (teamHasTourn[r.match_id] = teamHasTourn[r.match_id] || {})[r.team_id] = true; }
   const opp = {};   // puuid contrincante -> { nm, rid, w, l }
@@ -1613,8 +1613,8 @@ app.get('/api/stats', wrap(async (req, res) => {
   // Partidas guardadas por cuenta (win/loss). Riot NO da el LP histórico, así que la curva se
   // reconstruye desde aquí: LP exacto donde el runner lo capturó (lpGames), estimado por V/D si no.
   const gamesByPuuid = {};
-  for (const g of await q("SELECT puuid, game_end, win FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND game_end IS NOT NULL ORDER BY game_end ASC"))
-    (gamesByPuuid[g.puuid] = gamesByPuuid[g.puuid] || []).push({ t: Number(g.game_end), win: !!g.win });
+  for (const g of await q("SELECT puuid, game_end, win, coalesce(no_lp,false) no_lp FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND game_end IS NOT NULL ORDER BY game_end ASC"))
+    (gamesByPuuid[g.puuid] = gamesByPuuid[g.puuid] || []).push({ t: Number(g.game_end), win: !!g.win, noLp: !!g.no_lp });
   const dayAcc = {}, series = [];
   const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
   for (const puuid in store) {
@@ -1627,7 +1627,7 @@ app.get('/api/stats', wrap(async (req, res) => {
     const STEP = known.length ? known[Math.floor(known.length / 2)] : 20;   // paso estimado (mediana de |Δ| conocidos)
     const gs = gamesByPuuid[puuid] || [];
     // Δ por partida: exacto si lo capturamos, si no estimado por victoria/derrota.
-    const perGame = gs.map(g => ({ t: g.t, delta: (g.t in deltaByEnd) ? deltaByEnd[g.t] : (g.win ? STEP : -STEP) }));
+    const perGame = gs.map(g => ({ t: g.t, delta: g.noLp ? 0 : (g.t in deltaByEnd) ? deltaByEnd[g.t] : (g.win ? STEP : -STEP) }));
     const useGames = perGame.length ? perGame : lg.map(g => ({ t: g.end, delta: g.delta || 0 }));
     // Serie: reconstruye absLP hacia atrás desde el actual.
     if (m.abs != null && useGames.length) {
@@ -1695,7 +1695,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
     return (mainPuuid[o] && pu === mainPuuid[o]) ? uNick[o] : acct;  // main -> dueño; smurf -> cuenta
   };
   const rows = await q(`
-    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win, bool_or(coalesce(no_lp,false)) nolp,
+    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win, bool_or(coalesce(no_lp,false)) nolp, bool_or(coalesce(voided,false)) voided,
            max(team_id) team, max(champion) champ, max(game_end) gend
     FROM match_participants
     WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300   -- excluye remakes (<5min)
@@ -1706,7 +1706,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
   for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
   const encounters = Object.entries(byMatch).map(([id, ps]) => {
     const ownerCount = {}; ps.forEach(p => { const o = ownerOf(p.rid); ownerCount[o] = (ownerCount[o] || 0) + 1; });
-    return { id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
+    return { id, end: Math.max(...ps.map(p => Number(p.gend) || 0)), voided: ps.some(p => p.voided),
       players: ps.map(p => ({ nm: dispName(p.rid, ownerCount) || p.nm, rid: p.rid, win: !!p.win, noLp: !!p.nolp, champ: p.champ || null })) };
   }).filter(e => e.players.length >= 2)
     .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 400);   // historial completo (antes se cortaba en 100)
@@ -1741,7 +1741,7 @@ app.get('/api/team-stats', wrap(async (req, res) => {
     const g = (p.w||0)+(p.l||0); const cur = bestWR[o]; if (g && (!cur || g > cur.g)) bestWR[o] = { g, w:p.w||0 }; });
   // Partidas JUNTOS (2+ del mismo equipo aliados) + parejas internas.
   const rows = await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win
-    FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 GROUP BY match_id, lower(riotid)`);
+    FROM mp_stats WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 GROUP BY match_id, lower(riotid)`);
   const byMatch = {}; for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
   const teamAgg = {}, pairAgg = {};
   for (const mid in byMatch){
@@ -1805,7 +1805,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
   // Scan del historial: agregados por dueño + extremos de una partida.
   const agg = {}; const distinctByAcct = {}, gamesByAcct = {}, carreadoBy = {}, griefeadoBy = {};
   const NS = pos => !['UTILITY','SUPPORT'].includes((pos||'').toUpperCase());
-  for (const r of await q(`SELECT match_id, lower(riotid) rid, champion champ, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, coalesce(duration,0) dur, win, position pos, game_end gend FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL`)){
+  for (const r of await q(`SELECT match_id, lower(riotid) rid, champion champ, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, coalesce(duration,0) dur, win, position pos, game_end gend FROM mp_stats WHERE is_tournament=true AND riotid IS NOT NULL`)){
     const o = ownerOf(r.rid), acct = acctOf(r.rid);
     const A = agg[o] || (agg[o] = { games:0, deaths:0, csNs:0, durNs:0, gamesNs:0, durAll:0, champs:{}, days:{}, night:0, morning:0 });
     A.games++; A.deaths += +r.d; A.durAll += +r.dur;
@@ -1821,7 +1821,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
   }
   // Dúos (aliados) para "Dúo Tóxico" y "Pareja Inseparable".
   const byMatch = {};
-  for (const r of await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win FROM match_participants WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 GROUP BY match_id, lower(riotid)`)) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  for (const r of await q(`SELECT match_id, lower(riotid) rid, max(team_id) side, bool_or(win) win FROM mp_stats WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300 GROUP BY match_id, lower(riotid)`)) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
   const pairAgg = {}, duoByOwner = {};   // duoByOwner: W/L de cada jugador cuando juega EN DÚO (aliado con otro del torneo)
   for (const mid in byMatch){ const sides = {};
     for (const p of byMatch[mid]){ const o = ownerOf(p.rid); (sides[p.side] = sides[p.side] || new Map()).set(o, !!p.win); }
@@ -1923,7 +1923,7 @@ async function buildDle(today){
   try { for (const r of await q('SELECT rid, peak_abs FROM peak_lp')){ const acct = puuidOf(r.rid); if (acct && +r.peak_abs > (peakByAcct[acct]||0)) peakByAcct[acct] = +r.peak_abs; } } catch {}
   // partidas, roles, winrate y KDA POR CUENTA (puuid)
   const gamesByAcct = {}, posByAcct = {}, winByAcct = {}, kdaByAcct = {};
-  for (const r of await q("SELECT puuid acct, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, position pos, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
+  for (const r of await q("SELECT puuid acct, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, win, position pos, coalesce(duration,0) dur FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST")){
     const acct = r.acct; (gamesByAcct[acct] = gamesByAcct[acct] || []).push(r);
     const pos = DLE_POS[(r.pos||'').toUpperCase()]; if (pos){ (posByAcct[acct] = posByAcct[acct] || {})[pos] = (posByAcct[acct][pos]||0) + 1; }
     const w = winByAcct[acct] = winByAcct[acct] || { w:0, n:0 }; w.n++; if (r.win) w.w++;
@@ -2098,7 +2098,7 @@ app.get('/api/records', wrap(async (req, res) => {
   const N = 5;
   const K='coalesce(kills,0)', D='coalesce(deaths,0)', A='coalesce(assists,0)', CS='coalesce(cs,0)', DUR='coalesce(duration,0)', VIS='coalesce(vision,0)';
   const cols = `name, lower(riotid) rid, puuid, champion, match_id, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
-  const base = `FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>''`;
+  const base = `FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>''`;
   const kda = `(${K}+${A})::float/GREATEST(${D},1)`;
   const topBy = order => q(`SELECT ${cols} ${base} ORDER BY ${order} LIMIT ${N}`);
   const [kdaBest, kdaWorst, cs, dur, kills, deaths, assists, vision] = await Promise.all([

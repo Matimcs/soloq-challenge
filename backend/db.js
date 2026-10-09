@@ -141,6 +141,8 @@ async function init(){
     -- columnas nuevas (para tablas ya creadas)
     -- derrota SIN pérdida de LP (partida terminada por conducta disruptiva de un compañero)
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS no_lp       BOOLEAN DEFAULT false;
+    -- partida ANULADA (terminada por conducta disruptiva): se muestra, pero no cuenta en estadísticas
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS voided      BOOLEAN DEFAULT false;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS cs          INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS gold        INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS damage      INTEGER;
@@ -291,6 +293,12 @@ async function init(){
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
     -- porque se conecta como 'postgres' (bypassrls). Idempotente y cubre tablas futuras.
+    -- Vista para TODAS las estadísticas: las partidas anuladas quedan fuera. security_invoker hace
+    -- que respete el RLS de la tabla (si no, la vista quedaría legible por la API pública de Supabase).
+    DROP VIEW IF EXISTS mp_stats;
+    CREATE VIEW mp_stats WITH (security_invoker = true) AS
+      SELECT * FROM match_participants WHERE NOT coalesce(voided, false);
+
     DO $$ DECLARE t text; BEGIN
       FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);

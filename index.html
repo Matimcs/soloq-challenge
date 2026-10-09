@@ -1665,7 +1665,7 @@ function renderHist(c, data){
     const opp = h.oppChampion ? `<img class="m-champ" src="${champImg(h.oppChampion)}" onerror="this.style.visibility='hidden'">` : '<span class="m-champ e"></span>';
     return `<div class="m-row ${h.win?'win':'loss'}">
       <div class="m-head" data-mid="${h.matchId||''}">
-        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':(h.noLp?'Derrota sin LP':'Derrota')}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}</span></div>
+        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':(h.noLp?'Derrota sin LP':'Derrota')}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}${h.voided?' · <span style="color:var(--gold,#ffd24a)" title="Partida terminada por comportamiento disruptivo: se muestra, pero no cuenta para estadísticas">anulada</span>':''}</span></div>
         <img class="m-champ" src="${champImg(h.champion)}" onerror="this.style.visibility='hidden'">
         ${spellStack(h.spells)}${runeStack(h.keystone,h.secStyle)}
         <span class="m-vs">VS</span>

@@ -87,11 +87,13 @@ async function initDB(){
       PRIMARY KEY (match_id, puuid)
     )`);
     console.log('✔ DB conectada (match_participants)');
+    try { (await pgPool.query('SELECT DISTINCT match_id FROM match_participants WHERE voided')).rows.forEach(r => VOID_IDS.add(r.match_id)); } catch {}
   } catch (e) { console.error('DB match_participants:', e.message); pgPool = null; }
 }
 // Derrota SIN pérdida de LP: la partida terminó por comportamiento disruptivo de un compañero
 // ("IGNB surrender" de Riot). El equipo que rinde no pierde LP, salvo el causante.
 const noLpLoss = p => !p.win && !!p.teamIGNBSurrendered && !p.causedGameEndFromIGNBSurrender;
+const VOID_IDS = new Set();   // partidas anuladas ya guardadas (se carga de la DB al iniciar)
 async function saveParticipants(matchId, info){
   if (!pgPool || !info || !Array.isArray(info.participants)) return;
   const end = info.gameEndTimestamp || 0;
@@ -105,15 +107,15 @@ async function saveParticipants(matchId, info){
       p.teamId || 0, !!p.win, p.kills || 0, p.deaths || 0, p.assists || 0,
       riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end,
       cs, p.goldEarned || 0, p.totalDamageDealtToChampions || 0, p.visionScore || 0,
-      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p)];
+      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p), !!p.gameEndedInIGNBSurrender];
   }).filter(r => r[1]);   // requiere puuid
   if (!rows.length) return;
-  const cols = 22;
+  const cols = 23;
   const values = rows.map((_, i) => '(' + Array.from({length:cols}, (_,j) => `$${i*cols+j+1}`).join(',') + ')').join(',');
   const flat = rows.flat();
   try {
     await pgPool.query(
-      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration,no_lp)
+      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration,no_lp,voided)
        VALUES ${values} ON CONFLICT (match_id,puuid) DO NOTHING`, flat);
   } catch (e) { /* no romper el runner por un fallo de escritura */ }
 }
@@ -319,7 +321,7 @@ const median = a => { if(!a.length) return null; const s=[...a].sort((x,y)=>x-y)
 const SESSION_GAP = 5 * 60 * 60 * 1000;
 function computeSession(games, lpGames){
   if (!games || !games.length) return { w:0, l:0, lp:0 };
-  const sorted = games.filter(g => g.end).sort((a,b) => b.end - a.end);   // nuevas→viejas
+  const sorted = games.filter(g => g.end && !g.void).sort((a,b) => b.end - a.end);   // nuevas→viejas (sin anuladas)
   if (!sorted.length || (Date.now() - sorted[0].end) >= SESSION_GAP) return { w:0, l:0, lp:0 };
   const ses = [sorted[0]];
   for (let i = 1; i < sorted.length; i++){
@@ -361,6 +363,7 @@ async function updatePlayerStats(puuid, entry){
     const remake = dur > 0 && dur < 300 || !!me.gameEndedInEarlySurrender;
     const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '', remake };
     if (noLpLoss(me)) g.noLp = true;   // derrota sin LP (terminada por conducta disruptiva)
+    if (me.gameEndedInIGNBSurrender) g.void = true;   // partida anulada: se muestra, no cuenta en estadísticas
     store.games.unshift(g); fetched.push(g);
   }
   store.games = store.games.slice(0, 20);
@@ -444,12 +447,15 @@ async function updatePlayerStats(puuid, entry){
   if (cur != null) store.lastAbsLP = cur;
   matchStore[puuid] = store;
 
-  // Métricas para el frontend
-  const form = store.games.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
-  const formT = store.games.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
+  // Métricas para el frontend. Las partidas ANULADAS (terminadas por conducta disruptiva) no cuentan:
+  // también se marcan las ya guardadas antes de que existiera el flag (VOID_IDS viene de la DB).
+  store.games.forEach(g => { if (VOID_IDS.has(g.id)) g.void = true; });
+  const counted = store.games.filter(g => !g.void);
+  const form = counted.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
+  const formT = counted.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
   // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
   const posCount = {};
-  store.games.forEach(g => { if (g.pos) posCount[g.pos] = (posCount[g.pos] || 0) + 1; });
+  counted.forEach(g => { if (g.pos) posCount[g.pos] = (posCount[g.pos] || 0) + 1; });
   let mainPos = null, mainN = 0;
   for (const k in posCount) if (posCount[k] > mainN){ mainN = posCount[k]; mainPos = k; }
   const winD  = store.lpGames.filter(g=>g.delta>0).map(g=>g.delta);   // recientes primero (unshift)

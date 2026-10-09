@@ -152,7 +152,7 @@
     }
     const tag = rivals ? '<span class="tag rival">⚔ Rivales</span>' : '<span class="tag ally">🤝 Aliados</span>';
     return `<div class="card${isNew?' new':''}">
-      ${isNew?'<span class="enc-new">NUEVO</span>':''}${tag}
+      ${isNew?'<span class="enc-new">NUEVO</span>':''}${tag}${e.voided?'<span class="tag" style="color:var(--gold,#ffd24a);border-color:rgba(255,210,74,.35)" title="Partida terminada por comportamiento disruptivo: se muestra, pero no cuenta para estadísticas">⚠ Anulada · no cuenta</span>':''}
       <div class="sides">${sides}</div>
       <div class="meta">
         <span class="date">${fdate(e.end)}</span>
