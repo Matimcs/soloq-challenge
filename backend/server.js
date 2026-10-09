@@ -1214,7 +1214,7 @@ app.post('/api/ingest', wrap(async (req,res) => {
 app.get('/api/nav-counts', (req,res) => {
   const live = (liveData && Array.isArray(liveData.liveGames)) ? liveData.liveGames.length : 0;
   const encEnds = (liveData && Array.isArray(liveData.encounters)) ? liveData.encounters.map(e => e.end || 0) : [];
-  res.json({ live, encEnds, recSig: _recSig });   // recSig: firma de récords (para el badge de Estadísticas)
+  res.json({ live, encEnds, recSig: _recSig, recEnd: _recEnd });   // recSig: firma de récords (para el badge de Estadísticas)
 });
 // players.json (el que se consulta cada 30s por polling): cacheable ~20s → Cloudflare lo
 // sirve del borde y baja la banda. players.js es la carga INICIAL de cada página (script tag):
@@ -2191,6 +2191,15 @@ function recordsSig(R){
   for (const k in REC_SIG_V){ s[k] = (R[k] || []).slice(0, 5).map(t => (t.nm || '') + '|' + REC_SIG_V[k](t)).join(';'); }
   return s;
 }
+// Fecha de la partida MÁS RECIENTE dentro del top-5 de cada categoría. Un récord solo es "nuevo" si se
+// jugó después de la última vez que el usuario los vio: así un recálculo (deploy, cambio de reglas,
+// renombres, cuentas vinculadas) que reordena partidas ANTIGUAS no dispara avisos falsos.
+let _recEnd = {};
+function recordsEnd(R){
+  const e = {};
+  for (const k in REC_SIG_V) e[k] = Math.max(0, ...(R[k] || []).slice(0, 5).map(t => t.end || 0));
+  return e;
+}
 app.get('/api/records', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
   if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 300000) return res.json(RECORDS_CACHE.data);
@@ -2215,7 +2224,7 @@ app.get('/api/records', wrap(async (req, res) => {
   } catch {}
   const N = 5;
   const K='coalesce(kills,0)', D='coalesce(deaths,0)', A='coalesce(assists,0)', CS='coalesce(cs,0)', DUR='coalesce(duration,0)', VIS='coalesce(vision,0)';
-  const cols = `name, lower(riotid) rid, puuid, champion, match_id, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
+  const cols = `name, lower(riotid) rid, puuid, champion, match_id, game_end, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
   const base = `FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>''`;
   const kda = `(${K}+${A})::float/GREATEST(${D},1)`;
   const topBy = order => q(`SELECT ${cols} ${base} ORDER BY ${order} LIMIT ${N}`);
@@ -2227,18 +2236,19 @@ app.get('/api/records', wrap(async (req, res) => {
   const map = r => { const rid = ridByPuuid[r.puuid] || r.rid;
     return { nm: ownerNickByPuuid[r.puuid] || nickByRid[(rid || '').toLowerCase()] || r.name || (r.rid || '').split('#')[0], rid, matchId: r.match_id,
       champ: r.champion, k:+r.k, d:+r.d, a:+r.a, kda:+(((+r.k) + (+r.a)) / Math.max(1, +r.d)).toFixed(2),
-      cs:+r.cs, durMin: Math.round((+r.dur) / 60), vis:+r.vis }; };
+      cs:+r.cs, durMin: Math.round((+r.dur) / 60), vis:+r.vis, end: Number(r.game_end) || 0 }; };
   // Rachas de victorias/derrotas por cuenta (consecutivas en el tiempo); dedup por jugador (máx).
+  // 'end' = fecha de la partida con que la racha alcanzó su máximo (para saber si es reciente).
   const gs = await q(`SELECT puuid, win, game_end ${base} AND game_end IS NOT NULL ORDER BY puuid, game_end ASC`);
-  const byP = {}; gs.forEach(r => (byP[r.puuid] = byP[r.puuid] || []).push(!!r.win));
+  const byP = {}; gs.forEach(r => (byP[r.puuid] = byP[r.puuid] || []).push({ w: !!r.win, t: Number(r.game_end) || 0 }));
   const wmax = {}, lmax = {};
-  for (const puuid in byP){ let cw=0, cl=0, mw=0, ml=0;
-    byP[puuid].forEach(w => { if (w){ cw++; cl=0; } else { cl++; cw=0; } if (cw>mw) mw=cw; if (cl>ml) ml=cl; });
+  for (const puuid in byP){ let cw=0, cl=0, mw=0, ml=0, mwT=0, mlT=0;
+    byP[puuid].forEach(g => { if (g.w){ cw++; cl=0; } else { cl++; cw=0; } if (cw>mw){ mw=cw; mwT=g.t; } if (cl>ml){ ml=cl; mlT=g.t; } });
     const rid = ridByPuuid[puuid]; const nm = ownerNickByPuuid[puuid] || (rid ? (nickByRid[(rid||'').toLowerCase()] || rid.split('#')[0]) : null);
     if (!nm) continue;
-    if (mw > (wmax[nm]||0)) wmax[nm]=mw; if (ml > (lmax[nm]||0)) lmax[nm]=ml;
+    if (mw > ((wmax[nm]||{}).v||0)) wmax[nm]={ v:mw, t:mwT }; if (ml > ((lmax[nm]||{}).v||0)) lmax[nm]={ v:ml, t:mlT };
   }
-  const streaks = obj => Object.entries(obj).filter(([,v]) => v>=2).map(([nm,value]) => ({ nm, value })).sort((a,b) => b.value-a.value).slice(0, N);
+  const streaks = obj => Object.entries(obj).filter(([,x]) => x.v>=2).map(([nm,x]) => ({ nm, value:x.v, end:x.t })).sort((a,b) => b.value-a.value).slice(0, N);
   // RÉCORD DE LP: peak absoluto por cuenta (base sembrada + runner lo sube). Consolidado por jugador, top 5.
   let peakLp = [];
   try {
@@ -2261,6 +2271,7 @@ app.get('/api/records', wrap(async (req, res) => {
     winStreak: streaks(wmax), loseStreak: streaks(lmax) };
   _recSig = recordsSig(RECORDS_CACHE.data);
   RECORDS_CACHE.data._sig = _recSig;   // firma incluida en la respuesta (para resaltar lo nuevo)
+  _recEnd = recordsEnd(RECORDS_CACHE.data);
   RECORDS_CACHE.at = Date.now();
   res.json(RECORDS_CACHE.data);
 }));

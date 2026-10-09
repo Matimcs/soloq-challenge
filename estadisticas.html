@@ -503,17 +503,26 @@
                     cs:r=>r.cs, vision:r=>r.vis, duration:r=>r.durMin, winStreak:r=>r.value, loseStreak:r=>r.value };
   const sigKey = (key, r) => (r.nm || '') + '|' + (SIG_VAL[key] ? SIG_VAL[key](r) : '');
   // ¿esta fila es una ENTRADA nueva al top-5 (no estaba la última vez que viste los récords)?
-  const rowIsNew = (key, r) => !!(SEEN_ENTRIES && SEEN_ENTRIES[key] && !SEEN_ENTRIES[key].has(sigKey(key, r)));
-  // Detecta qué categorías de récord cambiaron desde la última vez que las viste (firma del backend).
+  // Además la partida tiene que haberse jugado DESPUÉS de tu última visita: si un recálculo (deploy,
+  // cambio de reglas, cuentas vinculadas) reordena partidas ANTIGUAS, no se marcan como nuevas.
+  let REC_SEEN_AT = 0;
+  function recSeenAt(){
+    let t = 0;
+    try { t = Number(localStorage.getItem('sqc_rec_seen_at')) || 0; if (!t){ t = Date.now(); localStorage.setItem('sqc_rec_seen_at', String(t)); } } catch {}
+    return t || Date.now();
+  }
+  const rowIsNew = (key, r) => !!(SEEN_ENTRIES && SEEN_ENTRIES[key] && !SEEN_ENTRIES[key].has(sigKey(key, r)) && (r.end || 0) > REC_SEEN_AT);
+  // Detecta qué categorías tienen un récord nuevo desde la última vez que las viste.
   function computeRecChanged(){
     REC_CHANGED = new Set(); SEEN_ENTRIES = null;
     if (!RECORDS || !RECORDS._sig) return;
     let seen = null; try { seen = JSON.parse(localStorage.getItem('sqc_rec_seen2') || 'null'); } catch {}
     if (seen){   // sin 'seen' (1ra vez): nada nuevo
+      REC_SEEN_AT = recSeenAt();
       SEEN_ENTRIES = {};
       for (const k in RECORDS._sig){
         SEEN_ENTRIES[k] = new Set(String(seen[k] || '').split(';').filter(Boolean));   // entradas top-5 ya vistas
-        if (RECORDS._sig[k] !== seen[k]) REC_CHANGED.add(k);
+        if ((RECORDS[k] || []).slice(0, 5).some(r => rowIsNew(k, r))) REC_CHANGED.add(k);
       }
     }
     const tb = $('rec-tab-badge');
@@ -522,7 +531,7 @@
   // Marca los récords como VISTOS: guarda la firma, limpia los badges y refresca el del nav.
   function markRecordsSeen(){
     if (!RECORDS || !RECORDS._sig) return;
-    try { localStorage.setItem('sqc_rec_seen2', JSON.stringify(RECORDS._sig)); } catch {}
+    try { localStorage.setItem('sqc_rec_seen2', JSON.stringify(RECORDS._sig)); localStorage.setItem('sqc_rec_seen_at', String(Date.now())); } catch {}
     const tb = $('rec-tab-badge'); if (tb) tb.style.display = 'none';
     if (window.SQC && SQC.navBadges) SQC.navBadges();
   }
