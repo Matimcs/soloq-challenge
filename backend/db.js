@@ -297,15 +297,30 @@ async function init(){
     );
     ALTER TABLE uleague_results ADD COLUMN IF NOT EXISTS loser_maps INT NOT NULL DEFAULT 0;
 
+    -- Vista para TODAS las estadísticas (tops, ficha, récords, duelos, dúos…). Deja fuera:
+    --   1) las partidas anuladas (terminadas por conducta disruptiva), y
+    --   2) las partidas jugadas de SUPPORT por una cuenta del challenge cuyo rol principal no es
+    --      support (suelen ser autofill y distorsionan CS, daño, etc.). A los supports se les cuenta todo.
+    -- El historial y Encuentros leen la tabla directa, así que esas partidas se siguen viendo.
+    -- security_invoker hace que respete el RLS de la tabla (si no, quedaría legible por la API pública).
+    DROP VIEW IF EXISTS mp_stats;
+    CREATE VIEW mp_stats WITH (security_invoker = true) AS
+      SELECT m.* FROM match_participants m
+      LEFT JOIN (
+        -- rol principal de cada cuenta del challenge = el más jugado (sin remakes ni anuladas)
+        SELECT puuid, mode() WITHIN GROUP (ORDER BY upper(position)) AS role
+        FROM match_participants
+        WHERE is_tournament = true AND NOT coalesce(voided, false) AND coalesce(duration, 0) >= 300
+          AND coalesce(position, '') <> '' AND coalesce(puuid, '') <> ''
+        GROUP BY puuid
+      ) r ON r.puuid = m.puuid
+      WHERE NOT coalesce(m.voided, false)
+        AND NOT (m.is_tournament = true AND upper(coalesce(m.position, '')) = 'UTILITY'
+                 AND r.role IS NOT NULL AND r.role <> 'UTILITY');
+
     -- Seguridad: activa Row-Level Security en TODAS las tablas del schema public. Sin políticas,
     -- esto bloquea la API pública (anon) de Supabase (PostgREST). El backend NO se ve afectado
     -- porque se conecta como 'postgres' (bypassrls). Idempotente y cubre tablas futuras.
-    -- Vista para TODAS las estadísticas: las partidas anuladas quedan fuera. security_invoker hace
-    -- que respete el RLS de la tabla (si no, la vista quedaría legible por la API pública de Supabase).
-    DROP VIEW IF EXISTS mp_stats;
-    CREATE VIEW mp_stats WITH (security_invoker = true) AS
-      SELECT * FROM match_participants WHERE NOT coalesce(voided, false);
-
     DO $$ DECLARE t text; BEGIN
       FOR t IN SELECT tablename FROM pg_tables WHERE schemaname='public' LOOP
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
