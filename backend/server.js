@@ -2227,8 +2227,11 @@ function startEmbeddedRunner(){
           const k = g.end + '|' + (g.delta || 0);
           if (seen.has(k)) continue; seen.add(k); merged.push(g);
         }
-        merged.sort((a, b) => (a.end || 0) - (b.end || 0));
-        c.lpGames = merged.slice(-80);   // conserva las 80 más recientes
+        // El runner trabaja con lpGames del MÁS NUEVO al más viejo (unshift + slice(0,40) + [0].pending).
+        // Antes aquí se ordenaba al revés (viejo→nuevo): tras cada reinicio el runner insertaba la
+        // partida nueva al frente y su slice(0,40) botaba las MÁS RECIENTES → partidas sin ±LP.
+        merged.sort((a, b) => (b.end || 0) - (a.end || 0));
+        c.lpGames = merged.slice(0, 80);   // conserva las 80 más recientes
         if (c.lastAbsLP == null && s.lastAbsLP != null) c.lastAbsLP = s.lastAbsLP;
         if ((!c.games || !c.games.length) && s.games) c.games = s.games;
       }
