@@ -143,6 +143,13 @@ async function init(){
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS no_lp       BOOLEAN DEFAULT false;
     -- partida ANULADA (terminada por conducta disruptiva): se muestra, pero no cuenta en estadísticas
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS voided      BOOLEAN DEFAULT false;
+    -- fase de líneas (vienen de 'challenges' del match-v5): CS al min 10, ventaja máx. de CS y de nivel
+    -- sobre el rival directo, solo kills y placas. Para la pestaña Análisis.
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS cs10        REAL;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS cs_adv      REAL;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS lvl_lead    REAL;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS solo_kills  INTEGER;
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS plates      INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS cs          INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS gold        INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS damage      INTEGER;

@@ -2061,56 +2061,115 @@ app.get('/api/soloqdle/leaderboard', wrap(async (req, res) => {
   res.json({ board });
 }));
 
-// ---- ANÁLISIS: promedios por cuenta sobre sus últimas N partidas (para el polígono comparativo) ----
-// Sale todo de mp_stats (sin partidas anuladas) y sin remakes; no gasta llamadas a Riot. Cache 5 min por N.
+// ---- ANÁLISIS: promedios por jugador sobre sus últimas N partidas (polígono comparativo) ----
+// Todo sale de la DB (sin llamadas a Riot). Las filas de los jugadores del challenge se cargan una vez
+// y se cachean 5 min; de ahí se arma cualquier ventana (N) y modo de cuentas:
+//   top   = solo la cuenta más alta de cada jugador      all = todas las cuentas (smurfs aparte)
+//   merge = main + smurfs combinadas en un solo jugador
+// Las partidas anuladas y los remakes no entran en los promedios (las anuladas sí se listan, marcadas).
+let AN_ROWS = { at: 0, byPuuid: null };
+async function analysisRows(){
+  if (AN_ROWS.byPuuid && Date.now() - AN_ROWS.at < 300000) return AN_ROWS.byPuuid;
+  const rows = await q(`
+    SELECT m.puuid, m.match_id id, m.champion champ, m.position pos, m.win, coalesce(m.kills,0) k, coalesce(m.deaths,0) d, coalesce(m.assists,0) a,
+           coalesce(m.cs,0) cs, coalesce(m.gold,0) gold, coalesce(m.damage,0) dmg, coalesce(m.vision,0) vis, coalesce(m.champ_level,0) lvl,
+           coalesce(m.duration,0) dur, m.game_end, coalesce(m.voided,false) voided, coalesce(m.no_lp,false) no_lp,
+           m.cs10, m.cs_adv, m.lvl_lead, m.solo_kills, tk.tk
+    FROM match_participants m
+    JOIN (SELECT match_id, team_id, sum(coalesce(kills,0))::int tk FROM match_participants GROUP BY 1,2) tk
+      ON tk.match_id = m.match_id AND tk.team_id = m.team_id
+    WHERE m.is_tournament=true AND coalesce(m.puuid,'')<>'' AND coalesce(m.duration,0) >= 300
+    ORDER BY m.game_end DESC NULLS LAST`);
+  const by = {};
+  for (const r of rows){
+    (by[r.puuid] = by[r.puuid] || []).push({ id: r.id, champ: r.champ || '', pos: (r.pos || '').toUpperCase(), win: !!r.win, k: +r.k, d: +r.d, a: +r.a,
+      cs: +r.cs, gold: +r.gold, dmg: +r.dmg, vis: +r.vis, lvl: +r.lvl, dur: +r.dur, end: Number(r.game_end) || 0, voided: !!r.voided, noLp: !!r.no_lp,
+      cs10: r.cs10 == null ? null : +r.cs10, csadv: r.cs_adv == null ? null : +r.cs_adv, lvllead: r.lvl_lead == null ? null : +r.lvl_lead,
+      solok: r.solo_kills == null ? null : +r.solo_kills, tk: +r.tk || 0 });
+  }
+  AN_ROWS = { at: Date.now(), byPuuid: by };
+  return by;
+}
+// Jugadores (dueños) y sus cuentas presentes en el ranking, según el modo pedido.
+async function analysisEntities(mode){
+  const snap = (liveSnapshot().players || []).filter(p => p.puuid);
+  const rid2puuid = await ridPuuidMap();
+  const owner = {}, nick = {};
+  try {
+    for (const u of await q("SELECT id, nickname, lower(riotid) rid FROM users WHERE coalesce(riotid,'')<>''")){
+      nick['u' + u.id] = (u.nickname || '').trim(); const pu = rid2puuid[u.rid]; if (pu) owner[pu] = 'u' + u.id; }
+    for (const s of await q("SELECT user_id, lower(riotid) rid FROM smurfs WHERE coalesce(riotid,'')<>''")){ const pu = rid2puuid[s.rid]; if (pu) owner[pu] = 'u' + s.user_id; }
+  } catch {}
+  const linkMain = {};
+  try { for (const l of await q('SELECT smurf_riotid, main_riotid FROM smurf_links')) linkMain[normRid(l.smurf_riotid)] = normRid(l.main_riotid); } catch {}
+  const ownerOf = p => owner[p.puuid] || ('r:' + (linkMain[normRid(p.rid)] || normRid(p.rid)));
+  const groups = {};
+  snap.forEach((p, i) => { const o = ownerOf(p); (groups[o] = groups[o] || []).push({ p, pos: i + 1, abs: absLPof(p.tier, p.div, p.lp) || 0 }); });
+  const out = [];
+  for (const o in groups){
+    const accts = groups[o].slice().sort((a, b) => b.abs - a.abs || a.pos - b.pos), best = accts[0];
+    const name = nick[o] || best.p.nm || (best.p.rid || '').split('#')[0];
+    const ent = (a, puuids, key, smurf) => ({ key, nm: name, rid: a.p.rid, accts: accts.map(x => x.p.rid), smurf, pos: a.pos,
+      tier: a.p.tier || 'UNRANKED', div: a.p.div || '', lp: a.p.lp || 0, abs: a.abs || null, puuids });
+    if (mode === 'all') accts.forEach((a, i) => out.push(ent(a, [a.p.puuid], normRid(a.p.rid), i > 0)));
+    else if (mode === 'merge') out.push(ent(best, accts.map(a => a.p.puuid), 'o:' + o, false));
+    else out.push(ent(best, [best.p.puuid], normRid(best.p.rid), false));
+  }
+  return out.sort((a, b) => a.pos - b.pos);
+}
+const anMode = v => (v === 'all' || v === 'merge') ? v : 'top';
+const anGamesOf = (by, puuids) => puuids.length === 1 ? (by[puuids[0]] || [])
+  : [].concat(...puuids.map(pu => by[pu] || [])).sort((a, b) => b.end - a.end);
 const AN_CACHE = {};
 app.get('/api/analysis', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=120');
-  const raw = String(req.query.n || '10').toLowerCase();
+  const raw = String(req.query.n || 'all').toLowerCase(), mode = anMode(req.query.mode);
   const n = raw === 'all' ? 0 : Math.max(5, Math.min(200, parseInt(raw, 10) || 10));
-  const hit = AN_CACHE[n];
+  const ck = mode + '|' + n, hit = AN_CACHE[ck];
   if (hit && Date.now() - hit.at < 300000) return res.json(hit.data);
-  const rows = await q(`
-    SELECT puuid, count(*)::int g, count(*) FILTER (WHERE win)::int w,
-           sum(coalesce(kills,0))::int k, sum(coalesce(deaths,0))::int d, sum(coalesce(assists,0))::int a,
-           sum(coalesce(cs,0))::bigint cs, sum(coalesce(gold,0))::bigint gold, sum(coalesce(damage,0))::bigint dmg,
-           sum(coalesce(vision,0))::bigint vis, sum(coalesce(champ_level,0))::bigint lvl, sum(coalesce(duration,0))::bigint dur
-    FROM (SELECT *, row_number() OVER (PARTITION BY puuid ORDER BY game_end DESC NULLS LAST) rn
-          FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND coalesce(duration,0) >= 300) t
-    WHERE ${n ? 'rn <= ' + n : 'true'} GROUP BY puuid`);
-  const by = {}; rows.forEach(r => { by[r.puuid] = r; });
-  const players = (liveSnapshot().players || []).filter(p => p.puuid && by[p.puuid]).map((p, i) => {
-    const r = by[p.puuid], min = Number(r.dur) / 60 || 1, per = v => Number(v) / min;
-    return { rid: p.rid, nm: p.nm || (p.rid || '').split('#')[0], pos: i + 1, tier: p.tier || 'UNRANKED', div: p.div || '', lp: p.lp || 0,
-      abs: absLPof(p.tier, p.div, p.lp), games: r.g, wr: Math.round(r.w / r.g * 1000) / 10,
-      k: +(r.k / r.g).toFixed(1), d: +(r.d / r.g).toFixed(1), a: +(r.a / r.g).toFixed(1),
-      kda: +((r.k + r.a) / Math.max(1, r.d)).toFixed(2), csmin: +per(r.cs).toFixed(2), goldmin: Math.round(per(r.gold)),
-      dmgmin: Math.round(per(r.dmg)), vismin: +per(r.vis).toFixed(2), lvlmin: +per(r.lvl).toFixed(3) };
-  });
-  const data = { n: n || 'all', players };
-  AN_CACHE[n] = { at: Date.now(), data };
+  const by = await analysisRows(), ents = await analysisEntities(mode);
+  const avg = (arr, f) => { const v = arr.map(f).filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
+  const players = [];
+  for (const e of ents){
+    const all = anGamesOf(by, e.puuids).filter(g => !g.voided); if (!all.length) continue;
+    const gs = n ? all.slice(0, n) : all, G = gs.length, sum = f => gs.reduce((s, g) => s + f(g), 0);
+    const min = sum(g => g.dur) / 60 || 1, K = sum(g => g.k), D = sum(g => g.d), A = sum(g => g.a), TK = sum(g => g.tk);
+    const roles = {}; all.forEach(g => { if (g.pos) roles[g.pos] = (roles[g.pos] || 0) + 1; });
+    const role = Object.keys(roles).sort((a, b) => roles[b] - roles[a])[0] || null;
+    const r1 = v => v == null ? null : Math.round(v * 10) / 10;
+    players.push({ key: e.key, nm: e.nm, rid: e.rid, accts: e.accts, smurf: e.smurf, pos: e.pos, tier: e.tier, div: e.div, lp: e.lp, abs: e.abs, role,
+      games: G, wr: Math.round(sum(g => g.win ? 1 : 0) / G * 1000) / 10, k: r1(K / G), d: r1(D / G), a: r1(A / G),
+      kda: +((K + A) / Math.max(1, D)).toFixed(2), csmin: +(sum(g => g.cs) / min).toFixed(2), goldmin: Math.round(sum(g => g.gold) / min),
+      dmgmin: Math.round(sum(g => g.dmg) / min), vismin: +(sum(g => g.vis) / min).toFixed(2), lvlmin: +(sum(g => g.lvl) / min).toFixed(3),
+      kp: TK ? Math.round((K + A) / TK * 1000) / 10 : null,
+      cs10: r1(avg(gs, g => g.cs10)), csadv: r1(avg(gs, g => g.csadv)), lvllead: (v => v == null ? null : +v.toFixed(2))(avg(gs, g => g.lvllead)),
+      solok: (v => v == null ? null : +v.toFixed(2))(avg(gs, g => g.solok)) });
+  }
+  const data = { n: n || 'all', mode, players };
+  AN_CACHE[ck] = { at: Date.now(), data };
   res.json(data);
 }));
-// Últimas partidas de una cuenta para la pestaña Análisis (incluye anuladas, marcadas; sin remakes).
-app.get('/api/analysis/games', wrap(async (req, res) => {
+// Detalle de un jugador: últimas 60 partidas (con ±PL y participación) y su pool de campeones completo.
+app.get('/api/analysis/detail', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=120');
-  const rid = normRid(req.query.rid || '');
-  const limit = Math.max(1, Math.min(60, parseInt(req.query.limit, 10) || 40));
-  const pl = (liveSnapshot().players || []).find(p => normRid(p.rid) === rid);
-  const puuid = (pl && pl.puuid) || (await ridPuuidMap())[rid];
-  if (!puuid) return res.json({ games: [] });
-  const rows = await q(`SELECT match_id, champion, position, win, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a,
-      coalesce(cs,0) cs, coalesce(gold,0) gold, coalesce(damage,0) dmg, coalesce(vision,0) vis, coalesce(champ_level,0) lvl,
-      coalesce(duration,0) dur, game_end, coalesce(voided,false) voided, coalesce(no_lp,false) no_lp
-    FROM match_participants WHERE puuid=$1 AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST LIMIT $2`, [puuid, limit]);
-  const byEnd = {};
-  try { const st = await playerMatchCache(puuid); (st && st.lpGames || []).forEach(g => { if (g.end) byEnd[g.end] = g; }); } catch {}
-  res.json({ games: rows.map(r => {
-    const g = byEnd[r.game_end]; let lp = null;
-    if (r.no_lp) lp = 0; else if (g && !g.pending && ((r.win && g.delta >= 0) || (!r.win && g.delta <= 0))) lp = g.delta;
-    return { id: r.match_id, champ: r.champion, pos: r.position, win: !!r.win, k: +r.k, d: +r.d, a: +r.a, cs: +r.cs, gold: +r.gold,
-      dmg: +r.dmg, vis: +r.vis, lvl: +r.lvl, dur: +r.dur, end: Number(r.game_end) || 0, voided: !!r.voided, lp };
-  }) });
+  const mode = anMode(req.query.mode), key = String(req.query.key || '');
+  const e = (await analysisEntities(mode)).find(x => x.key === key);
+  if (!e) return res.json({ games: [], champs: [] });
+  const by = await analysisRows(), all = anGamesOf(by, e.puuids);
+  const lpByEnd = {};
+  try { const blob = await matchesBlob(); e.puuids.forEach(pu => ((blob && blob[pu] && blob[pu].lpGames) || []).forEach(g => { if (g.end && !g.pending) lpByEnd[g.end] = g.delta; })); } catch {}
+  const games = all.slice(0, 60).map(g => {
+    const dl = lpByEnd[g.end]; let lp = null;
+    if (g.noLp) lp = 0; else if (dl != null && ((g.win && dl >= 0) || (!g.win && dl <= 0))) lp = dl;
+    return { id: g.id, champ: g.champ, pos: g.pos, win: g.win, k: g.k, d: g.d, a: g.a, cs: g.cs, gold: g.gold, dmg: g.dmg, vis: g.vis, lvl: g.lvl,
+      dur: g.dur, end: g.end, voided: g.voided, lp, kp: g.tk ? Math.round((g.k + g.a) / g.tk * 100) : null };
+  });
+  const cm = {};
+  all.filter(g => !g.voided && g.champ).forEach(g => { const c = cm[g.champ] || (cm[g.champ] = { champ: g.champ, games: 0, wins: 0, k: 0, d: 0, a: 0 });
+    c.games++; if (g.win) c.wins++; c.k += g.k; c.d += g.d; c.a += g.a; });
+  const champs = Object.values(cm).sort((a, b) => b.games - a.games || b.wins - a.wins).slice(0, 25)
+    .map(c => ({ champ: c.champ, games: c.games, wr: Math.round(c.wins / c.games * 100), kda: +((c.k + c.a) / Math.max(1, c.d)).toFixed(2) }));
+  res.json({ games, champs, total: all.filter(g => !g.voided).length });
 }));
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----

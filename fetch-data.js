@@ -93,6 +93,12 @@ async function initDB(){
 // Derrota SIN pérdida de LP: la partida terminó por comportamiento disruptivo de un compañero
 // ("IGNB surrender" de Riot). El equipo que rinde no pierde LP, salvo el causante.
 const noLpLoss = p => !p.win && !!p.teamIGNBSurrendered && !p.causedGameEndFromIGNBSurrender;
+// Fase de líneas desde 'challenges' de Riot: [CS al min 10, ventaja máx. de CS, ventaja máx. de nivel, solo kills, placas].
+function laneStats(p){
+  const c = p.challenges || {}, num = v => (typeof v === 'number' && isFinite(v)) ? v : null, int = v => num(v) == null ? null : Math.round(v);
+  const jg = String(p.teamPosition || p.individualPosition || '').toUpperCase() === 'JUNGLE';
+  return [num(jg ? c.jungleCsBefore10Minutes : c.laneMinionsFirst10Minutes), num(c.maxCsAdvantageOnLaneOpponent), num(c.maxLevelLeadLaneOpponent), int(c.soloKills), int(c.turretPlatesTaken)];
+}
 const VOID_IDS = new Set();   // partidas anuladas ya guardadas (se carga de la DB al iniciar)
 async function saveParticipants(matchId, info){
   if (!pgPool || !info || !Array.isArray(info.participants)) return;
@@ -107,15 +113,16 @@ async function saveParticipants(matchId, info){
       p.teamId || 0, !!p.win, p.kills || 0, p.deaths || 0, p.assists || 0,
       riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end,
       cs, p.goldEarned || 0, p.totalDamageDealtToChampions || 0, p.visionScore || 0,
-      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p), !!p.gameEndedInIGNBSurrender];
+      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p), !!p.gameEndedInIGNBSurrender,
+      ...laneStats(p)];
   }).filter(r => r[1]);   // requiere puuid
   if (!rows.length) return;
-  const cols = 23;
+  const cols = 28;
   const values = rows.map((_, i) => '(' + Array.from({length:cols}, (_,j) => `$${i*cols+j+1}`).join(',') + ')').join(',');
   const flat = rows.flat();
   try {
     await pgPool.query(
-      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration,no_lp,voided)
+      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration,no_lp,voided,cs10,cs_adv,lvl_lead,solo_kills,plates)
        VALUES ${values} ON CONFLICT (match_id,puuid) DO NOTHING`, flat);
   } catch (e) { /* no romper el runner por un fallo de escritura */ }
 }
