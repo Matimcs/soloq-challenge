@@ -388,7 +388,7 @@
   }
   // Una mini-gráfica por métrica: una línea por jugador, de la partida más antigua a la más reciente.
   function anEvo(sel){
-    const series = sel.map(({ p, key }) => { const d = anDet(p); const gs = d ? d.games.filter(g => !g.voided).slice(0, AN.n === 'all' ? 60 : +AN.n).reverse() : null; return { p, key, gs }; });
+    const series = sel.map(({ p, key }) => { const d = anDet(p); const gs = d ? d.games.filter(g => !g.voided && !g.off).slice(0, AN.n === 'all' ? 60 : +AN.n).reverse() : null; return { p, key, gs }; });
     if (series.some(s => !s.p.isAvg && !s.gs)) return `<div class="card"><h3>Evolución</h3><div class="loading" style="padding:24px 0">Cargando…</div></div>`;
     const W = 300, H = 104, L = 8, Rr = 8, T = 10, B = 16;
     const charts = AN_EVO.map(m => {
@@ -420,7 +420,7 @@
       const lp = g.lp == null ? '' : `${g.lp > 0 ? '+' : ''}${g.lp} PL`;
       return `<div class="an-g ${g.voided ? 'v' : (g.win ? 'w' : '')}"><span class="bar"></span>
         <img src="${anChamp(g.champ)}" alt="" onerror="this.style.visibility='hidden'">
-        <div><div class="l1">${g.k}/${g.d}/${g.a} <span>· ${esc(g.champ || '')}${g.voided ? ' · anulada' : ''}</span></div>
+        <div><div class="l1">${g.k}/${g.d}/${g.a} <span>· ${esc(g.champ || '')}${g.voided ? ' · anulada' : ''}${g.off ? ' · de support, no cuenta' : ''}</span></div>
           <div class="l2">${(g.cs / m).toFixed(1)} CS/min · ${anInt(g.dmg / m)} daño/min · ${anInt(g.gold / m)} oro/min${g.kp == null ? '' : ' · ' + g.kp + '% part.'}</div></div>
         <div class="rt">${g.win ? 'Victoria' : 'Derrota'}${lp ? ' · ' + lp : ''}<small>${Math.floor(m)} min · ${fdate(g.end)}</small></div></div>`; }).join('') + `</div></div>`;
   }
@@ -475,7 +475,7 @@
           <div class="an-legend">${sel.map(({ p, key }) => `<span>${anSw(key)}${esc(anLabel(p))}</span>`).join('')}</div>
           ${anRadar(sel)}</div>
         <div>
-          <div class="card"><h3>Promedios</h3><div class="cap">Sobre ${win} de cada jugador. P = percentil. Remakes y partidas anuladas no cuentan.</div>
+          <div class="card"><h3>Promedios</h3><div class="cap">Sobre ${win} de cada jugador. P = percentil. No cuentan remakes, partidas anuladas ni las jugadas de support por quien no es support.</div>
             ${anTable(rows, A, B, true).replace('</tbody>', kdaRow + '</tbody>')}</div>
           <div class="card" style="margin-top:14px"><h3>Fase de líneas</h3><div class="cap">Promedio por partida sobre ${win}. La ventaja es la máxima alcanzada frente al rival directo.</div>
             ${anTable(AN_LANE, A, B, false)}</div>

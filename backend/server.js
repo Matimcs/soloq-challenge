@@ -2118,6 +2118,14 @@ async function analysisEntities(mode){
   return out.sort((a, b) => a.pos - b.pos);
 }
 const anMode = v => (v === 'all' || v === 'merge') ? v : 'top';
+// Rol principal (el más jugado) y partidas que CUENTAN para las estadísticas: a quien no es support
+// no se le cuentan las partidas que jugó de support (suelen ser autofill y distorsionan CS, daño, etc.).
+function anCounted(valid){
+  const roles = {}; valid.forEach(g => { if (g.pos) roles[g.pos] = (roles[g.pos] || 0) + 1; });
+  const role = Object.keys(roles).sort((a, b) => roles[b] - roles[a])[0] || null;
+  const skipSup = !!role && role !== 'UTILITY';
+  return { role, skipSup, counted: skipSup ? valid.filter(g => g.pos !== 'UTILITY') : valid };
+}
 const anGamesOf = (by, puuids) => puuids.length === 1 ? (by[puuids[0]] || [])
   : [].concat(...puuids.map(pu => by[pu] || [])).sort((a, b) => b.end - a.end);
 const AN_CACHE = {};
@@ -2131,11 +2139,9 @@ app.get('/api/analysis', wrap(async (req, res) => {
   const avg = (arr, f) => { const v = arr.map(f).filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
   const players = [];
   for (const e of ents){
-    const all = anGamesOf(by, e.puuids).filter(g => !g.voided); if (!all.length) continue;
+    const { role, counted: all } = anCounted(anGamesOf(by, e.puuids).filter(g => !g.voided)); if (!all.length) continue;
     const gs = n ? all.slice(0, n) : all, G = gs.length, sum = f => gs.reduce((s, g) => s + f(g), 0);
     const min = sum(g => g.dur) / 60 || 1, K = sum(g => g.k), D = sum(g => g.d), A = sum(g => g.a), TK = sum(g => g.tk);
-    const roles = {}; all.forEach(g => { if (g.pos) roles[g.pos] = (roles[g.pos] || 0) + 1; });
-    const role = Object.keys(roles).sort((a, b) => roles[b] - roles[a])[0] || null;
     const r1 = v => v == null ? null : Math.round(v * 10) / 10;
     players.push({ key: e.key, nm: e.nm, rid: e.rid, accts: e.accts, smurf: e.smurf, pos: e.pos, tier: e.tier, div: e.div, lp: e.lp, abs: e.abs, role,
       games: G, wr: Math.round(sum(g => g.win ? 1 : 0) / G * 1000) / 10, k: r1(K / G), d: r1(D / G), a: r1(A / G),
@@ -2156,20 +2162,21 @@ app.get('/api/analysis/detail', wrap(async (req, res) => {
   const e = (await analysisEntities(mode)).find(x => x.key === key);
   if (!e) return res.json({ games: [], champs: [] });
   const by = await analysisRows(), all = anGamesOf(by, e.puuids);
+  const { skipSup, counted } = anCounted(all.filter(g => !g.voided));
   const lpByEnd = {};
   try { const blob = await matchesBlob(); e.puuids.forEach(pu => ((blob && blob[pu] && blob[pu].lpGames) || []).forEach(g => { if (g.end && !g.pending) lpByEnd[g.end] = g.delta; })); } catch {}
   const games = all.slice(0, 60).map(g => {
     const dl = lpByEnd[g.end]; let lp = null;
     if (g.noLp) lp = 0; else if (dl != null && ((g.win && dl >= 0) || (!g.win && dl <= 0))) lp = dl;
     return { id: g.id, champ: g.champ, pos: g.pos, win: g.win, k: g.k, d: g.d, a: g.a, cs: g.cs, gold: g.gold, dmg: g.dmg, vis: g.vis, lvl: g.lvl,
-      dur: g.dur, end: g.end, voided: g.voided, lp, kp: g.tk ? Math.round((g.k + g.a) / g.tk * 100) : null };
+      dur: g.dur, end: g.end, voided: g.voided, off: skipSup && g.pos === 'UTILITY' && !g.voided, lp, kp: g.tk ? Math.round((g.k + g.a) / g.tk * 100) : null };
   });
   const cm = {};
-  all.filter(g => !g.voided && g.champ).forEach(g => { const c = cm[g.champ] || (cm[g.champ] = { champ: g.champ, games: 0, wins: 0, k: 0, d: 0, a: 0 });
+  counted.filter(g => g.champ).forEach(g => { const c = cm[g.champ] || (cm[g.champ] = { champ: g.champ, games: 0, wins: 0, k: 0, d: 0, a: 0 });
     c.games++; if (g.win) c.wins++; c.k += g.k; c.d += g.d; c.a += g.a; });
   const champs = Object.values(cm).sort((a, b) => b.games - a.games || b.wins - a.wins).slice(0, 25)
     .map(c => ({ champ: c.champ, games: c.games, wr: Math.round(c.wins / c.games * 100), kda: +((c.k + c.a) / Math.max(1, c.d)).toFixed(2) }));
-  res.json({ games, champs, total: all.filter(g => !g.voided).length });
+  res.json({ games, champs, total: counted.length });
 }));
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
