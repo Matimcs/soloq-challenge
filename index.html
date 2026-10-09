@@ -266,24 +266,6 @@
   .stream-embed.nofit a{ color:var(--accent); font-weight:700; text-decoration:none; }
 
   #live-games{ display:flex; flex-direction:column; gap:18px; }
-  /* apuestas en vivo: ¿gana o pierde? */
-  .lb-strip{ display:flex; flex-direction:column; gap:8px; padding:12px 18px; border-top:1px solid var(--line); }
-  .lb-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .lb-q{ font-size:13px; font-weight:700; flex:1; min-width:150px; }
-  .lb-q small{ display:block; font-size:11px; font-weight:600; color:var(--muted-2); margin-top:1px; }
-  .lb-btn{ font-family:inherit; cursor:pointer; font-size:12px; font-weight:800; padding:7px 13px; border-radius:9px; border:1px solid var(--line-strong); background:transparent; color:var(--muted); display:inline-flex; align-items:center; gap:7px; }
-  .lb-btn b{ font-variant-numeric:tabular-nums; opacity:.85; }
-  .lb-btn.w:hover:not(:disabled), .lb-btn.w.on{ color:var(--up); border-color:var(--up); background:rgba(52,211,153,.12); }
-  .lb-btn.l:hover:not(:disabled), .lb-btn.l.on{ color:var(--down); border-color:var(--down); background:rgba(251,113,133,.12); }
-  .lb-btn:disabled{ cursor:default; opacity:.6; }
-  .lb-board{ margin-top:26px; }
-  .lb-board h2{ font-size:13px; font-weight:800; letter-spacing:.08em; color:var(--muted-2); margin:0 0 10px; text-transform:uppercase; }
-  .lb-table{ width:100%; border-collapse:collapse; background:var(--panel); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  .lb-table th, .lb-table td{ padding:9px 14px; font-size:13px; text-align:left; border-top:1px solid var(--line); }
-  .lb-table th{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); border-top:none; }
-  .lb-table td.n, .lb-table th.n{ text-align:center; font-variant-numeric:tabular-nums; }
-  .lb-table td.who{ font-weight:700; }
-  .lb-note{ font-size:11.5px; color:var(--muted-2); margin-top:8px; }
   .lg-card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; overflow:hidden; }
   .lg-head{ display:grid; grid-template-columns:1fr auto 1fr; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); }
   .lg-players{ display:flex; align-items:center; gap:8px; }
@@ -790,7 +772,6 @@
       <div id="live-empty" class="live-empty" style="display:none">
         Nadie del challenge está en partida en este momento.
       </div>
-      <div id="live-bettors" class="lb-board"></div>
     </section>
 
     <footer>
@@ -1288,53 +1269,8 @@ function gameCard(g){
         ${sideHtml('BLUE SIDE','blue',g.blue,g.bansBlue)}
         ${sideHtml('RED SIDE','red',g.red,g.bansRed)}
       </div>
-      ${betStrip(g)}
     </div>`;
 }
-
-/* ===== Apuestas en vivo: ¿el jugador gana o pierde su partida? ===== */
-let LIVE_BETS = { window: 300, games: {} };
-const betLogged = () => !!(window.SQC && SQC.token && SQC.token());
-function betStrip(g){
-  const st = (LIVE_BETS.games || {})[g.gameId];
-  const targets = (g.tracked || []).filter(t => t.rid);
-  if (!st || !targets.length) return '';
-  const open = st.open && elapsedOf(g.gameStartTime, g.gameLength) < (LIVE_BETS.window || 300);
-  const why = !open ? 'Apuestas cerradas (pasó el minuto 5)'
-    : !betLogged() ? 'Inicia sesión para apostar'
-    : st.inGame ? 'Estás en esta partida: no puedes apostar'
-    : 'Abiertas hasta el minuto 5';
-  const can = open && betLogged() && !st.inGame;
-  return `<div class="lb-strip">${targets.map(t => {
-    const rid = nrid(t.rid), tg = st.targets[rid] || { win:0, lose:0, mine:null };
-    const btn = (pick, cls, label, n) => `<button class="lb-btn ${cls} ${tg.mine===pick?'on':''}" ${can?'':'disabled'} data-bet="${pick}" data-gid="${escAttr(g.gameId)}" data-rid="${escAttr(rid)}">${label} <b>${n}</b></button>`;
-    return `<div class="lb-row">
-      <div class="lb-q">¿${escAttr(encDisp(t, g.tracked))} gana o pierde?<small>${why}${tg.mine?` · tu apuesta: ${tg.mine==='win'?'gana':'pierde'}`:''}</small></div>
-      ${btn('win','w','Gana',tg.win)}${btn('lose','l','Pierde',tg.lose)}
-    </div>`; }).join('')}</div>`;
-}
-async function loadLiveBets(){
-  try { if (window.SQC && SQC.api){ LIVE_BETS = await SQC.api('/live-bets'); renderLive(); } } catch (e) {}
-  loadBettors();
-}
-async function loadBettors(){
-  const box = document.getElementById('live-bettors'); if (!box) return;
-  let list = [];
-  try { const r = await fetch('/api/live-bets/leaderboard'); if (r.ok) list = (await r.json()).bettors || []; } catch (e) {}
-  const head = `<h2>Mejores apostadores</h2>`;
-  if (!list.length){ box.innerHTML = head + `<div class="lb-note">Aún no hay apuestas. Cuando alguien del challenge entre en partida, podrás apostar si gana o pierde (hasta el minuto 5).</div>`; return; }
-  box.innerHTML = head + `<table class="lb-table"><thead><tr><th class="n">#</th><th>Apostador</th><th class="n">Aciertos</th><th class="n">Apuestas</th><th class="n">% acierto</th><th class="n">Pendientes</th></tr></thead><tbody>` +
-    list.slice(0, 20).map((b, i) => `<tr><td class="n">${i+1}</td><td class="who">${escAttr(b.nickname || '—')}</td><td class="n">${b.hits}</td><td class="n">${b.total}</td><td class="n">${b.pct==null?'—':b.pct+'%'}</td><td class="n">${b.pending||''}</td></tr>`).join('') +
-    `</tbody></table><div class="lb-note">Un acierto por cada predicción correcta. Los remakes y las partidas anuladas no cuentan.</div>`;
-}
-document.addEventListener('click', async e => {
-  const b = e.target.closest && e.target.closest('.lb-btn'); if (!b || b.disabled) return;
-  b.disabled = true;
-  try { LIVE_BETS = await SQC.api('/live-bet', { method:'POST', body:{ gameId: b.dataset.gid, rid: b.dataset.rid, pick: b.dataset.bet } }); }
-  catch (err) { alert(err.message || 'No se pudo guardar la apuesta'); }
-  renderLive(); loadBettors();
-});
-window.addEventListener('load', loadLiveBets);
 
 function renderLive(){
   const games = LIVE_GAMES.filter(g =>
@@ -2012,7 +1948,6 @@ function applyData(nd){
   }
   counts(); render(); renderLive();
   checkEncounters();
-  loadLiveBets();
   paintCutoffs(nd);
   try { window.__patRank && window.__patRank(); } catch (e) {}
   if (window.SQC) SQC.navBadges(nd);
