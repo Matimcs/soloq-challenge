@@ -139,6 +139,8 @@ async function init(){
     CREATE INDEX IF NOT EXISTS mp_puuid_idx        ON match_participants (puuid);
     CREATE INDEX IF NOT EXISTS mp_tournament_idx   ON match_participants (is_tournament);
     -- columnas nuevas (para tablas ya creadas)
+    -- derrota SIN pérdida de LP (partida terminada por conducta disruptiva de un compañero)
+    ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS no_lp       BOOLEAN DEFAULT false;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS cs          INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS gold        INTEGER;
     ALTER TABLE match_participants ADD COLUMN IF NOT EXISTS damage      INTEGER;

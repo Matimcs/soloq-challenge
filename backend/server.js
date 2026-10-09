@@ -549,6 +549,9 @@ app.post('/api/me/smurfs/remove', auth, wrap(async (req,res) => {
 // Ficha de un jugador (para el despliegue del ranking). Todo sale de la DB, sin Riot API.
 const ksOf  = p => (p && p.perks && p.perks.styles && p.perks.styles[0] && p.perks.styles[0].selections && p.perks.styles[0].selections[0] && p.perks.styles[0].selections[0].perk) || null;
 const secOf = p => (p && p.perks && p.perks.styles && p.perks.styles[1] && p.perks.styles[1].style) || null;
+// Derrota SIN pérdida de LP: partida terminada por comportamiento disruptivo de un compañero
+// ("IGNB surrender"). El equipo que rinde no pierde LP, salvo el causante.
+const noLpLoss = p => !p.win && !!p.teamIGNBSurrendered && !p.causedGameEndFromIGNBSurrender;
 function buildHistoryRow(m, puuid){
   if (!m || !m.info) return null;
   const P = m.info.participants || [];
@@ -559,7 +562,7 @@ function buildHistoryRow(m, puuid){
   const dur = m.info.gameDuration || 0;
   return {
     matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
-    win: !!me.win, champion: me.championName, position: me.teamPosition || '',
+    win: !!me.win, noLp: noLpLoss(me), champion: me.championName, position: me.teamPosition || '',
     k: me.kills||0, d: me.deaths||0, a: me.assists||0,
     kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
     kp: teamKills ? Math.round(((me.kills||0)+(me.assists||0))/teamKills*100) : 0,
@@ -615,6 +618,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
         // 'end' contradice el resultado (por un desfase del runner al juntarse 2 partidas o un
         // remake), no lo mostramos en vez de mostrar un ±LP incoherente (victoria −23, derrota +17).
         history.forEach(h => {
+          if (h.noLp){ h.lp = 0; return; }   // derrota sin LP: 0 exacto, lo dice Riot
           const g = byEnd[h.end];
           if (g && ((h.win && g.delta >= 0) || (!h.win && g.delta <= 0))){
             h.lp = g.delta; h.aegis = g.delta > 0 && med > 0 && g.delta >= 1.8*med;
@@ -1691,7 +1695,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
     return (mainPuuid[o] && pu === mainPuuid[o]) ? uNick[o] : acct;  // main -> dueño; smurf -> cuenta
   };
   const rows = await q(`
-    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win,
+    SELECT match_id, lower(riotid) rid, max(name) nm, bool_or(win) win, bool_or(coalesce(no_lp,false)) nolp,
            max(team_id) team, max(champion) champ, max(game_end) gend
     FROM match_participants
     WHERE is_tournament=true AND riotid IS NOT NULL AND coalesce(duration,0) >= 300   -- excluye remakes (<5min)
@@ -1703,7 +1707,7 @@ app.get('/api/encounters', wrap(async (req, res) => {
   const encounters = Object.entries(byMatch).map(([id, ps]) => {
     const ownerCount = {}; ps.forEach(p => { const o = ownerOf(p.rid); ownerCount[o] = (ownerCount[o] || 0) + 1; });
     return { id, end: Math.max(...ps.map(p => Number(p.gend) || 0)),
-      players: ps.map(p => ({ nm: dispName(p.rid, ownerCount) || p.nm, rid: p.rid, win: !!p.win, champ: p.champ || null })) };
+      players: ps.map(p => ({ nm: dispName(p.rid, ownerCount) || p.nm, rid: p.rid, win: !!p.win, noLp: !!p.nolp, champ: p.champ || null })) };
   }).filter(e => e.players.length >= 2)
     .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 400);   // historial completo (antes se cortaba en 100)
   ENC_CACHE.data = { encounters };

@@ -1660,11 +1660,12 @@ function renderHist(c, data){
     const items6 = h.items.map(id => id ? `<img class="m-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e"></span>').join('');
     const trinket = h.trinket ? `<img class="m-it trk" src="${itemUrl(h.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e trk"></span>';
     const aegis = h.aegis ? `<img class="m-aegis" src="overlay/assets/aegis.svg" title="Aegis" onerror="this.style.display='none'">` : '';
-    const lp = (h.lp != null) ? `<span class="m-lp ${h.win?'up':'dn'}">${h.lp>0?'+':''}${h.lp} LP</span>` : '<span class="m-lp"></span>';
+    const lp = h.noLp ? `<span class="m-lp" style="color:var(--gold,#ffd24a)" title="Partida terminada por comportamiento disruptivo de un compañero: no perdió LP">0 LP</span>`
+      : (h.lp != null) ? `<span class="m-lp ${h.win?'up':'dn'}">${h.lp>0?'+':''}${h.lp} LP</span>` : '<span class="m-lp"></span>';
     const opp = h.oppChampion ? `<img class="m-champ" src="${champImg(h.oppChampion)}" onerror="this.style.visibility='hidden'">` : '<span class="m-champ e"></span>';
     return `<div class="m-row ${h.win?'win':'loss'}">
       <div class="m-head" data-mid="${h.matchId||''}">
-        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':'Derrota'}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}</span></div>
+        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':(h.noLp?'Derrota sin LP':'Derrota')}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}</span></div>
         <img class="m-champ" src="${champImg(h.champion)}" onerror="this.style.visibility='hidden'">
         ${spellStack(h.spells)}${runeStack(h.keystone,h.secStyle)}
         <span class="m-vs">VS</span>

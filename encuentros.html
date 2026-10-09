@@ -41,7 +41,7 @@
   .pl img{ width:34px; height:34px; border-radius:9px; object-fit:cover; background:var(--panel-2); border:1px solid var(--line); }
   .pl .nm{ font-size:14px; font-weight:700; }
   .pl .res{ font-size:11px; font-weight:800; }
-  .pl .res.w{ color:var(--up); } .pl .res.l{ color:var(--down); }
+  .pl .res.w{ color:var(--up); } .pl .res.l{ color:var(--down); } .pl .res.n{ color:var(--gold, #ffd24a); }
   .vs{ font-size:12px; font-weight:800; color:var(--muted-2); }
   .meta{ display:flex; align-items:center; gap:10px; margin-left:auto; flex-shrink:0; }
   .date{ font-size:11px; color:var(--muted-2); white-space:nowrap; }
@@ -114,7 +114,9 @@
   const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
 
   function plHtml(p){
-    const res = p.win ? '<span class="res w">Ganó</span>' : '<span class="res l">Perdió</span>';
+    const res = p.win ? '<span class="res w">Ganó</span>'
+      : p.noLp ? '<span class="res n" title="Partida terminada por comportamiento disruptivo de un compañero: no perdió LP">Perdió · sin LP</span>'
+      : '<span class="res l">Perdió</span>';
     return `<a class="pl" href="${opgg(p.rid)}" target="_blank" rel="noopener" title="op.gg de ${p.nm}">
       <img src="${champUrl(p.champ)}" onerror="this.style.visibility='hidden'">
       <span><span class="nm">${p.nm}</span> ${res}</span></a>`;

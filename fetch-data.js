@@ -89,6 +89,9 @@ async function initDB(){
     console.log('✔ DB conectada (match_participants)');
   } catch (e) { console.error('DB match_participants:', e.message); pgPool = null; }
 }
+// Derrota SIN pérdida de LP: la partida terminó por comportamiento disruptivo de un compañero
+// ("IGNB surrender" de Riot). El equipo que rinde no pierde LP, salvo el causante.
+const noLpLoss = p => !p.win && !!p.teamIGNBSurrendered && !p.causedGameEndFromIGNBSurrender;
 async function saveParticipants(matchId, info){
   if (!pgPool || !info || !Array.isArray(info.participants)) return;
   const end = info.gameEndTimestamp || 0;
@@ -102,15 +105,15 @@ async function saveParticipants(matchId, info){
       p.teamId || 0, !!p.win, p.kills || 0, p.deaths || 0, p.assists || 0,
       riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end,
       cs, p.goldEarned || 0, p.totalDamageDealtToChampions || 0, p.visionScore || 0,
-      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur];
+      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p)];
   }).filter(r => r[1]);   // requiere puuid
   if (!rows.length) return;
-  const cols = 21;
+  const cols = 22;
   const values = rows.map((_, i) => '(' + Array.from({length:cols}, (_,j) => `$${i*cols+j+1}`).join(',') + ')').join(',');
   const flat = rows.flat();
   try {
     await pgPool.query(
-      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration)
+      `INSERT INTO match_participants (match_id,puuid,riotid,name,champion,position,team_id,win,kills,deaths,assists,is_tournament,game_end,cs,gold,damage,vision,penta,first_blood,champ_level,duration,no_lp)
        VALUES ${values} ON CONFLICT (match_id,puuid) DO NOTHING`, flat);
   } catch (e) { /* no romper el runner por un fallo de escritura */ }
 }
@@ -357,6 +360,7 @@ async function updatePlayerStats(puuid, entry){
     const dur = m.info.gameDuration || 0;
     const remake = dur > 0 && dur < 300 || !!me.gameEndedInEarlySurrender;
     const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '', remake };
+    if (noLpLoss(me)) g.noLp = true;   // derrota sin LP (terminada por conducta disruptiva)
     store.games.unshift(g); fetched.push(g);
   }
   store.games = store.games.slice(0, 20);
@@ -401,7 +405,7 @@ async function updatePlayerStats(puuid, entry){
     // dan LP → siempre 0 (y no quedan "pendientes" esperando un delta que nunca llega).
     const pend = (store.lpGames[0] && store.lpGames[0].pending) ? store.lpGames[0] : null;
     const list = [...(pend ? [{ win: pend.win, end: pend.end, remake: !!pend.remake }] : []),
-                  ...fetched.map(g => ({ win: g.win, end: g.end, remake: !!g.remake }))];
+                  ...fetched.map(g => ({ win: g.win, end: g.end, remake: !!g.remake || !!g.noLp }))];
     const net = cur - store.lastAbsLP;
     const N = list.length;
     if (N >= 1 && Math.abs(net) <= 100 * N) {   // descarta saltos raros (promo de tier, decay, reset)
