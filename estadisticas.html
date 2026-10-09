@@ -30,6 +30,35 @@
   .tab{ position:relative; }
   .tab-badge{ display:none; margin-left:6px; font-size:9px; font-weight:800; color:#000; background:var(--down); border-radius:999px; padding:1px 6px; vertical-align:middle; letter-spacing:0; }
   .panel{ display:none; } .panel.active{ display:block; }
+  /* ---- Análisis: polígono comparativo + últimas partidas ---- */
+  .an-ctrl{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px; }
+  .an-ctrl label{ display:flex; flex-direction:column; gap:5px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); }
+  .an-ctrl select{ font-family:inherit; font-size:13px; font-weight:700; color:var(--text); background:var(--panel); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; min-width:200px; }
+  .an-ctrl select option{ background:#121319; }
+  .an-sw{ display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
+  .an-sw.b{ background:repeating-linear-gradient(90deg,var(--an-b) 0 5px,transparent 5px 8px); }
+  .an-top{ display:grid; grid-template-columns:minmax(300px,440px) 1fr; gap:14px; align-items:start; }
+  @media (max-width:860px){ .an-top{ grid-template-columns:1fr; } }
+  .an-radar{ width:100%; height:auto; display:block; }
+  .an-radar text{ font-family:var(--font); }
+  .an-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; font-weight:700; margin-bottom:6px; }
+  .an-tbl{ width:100%; border-collapse:collapse; }
+  .an-tbl th, .an-tbl td{ padding:8px 10px; font-size:13px; border-top:1px solid var(--line); text-align:right; font-variant-numeric:tabular-nums; }
+  .an-tbl th{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); border-top:none; }
+  .an-tbl td:first-child, .an-tbl th:first-child{ text-align:left; color:var(--muted); font-weight:600; }
+  .an-tbl td.best{ font-weight:800; }
+  .an-tbl td small{ color:var(--muted-2); font-weight:600; margin-left:5px; }
+  .an-games{ display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; margin-top:14px; }
+  .an-list{ max-height:640px; overflow-y:auto; margin:0 -6px; padding:0 6px; }
+  .an-g{ display:grid; grid-template-columns:4px 34px 1fr auto; gap:10px; align-items:center; padding:7px 0; border-top:1px solid var(--line); min-height:46px; }
+  .an-g:first-child{ border-top:none; }
+  .an-g .bar{ align-self:stretch; border-radius:2px; background:var(--down); } .an-g.w .bar{ background:var(--up); } .an-g.v .bar{ background:var(--gold); }
+  .an-g img{ width:34px; height:34px; border-radius:8px; background:var(--panel-2); }
+  .an-g .l1{ font-size:13px; font-weight:700; } .an-g .l1 span{ color:var(--muted-2); font-weight:600; }
+  .an-g .l2{ font-size:11px; color:var(--muted-2); margin-top:1px; }
+  .an-g .rt{ text-align:right; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; } .an-g .rt small{ display:block; font-size:10.5px; font-weight:600; color:var(--muted-2); }
+  .an-tip{ position:fixed; z-index:50; pointer-events:none; background:#16181f; border:1px solid var(--line-2); border-radius:8px; padding:6px 9px; font-size:12px; font-weight:600; display:none; white-space:nowrap; }
+  .an-tip b{ font-weight:800; }
   /* Récord nuevo/cambiado: resalta la card la primera vez que lo ves */
   .rec-banner{ display:flex; align-items:center; gap:8px; background:linear-gradient(180deg,rgba(52,211,153,.14),rgba(52,211,153,.04)); border:1px solid rgba(52,211,153,.4); color:var(--up); border-radius:12px; padding:10px 14px; font-size:13px; font-weight:700; margin-bottom:14px; }
   .card.rec-new{ border-color:var(--up); box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.25); animation:recpulse 1.6s ease 2; }
@@ -191,6 +220,7 @@
     <div class="tabs">
       <button class="tab active" data-t="tops">TOPS</button>
       <button class="tab" data-t="elo">ELO</button>
+      <button class="tab" data-t="analisis">ANÁLISIS</button>
       <button class="tab" data-t="coinc">COINCIDENCIAS</button>
       <button class="tab" data-t="rivales">CONTRINCANTES</button>
       <button class="tab" data-t="equipos">EQUIPOS</button>
@@ -200,6 +230,7 @@
 
     <div class="panel active" id="p-tops"><div class="loading">Cargando estadísticas…</div></div>
     <div class="panel" id="p-elo"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-analisis"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-coinc"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rivales"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-equipos"><div class="loading">Cargando…</div></div>
@@ -224,9 +255,119 @@
     $('p-'+b.dataset.t).classList.add('active');
     if (b.dataset.t==='elo' && DATA){ drawChart(); drawAvgChart(); }
     if (b.dataset.t==='records'){ loadRecords(true); }
+    if (b.dataset.t==='analisis'){ loadAnalysis(); }
     if (b.dataset.t==='equipos'){ loadTeamStats(); }
     if (b.dataset.t==='menciones'){ loadMenciones(); }
   });
+
+  // ---- ANÁLISIS: polígono comparativo de 2 jugadores + sus últimas partidas ----
+  const AN = { n:'10', data:null, a:null, b:null, games:{} };
+  const AN_COL = { a:'#3987e5', b:'#d9662b' };   // par validado (daltonismo + contraste sobre fondo oscuro)
+  const AN_AXES = [
+    { k:'wr',      lbl:'Winrate',    fmt:v => v.toFixed(1)+'%' },
+    { k:'kda',     lbl:'KDA',        fmt:v => v.toFixed(2) },
+    { k:'csmin',   lbl:'CS/min',     fmt:v => v.toFixed(2) },
+    { k:'goldmin', lbl:'Oro/min',    fmt:v => Math.round(v).toLocaleString('es-CL') },
+    { k:'dmgmin',  lbl:'Daño/min',   fmt:v => Math.round(v).toLocaleString('es-CL') },
+    { k:'vismin',  lbl:'Visión/min', fmt:v => v.toFixed(2) },
+    { k:'lvlmin',  lbl:'Nivel/min',  fmt:v => v.toFixed(2) },
+    { k:'abs',     lbl:'PL',         fmt:(v,p) => anRank(p) },
+  ];
+  const AN_TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Retador' };
+  const anRank = p => (!p.tier || p.tier==='UNRANKED') ? 'Sin rango' : `${AN_TIER[p.tier]||p.tier}${p.div?' '+p.div:''} ${p.lp} PL`;
+  const anDDV = (window.SQC_DATA && window.SQC_DATA.ddragonVersion) || '16.15.1';
+  const anChamp = c => c ? `https://ddragon.leagueoflegends.com/cdn/${anDDV}/img/champion/${({FiddleSticks:'Fiddlesticks'})[c]||c}.png` : '';
+  const anFind = rid => (AN.data && AN.data.players || []).find(p => p.rid === rid) || null;
+  // Percentil (0-100) del jugador en una métrica frente a los demás del challenge con partidas suficientes.
+  function anPct(p, k){
+    const pool = (AN.data.players || []).filter(x => x.games >= 5 && x[k] != null).map(x => x[k]);
+    if (p[k] == null || !pool.length) return 0;
+    const below = pool.filter(v => v < p[k]).length, eq = pool.filter(v => v === p[k]).length;
+    return Math.max(4, Math.round((below + eq / 2) / pool.length * 100));
+  }
+  async function loadAnalysis(){
+    const box = $('p-analisis');
+    try { const r = await fetch('/api/analysis?n=' + AN.n); if (!r.ok) throw new Error('HTTP ' + r.status); AN.data = await r.json(); }
+    catch (e) { box.innerHTML = `<div class="loading">No se pudo cargar el análisis.</div>`; return; }
+    const ps = AN.data.players || [];
+    if (!ps.length){ box.innerHTML = `<div class="loading">Aún no hay partidas guardadas.</div>`; return; }
+    if (!AN.a || !anFind(AN.a)) AN.a = ps[0].rid;
+    if (AN.b && (!anFind(AN.b) || AN.b === AN.a)) AN.b = null;
+    renderAnalysis(); anLoadGames(AN.a); if (AN.b) anLoadGames(AN.b);
+  }
+  async function anLoadGames(rid){
+    if (AN.games[rid]) return;
+    try { const r = await fetch('/api/analysis/games?limit=40&rid=' + encodeURIComponent(rid)); AN.games[rid] = r.ok ? ((await r.json()).games || []) : []; }
+    catch (e) { AN.games[rid] = []; }
+    renderAnalysis();
+  }
+  function anRadar(sel){
+    const W = 440, H = 400, cx = W/2, cy = H/2 + 4, R = 138, N = AN_AXES.length;
+    const pt = (i, f) => { const a = -Math.PI/2 + i * 2*Math.PI/N; return [cx + Math.cos(a)*R*f, cy + Math.sin(a)*R*f]; };
+    const ring = f => AN_AXES.map((_, i) => pt(i, f).map(v => v.toFixed(1)).join(',')).join(' ');
+    let g = [0.25, 0.5, 0.75, 1].map(f => `<polygon points="${ring(f)}" fill="none" stroke="rgba(255,255,255,${f===1?.16:.07})" stroke-width="1"/>`).join('');
+    g += AN_AXES.map((ax, i) => { const [x, y] = pt(i, 1), [lx, ly] = pt(i, 1.17);
+      const anc = Math.abs(lx - cx) < 8 ? 'middle' : (lx > cx ? 'start' : 'end');
+      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.07)"/>
+        <text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anc}" font-size="11.5" font-weight="700" fill="rgba(255,255,255,.62)">${ax.lbl}</text>`; }).join('');
+    g += `<text x="${cx + 7}" y="${cy - R*0.5 - 3}" font-size="9" fill="rgba(255,255,255,.32)">50</text><text x="${cx + 7}" y="${cy - R + 11}" font-size="9" fill="rgba(255,255,255,.32)">100</text>`;
+    sel.forEach(({ p, key }) => {
+      const col = AN_COL[key], pts = AN_AXES.map((ax, i) => pt(i, anPct(p, ax.k) / 100));
+      g += `<polygon points="${pts.map(q => q.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${col}" fill-opacity=".16" stroke="${col}" stroke-width="2" stroke-linejoin="round" ${key==='b'?'stroke-dasharray="6 4"':''}/>`;
+      g += pts.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="4" fill="${col}" stroke="#0b0c10" stroke-width="2"/>
+        <circle class="an-hit" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="11" fill="transparent" data-tip="${esc(`<b>${p.nm}</b> · ${AN_AXES[i].lbl}: ${AN_AXES[i].fmt(p[AN_AXES[i].k] || 0, p)} · percentil ${anPct(p, AN_AXES[i].k)}`)}"/>`).join('');
+    });
+    return `<svg class="an-radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Polígono comparativo por percentil">${g}</svg>`;
+  }
+  function anGames(p, key){
+    const gs = AN.games[p.rid];
+    const head = `<h3><span class="an-sw ${key}" style="${key==='a'?'background:'+AN_COL.a:''}"></span>${esc(p.nm)} · últimas partidas</h3><div class="cap">${esc(p.rid)} · se muestran 10, desliza para ver más</div>`;
+    if (!gs) return `<div class="card">${head}<div class="loading" style="padding:30px 0">Cargando…</div></div>`;
+    if (!gs.length) return `<div class="card">${head}<div class="loading" style="padding:30px 0">Sin partidas guardadas</div></div>`;
+    return `<div class="card">${head}<div class="an-list">` + gs.map(g => { const m = g.dur / 60 || 1;
+      const lp = g.lp == null ? '' : `${g.lp > 0 ? '+' : ''}${g.lp} PL`;
+      return `<div class="an-g ${g.voided ? 'v' : (g.win ? 'w' : '')}"><span class="bar"></span>
+        <img src="${anChamp(g.champ)}" alt="" onerror="this.style.visibility='hidden'">
+        <div><div class="l1">${g.k}/${g.d}/${g.a} <span>· ${esc(g.champ || '')}${g.voided ? ' · anulada' : ''}</span></div>
+          <div class="l2">${(g.cs / m).toFixed(1)} CS/min · ${Math.round(g.dmg / m).toLocaleString('es-CL')} daño/min · ${Math.round(g.gold / m).toLocaleString('es-CL')} oro/min · visión ${g.vis}</div></div>
+        <div class="rt">${g.win ? 'Victoria' : 'Derrota'}${lp ? ' · ' + lp : ''}<small>${Math.floor(m)} min · ${fdate(g.end)}</small></div></div>`; }).join('') + `</div></div>`;
+  }
+  function renderAnalysis(){
+    const box = $('p-analisis'), ps = AN.data.players || [], A = anFind(AN.a), B = AN.b ? anFind(AN.b) : null;
+    const sel = [{ p:A, key:'a' }].concat(B ? [{ p:B, key:'b' }] : []);
+    const opt = (cur, none) => (none ? `<option value="">— nadie —</option>` : '') + ps.map(p => `<option value="${esc(p.rid)}" ${p.rid===cur?'selected':''}>#${p.pos} ${esc(p.nm)} (${esc(p.rid)})</option>`).join('');
+    const nOpt = [['10','Últimas 10'],['20','Últimas 20'],['50','Últimas 50'],['all','Todas']].map(([v, t]) => `<option value="${v}" ${AN.n===v?'selected':''}>${t}</option>`).join('');
+    const rows = [{ k:'games', lbl:'Partidas', fmt:v => String(v), neutral:true }].concat(AN_AXES).map(ax => {
+      const cell = (p, other) => { const v = p[ax.k]; const best = !ax.neutral && other && (v || 0) > (other[ax.k] || 0);
+        return `<td class="${best?'best':''}">${ax.fmt(v || 0, p)}${ax.neutral ? '' : `<small>P${anPct(p, ax.k)}</small>`}</td>`; };
+      return `<tr><td>${ax.lbl}</td>${cell(A, B)}${B ? cell(B, A) : ''}</tr>`; }).join('');
+    const kdaLine = p => `${p.k} / ${p.d} / ${p.a}`;
+    box.innerHTML = `
+      <div class="an-ctrl">
+        <label><span><span class="an-sw" style="background:${AN_COL.a}"></span>Jugador</span><select id="an-a">${opt(AN.a)}</select></label>
+        <label><span><span class="an-sw b"></span>Comparar con</span><select id="an-b">${opt(AN.b, true)}</select></label>
+        <label>Partidas<select id="an-n" style="min-width:140px">${nOpt}</select></label>
+      </div>
+      <div class="an-top" style="--an-b:${AN_COL.b}">
+        <div class="card"><h3>Perfil comparativo</h3><div class="cap">Cada eje es el percentil frente a los demás jugadores del challenge (100 = el mejor en esa métrica).</div>
+          <div class="an-legend">${sel.map(({ p, key }) => `<span><span class="an-sw ${key}" style="${key==='a'?'background:'+AN_COL.a:''}"></span>${esc(p.nm)}</span>`).join('')}</div>
+          ${anRadar(sel)}</div>
+        <div class="card"><h3>Promedios</h3><div class="cap">Sobre ${AN.n==='all'?'todas las partidas guardadas':'las últimas '+AN.n+' partidas'} de cada cuenta. P = percentil. Remakes y partidas anuladas no cuentan.</div>
+          <table class="an-tbl"><thead><tr><th>Métrica</th><th>${esc(A.nm)}</th>${B ? `<th>${esc(B.nm)}</th>` : ''}</tr></thead><tbody>
+            ${rows}<tr><td>K / D / A</td><td>${kdaLine(A)}</td>${B ? `<td>${kdaLine(B)}</td>` : ''}</tr></tbody></table>
+          <div class="cap" style="margin:10px 0 0">CS/min y visión dependen mucho del rol: compara jugadores de la misma posición.</div></div>
+      </div>
+      <div class="an-games" style="--an-b:${AN_COL.b}">${sel.map(({ p, key }) => anGames(p, key)).join('')}</div>
+      <div class="an-tip" id="an-tip"></div>`;
+    $('an-a').onchange = e => { AN.a = e.target.value; if (AN.b === AN.a) AN.b = null; renderAnalysis(); anLoadGames(AN.a); };
+    $('an-b').onchange = e => { AN.b = e.target.value || null; if (AN.b === AN.a) AN.b = null; renderAnalysis(); if (AN.b) anLoadGames(AN.b); };
+    $('an-n').onchange = e => { AN.n = e.target.value; loadAnalysis(); };
+    const tip = $('an-tip');
+    box.querySelectorAll('.an-hit').forEach(c => {
+      c.onmousemove = ev => { tip.innerHTML = c.dataset.tip; tip.style.display = 'block'; tip.style.left = Math.min(window.innerWidth - tip.offsetWidth - 8, ev.clientX + 12) + 'px'; tip.style.top = (ev.clientY + 14) + 'px'; };
+      c.onmouseleave = () => { tip.style.display = 'none'; };
+    });
+  }
 
   // ---- RÉCORDS ----
   let RECORDS = null, REC_CHANGED = new Set(), SEEN_ENTRIES = null;

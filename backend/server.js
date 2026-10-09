@@ -2061,6 +2061,58 @@ app.get('/api/soloqdle/leaderboard', wrap(async (req, res) => {
   res.json({ board });
 }));
 
+// ---- ANÁLISIS: promedios por cuenta sobre sus últimas N partidas (para el polígono comparativo) ----
+// Sale todo de mp_stats (sin partidas anuladas) y sin remakes; no gasta llamadas a Riot. Cache 5 min por N.
+const AN_CACHE = {};
+app.get('/api/analysis', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  const raw = String(req.query.n || '10').toLowerCase();
+  const n = raw === 'all' ? 0 : Math.max(5, Math.min(200, parseInt(raw, 10) || 10));
+  const hit = AN_CACHE[n];
+  if (hit && Date.now() - hit.at < 300000) return res.json(hit.data);
+  const rows = await q(`
+    SELECT puuid, count(*)::int g, count(*) FILTER (WHERE win)::int w,
+           sum(coalesce(kills,0))::int k, sum(coalesce(deaths,0))::int d, sum(coalesce(assists,0))::int a,
+           sum(coalesce(cs,0))::bigint cs, sum(coalesce(gold,0))::bigint gold, sum(coalesce(damage,0))::bigint dmg,
+           sum(coalesce(vision,0))::bigint vis, sum(coalesce(champ_level,0))::bigint lvl, sum(coalesce(duration,0))::bigint dur
+    FROM (SELECT *, row_number() OVER (PARTITION BY puuid ORDER BY game_end DESC NULLS LAST) rn
+          FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND coalesce(duration,0) >= 300) t
+    WHERE ${n ? 'rn <= ' + n : 'true'} GROUP BY puuid`);
+  const by = {}; rows.forEach(r => { by[r.puuid] = r; });
+  const players = (liveSnapshot().players || []).filter(p => p.puuid && by[p.puuid]).map((p, i) => {
+    const r = by[p.puuid], min = Number(r.dur) / 60 || 1, per = v => Number(v) / min;
+    return { rid: p.rid, nm: p.nm || (p.rid || '').split('#')[0], pos: i + 1, tier: p.tier || 'UNRANKED', div: p.div || '', lp: p.lp || 0,
+      abs: absLPof(p.tier, p.div, p.lp), games: r.g, wr: Math.round(r.w / r.g * 1000) / 10,
+      k: +(r.k / r.g).toFixed(1), d: +(r.d / r.g).toFixed(1), a: +(r.a / r.g).toFixed(1),
+      kda: +((r.k + r.a) / Math.max(1, r.d)).toFixed(2), csmin: +per(r.cs).toFixed(2), goldmin: Math.round(per(r.gold)),
+      dmgmin: Math.round(per(r.dmg)), vismin: +per(r.vis).toFixed(2), lvlmin: +per(r.lvl).toFixed(3) };
+  });
+  const data = { n: n || 'all', players };
+  AN_CACHE[n] = { at: Date.now(), data };
+  res.json(data);
+}));
+// Últimas partidas de una cuenta para la pestaña Análisis (incluye anuladas, marcadas; sin remakes).
+app.get('/api/analysis/games', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  const rid = normRid(req.query.rid || '');
+  const limit = Math.max(1, Math.min(60, parseInt(req.query.limit, 10) || 40));
+  const pl = (liveSnapshot().players || []).find(p => normRid(p.rid) === rid);
+  const puuid = (pl && pl.puuid) || (await ridPuuidMap())[rid];
+  if (!puuid) return res.json({ games: [] });
+  const rows = await q(`SELECT match_id, champion, position, win, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a,
+      coalesce(cs,0) cs, coalesce(gold,0) gold, coalesce(damage,0) dmg, coalesce(vision,0) vis, coalesce(champ_level,0) lvl,
+      coalesce(duration,0) dur, game_end, coalesce(voided,false) voided, coalesce(no_lp,false) no_lp
+    FROM match_participants WHERE puuid=$1 AND coalesce(duration,0) >= 300 ORDER BY game_end DESC NULLS LAST LIMIT $2`, [puuid, limit]);
+  const byEnd = {};
+  try { const st = await playerMatchCache(puuid); (st && st.lpGames || []).forEach(g => { if (g.end) byEnd[g.end] = g; }); } catch {}
+  res.json({ games: rows.map(r => {
+    const g = byEnd[r.game_end]; let lp = null;
+    if (r.no_lp) lp = 0; else if (g && !g.pending && ((r.win && g.delta >= 0) || (!r.win && g.delta <= 0))) lp = g.delta;
+    return { id: r.match_id, champ: r.champion, pos: r.position, win: !!r.win, k: +r.k, d: +r.d, a: +r.a, cs: +r.cs, gold: +r.gold,
+      dmg: +r.dmg, vis: +r.vis, lvl: +r.lvl, dur: +r.dur, end: Number(r.game_end) || 0, voided: !!r.voided, lp };
+  }) });
+}));
+
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };
 let _recSig = {};   // firma por categoría (nm|valor de cada uno del top-5) para detectar entradas nuevas
