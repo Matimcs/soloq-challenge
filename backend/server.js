@@ -2264,7 +2264,7 @@ app.post('/api/5v5/create', auth, wrap(async (req, res) => {
   if (!st){
     if (Object.keys(rooms).length >= FV_MAX_ROOMS) return res.status(400).json({ error: 'Hay demasiadas salas abiertas; intenta más tarde' });
     let code; do { code = fvCode(); } while (rooms[code]);
-    st = { code, v: 0, owner: req.user.id, host: req.user.id, createdAt: Date.now(), players: [], settings: { roleMode: 'random', champs: false, rerolls: 1 }, draw: null };
+    st = { code, v: 0, owner: req.user.id, host: req.user.id, createdAt: Date.now(), players: [], settings: { teamMode: 'elo', roleMode: 'random', champs: false, rerolls: 1 }, draw: null };
     st.players.push(await fvPlayerForUser(req.user));
     rooms[code] = st;
   }
@@ -2313,6 +2313,7 @@ app.post('/api/5v5/settings', auth, wrap(async (req, res) => {
   const st = await fvRoom(req, res); if (!st) return;
   const b = req.body || {};
   if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión cambia las opciones' });
+  if (b.teamMode === 'elo' || b.teamMode === 'random') st.settings.teamMode = b.teamMode;
   if (b.roleMode === 'random' || b.roleMode === 'off') st.settings.roleMode = b.roleMode;
   if (typeof b.champs === 'boolean') st.settings.champs = b.champs;
   if (b.rerolls != null) st.settings.rerolls = Math.max(0, Math.min(20, parseInt(b.rerolls, 10) || 0));
@@ -2352,7 +2353,12 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
     for (let i = start; i < 10; i++) rec(i + 1, pick.concat(i));
   })(1, [0]);
   splits.sort((a, b) => a.diff - b.diff);
-  const cand = splits.filter(s => s.diff <= splits[0].diff + 25);
+  // 'elo' = se sortea entre los repartos más parejos; 'random' = cualquier reparto, sin mirar el elo.
+  const anyTeams = st.settings.teamMode === 'random';
+  // Parejos: entre los repartos a no más de 100 PL totales (20 por jugador) del mejor posible, y nunca
+  // menos de 8 opciones, para que el sorteo no dé siempre los mismos equipos.
+  let balanced = splits.filter(s => s.diff <= splits[0].diff + 100); if (balanced.length < 8) balanced = splits.slice(0, 8);
+  const cand = anyTeams ? splits : balanced;
   const S = cand[fvRand(cand.length)];
   const teamsIdx = fvRand(2) ? [S.A, S.B] : [S.B, S.A];
   // Permutaciones de roles; "off" = nadie en su rol principal (si no se puede, las menos posibles).
@@ -2374,7 +2380,7 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
     const sum = team.reduce((s, i) => s + elo[i], 0);
     return { avg: Math.round(sum / team.length), players };
   });
-  st.draw = { at: Date.now(), diff: S.diff, roleMode: st.settings.roleMode, champs: !!pool, teams };
+  st.draw = { at: Date.now(), diff: S.diff, teamMode: anyTeams ? 'random' : 'elo', roleMode: st.settings.roleMode, champs: !!pool, teams };
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // Cambiar el campeón propio: sale otro del mismo rol que no haya salido antes ni tenga un compañero.

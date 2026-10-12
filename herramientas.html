@@ -594,6 +594,7 @@
         <h3>Opciones del sorteo</h3><div class="cap">Solo el anfitrión (👑) o un admin puede cambiarlas y sortear.</div>
         <div class="fv-opts">
           <label>Agregar jugador<select id="fv-add"><option value="">— elegir —</option>${cands.map(c => `<option value="${esc(c.key)}">#${c.pos} ${esc(c.nm)} (${esc(c.rid)})</option>`).join('')}</select></label>
+          <label>Equipos<select id="fv-team"><option value="elo" ${s.teamMode !== 'random' ? 'selected' : ''}>Parejos en elo</option><option value="random" ${s.teamMode === 'random' ? 'selected' : ''}>Totalmente al azar</option></select></label>
           <label>Roles<select id="fv-role"><option value="random" ${s.roleMode === 'random' ? 'selected' : ''}>Al azar</option><option value="off" ${s.roleMode === 'off' ? 'selected' : ''}>Todos fuera de su rol</option></select></label>
           <label>Campeón<select id="fv-champs"><option value="0" ${!s.champs ? 'selected' : ''}>Cada uno elige</option><option value="1" ${s.champs ? 'selected' : ''}>Al azar según el rol</option></select></label>
           <label>Cambios de campeón<input type="number" id="fv-rr" min="0" max="20" value="${s.rerolls}" ${s.champs ? '' : 'disabled'}></label>
@@ -601,17 +602,17 @@
           <button class="fv-btn" id="fv-reset" ${P.length ? '' : 'disabled'}>Vaciar sala</button>
           <button class="fv-btn" id="fv-close">Cerrar sala</button>
         </div>
-        <div class="fv-note">${P.length === st.size ? 'Sala completa: ya puedes sortear.' : `Faltan ${st.size - P.length} jugador${st.size - P.length === 1 ? '' : 'es'} para poder sortear.`} Los equipos se arman con el elo de la cuenta más alta de cada jugador.</div>
+        <div class="fv-note">${P.length === st.size ? 'Sala completa: ya puedes sortear.' : `Faltan ${st.size - P.length} jugador${st.size - P.length === 1 ? '' : 'es'} para poder sortear.`} ${s.teamMode === 'random' ? 'Los equipos se reparten al azar, sin mirar el elo.' : 'Los equipos se arman con el elo de la cuenta más alta de cada jugador.'}</div>
       </div>`
       : `<div class="card"><h3>Opciones del sorteo</h3>
-          <div class="fv-note" style="margin-top:0">Roles: <b>${s.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b>` : ''}<br>
+          <div class="fv-note" style="margin-top:0">Equipos: <b>${s.teamMode === 'random' ? 'totalmente al azar' : 'parejos en elo'}</b> · Roles: <b>${s.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b>` : ''}<br>
           ${hostP ? `El anfitrión es <b>${esc(hostP.nick)}</b>; solo esa persona o un admin puede sortear.` : 'Aún no hay anfitrión: el primero que se una lo será.'}</div></div>`;
     let drawHtml = '';
     if (st.draw){
       const d = st.draw;
       drawHtml = `<div class="fv-teams">` + d.teams.map((t, ti) => `<div class="card fv-team">
           <h3>Equipo ${ti + 1}<small>promedio ${esc(anAbsLabel(t.avg))}</small></h3>
-          <div class="cap">${ti === 0 ? `Diferencia total entre equipos: ${d.diff} PL.` : `Roles: ${d.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}.`}</div>` +
+          <div class="cap">${ti === 0 ? `${d.teamMode === 'random' ? 'Equipos totalmente al azar' : 'Equipos parejos en elo'} · diferencia total: ${d.diff} PL.` : `Roles: ${d.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}.`}</div>` +
           t.players.map(sl => { const p = byId[sl.id] || { nick:'(salió)', abs:null }; const mine = me && me.id === sl.id;
             const hint = !p.main ? '' : p.main === sl.role ? ' · en su rol' : ' · suele jugar ' + FV_ROLE[p.main];
             const canRr = d.champs && sl.left > 0 && (mine || host);
@@ -639,6 +640,7 @@
     on('fv-join', 'onclick', () => fvAct('join'));
     on('fv-leave', 'onclick', () => fvAct('leave'));
     on('fv-add', 'onchange', e => { if (e.target.value) fvAct('add', { key: e.target.value }); });
+    on('fv-team', 'onchange', e => fvAct('settings', { teamMode: e.target.value }));
     on('fv-role', 'onchange', e => fvAct('settings', { roleMode: e.target.value }));
     on('fv-champs', 'onchange', e => fvAct('settings', { champs: e.target.value === '1' }));
     on('fv-rr', 'onchange', e => fvAct('settings', { rerolls: e.target.value }));
