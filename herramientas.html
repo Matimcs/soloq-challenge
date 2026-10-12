@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Herramientas</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 20px; }
+  main.wrap{ padding-bottom:64px; }   /* aire al final de la página */
+  .brand b span{ color:var(--accent); }
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:20px; }
+
+  /* Tabs */
+  .tabs{ display:flex; gap:8px; border-bottom:1px solid var(--line); margin-bottom:22px; flex-wrap:wrap; }
+  .tab{ background:none; border:0; color:var(--muted); font-family:inherit; font-size:13px; font-weight:800; letter-spacing:.06em;
+    padding:11px 14px; cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tab:hover{ color:#fff; }
+  .tab.active{ color:var(--accent); border-bottom-color:var(--accent); }
+  .tab{ position:relative; }
+  .tab-badge{ display:none; margin-left:6px; font-size:9px; font-weight:800; color:#000; background:var(--down); border-radius:999px; padding:1px 6px; vertical-align:middle; letter-spacing:0; }
+  .panel{ display:none; } .panel.active{ display:block; }
+  /* ---- Análisis: polígono comparativo, fase de líneas, campeones, evolución y partidas ---- */
+  .an-ctrl{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px; }
+  .an-ctrl label{ display:flex; flex-direction:column; gap:5px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); }
+  .an-ctrl select, .an-pick input{ font-family:inherit; font-size:13px; font-weight:700; color:var(--text); background:var(--panel); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; text-transform:none; letter-spacing:0; }
+  .an-ctrl select option{ background:#121319; }
+  .an-pick{ position:relative; } .an-pick input{ width:230px; outline:none; } .an-pick input:focus{ border-color:var(--accent); }
+  .an-dd{ display:none; position:absolute; z-index:30; top:calc(100% + 4px); left:0; width:300px; max-height:320px; overflow-y:auto; background:#14161d; border:1px solid var(--line-2); border-radius:10px; padding:4px; box-shadow:0 12px 30px rgba(0,0,0,.5); }
+  .an-o{ padding:7px 9px; border-radius:7px; cursor:pointer; text-transform:none; letter-spacing:0; }
+  .an-o:hover{ background:rgba(255,255,255,.07); } .an-o.none{ cursor:default; color:var(--muted-2); font-size:12px; font-weight:600; }
+  .an-o b{ display:block; font-size:13px; font-weight:700; color:var(--text); } .an-o small{ display:block; font-size:11px; font-weight:600; color:var(--muted-2); margin-top:1px; }
+  .an-sw{ display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
+  .an-sw.b{ background:repeating-linear-gradient(90deg,var(--an-b) 0 5px,transparent 5px 8px); }
+  .an-top{ display:grid; grid-template-columns:minmax(300px,460px) 1fr; gap:14px; align-items:start; }
+  @media (max-width:860px){ .an-top{ grid-template-columns:1fr; } }
+  .an-radar{ width:100%; height:auto; display:block; }
+  .an-radar text, .an-evo text{ font-family:var(--font); }
+  .an-legend{ display:flex; gap:16px; flex-wrap:wrap; font-size:12px; font-weight:700; margin-bottom:6px; }
+  .an-tbl{ width:100%; border-collapse:collapse; }
+  .an-tbl th, .an-tbl td{ padding:8px 10px; font-size:13px; border-top:1px solid var(--line); text-align:right; font-variant-numeric:tabular-nums; }
+  .an-tbl th{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); border-top:none; }
+  .an-tbl td:first-child, .an-tbl th:first-child{ text-align:left; color:var(--muted); font-weight:600; }
+  .an-tbl td.best{ font-weight:800; }
+  .an-tbl td small{ color:var(--muted-2); font-weight:600; margin-left:5px; }
+  .an-games{ display:grid; grid-template-columns:repeat(auto-fit,minmax(340px,1fr)); gap:14px; margin-top:14px; }
+  .an-list{ max-height:640px; overflow-y:auto; margin:0 -6px; padding:0 6px; }
+  .an-g{ display:grid; grid-template-columns:4px 34px 1fr auto; gap:10px; align-items:center; padding:7px 0; border-top:1px solid var(--line); min-height:46px; }
+  .an-g:first-child, .an-c:first-child{ border-top:none; }
+  .an-g .bar{ align-self:stretch; border-radius:2px; background:var(--down); } .an-g.w .bar{ background:var(--up); } .an-g.v .bar{ background:var(--gold); }
+  .an-g img, .an-c img{ width:34px; height:34px; border-radius:8px; background:var(--panel-2); }
+  .an-g .l1, .an-c .l1{ font-size:13px; font-weight:700; } .an-g .l1 span{ color:var(--muted-2); font-weight:600; }
+  .an-g .l2, .an-c .l2{ font-size:11px; color:var(--muted-2); margin-top:1px; }
+  .an-g .rt{ text-align:right; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; } .an-g .rt small{ display:block; font-size:10.5px; font-weight:600; color:var(--muted-2); }
+  .an-champs{ max-height:262px; overflow-y:auto; margin:0 -6px; padding:0 6px; }
+  .an-c{ display:grid; grid-template-columns:34px 1fr auto; gap:10px; align-items:center; padding:8px 0; border-top:1px solid var(--line); height:52px; }
+  .an-c .wr{ display:flex; align-items:center; gap:8px; font-size:13px; font-variant-numeric:tabular-nums; } .an-c .wr b{ min-width:38px; text-align:right; }
+  .an-c .wrbar{ width:70px; height:6px; border-radius:3px; background:rgba(255,255,255,.09); overflow:hidden; display:block; } .an-c .wrbar i{ display:block; height:100%; border-radius:3px; background:rgba(255,255,255,.55); }
+  .an-evos{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:16px 18px; }
+  .an-evo .t{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:12px; margin-bottom:2px; }
+  .an-evo .t b{ font-weight:800; } .an-evo .t .v{ display:flex; gap:10px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--muted); }
+  .an-evo svg{ width:100%; height:auto; display:block; }
+  .an-evo .rng{ font-size:10px; color:var(--muted-2); margin-top:1px; }
+  .an-tip{ position:fixed; z-index:50; pointer-events:none; background:#16181f; border:1px solid var(--line-2); border-radius:8px; padding:6px 9px; font-size:12px; font-weight:600; display:none; white-space:nowrap; }
+  .an-tip b{ font-weight:800; }
+  /* Récord nuevo/cambiado: resalta la card la primera vez que lo ves */
+  .rec-banner{ display:flex; align-items:center; gap:8px; background:linear-gradient(180deg,rgba(52,211,153,.14),rgba(52,211,153,.04)); border:1px solid rgba(52,211,153,.4); color:var(--up); border-radius:12px; padding:10px 14px; font-size:13px; font-weight:700; margin-bottom:14px; }
+  .card.rec-new{ border-color:var(--up); box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.25); animation:recpulse 1.6s ease 2; }
+  @keyframes recpulse{ 0%,100%{ box-shadow:0 0 0 1px var(--up), 0 0 22px rgba(52,211,153,.15); } 50%{ box-shadow:0 0 0 1px var(--up), 0 0 30px rgba(52,211,153,.5); } }
+  .rec-new-badge{ margin-left:8px; font-size:9px; font-weight:800; color:#000; background:var(--up); border-radius:5px; padding:2px 6px; letter-spacing:.04em; vertical-align:middle; }
+  .nm .rec-new-badge{ margin-left:6px; padding:1px 5px; font-size:8px; }
+  .rowl.rec-row-new{ background:rgba(52,211,153,.12); border-radius:8px; box-shadow:inset 0 0 0 1px rgba(52,211,153,.4); }
+  /* Equipos */
+  .tcard h3 .tmem{ font-size:11px; color:var(--muted-2); font-weight:700; margin-left:8px; }
+  .tgrid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:12px 0 4px; }
+  .tstat{ text-align:center; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:11px 6px; }
+  .tstat .tv{ font-size:21px; font-weight:800; }
+  .tstat .tk{ font-size:10px; color:var(--muted); margin-top:3px; letter-spacing:.03em; }
+  .tstat .tsub{ font-size:9.5px; color:var(--muted-2); margin-top:4px; line-height:1.3; }
+  .tduo{ font-size:12.5px; color:var(--text); border-top:1px solid var(--line); padding-top:10px; margin-top:10px; }
+  .tduo-k{ font-size:10px; color:var(--muted); font-weight:800; letter-spacing:.04em; margin-right:6px; }
+  /* Menciones */
+  .mgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:12px; }
+  .mcard{ display:flex; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:13px 14px; }
+  .mc-emoji{ font-size:29px; line-height:1; flex-shrink:0; }
+  .mc-body{ min-width:0; }
+  .mc-title{ font-weight:800; font-size:14px; color:var(--accent); letter-spacing:.02em; }
+  .mc-sub{ font-size:10.5px; color:var(--muted-2); margin:2px 0 8px; line-height:1.3; }
+  .mc-win{ display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .mc-nm{ font-weight:800; font-size:15px; color:#fff; }
+  .mc-val{ font-weight:800; font-size:13px; color:var(--up); }
+  .mc-det{ font-size:11px; color:var(--muted); margin-top:3px; }
+  .mcard.mclick{ cursor:pointer; }
+  .mcard.mclick:hover{ border-color:var(--line-strong,rgba(255,255,255,.18)); }
+  .mc-more{ font-size:9.5px; font-weight:700; color:var(--muted-2); margin-left:8px; white-space:nowrap; }
+  .mtop{ margin-top:10px; border-top:1px solid var(--line); padding-top:8px; display:flex; flex-direction:column; gap:5px; }
+  .mtop[hidden]{ display:none; }
+  .mrow{ font-size:11.5px; line-height:1.35; }
+  .mrow .mrk{ color:var(--muted-2); font-weight:800; margin-right:5px; }
+  .mrow .mrn{ color:#fff; font-weight:700; }
+  .mrow .mrv{ color:var(--up); font-weight:800; margin-left:6px; }
+  .mrow .mrd{ color:var(--muted); font-size:10.5px; margin-left:5px; }
+
+  /* Cards */
+  .grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
+  .card h3{ font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--accent); }
+  .card .cap{ font-size:11px; color:var(--muted-2); margin:2px 0 12px; }
+  .rowl{ display:flex; align-items:center; gap:10px; padding:7px 0; border-top:1px solid var(--line); }
+  .rowl:first-of-type{ border-top:0; }
+  .rk{ width:20px; text-align:center; font-size:13px; font-weight:800; color:var(--muted); flex-shrink:0; }
+  .rk.t1{ color:var(--gold); } .rk.t2{ color:#d7dde3; } .rk.t3{ color:#e0a878; }
+  .nm{ font-size:14px; font-weight:700; }
+  .elo-tag{ font-size:9px; font-weight:800; letter-spacing:.04em; padding:2px 6px; border-radius:5px; margin-left:6px; vertical-align:middle; }
+  .elo-tag.high{ color:var(--accent); background:rgba(233,255,31,.12); border:1px solid rgba(233,255,31,.35); }
+  .elo-tag.low{ color:var(--blue); background:rgba(74,163,255,.12); border:1px solid rgba(74,163,255,.35); }
+  .games{ font-size:11px; color:var(--muted-2); }
+  .val{ margin-left:auto; font-size:16px; font-weight:800; color:#fff; }
+  .meta{ display:flex; flex-direction:column; min-width:0; }
+
+  /* ELO: subidones/bajones */
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:640px){ .two{ grid-template-columns:1fr; } }
+  .day{ font-size:11px; color:var(--muted-2); }
+  .net{ margin-left:auto; font-size:15px; font-weight:800; }
+  .net.up{ color:var(--up); } .net.down{ color:var(--down); }
+
+  /* Chart */
+  .chartwrap{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-top:14px; }
+  .chartwrap h3{ font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--accent); }
+  .chartwrap .cap{ font-size:11px; color:var(--muted-2); margin:2px 0 10px; }
+  #elo-svg{ width:100%; height:380px; display:block; }
+  /* Chart de elo promedio con hover interactivo */
+  .avg-chart{ position:relative; }
+  .avg-chart svg{ width:100%; display:block; cursor:crosshair; }
+  .avg-guide{ position:absolute; top:0; bottom:0; width:1px; background:rgba(255,255,255,.28); pointer-events:none; display:none; transform:translateX(-.5px); }
+  .avg-dot{ position:absolute; width:10px; height:10px; border-radius:50%; background:var(--accent); border:1.5px solid #000; pointer-events:none; display:none; transform:translate(-50%,-50%); box-shadow:0 0 8px rgba(233,255,31,.6); }
+  .avg-tip{ position:absolute; pointer-events:none; background:rgba(12,13,17,.96); border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; font-weight:700; color:#fff; text-align:center; transform:translate(-50%,calc(-100% - 10px)); white-space:nowrap; z-index:5; display:none; box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .avg-tip .d{ color:var(--muted); font-size:10px; font-weight:600; }
+  .avg-tip b{ color:var(--accent); }
+  .avg-date{ position:absolute; bottom:3px; pointer-events:none; transform:translateX(-50%); font-size:10px; font-weight:800; color:#000; background:var(--accent); padding:1px 6px; border-radius:4px; display:none; white-space:nowrap; }
+  /* Evolución de elo: hover para identificar la línea */
+  .elo-chart{ position:relative; }
+  .elo-chart svg{ cursor:crosshair; }
+  .eline{ transition:stroke-width .08s, opacity .08s; }
+  .elo-dot{ position:absolute; width:11px; height:11px; border-radius:50%; border:2px solid #000; pointer-events:none; display:none; transform:translate(-50%,-50%); box-shadow:0 0 8px rgba(0,0,0,.6); }
+  .elo-tip{ position:absolute; pointer-events:none; background:rgba(12,13,17,.97); border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; font-weight:700; color:#fff; white-space:nowrap; z-index:6; display:none; transform:translate(-50%,calc(-100% - 12px)); box-shadow:0 6px 18px rgba(0,0,0,.5); }
+  .elo-tip .d{ color:var(--muted); font-size:10px; font-weight:600; margin-top:2px; }
+  .elo-tip .nmc{ display:inline-flex; align-items:center; gap:6px; }
+  .elo-tip .sw{ width:9px; height:9px; border-radius:2px; display:inline-block; }
+  .legend{ display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:12px; }
+  .lg{ font-size:11px; color:var(--muted); cursor:pointer; padding:2px 7px; border-radius:6px; border:1px solid var(--line); user-select:none; }
+  .lg .dot{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; vertical-align:middle; }
+  .lg.off{ opacity:.35; text-decoration:line-through; }
+  .elo-range-row{ display:flex; align-items:center; gap:10px; margin:6px 0 12px; flex-wrap:wrap; }
+  .elo-range-row .rlbl{ font-size:11px; font-weight:800; color:var(--muted); letter-spacing:.04em; }
+  .elo-range-row input[type=range]{ flex:0 1 220px; accent-color:var(--accent); cursor:pointer; }
+  .elo-range-row .cap{ margin:0; }
+  .legend-tools{ display:flex; gap:8px; margin-top:12px; }
+  .lgt{ font-family:inherit; font-size:11px; font-weight:700; color:var(--muted); cursor:pointer; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:rgba(255,255,255,.04); }
+  .lgt:hover{ color:#fff; border-color:var(--line-2); }
+
+  /* Coincidencias */
+  .kpi{ font-size:12px; color:var(--muted); margin-bottom:16px; }
+  .kpi b{ color:var(--accent); font-size:15px; }
+  .duel{ padding:10px 0; border-top:1px solid var(--line); }
+  .duel:first-of-type{ border-top:0; }
+  .drow{ display:flex; align-items:center; gap:10px; font-size:13px; }
+  .drow .dn{ flex:0 0 24%; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+  .drow .dn.a{ text-align:right; } .drow .dn.b{ text-align:left; }
+  /* Barra "versus": el ancho de cada lado = su cuota de victorias del cara a cara; el número va centrado en su lado. */
+  .hbar{ flex:1; display:flex; height:24px; border-radius:6px; overflow:hidden; background:var(--panel-2); border:1px solid var(--line); min-width:80px; }
+  .hseg{ flex-grow:0; flex-basis:0; min-width:0; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.35); }
+  .hseg.has{ min-width:22px; }
+  .hseg.a{ background:var(--blue); } .hseg.b{ background:var(--down); }
+  /* Ganador del duelo (más victorias): nombre y segmento en DORADO. */
+  .drow .dn.win{ color:var(--gold); font-weight:800; }
+  .hseg.win{ background:var(--gold); color:#0b0b0b; text-shadow:none; }
+  .dsub{ text-align:center; font-size:10.5px; color:var(--muted-2); margin-top:4px; }
+  .enc{ display:flex; flex-direction:column; gap:10px; }
+  .encc{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:11px 14px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .encc .tag{ font-size:10px; font-weight:800; letter-spacing:.06em; padding:3px 8px; border-radius:6px; flex-shrink:0; }
+  .encc .tag.rival{ background:rgba(251,113,133,.14); color:var(--down); border:1px solid rgba(251,113,133,.4); }
+  .encc .tag.ally{ background:rgba(52,211,153,.14); color:var(--up); border:1px solid rgba(52,211,153,.4); }
+  .encc .side{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .encc .p{ font-size:13px; font-weight:700; } .encc .p .res{ font-size:10px; font-weight:800; margin-left:4px; }
+  .encc .p .res.w{ color:var(--up); } .encc .p .res.l{ color:var(--down); }
+  .encc .vs{ font-size:11px; font-weight:800; color:var(--muted-2); }
+  .encc .date{ margin-left:auto; font-size:11px; color:var(--muted-2); }
+  .empty{ color:var(--muted); font-size:14px; text-align:center; padding:40px 0; }
+  .loading{ color:var(--muted); font-size:14px; text-align:center; padding:60px 0; }
+  .subh{ font-size:15px; font-weight:700; margin:26px 0 12px; }
+  /* ---- Organizador de 5v5 ---- */
+  .fv-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
+  .fv-head h2{ font-size:18px; font-weight:800; } .fv-head .cnt{ font-size:13px; color:var(--muted); font-weight:700; margin-left:8px; }
+  .fv-btn{ font-family:inherit; cursor:pointer; font-size:13px; font-weight:800; padding:9px 15px; border-radius:10px; border:1px solid var(--line-2); background:var(--panel); color:var(--text); }
+  .fv-btn:hover:not(:disabled){ border-color:rgba(255,255,255,.3); } .fv-btn:disabled{ opacity:.45; cursor:default; }
+  .fv-btn.pri{ background:var(--accent); color:#0b0b0b; border-color:var(--accent); }
+  .fv-btn.sm{ font-size:11.5px; padding:5px 9px; border-radius:8px; }
+  .fv-players{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; margin-bottom:14px; }
+  .fv-p{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 11px; min-height:50px; }
+  .fv-p.me{ border-color:var(--accent); } .fv-p.empty{ border-style:dashed; color:var(--muted-2); font-size:12px; font-weight:600; justify-content:center; }
+  .fv-p .nm{ font-size:13px; font-weight:700; } .fv-p .el{ font-size:11px; color:var(--muted-2); font-weight:600; margin-top:1px; }
+  .fv-x{ font-family:inherit; cursor:pointer; background:none; border:0; color:var(--muted-2); font-size:15px; line-height:1; padding:2px 4px; } .fv-x:hover{ color:var(--down); }
+  .fv-opts{ display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end; }
+  .fv-opts label{ display:flex; flex-direction:column; gap:5px; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); }
+  .fv-opts select, .fv-opts input[type=number]{ font-family:inherit; font-size:13px; font-weight:700; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; }
+  .fv-opts select option{ background:#121319; } .fv-opts input[type=number]{ width:80px; }
+  .fv-note{ font-size:12px; color:var(--muted); margin-top:10px; line-height:1.5; }
+  .fv-err{ color:var(--down); font-size:12.5px; font-weight:700; margin:8px 0; min-height:16px; }
+  .fv-teams{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  @media (max-width:820px){ .fv-teams{ grid-template-columns:1fr; } }
+  .fv-team h3{ display:flex; justify-content:space-between; align-items:baseline; } .fv-team h3 small{ font-size:11.5px; color:var(--muted); font-weight:700; }
+  .fv-row{ display:grid; grid-template-columns:66px 38px 1fr auto; gap:10px; align-items:center; padding:9px 0; border-top:1px solid var(--line); min-height:56px; }
+  .fv-row.noch{ grid-template-columns:66px 1fr auto; } .fv-row:first-of-type{ border-top:none; }
+  .fv-row.me .pn{ color:var(--accent); }
+  .fv-row .role{ font-size:11px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
+  .fv-row img{ width:38px; height:38px; border-radius:9px; background:var(--panel-2); display:block; }
+  .fv-row .pn{ font-size:14px; font-weight:700; } .fv-row .ps{ font-size:11px; color:var(--muted-2); font-weight:600; margin-top:1px; }
+  .fv-row .ch{ font-size:12px; font-weight:700; color:var(--muted); }
+</style>
+<link rel="stylesheet" href="nav.css?v=3">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="herramientas.html" class="active">Herramientas</a>
+      <a href="uleague.html">Torneos</a>
+      <a href="soloqdle.html">SoloQdle</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>/* Revela pestañas de sesión al instante (sin parpadeo), antes de pintar. */(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Herramientas</h1>
+    <div class="sub">Organiza un 5v5 con equipos parejos y compara el rendimiento de los jugadores.</div>
+
+    <div class="tabs">
+      <button class="tab active" data-t="fv">5V5</button>
+      <button class="tab" data-t="analisis">ANÁLISIS</button>
+    </div>
+
+    <div class="panel active" id="p-fv"><div class="loading">Cargando sala…</div></div>
+    <div class="panel" id="p-analisis"><div class="loading">Cargando…</div></div>
+  </main>
+
+<script src="players.js"></script>
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+  if (window.SQC && SQC.preNav) SQC.preNav();
+  if (window.SQC && SQC.mountNav) SQC.mountNav();
+
+  // ---- Tabs ----
+  let CUR_TAB = 'fv';
+  function showTab(t){
+    CUR_TAB = t;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x.dataset.t === t));
+    document.querySelectorAll('.panel').forEach(x => x.classList.toggle('active', x.id === 'p-' + t));
+    if (history.replaceState) history.replaceState(null, '', '#' + t);
+    if (t === 'analisis' && !AN.data) loadAnalysis();
+    if (t === 'fv') fvLoad(true);
+  }
+  document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.t));
+
+  // ---- ANÁLISIS: polígono comparativo, fase de líneas, pool de campeones, evolución y últimas partidas ----
+  const AN = { n:'all', mode:'top', data:null, a:null, b:null, det:{} };
+  const AN_COL = { a:'#3987e5', b:'#d9662b' };   // par validado (daltonismo + contraste sobre fondo oscuro)
+  const anInt = v => Math.round(v).toLocaleString('es-CL');
+  const AN_AXES = [
+    { k:'wr',      lbl:'Winrate',      fmt:v => v.toFixed(1)+'%' },
+    { k:'kda',     lbl:'KDA',          fmt:v => v.toFixed(2) },
+    { k:'kp',      lbl:'Part. kills',  fmt:v => v.toFixed(1)+'%' },
+    { k:'csmin',   lbl:'CS/min',       fmt:v => v.toFixed(2) },
+    { k:'goldmin', lbl:'Oro/min',      fmt:anInt },
+    { k:'dmgmin',  lbl:'Daño/min',     fmt:anInt },
+    { k:'vismin',  lbl:'Visión/min',   fmt:v => v.toFixed(2) },
+    { k:'lvlmin',  lbl:'Nivel/min',    fmt:v => v.toFixed(2) },
+    { k:'abs',     lbl:'PL',           fmt:(v,p) => anRank(p) },
+  ];
+  const AN_LANE = [
+    { k:'cs10',    lbl:'CS al minuto 10',                  fmt:v => v.toFixed(1) },
+    { k:'csadv',   lbl:'Ventaja máx. de CS sobre su rival', fmt:v => v.toFixed(1) },
+    { k:'lvllead', lbl:'Ventaja máx. de nivel sobre su rival', fmt:v => v.toFixed(2) },
+    { k:'solok',   lbl:'Solo kills por partida',           fmt:v => v.toFixed(2) },
+  ];
+  // métricas que se pueden seguir partida a partida
+  const AN_EVO = [
+    { k:'kda',     lbl:'KDA',         get:g => (g.k + g.a) / Math.max(1, g.d),   fmt:v => v.toFixed(2) },
+    { k:'kp',      lbl:'Part. kills', get:g => g.kp,                              fmt:v => Math.round(v)+'%' },
+    { k:'csmin',   lbl:'CS/min',      get:g => g.cs / (g.dur / 60 || 1),          fmt:v => v.toFixed(1) },
+    { k:'goldmin', lbl:'Oro/min',     get:g => g.gold / (g.dur / 60 || 1),        fmt:anInt },
+    { k:'dmgmin',  lbl:'Daño/min',    get:g => g.dmg / (g.dur / 60 || 1),         fmt:anInt },
+    { k:'vismin',  lbl:'Visión/min',  get:g => g.vis / (g.dur / 60 || 1),         fmt:v => v.toFixed(2) },
+  ];
+  const AN_ROLES = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support' };
+  const AN_TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Retador' };
+  function anAbsLabel(abs){ if (abs == null) return '—'; abs = Math.round(abs); if (abs >= 2800) return 'Maestro+ ' + (abs - 2800) + ' PL';
+    const T = ['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], D = ['IV','III','II','I'], ti = Math.min(6, Math.floor(abs / 400)), rem = abs - ti * 400, di = Math.min(3, Math.floor(rem / 100));
+    return `${T[ti]} ${D[di]} ${rem - di * 100} PL`; }
+  const anRank = p => p.isAvg ? anAbsLabel(p.abs) : (!p.tier || p.tier === 'UNRANKED') ? 'Sin rango' : `${AN_TIER[p.tier] || p.tier}${p.div ? ' ' + p.div : ''} ${p.lp} PL`;
+  const anDDV = (window.SQC_DATA && window.SQC_DATA.ddragonVersion) || '16.15.1';
+  const anChamp = c => c ? `https://ddragon.leagueoflegends.com/cdn/${anDDV}/img/champion/${({FiddleSticks:'Fiddlesticks'})[c] || c}.png` : '';
+  const anPool = () => (AN.data && AN.data.players || []).filter(x => x.games >= 5);
+  // Promedio de los jugadores del challenge cuyo rol principal es ese (se comporta como un "jugador" más).
+  function anRoleAvg(role){
+    const ps = anPool().filter(p => p.role === role); if (!ps.length) return null;
+    const o = { key:'@' + role, nm:'Promedio ' + AN_ROLES[role], isAvg:true, role, games:ps.length };
+    ['wr','kda','kp','csmin','goldmin','dmgmin','vismin','lvlmin','abs','k','d','a','cs10','csadv','lvllead','solok'].forEach(k => {
+      const v = ps.map(p => p[k]).filter(x => x != null); o[k] = v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; });
+    ['k','d','a'].forEach(k => { if (o[k] != null) o[k] = Math.round(o[k] * 10) / 10; });
+    return o;
+  }
+  const anFind = key => !key ? null : key[0] === '@' ? anRoleAvg(key.slice(1)) : ((AN.data && AN.data.players || []).find(p => p.key === key) || null);
+  // Percentil (0-100) en una métrica frente a los demás jugadores del challenge con partidas suficientes.
+  function anPct(p, k){
+    const pool = anPool().map(x => x[k]).filter(v => v != null);
+    if (p[k] == null || !pool.length) return 0;
+    const below = pool.filter(v => v < p[k]).length, eq = pool.filter(v => v === p[k]).length;
+    return Math.max(4, Math.round((below + eq / 2) / pool.length * 100));
+  }
+  const anLabel = p => p.isAvg ? p.nm : p.nm + (p.smurf ? ' · smurf' : '');
+  const anSub = p => p.isAvg ? `${p.games} jugadores` : p.rid + (AN.mode === 'merge' && p.accts.length > 1 ? ` +${p.accts.length - 1} cuenta${p.accts.length > 2 ? 's' : ''}` : '');
+  async function loadAnalysis(){
+    const box = $('p-analisis');
+    try { const r = await fetch(`/api/analysis?n=${AN.n}&mode=${AN.mode}`); if (!r.ok) throw new Error('HTTP ' + r.status); AN.data = await r.json(); }
+    catch (e) { box.innerHTML = `<div class="loading">No se pudo cargar el análisis.</div>`; return; }
+    const ps = AN.data.players || [];
+    if (!ps.length){ box.innerHTML = `<div class="loading">Aún no hay partidas guardadas.</div>`; return; }
+    if (!anFind(AN.a)) AN.a = ps[0].key;
+    if (AN.b && (!anFind(AN.b) || AN.b === AN.a)) AN.b = null;
+    renderAnalysis(); anLoadDet(AN.a); anLoadDet(AN.b);
+  }
+  async function anLoadDet(key){
+    if (!key || key[0] === '@') return;
+    const ck = AN.mode + '|' + key; if (AN.det[ck]) return;
+    try { const r = await fetch(`/api/analysis/detail?mode=${AN.mode}&key=${encodeURIComponent(key)}`); AN.det[ck] = r.ok ? await r.json() : { games:[], champs:[] }; }
+    catch (e) { AN.det[ck] = { games:[], champs:[] }; }
+    renderAnalysis();
+  }
+  const anDet = p => p.isAvg ? null : AN.det[AN.mode + '|' + p.key];
+  const anSw = key => `<span class="an-sw ${key}" style="${key === 'a' ? 'background:' + AN_COL.a : ''}"></span>`;
+  function anRadar(sel){
+    const W = 460, H = 410, cx = W / 2, cy = H / 2 + 4, R = 138, N = AN_AXES.length;
+    const pt = (i, f) => { const a = -Math.PI / 2 + i * 2 * Math.PI / N; return [cx + Math.cos(a) * R * f, cy + Math.sin(a) * R * f]; };
+    const ring = f => AN_AXES.map((_, i) => pt(i, f).map(v => v.toFixed(1)).join(',')).join(' ');
+    let g = [0.25, 0.5, 0.75, 1].map(f => `<polygon points="${ring(f)}" fill="none" stroke="rgba(255,255,255,${f === 1 ? .16 : .07})" stroke-width="1"/>`).join('');
+    g += AN_AXES.map((ax, i) => { const [x, y] = pt(i, 1), [lx, ly] = pt(i, 1.16);
+      const anc = Math.abs(lx - cx) < 8 ? 'middle' : (lx > cx ? 'start' : 'end');
+      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="rgba(255,255,255,.07)"/>
+        <text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" text-anchor="${anc}" font-size="11.5" font-weight="700" fill="rgba(255,255,255,.62)">${ax.lbl}</text>`; }).join('');
+    g += `<text x="${cx + 7}" y="${cy - R * 0.5 - 3}" font-size="9" fill="rgba(255,255,255,.32)">50</text><text x="${cx + 7}" y="${cy - R + 11}" font-size="9" fill="rgba(255,255,255,.32)">100</text>`;
+    sel.forEach(({ p, key }) => {
+      const col = AN_COL[key], pts = AN_AXES.map((ax, i) => pt(i, anPct(p, ax.k) / 100));
+      g += `<polygon points="${pts.map(q => q.map(v => v.toFixed(1)).join(',')).join(' ')}" fill="${col}" fill-opacity=".16" stroke="${col}" stroke-width="2" stroke-linejoin="round" ${key === 'b' ? 'stroke-dasharray="6 4"' : ''}/>`;
+      g += pts.map((q, i) => `<circle cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="4" fill="${col}" stroke="#0b0c10" stroke-width="2"/>
+        <circle class="an-hit" cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" r="11" fill="transparent" data-tip="${esc(`<b>${anLabel(p)}</b> · ${AN_AXES[i].lbl}: ${AN_AXES[i].fmt(p[AN_AXES[i].k] || 0, p)} · percentil ${anPct(p, AN_AXES[i].k)}`)}"/>`).join('');
+    });
+    return `<svg class="an-radar" viewBox="0 0 ${W} ${H}" role="img" aria-label="Polígono comparativo por percentil">${g}</svg>`;
+  }
+  // Tabla A vs B para una lista de métricas (el mejor de cada fila va en negrita).
+  function anTable(list, A, B, withPct){
+    const cell = (p, other, ax) => { const v = p[ax.k]; if (v == null) return `<td>—</td>`;
+      const best = !ax.neutral && other && other[ax.k] != null && v > other[ax.k];
+      return `<td class="${best ? 'best' : ''}">${ax.fmt(v, p)}${withPct && !ax.neutral ? `<small>P${anPct(p, ax.k)}</small>` : ''}</td>`; };
+    return `<table class="an-tbl"><thead><tr><th>Métrica</th><th>${esc(anLabel(A))}</th>${B ? `<th>${esc(anLabel(B))}</th>` : ''}</tr></thead><tbody>` +
+      list.map(ax => `<tr><td>${ax.lbl}</td>${cell(A, B, ax)}${B ? cell(B, A, ax) : ''}</tr>`).join('') + `</tbody></table>`;
+  }
+  function anChamps(p, key){
+    const d = anDet(p), head = `<h3>${anSw(key)}${esc(anLabel(p))} · campeones</h3><div class="cap">Pool completo sobre todas sus partidas guardadas${d && d.total ? ` (${d.total})` : ''}. Se ven 5; desliza para el resto.</div>`;
+    if (!d) return `<div class="card">${head}<div class="loading" style="padding:24px 0">Cargando…</div></div>`;
+    if (!d.champs.length) return `<div class="card">${head}<div class="loading" style="padding:24px 0">Sin partidas guardadas</div></div>`;
+    return `<div class="card">${head}<div class="an-champs">` + d.champs.map(c => `<div class="an-c">
+        <img src="${anChamp(c.champ)}" alt="" onerror="this.style.visibility='hidden'">
+        <div><div class="l1">${esc(c.champ)}</div><div class="l2">${c.games} partida${c.games === 1 ? '' : 's'} · KDA ${c.kda.toFixed(2)}</div></div>
+        <div class="wr"><span class="wrbar"><i style="width:${c.wr}%"></i></span><b>${c.wr}%</b></div></div>`).join('') + `</div></div>`;
+  }
+  // Una mini-gráfica por métrica: una línea por jugador, de la partida más antigua a la más reciente.
+  function anEvo(sel){
+    const series = sel.map(({ p, key }) => { const d = anDet(p); const gs = d ? d.games.filter(g => !g.voided && !g.off).slice(0, AN.n === 'all' ? 60 : +AN.n).reverse() : null; return { p, key, gs }; });
+    if (series.some(s => !s.p.isAvg && !s.gs)) return `<div class="card"><h3>Evolución</h3><div class="loading" style="padding:24px 0">Cargando…</div></div>`;
+    const W = 300, H = 104, L = 8, Rr = 8, T = 10, B = 16;
+    const charts = AN_EVO.map(m => {
+      const lines = series.filter(s => s.gs && s.gs.length).map(s => ({ ...s, vals: s.gs.map(g => m.get(g)).filter(v => v != null) })).filter(s => s.vals.length);
+      const ref = series.find(s => s.p.isAvg && s.p[m.k] != null);
+      const all = [].concat(...lines.map(s => s.vals), ref ? [ref.p[m.k]] : []);
+      if (!all.length) return '';
+      let lo = Math.min(...all), hi = Math.max(...all); if (hi - lo < 1e-9){ hi += 1; lo -= 1; }
+      const Y = v => T + (1 - (v - lo) / (hi - lo)) * (H - T - B);
+      let g = `<line x1="${L}" y1="${H - B}" x2="${W - Rr}" y2="${H - B}" stroke="rgba(255,255,255,.1)"/>`;
+      if (ref) g += `<line x1="${L}" y1="${Y(ref.p[m.k]).toFixed(1)}" x2="${W - Rr}" y2="${Y(ref.p[m.k]).toFixed(1)}" stroke="${AN_COL[ref.key]}" stroke-width="2" stroke-dasharray="6 4"/>`;
+      lines.forEach(s => { const n = s.vals.length, X = i => n === 1 ? (L + W - Rr) / 2 : L + i * (W - L - Rr) / (n - 1), col = AN_COL[s.key];
+        g += `<polyline points="${s.vals.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ')}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" ${s.key === 'b' ? 'stroke-dasharray="6 4"' : ''}/>`;
+        g += `<circle cx="${X(n - 1).toFixed(1)}" cy="${Y(s.vals[n - 1]).toFixed(1)}" r="4" fill="${col}" stroke="#0b0c10" stroke-width="2"/>`;
+        g += s.vals.map((v, i) => `<circle class="an-hit" cx="${X(i).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="9" fill="transparent" data-tip="${esc(`<b>${anLabel(s.p)}</b> · ${m.lbl}: ${m.fmt(v)} · ${s.gs[i].champ} · ${fdate(s.gs[i].end)}`)}"/>`).join(''); });
+      g += `<text x="${L}" y="${H - 3}" font-size="9" fill="rgba(255,255,255,.34)">más antigua</text><text x="${W - Rr}" y="${H - 3}" text-anchor="end" font-size="9" fill="rgba(255,255,255,.34)">más reciente</text>`;
+      const avgOf = s => s.vals.reduce((a, b) => a + b, 0) / s.vals.length;
+      const leg = lines.map(s => `<span>${anSw(s.key)}${m.fmt(avgOf(s))}</span>`).concat(ref ? [`<span>${anSw(ref.key)}${m.fmt(ref.p[m.k])}</span>`] : []).join('');
+      return `<div class="an-evo"><div class="t"><b>${m.lbl}</b><span class="v">${leg}</span></div>
+        <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${m.lbl} por partida">${g}</svg>
+        <div class="rng">rango ${m.fmt(lo)} – ${m.fmt(hi)}</div></div>`; }).join('');
+    return `<div class="card"><h3>Evolución por partida</h3><div class="cap">Cada punto es una partida de la ventana elegida; el número junto al nombre es su promedio. Pasa el mouse para ver el detalle.</div><div class="an-evos">${charts}</div></div>`;
+  }
+  function anGames(p, key){
+    const d = anDet(p), head = `<h3>${anSw(key)}${esc(anLabel(p))} · últimas partidas</h3><div class="cap">${esc(anSub(p))} · se ven 10; desliza para ver más</div>`;
+    if (!d) return `<div class="card">${head}<div class="loading" style="padding:30px 0">Cargando…</div></div>`;
+    if (!d.games.length) return `<div class="card">${head}<div class="loading" style="padding:30px 0">Sin partidas guardadas</div></div>`;
+    return `<div class="card">${head}<div class="an-list">` + d.games.map(g => { const m = g.dur / 60 || 1;
+      const lp = g.lp == null ? '' : `${g.lp > 0 ? '+' : ''}${g.lp} PL`;
+      return `<div class="an-g ${g.voided ? 'v' : (g.win ? 'w' : '')}"><span class="bar"></span>
+        <img src="${anChamp(g.champ)}" alt="" onerror="this.style.visibility='hidden'">
+        <div><div class="l1">${g.k}/${g.d}/${g.a} <span>· ${esc(g.champ || '')}${g.voided ? ' · anulada' : ''}${g.off ? ' · de support, no cuenta' : ''}</span></div>
+          <div class="l2">${(g.cs / m).toFixed(1)} CS/min · ${anInt(g.dmg / m)} daño/min · ${anInt(g.gold / m)} oro/min${g.kp == null ? '' : ' · ' + g.kp + '% part.'}</div></div>
+        <div class="rt">${g.win ? 'Victoria' : 'Derrota'}${lp ? ' · ' + lp : ''}<small>${Math.floor(m)} min · ${fdate(g.end)}</small></div></div>`; }).join('') + `</div></div>`;
+  }
+  // Selector con buscador: encuentra por nombre del jugador o por cualquiera de sus cuentas.
+  function anPickerHtml(which, cur){
+    const p = anFind(cur);
+    return `<div class="an-pick" data-w="${which}"><input type="text" autocomplete="off" spellcheck="false" placeholder="Buscar jugador o cuenta…" value="${p ? esc(anLabel(p)) : ''}"><div class="an-dd"></div></div>`;
+  }
+  function anPickerBind(box){
+    box.querySelectorAll('.an-pick').forEach(pk => {
+      const which = pk.dataset.w, inp = pk.querySelector('input'), dd = pk.querySelector('.an-dd');
+      const fill = () => {
+        const qy = inp.value.trim().toLowerCase(), cur = which === 'a' ? AN.a : AN.b;
+        const typed = qy && !(anFind(cur) && anLabel(anFind(cur)).toLowerCase() === qy);
+        const ps = (AN.data.players || []).filter(p => !typed || [p.nm, p.rid].concat(p.accts || []).some(s => String(s || '').toLowerCase().includes(qy)));
+        let h = '';
+        if (which === 'b'){
+          h += `<div class="an-o" data-k=""><b>— Nadie —</b></div>`;
+          h += Object.keys(AN_ROLES).filter(r => anRoleAvg(r) && (!typed || ('promedio ' + AN_ROLES[r]).toLowerCase().includes(qy)))
+            .map(r => `<div class="an-o" data-k="@${r}"><b>Promedio ${AN_ROLES[r]}</b><small>${anRoleAvg(r).games} jugadores del challenge</small></div>`).join('');
+        }
+        h += ps.filter(p => which === 'a' || p.key !== AN.a).map(p => `<div class="an-o" data-k="${esc(p.key)}"><b>#${p.pos} ${esc(anLabel(p))}</b><small>${esc(anSub(p))}${p.role ? ' · ' + AN_ROLES[p.role] : ''}</small></div>`).join('');
+        dd.innerHTML = h || `<div class="an-o none">Sin resultados</div>`; dd.style.display = 'block';
+      };
+      inp.onfocus = () => { inp.select(); fill(); };
+      inp.oninput = fill;
+      inp.onblur = () => setTimeout(() => { dd.style.display = 'none'; const p = anFind(which === 'a' ? AN.a : AN.b); inp.value = p ? anLabel(p) : ''; }, 160);
+      dd.onmousedown = ev => { const o = ev.target.closest('.an-o'); if (!o || o.classList.contains('none')) return; ev.preventDefault();
+        const k = o.dataset.k || null;
+        if (which === 'a'){ if (!k) return; AN.a = k; if (AN.b === k) AN.b = null; } else AN.b = k;
+        renderAnalysis(); anLoadDet(AN.a); anLoadDet(AN.b); };
+    });
+  }
+  function renderAnalysis(){
+    const box = $('p-analisis'), A = anFind(AN.a), B = anFind(AN.b);
+    if (!A) return;
+    const sel = [{ p:A, key:'a' }].concat(B ? [{ p:B, key:'b' }] : []), real = sel.filter(s => !s.p.isAvg);
+    const o = (cur, list) => list.map(([v, t]) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`).join('');
+    const rows = [{ k:'games', lbl:A.isAvg || (B && B.isAvg) ? 'Partidas / jugadores' : 'Partidas', fmt:v => String(v), neutral:true }].concat(AN_AXES);
+    const kdaRow = `<tr><td>K / D / A</td><td>${A.k} / ${A.d} / ${A.a}</td>${B ? `<td>${B.k} / ${B.d} / ${B.a}</td>` : ''}</tr>`;
+    const win = AN.n === 'all' ? 'todas las partidas guardadas' : 'las últimas ' + AN.n + ' partidas';
+    box.innerHTML = `
+      <div class="an-ctrl" style="--an-b:${AN_COL.b}">
+        <label><span>${anSw('a')}Jugador</span>${anPickerHtml('a', AN.a)}</label>
+        <label><span>${anSw('b')}Comparar con</span>${anPickerHtml('b', AN.b)}</label>
+        <label>Partidas<select id="an-n">${o(AN.n, [['10','Últimas 10'],['20','Últimas 20'],['50','Últimas 50'],['all','Todas']])}</select></label>
+        <label>Cuentas<select id="an-mode">${o(AN.mode, [['top','Solo la más alta'],['all','Ver smurfs por separado'],['merge','Combinar main + smurfs']])}</select></label>
+      </div>
+      <div style="--an-b:${AN_COL.b}">
+      <div class="an-top">
+        <div class="card"><h3>Perfil comparativo</h3><div class="cap">Cada eje es el percentil frente a los demás jugadores del challenge (100 = el mejor en esa métrica).</div>
+          <div class="an-legend">${sel.map(({ p, key }) => `<span>${anSw(key)}${esc(anLabel(p))}</span>`).join('')}</div>
+          ${anRadar(sel)}</div>
+        <div>
+          <div class="card"><h3>Promedios</h3><div class="cap">Sobre ${win} de cada jugador. P = percentil. No cuentan remakes, partidas anuladas ni las jugadas de support por quien no es support.</div>
+            ${anTable(rows, A, B, true).replace('</tbody>', kdaRow + '</tbody>')}</div>
+          <div class="card" style="margin-top:14px"><h3>Fase de líneas</h3><div class="cap">Promedio por partida sobre ${win}. La ventaja es la máxima alcanzada frente al rival directo.</div>
+            ${anTable(AN_LANE, A, B, false)}</div>
+        </div>
+      </div>
+      ${real.length ? `<div class="an-games">${real.map(({ p, key }) => anChamps(p, key)).join('')}</div>` : ''}
+      <div style="margin-top:14px">${anEvo(sel)}</div>
+      ${real.length ? `<div class="an-games">${real.map(({ p, key }) => anGames(p, key)).join('')}</div>` : ''}
+      </div>
+      <div class="an-tip" id="an-tip"></div>`;
+    anPickerBind(box);
+    $('an-n').onchange = e => { AN.n = e.target.value; loadAnalysis(); };
+    $('an-mode').onchange = e => { AN.mode = e.target.value; AN.a = null; AN.b = AN.b && AN.b[0] === '@' ? AN.b : null; loadAnalysis(); };
+    const tip = $('an-tip');
+    box.querySelectorAll('.an-hit').forEach(c => {
+      c.onmousemove = ev => { tip.innerHTML = c.dataset.tip; tip.style.display = 'block'; tip.style.left = Math.max(8, Math.min(window.innerWidth - tip.offsetWidth - 8, ev.clientX + 12)) + 'px'; tip.style.top = (ev.clientY + 14) + 'px'; };
+      c.onmouseleave = () => { tip.style.display = 'none'; };
+    });
+  }
+
+
+  // ================= ORGANIZADOR DE 5v5 =================
+  const FVC = { st:null, sig:'', cands:null, err:'' };
+  const FV_ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support' };
+  const fvLogged = () => !!(window.SQC && SQC.token && SQC.token());
+  const fvElo = p => p.abs == null ? 'Sin rango en el ranking' : anRank(p);
+  // nombre legible de un campeón a partir de su id de Data Dragon (TahmKench -> Tahm Kench)
+  const fvChampName = c => ({ MonkeyKing:'Wukong', FiddleSticks:'Fiddlesticks', Renata:'Renata Glasc', Nunu:'Nunu y Willump', KSante:"K'Sante", Belveth:"Bel'Veth", Kaisa:"Kai'Sa", Khazix:"Kha'Zix", Chogath:"Cho'Gath", Velkoz:"Vel'Koz", RekSai:"Rek'Sai", KogMaw:"Kog'Maw", Leblanc:'LeBlanc', JarvanIV:'Jarvan IV', DrMundo:'Dr. Mundo' })[c] || String(c || '').replace(/([a-z])([A-Z])/g, '$1 $2');
+  async function fvLoad(force){
+    try { const st = await SQC.api('/5v5'); fvApply(st, force); } catch (e) { if (!FVC.st) $('p-fv').innerHTML = `<div class="loading">No se pudo cargar la sala.</div>`; }
+  }
+  function fvApply(st, force){
+    const sig = st.v + '|' + (st.me ? st.me.uid + ':' + st.me.id + ':' + st.me.host : '-') + '|' + (fvLogged() ? 1 : 0);
+    FVC.st = st;
+    if (force || sig !== FVC.sig){ FVC.sig = sig; fvRender(); }
+  }
+  async function fvAct(path, body){
+    FVC.err = '';
+    try { fvApply(await SQC.api('/5v5/' + path, { method:'POST', body: body || {} }), true); }
+    catch (e) { FVC.err = e.message || 'No se pudo completar la acción'; fvRender(); }
+  }
+  async function fvCands(){
+    if (FVC.cands) return;
+    try { const r = await fetch('/api/analysis?n=all&mode=top'); FVC.cands = r.ok ? ((await r.json()).players || []) : []; } catch (e) { FVC.cands = []; }
+    fvRender();
+  }
+  function fvRender(){
+    const st = FVC.st, box = $('p-fv'); if (!st) return;
+    const me = st.me, host = !!(me && me.host), P = st.players, byId = {}; P.forEach(p => { byId[p.id] = p; });
+    const hostP = P.find(p => p.uid != null && p.uid === st.host);
+    const joined = !!(me && me.id);
+    const slots = P.map(p => `<div class="fv-p ${me && me.id === p.id ? 'me' : ''}">
+        <div><div class="nm">${esc(p.nick)}${p.uid != null && p.uid === st.host ? ' <span title="Anfitrión">👑</span>' : ''}</div>
+          <div class="el">${esc(fvElo(p))}${p.main ? ' · ' + FV_ROLE[p.main] : ''}</div></div>
+        ${host || (me && me.id === p.id) ? `<button class="fv-x" data-kick="${esc(p.id)}" title="${me && me.id === p.id ? 'Salir de la sala' : 'Sacar de la sala'}">✕</button>` : ''}</div>`)
+      .concat(Array.from({ length: Math.max(0, st.size - P.length) }, () => `<div class="fv-p empty">Lugar libre</div>`)).join('');
+    const action = !fvLogged() ? `<a class="fv-btn" href="cuenta.html">Inicia sesión para unirte</a>`
+      : joined ? `<button class="fv-btn" id="fv-leave">Salir de la sala</button>`
+      : `<button class="fv-btn pri" id="fv-join" ${P.length >= st.size ? 'disabled' : ''}>Unirme</button>`;
+    const s = st.settings;
+    const canHost = host || (fvLogged() && st.host == null);   // sala sin anfitrión: cualquiera con sesión puede armarla
+    if (canHost && !FVC.cands) fvCands();
+    const cands = (FVC.cands || []).filter(c => !byId[c.key]);
+    const hostCard = canHost ? `<div class="card">
+        <h3>Opciones del sorteo</h3><div class="cap">Solo el anfitrión (👑) o un admin puede cambiarlas y sortear.</div>
+        <div class="fv-opts">
+          <label>Agregar jugador<select id="fv-add"><option value="">— elegir —</option>${cands.map(c => `<option value="${esc(c.key)}">#${c.pos} ${esc(c.nm)} (${esc(c.rid)})</option>`).join('')}</select></label>
+          <label>Roles<select id="fv-role"><option value="random" ${s.roleMode === 'random' ? 'selected' : ''}>Al azar</option><option value="off" ${s.roleMode === 'off' ? 'selected' : ''}>Todos fuera de su rol</option></select></label>
+          <label>Campeón<select id="fv-champs"><option value="0" ${!s.champs ? 'selected' : ''}>Cada uno elige</option><option value="1" ${s.champs ? 'selected' : ''}>Al azar según el rol</option></select></label>
+          <label>Cambios de campeón<input type="number" id="fv-rr" min="0" max="20" value="${s.rerolls}" ${s.champs ? '' : 'disabled'}></label>
+          <button class="fv-btn pri" id="fv-draw" ${P.length === st.size ? '' : 'disabled'}>🎲 ${st.draw ? 'Sortear de nuevo' : 'Sortear equipos'}</button>
+          <button class="fv-btn" id="fv-reset" ${P.length ? '' : 'disabled'}>Vaciar sala</button>
+        </div>
+        <div class="fv-note">${P.length === st.size ? 'Sala completa: ya puedes sortear.' : `Faltan ${st.size - P.length} jugador${st.size - P.length === 1 ? '' : 'es'} para poder sortear.`} Los equipos se arman con el elo de la cuenta más alta de cada jugador.</div>
+      </div>`
+      : `<div class="card"><h3>Opciones del sorteo</h3>
+          <div class="fv-note" style="margin-top:0">Roles: <b>${s.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b>` : ''}<br>
+          ${hostP ? `El anfitrión es <b>${esc(hostP.nick)}</b>; solo esa persona o un admin puede sortear.` : 'Aún no hay anfitrión: el primero que se una lo será.'}</div></div>`;
+    let drawHtml = '';
+    if (st.draw){
+      const d = st.draw;
+      drawHtml = `<div class="fv-teams">` + d.teams.map((t, ti) => `<div class="card fv-team">
+          <h3>Equipo ${ti + 1}<small>promedio ${esc(anAbsLabel(t.avg))}</small></h3>
+          <div class="cap">${ti === 0 ? `Diferencia total entre equipos: ${d.diff} PL.` : `Roles: ${d.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}.`}</div>` +
+          t.players.map(sl => { const p = byId[sl.id] || { nick:'(salió)', abs:null }; const mine = me && me.id === sl.id;
+            const hint = !p.main ? '' : p.main === sl.role ? ' · en su rol' : ' · suele jugar ' + FV_ROLE[p.main];
+            const canRr = d.champs && sl.left > 0 && (mine || host);
+            return `<div class="fv-row ${d.champs ? '' : 'noch'} ${mine ? 'me' : ''}">
+              <div class="role">${FV_ROLE[sl.role]}</div>
+              ${d.champs ? `<img src="${anChamp(sl.champ)}" alt="" onerror="this.style.visibility='hidden'">` : ''}
+              <div><div class="pn">${esc(p.nick)}${d.champs && sl.champ ? ` <span class="ch">· ${esc(fvChampName(sl.champ))}</span>` : ''}</div>
+                <div class="ps">${esc(fvElo(p))}${hint}</div></div>
+              <div>${d.champs ? (canRr ? `<button class="fv-btn sm" data-rr="${esc(sl.id)}">🎲 Cambiar (${sl.left})</button>` : `<span class="ps">${sl.left} cambio${sl.left === 1 ? '' : 's'}</span>`) : ''}</div>
+            </div>`; }).join('') + `</div>`).join('') + `</div>`;
+    }
+    box.innerHTML = `
+      <div class="fv-head"><div><h2 style="display:inline">Sala 5v5</h2><span class="cnt">${P.length}/${st.size} jugadores</span></div><div>${action}</div></div>
+      <div class="fv-err">${esc(FVC.err)}</div>
+      <div class="fv-players">${slots}</div>
+      ${hostCard}${drawHtml}`;
+    const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
+    on('fv-join', 'onclick', () => fvAct('join'));
+    on('fv-leave', 'onclick', () => fvAct('leave'));
+    on('fv-add', 'onchange', e => { if (e.target.value) fvAct('add', { key: e.target.value }); });
+    on('fv-role', 'onchange', e => fvAct('settings', { roleMode: e.target.value }));
+    on('fv-champs', 'onchange', e => fvAct('settings', { champs: e.target.value === '1' }));
+    on('fv-rr', 'onchange', e => fvAct('settings', { rerolls: e.target.value }));
+    on('fv-draw', 'onclick', () => fvAct('draw'));
+    on('fv-reset', 'onclick', () => { if (confirm('¿Vaciar la sala y borrar el sorteo?')) fvAct('reset'); });
+    box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => fvAct('leave', { id: b.dataset.kick }));
+    box.querySelectorAll('[data-rr]').forEach(b => b.onclick = () => fvAct('reroll', { id: b.dataset.rr }));
+  }
+  // La sala se refresca sola cada 3 s mientras la pestaña está a la vista (así todos ven lo mismo).
+  setInterval(() => { if (CUR_TAB === 'fv' && !document.hidden) fvLoad(false); }, 3000);
+
+  const h0 = (location.hash || '').slice(1);
+  showTab(h0 === 'analisis' ? 'analisis' : 'fv');
+</script>
+</body>
+</html>

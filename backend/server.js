@@ -5,6 +5,7 @@
    Uso:  DATABASE_URL=... node server.js
    ============================================================ */
 const path = require('path');
+const crypto = require('crypto');
 const fs = require('fs');
 const express = require('express');
 const bcrypt = require('bcryptjs');
@@ -2177,6 +2178,174 @@ app.get('/api/analysis/detail', wrap(async (req, res) => {
   const champs = Object.values(cm).sort((a, b) => b.games - a.games || b.wins - a.wins).slice(0, 25)
     .map(c => ({ champ: c.champ, games: c.games, wr: Math.round(c.wins / c.games * 100), kda: +((c.k + c.a) / Math.max(1, c.d)).toFixed(2) }));
   res.json({ games, champs, total: counted.length });
+}));
+
+// ================= HERRAMIENTAS · ORGANIZADOR DE 5v5 =================
+// Una sala compartida: los jugadores se unen, el anfitrión (el primero en entrar, o un admin) sortea
+// dos equipos de elo parecido, con roles al azar o todos fuera de su rol, y opcionalmente un campeón
+// al azar jugable en ese rol. Cada jugador puede cambiar su campeón un número limitado de veces.
+// El estado vive en memoria (una sola instancia) y se respalda en la DB para sobrevivir reinicios.
+const FV_ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
+const FV_SIZE = 10;
+const fvRand = n => crypto.randomInt(n);
+const fvShuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = fvRand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const fvFresh = () => ({ v: 1, host: null, players: [], settings: { roleMode: 'random', champs: false, rerolls: 1 }, draw: null });
+let FV = null;
+async function fvState(){
+  if (FV) return FV;
+  try { const r = await q1("SELECT data FROM tool_state WHERE id='5v5'"); FV = (r && r.data && Array.isArray(r.data.players)) ? r.data : fvFresh(); }
+  catch { FV = fvFresh(); }
+  return FV;
+}
+async function fvSave(){
+  FV.v = (FV.v || 0) + 1;
+  try { await q("INSERT INTO tool_state (id, data, updated_at) VALUES ('5v5', $1::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(FV)]); } catch {}
+}
+// Campeones jugables por rol, sacados de las partidas guardadas: cuenta todo campeón con al menos 25
+// partidas en esa posición (así entran picks poco comunes pero jugables, como Tahm Kench top). Cache 6 h.
+let FV_POOL = { at: 0, data: null };
+async function fvChampPool(){
+  if (FV_POOL.data && Date.now() - FV_POOL.at < 6 * 3600 * 1000) return FV_POOL.data;
+  const pool = {}; FV_ROLES.forEach(r => { pool[r] = []; });
+  for (const r of await q(`SELECT upper(position) pos, champion, count(*)::int n FROM match_participants
+      WHERE coalesce(position,'')<>'' AND coalesce(champion,'')<>'' AND coalesce(duration,0) >= 300 GROUP BY 1,2 HAVING count(*) >= 25`))
+    if (pool[r.pos]) pool[r.pos].push(r.champion);
+  FV_POOL = { at: Date.now(), data: pool };
+  return pool;
+}
+// Datos de un jugador a partir de su entidad del ranking (cuenta más alta + rol habitual).
+async function fvFromEntity(e, uid){
+  const by = await analysisRows(), valid = anGamesOf(by, e.puuids).filter(g => !g.voided && g.pos);
+  const cnt = {}; valid.forEach(g => { cnt[g.pos] = (cnt[g.pos] || 0) + 1; });
+  const main = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || null;
+  return { id: e.key, uid: uid || null, nick: e.nm, rid: e.rid, tier: e.tier, div: e.div, lp: e.lp, abs: e.abs, main };
+}
+async function fvPlayerForUser(u){
+  const rids = new Set([normRid(u.riotid)]);
+  for (const s of await q('SELECT riotid FROM smurfs WHERE user_id=$1', [u.id])) rids.add(normRid(s.riotid));
+  const e = (await analysisEntities('top')).find(x => x.accts.some(a => rids.has(normRid(a))));
+  if (e){ const p = await fvFromEntity(e, u.id); p.nick = (u.nickname || '').trim() || p.nick; return p; }
+  return { id: 'u' + u.id, uid: u.id, nick: (u.nickname || '').trim() || (u.riotid || '').split('#')[0], rid: u.riotid || '', tier: 'UNRANKED', div: '', lp: 0, abs: null, main: null };
+}
+const fvIsHost = (st, u) => !!u && (u.is_admin || (st.host != null && st.host === u.id));
+// ¿es admin? Se consulta cada 5 min por usuario: la sala se refresca cada pocos segundos y no vale
+// una consulta a la DB por cada refresco.
+const FV_ADMIN = {};
+async function fvAdmin(uid){
+  const c = FV_ADMIN[uid]; if (c && Date.now() - c.at < 300000) return c.v;
+  let v = false; try { const u = await q1('SELECT is_admin FROM users WHERE id=$1', [uid]); v = !!(u && u.is_admin); } catch {}
+  FV_ADMIN[uid] = { at: Date.now(), v }; return v;
+}
+async function fvView(uid){
+  const st = await fvState(); let me = null;
+  if (uid){ const p = st.players.find(x => x.uid === uid);
+    me = { uid, id: p ? p.id : null, host: fvIsHost(st, { id: uid, is_admin: await fvAdmin(uid) }) }; }
+  return { ...st, size: FV_SIZE, me };
+}
+app.get('/api/5v5', wrap(async (req, res) => { res.set('Cache-Control', 'no-store'); res.json(await fvView(await optionalUid(req))); }));
+app.post('/api/5v5/join', auth, wrap(async (req, res) => {
+  const st = await fvState(), p = await fvPlayerForUser(req.user);
+  const ex = st.players.find(x => x.id === p.id || x.uid === req.user.id);
+  if (ex){ ex.uid = req.user.id; }
+  else { if (st.players.length >= FV_SIZE) return res.status(400).json({ error: 'La sala está llena' }); st.players.push(p); }
+  if (st.host == null || !st.players.some(x => x.uid === st.host)) st.host = req.user.id;
+  await fvSave(); res.json(await fvView(req.user.id));
+}));
+// Sacar a un jugador (uno mismo, o cualquiera si eres anfitrión). Al cambiar la sala se anula el sorteo.
+app.post('/api/5v5/leave', auth, wrap(async (req, res) => {
+  const st = await fvState(), id = String((req.body && req.body.id) || '');
+  const target = id ? st.players.find(x => x.id === id) : st.players.find(x => x.uid === req.user.id);
+  if (!target) return res.json(await fvView(req.user.id));
+  if (target.uid !== req.user.id && !fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sacar a otros' });
+  st.players = st.players.filter(x => x !== target); st.draw = null;
+  if (st.host === target.uid){ const nx = st.players.find(x => x.uid); st.host = nx ? nx.uid : null; }
+  await fvSave(); res.json(await fvView(req.user.id));
+}));
+// El anfitrión agrega a mano a alguien del ranking (para quienes no han iniciado sesión).
+app.post('/api/5v5/add', auth, wrap(async (req, res) => {
+  const st = await fvState();
+  if (!fvIsHost(st, req.user) && st.host != null) return res.status(403).json({ error: 'Solo el anfitrión puede agregar jugadores' });
+  if (st.players.length >= FV_SIZE) return res.status(400).json({ error: 'La sala está llena' });
+  const key = String((req.body && req.body.key) || '');
+  const e = (await analysisEntities('top')).find(x => x.key === key);
+  if (!e) return res.status(400).json({ error: 'Jugador no encontrado' });
+  if (st.players.some(x => x.id === e.key)) return res.status(400).json({ error: 'Ese jugador ya está en la sala' });
+  st.players.push(await fvFromEntity(e, null)); st.draw = null;
+  if (st.host == null) st.host = req.user.id;
+  await fvSave(); res.json(await fvView(req.user.id));
+}));
+app.post('/api/5v5/settings', auth, wrap(async (req, res) => {
+  const st = await fvState(), b = req.body || {};
+  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión cambia las opciones' });
+  if (b.roleMode === 'random' || b.roleMode === 'off') st.settings.roleMode = b.roleMode;
+  if (typeof b.champs === 'boolean') st.settings.champs = b.champs;
+  if (b.rerolls != null) st.settings.rerolls = Math.max(0, Math.min(20, parseInt(b.rerolls, 10) || 0));
+  await fvSave(); res.json(await fvView(req.user.id));
+}));
+app.post('/api/5v5/reset', auth, wrap(async (req, res) => {
+  const st = await fvState();
+  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede vaciar la sala' });
+  const keep = st.settings; FV = fvFresh(); FV.settings = keep; FV.v = st.v;
+  await fvSave(); res.json(await fvView(req.user.id));
+}));
+// Sorteo: equipos de elo parecido + roles + (opcional) campeones.
+app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
+  const st = await fvState();
+  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sortear' });
+  const P = st.players;
+  if (P.length !== FV_SIZE) return res.status(400).json({ error: `Se necesitan ${FV_SIZE} jugadores (hay ${P.length})` });
+  // A quien no tiene elo conocido se le asigna la mediana del resto, para no desbalancear el reparto.
+  const known = P.map(p => p.abs).filter(v => v != null).sort((a, b) => a - b);
+  const med = known.length ? known[Math.floor(known.length / 2)] : 0;
+  const elo = P.map(p => p.abs != null ? p.abs : med);
+  // Las 126 formas de repartir 10 jugadores en 5 y 5; se sortea entre las más parejas.
+  const splits = [];
+  (function rec(start, pick){
+    if (pick.length === 5){ const B = [...Array(10).keys()].filter(i => !pick.includes(i));
+      const sa = pick.reduce((s, i) => s + elo[i], 0), sb = B.reduce((s, i) => s + elo[i], 0);
+      splits.push({ A: pick, B, sa, sb, diff: Math.abs(sa - sb) }); return; }
+    for (let i = start; i < 10; i++) rec(i + 1, pick.concat(i));
+  })(1, [0]);
+  splits.sort((a, b) => a.diff - b.diff);
+  const cand = splits.filter(s => s.diff <= splits[0].diff + 25);
+  const S = cand[fvRand(cand.length)];
+  const teamsIdx = fvRand(2) ? [S.A, S.B] : [S.B, S.A];
+  // Permutaciones de roles; "off" = nadie en su rol principal (si no se puede, las menos posibles).
+  const perms = []; (function pm(a, r){ if (!r.length){ perms.push(a); return; } r.forEach((x, i) => pm(a.concat(x), r.filter((_, j) => j !== i))); })([], FV_ROLES);
+  const rolesFor = team => {
+    if (st.settings.roleMode !== 'off') return fvShuffle(FV_ROLES);
+    const hits = pr => team.reduce((s, i, k) => s + (P[i].main && P[i].main === pr[k] ? 1 : 0), 0);
+    const best = Math.min(...perms.map(hits)), ok = perms.filter(pr => hits(pr) === best);
+    return ok[fvRand(ok.length)];
+  };
+  const pool = st.settings.champs ? await fvChampPool() : null;
+  const teams = teamsIdx.map(team => {
+    const pr = rolesFor(team), taken = new Set();
+    const players = team.map((i, k) => {
+      let champ = null;
+      if (pool){ const opts = (pool[pr[k]] || []).filter(c => !taken.has(c)); champ = opts.length ? opts[fvRand(opts.length)] : null; if (champ) taken.add(champ); }
+      return { id: P[i].id, role: pr[k], champ, used: champ ? [champ] : [], left: st.settings.rerolls };
+    }).sort((a, b) => FV_ROLES.indexOf(a.role) - FV_ROLES.indexOf(b.role));
+    const sum = team.reduce((s, i) => s + elo[i], 0);
+    return { avg: Math.round(sum / team.length), players };
+  });
+  st.draw = { at: Date.now(), diff: S.diff, roleMode: st.settings.roleMode, champs: !!pool, teams };
+  await fvSave(); res.json(await fvView(req.user.id));
+}));
+// Cambiar el campeón propio: sale otro del mismo rol que no haya salido antes ni tenga un compañero.
+app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
+  const st = await fvState(), id = String((req.body && req.body.id) || '');
+  if (!st.draw || !st.draw.champs) return res.status(400).json({ error: 'No hay campeones sorteados' });
+  const team = st.draw.teams.find(t => t.players.some(p => p.id === id)), slot = team && team.players.find(p => p.id === id);
+  const pl = st.players.find(p => p.id === id);
+  if (!slot || !pl) return res.status(400).json({ error: 'Jugador no encontrado en el sorteo' });
+  if (pl.uid !== req.user.id && !fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo puedes cambiar tu propio campeón' });
+  if (slot.left <= 0) return res.status(400).json({ error: 'No te quedan cambios' });
+  const mates = new Set(team.players.filter(p => p !== slot).map(p => p.champ).filter(Boolean));
+  const opts = ((await fvChampPool())[slot.role] || []).filter(c => !slot.used.includes(c) && !mates.has(c));
+  if (!opts.length) return res.status(400).json({ error: 'No quedan campeones disponibles para ese rol' });
+  slot.champ = opts[fvRand(opts.length)]; slot.used.push(slot.champ); slot.left--;
+  await fvSave(); res.json(await fvView(req.user.id));
 }));
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----

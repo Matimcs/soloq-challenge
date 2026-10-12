@@ -297,6 +297,13 @@ async function init(){
     );
     ALTER TABLE uleague_results ADD COLUMN IF NOT EXISTS loser_maps INT NOT NULL DEFAULT 0;
 
+    -- Estado de las herramientas (p.ej. la sala del organizador de 5v5): un JSON por herramienta.
+    CREATE TABLE IF NOT EXISTS tool_state (
+      id         TEXT PRIMARY KEY,
+      data       JSONB NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+
     -- Vista para TODAS las estadísticas (tops, ficha, récords, duelos, dúos…). Deja fuera:
     --   1) las partidas anuladas (terminadas por conducta disruptiva), y
     --   2) las partidas jugadas de SUPPORT por una cuenta del challenge cuyo rol principal no es
