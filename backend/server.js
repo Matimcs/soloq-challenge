@@ -2370,8 +2370,9 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
     return ok[fvRand(ok.length)];
   };
   const pool = st.settings.champs ? await fvChampPool() : null;
+  const taken = new Set();   // un campeón no puede repetirse en toda la partida (ni en el equipo rival)
   const teams = teamsIdx.map(team => {
-    const pr = rolesFor(team), taken = new Set();
+    const pr = rolesFor(team);
     const players = team.map((i, k) => {
       let champ = null;
       if (pool){ const opts = (pool[pr[k]] || []).filter(c => !taken.has(c)); champ = opts.length ? opts[fvRand(opts.length)] : null; if (champ) taken.add(champ); }
@@ -2383,7 +2384,8 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
   st.draw = { at: Date.now(), diff: S.diff, teamMode: anyTeams ? 'random' : 'elo', roleMode: st.settings.roleMode, champs: !!pool, teams };
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
-// Cambiar el campeón propio: sale otro del mismo rol que no haya salido antes ni tenga un compañero.
+// Cambiar el campeón propio: sale otro del mismo rol que no le haya salido antes ni tenga otro
+// jugador de la partida (de cualquiera de los dos equipos).
 app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
   const st = await fvRoom(req, res); if (!st) return;
   const id = String((req.body && req.body.id) || '');
@@ -2393,8 +2395,8 @@ app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
   if (!slot || !pl) return res.status(400).json({ error: 'Jugador no encontrado en el sorteo' });
   if (pl.uid !== req.user.id && !fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo puedes cambiar tu propio campeón' });
   if (slot.left <= 0) return res.status(400).json({ error: 'No te quedan cambios' });
-  const mates = new Set(team.players.filter(p => p !== slot).map(p => p.champ).filter(Boolean));
-  const opts = ((await fvChampPool())[slot.role] || []).filter(c => !slot.used.includes(c) && !mates.has(c));
+  const inGame = new Set(st.draw.teams.flatMap(t => t.players).filter(p => p !== slot).map(p => p.champ).filter(Boolean));
+  const opts = ((await fvChampPool())[slot.role] || []).filter(c => !slot.used.includes(c) && !inGame.has(c));
   if (!opts.length) return res.status(400).json({ error: 'No quedan campeones disponibles para ese rol' });
   slot.champ = opts[fvRand(opts.length)]; slot.used.push(slot.champ); slot.left--;
   await fvSave(st); res.json(await fvView(st, req.user.id));
