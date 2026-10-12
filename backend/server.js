@@ -2255,7 +2255,14 @@ async function fvView(st, uid){
   let me = null;
   if (uid){ const p = st.players.find(x => x.uid === uid);
     me = { uid, id: p ? p.id : null, host: fvIsHost(st, { id: uid, is_admin: await fvAdmin(uid) }) }; }
-  return { ...st, size: FV_SIZE, me };
+  // Selección oculta: los campeones del otro equipo NO se envían al navegador (no basta con no
+  // dibujarlos). Quien no está en ningún equipo —espectador, o un admin mirando— no ve ninguno.
+  let draw = st.draw;
+  if (draw && draw.champs && draw.hidden){
+    const myTeam = me && me.id ? draw.teams.findIndex(t => t.players.some(p => p.id === me.id)) : -1;
+    draw = { ...draw, teams: draw.teams.map((t, i) => i === myTeam ? t : { ...t, players: t.players.map(p => ({ ...p, champ: null, used: [], secret: true })) }) };
+  }
+  return { ...st, draw, size: FV_SIZE, me };
 }
 // Crear sala: el creador queda como anfitrión y dentro de ella. Si ya tiene una sala viva, se le devuelve esa.
 app.post('/api/5v5/create', auth, wrap(async (req, res) => {
@@ -2264,7 +2271,7 @@ app.post('/api/5v5/create', auth, wrap(async (req, res) => {
   if (!st){
     if (Object.keys(rooms).length >= FV_MAX_ROOMS) return res.status(400).json({ error: 'Hay demasiadas salas abiertas; intenta más tarde' });
     let code; do { code = fvCode(); } while (rooms[code]);
-    st = { code, v: 0, owner: req.user.id, host: req.user.id, createdAt: Date.now(), players: [], settings: { teamMode: 'elo', roleMode: 'random', champs: false, rerolls: 1 }, draw: null };
+    st = { code, v: 0, owner: req.user.id, host: req.user.id, createdAt: Date.now(), players: [], settings: { teamMode: 'elo', roleMode: 'random', champs: false, rerolls: 1, hidden: false }, draw: null };
     st.players.push(await fvPlayerForUser(req.user));
     rooms[code] = st;
   }
@@ -2316,6 +2323,7 @@ app.post('/api/5v5/settings', auth, wrap(async (req, res) => {
   if (b.teamMode === 'elo' || b.teamMode === 'random') st.settings.teamMode = b.teamMode;
   if (b.roleMode === 'random' || b.roleMode === 'off') st.settings.roleMode = b.roleMode;
   if (typeof b.champs === 'boolean') st.settings.champs = b.champs;
+  if (typeof b.hidden === 'boolean') st.settings.hidden = b.hidden;
   if (b.rerolls != null) st.settings.rerolls = Math.max(0, Math.min(20, parseInt(b.rerolls, 10) || 0));
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
@@ -2381,7 +2389,13 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
     const sum = team.reduce((s, i) => s + elo[i], 0);
     return { avg: Math.round(sum / team.length), players };
   });
-  st.draw = { at: Date.now(), diff: S.diff, teamMode: anyTeams ? 'random' : 'elo', roleMode: st.settings.roleMode, champs: !!pool, teams };
+  st.draw = { at: Date.now(), diff: S.diff, teamMode: anyTeams ? 'random' : 'elo', roleMode: st.settings.roleMode, champs: !!pool, hidden: !!pool && !!st.settings.hidden, teams };
+  await fvSave(st); res.json(await fvView(st, req.user.id));
+}));
+app.post('/api/5v5/reveal', auth, wrap(async (req, res) => {
+  const st = await fvRoom(req, res); if (!st) return;
+  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede revelar los campeones' });
+  if (st.draw) st.draw.hidden = false;
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // Cambiar el campeón propio: sale otro del mismo rol que no le haya salido antes ni tenga otro
@@ -2394,6 +2408,10 @@ app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
   const pl = st.players.find(p => p.id === id);
   if (!slot || !pl) return res.status(400).json({ error: 'Jugador no encontrado en el sorteo' });
   if (pl.uid !== req.user.id && !fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo puedes cambiar tu propio campeón' });
+  if (st.draw.hidden && pl.uid !== req.user.id){
+    const mine = st.players.find(p => p.uid === req.user.id);
+    if (!mine || !team.players.some(p => p.id === mine.id)) return res.status(403).json({ error: 'Con selección oculta solo puedes cambiar campeones de tu equipo' });
+  }
   if (slot.left <= 0) return res.status(400).json({ error: 'No te quedan cambios' });
   const inGame = new Set(st.draw.teams.flatMap(t => t.players).filter(p => p !== slot).map(p => p.champ).filter(Boolean));
   const opts = ((await fvChampPool())[slot.role] || []).filter(c => !slot.used.includes(c) && !inGame.has(c));

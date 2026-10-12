@@ -211,6 +211,9 @@
   .fv-invite label{ font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); }
   .fv-invite input{ flex:1; min-width:220px; font-family:inherit; font-size:13px; font-weight:600; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; }
   .fv-invite .exp{ flex-basis:100%; font-size:11.5px; color:var(--muted-2); }
+  .fv-hid{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; font-size:12.5px; font-weight:600; color:var(--muted); background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:9px 12px; margin-top:14px; }
+  .fv-hid + .fv-teams{ margin-top:10px; }
+  .fv-secret{ width:38px; height:38px; border-radius:9px; background:var(--panel-2); border:1px dashed var(--line-2); display:grid; place-items:center; font-size:16px; font-weight:800; color:var(--muted-2); }
   .fv-players{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; margin-bottom:14px; }
   .fv-p{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 11px; min-height:50px; }
   .fv-p.me{ border-color:var(--accent); } .fv-p.empty{ border-style:dashed; color:var(--muted-2); font-size:12px; font-weight:600; justify-content:center; }
@@ -597,6 +600,7 @@
           <label>Equipos<select id="fv-team"><option value="elo" ${s.teamMode !== 'random' ? 'selected' : ''}>Parejos en elo</option><option value="random" ${s.teamMode === 'random' ? 'selected' : ''}>Totalmente al azar</option></select></label>
           <label>Roles<select id="fv-role"><option value="random" ${s.roleMode === 'random' ? 'selected' : ''}>Al azar</option><option value="off" ${s.roleMode === 'off' ? 'selected' : ''}>Todos fuera de su rol</option></select></label>
           <label>Campeón<select id="fv-champs"><option value="0" ${!s.champs ? 'selected' : ''}>Cada uno elige</option><option value="1" ${s.champs ? 'selected' : ''}>Al azar según el rol</option></select></label>
+          <label>Selección<select id="fv-hidden" ${s.champs ? '' : 'disabled'}><option value="0" ${!s.hidden ? 'selected' : ''}>Visible para todos</option><option value="1" ${s.hidden ? 'selected' : ''}>Oculta (solo tu equipo)</option></select></label>
           <label>Cambios de campeón<input type="number" id="fv-rr" min="0" max="20" value="${s.rerolls}" ${s.champs ? '' : 'disabled'}></label>
           <button class="fv-btn pri" id="fv-draw" ${P.length === st.size ? '' : 'disabled'}>🎲 ${st.draw ? 'Sortear de nuevo' : 'Sortear equipos'}</button>
           <button class="fv-btn" id="fv-reset" ${P.length ? '' : 'disabled'}>Vaciar sala</button>
@@ -605,21 +609,22 @@
         <div class="fv-note">${P.length === st.size ? 'Sala completa: ya puedes sortear.' : `Faltan ${st.size - P.length} jugador${st.size - P.length === 1 ? '' : 'es'} para poder sortear.`} ${s.teamMode === 'random' ? 'Los equipos se reparten al azar, sin mirar el elo.' : 'Los equipos se arman con el elo de la cuenta más alta de cada jugador.'}</div>
       </div>`
       : `<div class="card"><h3>Opciones del sorteo</h3>
-          <div class="fv-note" style="margin-top:0">Equipos: <b>${s.teamMode === 'random' ? 'totalmente al azar' : 'parejos en elo'}</b> · Roles: <b>${s.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b>` : ''}<br>
+          <div class="fv-note" style="margin-top:0">Equipos: <b>${s.teamMode === 'random' ? 'totalmente al azar' : 'parejos en elo'}</b> · Roles: <b>${s.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b> · Selección: <b>${s.hidden ? 'oculta' : 'visible'}</b>` : ''}<br>
           ${hostP ? `El anfitrión es <b>${esc(hostP.nick)}</b>; solo esa persona o un admin puede sortear.` : 'Aún no hay anfitrión: el primero que se una lo será.'}</div></div>`;
     let drawHtml = '';
     if (st.draw){
       const d = st.draw;
-      drawHtml = `<div class="fv-teams">` + d.teams.map((t, ti) => `<div class="card fv-team">
+      const hid = d.champs && d.hidden ? `<div class="fv-hid"><span>🙈 Selección oculta: cada equipo ve solo sus propios campeones.</span>${host ? `<button class="fv-btn sm" id="fv-reveal">Revelar a todos</button>` : ''}</div>` : '';
+      drawHtml = hid + `<div class="fv-teams">` + d.teams.map((t, ti) => `<div class="card fv-team">
           <h3>Equipo ${ti + 1}<small>promedio ${esc(anAbsLabel(t.avg))}</small></h3>
           <div class="cap">${ti === 0 ? `${d.teamMode === 'random' ? 'Equipos totalmente al azar' : 'Equipos parejos en elo'} · diferencia total: ${d.diff} PL.` : `Roles: ${d.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}.`}</div>` +
           t.players.map(sl => { const p = byId[sl.id] || { nick:'(salió)', abs:null }; const mine = me && me.id === sl.id;
             const hint = !p.main ? '' : p.main === sl.role ? ' · en su rol' : ' · suele jugar ' + FV_ROLE[p.main];
-            const canRr = d.champs && sl.left > 0 && (mine || host);
+            const canRr = d.champs && !sl.secret && sl.left > 0 && (mine || host);
             return `<div class="fv-row ${d.champs ? '' : 'noch'} ${mine ? 'me' : ''}">
               <div class="role">${FV_ROLE[sl.role]}</div>
-              ${d.champs ? `<img src="${anChamp(sl.champ)}" alt="" onerror="this.style.visibility='hidden'">` : ''}
-              <div><div class="pn">${esc(p.nick)}${d.champs && sl.champ ? ` <span class="ch">· ${esc(fvChampName(sl.champ))}</span>` : ''}</div>
+              ${d.champs ? (sl.secret ? `<span class="fv-secret" title="Selección oculta">?</span>` : `<img src="${anChamp(sl.champ)}" alt="" onerror="this.style.visibility='hidden'">`) : ''}
+              <div><div class="pn">${esc(p.nick)}${d.champs && sl.secret ? ` <span class="ch">· oculto</span>` : d.champs && sl.champ ? ` <span class="ch">· ${esc(fvChampName(sl.champ))}</span>` : ''}</div>
                 <div class="ps">${esc(fvElo(p))}${hint}</div></div>
               <div>${d.champs ? (canRr ? `<button class="fv-btn sm" data-rr="${esc(sl.id)}">🎲 Cambiar (${sl.left})</button>` : `<span class="ps">${sl.left} cambio${sl.left === 1 ? '' : 's'}</span>`) : ''}</div>
             </div>`; }).join('') + `</div>`).join('') + `</div>`;
@@ -644,6 +649,8 @@
     on('fv-role', 'onchange', e => fvAct('settings', { roleMode: e.target.value }));
     on('fv-champs', 'onchange', e => fvAct('settings', { champs: e.target.value === '1' }));
     on('fv-rr', 'onchange', e => fvAct('settings', { rerolls: e.target.value }));
+    on('fv-hidden', 'onchange', e => fvAct('settings', { hidden: e.target.value === '1' }));
+    on('fv-reveal', 'onclick', () => { if (confirm('¿Revelar todos los campeones a ambos equipos?')) fvAct('reveal'); });
     on('fv-draw', 'onclick', () => fvAct('draw'));
     on('fv-reset', 'onclick', () => { if (confirm('¿Sacar a todos y borrar el sorteo? El enlace de la sala sigue sirviendo.')) fvAct('reset'); });
     on('fv-close', 'onclick', () => { if (confirm('¿Cerrar la sala? El enlace dejará de funcionar.')) fvAct('close'); });
