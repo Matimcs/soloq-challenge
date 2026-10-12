@@ -13,6 +13,11 @@ const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?for
 const OUT = path.join(__dirname, '..', '..', 'uleague-data.json');
 const PUUID_CACHE = path.join(__dirname, 'puuid-cache.json');
 const RESULTS_FILE = path.join(__dirname, 'results.json');
+// Riot IDs tal como vienen en el Sheet, corregidos antes de buscar el rango:
+//  1) se quitan caracteres invisibles que se cuelan al copiar y pegar (marcas de dirección, ancho cero);
+//  2) results.json -> "riotIds" permite reemplazar a mano lo que el Sheet trae mal (p.ej. sin #tag).
+const RID_FIX = (() => { try { const m = JSON.parse(fs.readFileSync(RESULTS_FILE, 'utf8')).riotIds || {}; const o = {}; for (const k in m) o[k.trim().toLowerCase()] = m[k]; return o; } catch { return {}; } })();
+function fixRid(cell){ const c = String(cell || '').replace(/[​-‏‪-‮⁦-⁩﻿]/g, '').trim(); return RID_FIX[c.toLowerCase()] || c; }
 
 // uLeague es INDEPENDIENTE del ranking principal del sitio: sus rangos los baja esta
 // herramienta y quedan en uleague-data.json. NO toca el tracker principal (players.json).
@@ -79,7 +84,7 @@ function grid(ws){ return XLSX.utils.sheet_to_json(ws,{header:1,defval:'',blankr
     for (const col of COLS){
       const cell=(row[col]||'').trim(); if(!cell) continue;
       if (teamSet.has(canon(cell))){ const disp=cell.replace(/^UTALCA\b/i,'UTAL'); const t={ name:disp, canon:canon(cell), ours:OURS.has(disp), players:[] }; curByCol[col]=t; teams.push(t); }
-      else if (curByCol[col]) curByCol[col].players.push(cell);
+      else if (curByCol[col]) curByCol[col].players.push(fixRid(cell));
     }
   }
 

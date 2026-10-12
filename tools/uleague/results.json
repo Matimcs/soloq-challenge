@@ -1,5 +1,8 @@
 {
   "_comment": "Datos manuales del torneo uLeague (los traen por Discord; el Sheet no los carga). sync.js los fusiona al generar uleague-data.json. 'swiss' = ganador de cada match (se ubica por ronda + par de equipos, sin importar el orden). 'pairings' = emparejamientos por ronda/record cuando el Sheet no los trae. Usa los codigos canonicos del fixture (ej. 'UCT A', 'DUOC').",
+  "riotIds": {
+    "_almohada": "Almohada#LOFI"
+  },
   "swiss": [
     { "round": 1, "winner": "UNAB B", "loser": "PUCV" },
     { "round": 1, "winner": "USACH", "loser": "UCSH" },

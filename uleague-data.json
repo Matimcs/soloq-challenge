@@ -1874,9 +1874,16 @@
      "rank": null
     },
     {
-     "rid": "⁦el sin rodillas⁩#⁦5573⁩",
-     "nm": "⁦el sin rodillas⁩",
-     "rank": null
+     "rid": "el sin rodillas#5573",
+     "nm": "el sin rodillas",
+     "rank": {
+      "tier": "BRONZE",
+      "div": "I",
+      "lp": 3,
+      "w": 22,
+      "l": 20,
+      "abs": 703
+     }
     },
     {
      "rid": "Ogg#aaa",
@@ -1970,9 +1977,16 @@
      }
     },
     {
-     "rid": "⁦shelao⁩#⁦SSS⁩",
-     "nm": "⁦shelao⁩",
-     "rank": null
+     "rid": "shelao#SSS",
+     "nm": "shelao",
+     "rank": {
+      "tier": "EMERALD",
+      "div": "I",
+      "lp": 61,
+      "w": 109,
+      "l": 98,
+      "abs": 2361
+     }
     }
    ]
   },
@@ -2631,9 +2645,16 @@
      }
     },
     {
-     "rid": "Jøseabaran⁩#⁦LAS⁩",
-     "nm": "Jøseabaran⁩",
-     "rank": null
+     "rid": "Jøseabaran#LAS",
+     "nm": "Jøseabaran",
+     "rank": {
+      "tier": "MASTER",
+      "div": "",
+      "lp": 306,
+      "w": 117,
+      "l": 107,
+      "abs": 3106
+     }
     },
     {
      "rid": "despair#enso",
@@ -2830,9 +2851,16 @@
      }
     },
     {
-     "rid": "_almohada",
-     "nm": "_almohada",
-     "rank": null
+     "rid": "Almohada#LOFI",
+     "nm": "Almohada",
+     "rank": {
+      "tier": "CHALLENGER",
+      "div": "",
+      "lp": 1379,
+      "w": 228,
+      "l": 174,
+      "abs": 4179
+     }
     },
     {
      "rid": "Shirou Ogami#1111",
