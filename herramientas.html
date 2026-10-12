@@ -207,6 +207,10 @@
   .fv-btn:hover:not(:disabled){ border-color:rgba(255,255,255,.3); } .fv-btn:disabled{ opacity:.45; cursor:default; }
   .fv-btn.pri{ background:var(--accent); color:#0b0b0b; border-color:var(--accent); }
   .fv-btn.sm{ font-size:11.5px; padding:5px 9px; border-radius:8px; }
+  .fv-invite{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
+  .fv-invite label{ font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); }
+  .fv-invite input{ flex:1; min-width:220px; font-family:inherit; font-size:13px; font-weight:600; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; }
+  .fv-invite .exp{ flex-basis:100%; font-size:11.5px; color:var(--muted-2); }
   .fv-players{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; margin-bottom:14px; }
   .fv-p{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 11px; min-height:50px; }
   .fv-p.me{ border-color:var(--accent); } .fv-p.empty{ border-style:dashed; color:var(--muted-2); font-size:12px; font-weight:600; justify-content:center; }
@@ -514,14 +518,38 @@
 
 
   // ================= ORGANIZADOR DE 5v5 =================
-  const FVC = { st:null, sig:'', cands:null, err:'' };
+  // La sala se identifica por un código en la URL (?sala=ABC123): ese es el enlace para invitar.
+  const FVC = { st:null, sig:'', cands:null, err:'', room:(new URLSearchParams(location.search).get('sala') || '').trim().toUpperCase(), gone:false };
+  const fvUrl = code => location.origin + location.pathname + '?sala=' + encodeURIComponent(code) + '#fv';
+  function fvSetRoom(code){
+    FVC.room = code || ''; FVC.st = null; FVC.sig = ''; FVC.gone = false;
+    if (history.replaceState) history.replaceState(null, '', location.pathname + (code ? '?sala=' + encodeURIComponent(code) : '') + '#fv');
+  }
+  // Sin sala (o con una que ya no existe): pantalla para crear una.
+  function fvLanding(){
+    const msg = FVC.gone ? `<div class="fv-err">Esa sala no existe o ya expiró.</div>` : (FVC.err ? `<div class="fv-err">${esc(FVC.err)}</div>` : '');
+    $('p-fv').innerHTML = `<div class="card" style="max-width:560px">
+        <h3>Organiza un 5v5</h3>
+        <div class="fv-note" style="margin-top:4px">Crea una sala y comparte el enlace con los demás. Cuando estén los 10, el anfitrión sortea equipos parejos en elo, con roles y campeones al azar si quieren. La sala se cierra sola tras 3 horas sin actividad.</div>
+        ${msg}
+        <div style="margin-top:14px">${fvLogged() ? `<button class="fv-btn pri" id="fv-create">Crear sala</button>` : `<a class="fv-btn" href="cuenta.html">Inicia sesión para crear una sala</a>`}</div>
+      </div>`;
+    const b = $('fv-create'); if (b) b.onclick = async () => { b.disabled = true; FVC.err = '';
+      try { const st = await SQC.api('/5v5/create', { method:'POST', body:{} }); fvSetRoom(st.code); fvApply(st, true); }
+      catch (e) { FVC.err = e.message || 'No se pudo crear la sala'; fvLanding(); } };
+  }
   const FV_ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support' };
   const fvLogged = () => !!(window.SQC && SQC.token && SQC.token());
   const fvElo = p => p.abs == null ? 'Sin rango en el ranking' : anRank(p);
   // nombre legible de un campeón a partir de su id de Data Dragon (TahmKench -> Tahm Kench)
   const fvChampName = c => ({ MonkeyKing:'Wukong', FiddleSticks:'Fiddlesticks', Renata:'Renata Glasc', Nunu:'Nunu y Willump', KSante:"K'Sante", Belveth:"Bel'Veth", Kaisa:"Kai'Sa", Khazix:"Kha'Zix", Chogath:"Cho'Gath", Velkoz:"Vel'Koz", RekSai:"Rek'Sai", KogMaw:"Kog'Maw", Leblanc:'LeBlanc', JarvanIV:'Jarvan IV', DrMundo:'Dr. Mundo' })[c] || String(c || '').replace(/([a-z])([A-Z])/g, '$1 $2');
   async function fvLoad(force){
-    try { const st = await SQC.api('/5v5'); fvApply(st, force); } catch (e) { if (!FVC.st) $('p-fv').innerHTML = `<div class="loading">No se pudo cargar la sala.</div>`; }
+    if (!FVC.room){ if (force) fvLanding(); return; }
+    try { const st = await SQC.api('/5v5?room=' + encodeURIComponent(FVC.room)); fvApply(st, force); }
+    catch (e) {
+      if (/no existe|expir/i.test(e.message || '')){ fvSetRoom(''); FVC.gone = true; fvLanding(); }
+      else if (!FVC.st) $('p-fv').innerHTML = `<div class="loading">No se pudo cargar la sala.</div>`;
+    }
   }
   function fvApply(st, force){
     const sig = st.v + '|' + (st.me ? st.me.uid + ':' + st.me.id + ':' + st.me.host : '-') + '|' + (fvLogged() ? 1 : 0);
@@ -530,8 +558,15 @@
   }
   async function fvAct(path, body){
     FVC.err = '';
-    try { fvApply(await SQC.api('/5v5/' + path, { method:'POST', body: body || {} }), true); }
-    catch (e) { FVC.err = e.message || 'No se pudo completar la acción'; fvRender(); }
+    try {
+      const r = await SQC.api('/5v5/' + path, { method:'POST', body: { ...(body || {}), room: FVC.room } });
+      if (r && r.closed){ fvSetRoom(''); fvLanding(); return; }
+      fvApply(r, true);
+    }
+    catch (e) {
+      if (/no existe|expir/i.test(e.message || '')){ fvSetRoom(''); FVC.gone = true; fvLanding(); return; }
+      FVC.err = e.message || 'No se pudo completar la acción'; fvRender();
+    }
   }
   async function fvCands(){
     if (FVC.cands) return;
@@ -564,6 +599,7 @@
           <label>Cambios de campeón<input type="number" id="fv-rr" min="0" max="20" value="${s.rerolls}" ${s.champs ? '' : 'disabled'}></label>
           <button class="fv-btn pri" id="fv-draw" ${P.length === st.size ? '' : 'disabled'}>🎲 ${st.draw ? 'Sortear de nuevo' : 'Sortear equipos'}</button>
           <button class="fv-btn" id="fv-reset" ${P.length ? '' : 'disabled'}>Vaciar sala</button>
+          <button class="fv-btn" id="fv-close">Cerrar sala</button>
         </div>
         <div class="fv-note">${P.length === st.size ? 'Sala completa: ya puedes sortear.' : `Faltan ${st.size - P.length} jugador${st.size - P.length === 1 ? '' : 'es'} para poder sortear.`} Los equipos se arman con el elo de la cuenta más alta de cada jugador.</div>
       </div>`
@@ -587,8 +623,15 @@
               <div>${d.champs ? (canRr ? `<button class="fv-btn sm" data-rr="${esc(sl.id)}">🎲 Cambiar (${sl.left})</button>` : `<span class="ps">${sl.left} cambio${sl.left === 1 ? '' : 's'}</span>`) : ''}</div>
             </div>`; }).join('') + `</div>`).join('') + `</div>`;
     }
+    const exp = st.expiresAt ? new Date(st.expiresAt).toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' }) : '';
     box.innerHTML = `
       <div class="fv-head"><div><h2 style="display:inline">Sala 5v5</h2><span class="cnt">${P.length}/${st.size} jugadores</span></div><div>${action}</div></div>
+      <div class="fv-invite">
+        <label for="fv-link">Enlace para invitar</label>
+        <input id="fv-link" type="text" readonly value="${esc(fvUrl(st.code))}">
+        <button class="fv-btn" id="fv-copy">Copiar enlace</button>
+        <span class="exp">${exp ? `Se cierra sola a las ${exp} si nadie hace nada antes.` : ''}</span>
+      </div>
       <div class="fv-err">${esc(FVC.err)}</div>
       <div class="fv-players">${slots}</div>
       ${hostCard}${drawHtml}`;
@@ -600,7 +643,12 @@
     on('fv-champs', 'onchange', e => fvAct('settings', { champs: e.target.value === '1' }));
     on('fv-rr', 'onchange', e => fvAct('settings', { rerolls: e.target.value }));
     on('fv-draw', 'onclick', () => fvAct('draw'));
-    on('fv-reset', 'onclick', () => { if (confirm('¿Vaciar la sala y borrar el sorteo?')) fvAct('reset'); });
+    on('fv-reset', 'onclick', () => { if (confirm('¿Sacar a todos y borrar el sorteo? El enlace de la sala sigue sirviendo.')) fvAct('reset'); });
+    on('fv-close', 'onclick', () => { if (confirm('¿Cerrar la sala? El enlace dejará de funcionar.')) fvAct('close'); });
+    on('fv-link', 'onfocus', e => e.target.select());
+    on('fv-copy', 'onclick', async e => { const url = fvUrl(st.code), b = e.target;
+      try { await navigator.clipboard.writeText(url); } catch (err) { const i = $('fv-link'); i.focus(); i.select(); try { document.execCommand('copy'); } catch (e2) {} }
+      b.textContent = '¡Copiado!'; setTimeout(() => { b.textContent = 'Copiar enlace'; }, 1600); });
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => fvAct('leave', { id: b.dataset.kick }));
     box.querySelectorAll('[data-rr]').forEach(b => b.onclick = () => fvAct('reroll', { id: b.dataset.rr }));
   }

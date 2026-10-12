@@ -2181,25 +2181,40 @@ app.get('/api/analysis/detail', wrap(async (req, res) => {
 }));
 
 // ================= HERRAMIENTAS · ORGANIZADOR DE 5v5 =================
-// Una sala compartida: los jugadores se unen, el anfitrión (el primero en entrar, o un admin) sortea
-// dos equipos de elo parecido, con roles al azar o todos fuera de su rol, y opcionalmente un campeón
-// al azar jugable en ese rol. Cada jugador puede cambiar su campeón un número limitado de veces.
+// Salas: quien crea una recibe un enlace para invitar; los jugadores se unen y el anfitrión (el
+// creador, o un admin) sortea dos equipos de elo parecido, con roles al azar o todos fuera de su rol,
+// y opcionalmente un campeón al azar jugable en ese rol. Cada jugador puede cambiar su campeón un
+// número limitado de veces. Las salas EXPIRAN tras 3 h sin actividad.
 // El estado vive en memoria (una sola instancia) y se respalda en la DB para sobrevivir reinicios.
 const FV_ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
 const FV_SIZE = 10;
+const FV_TTL = 3 * 3600 * 1000;      // una sala vive 3 h desde su última actividad
+const FV_MAX_ROOMS = 40;
 const fvRand = n => crypto.randomInt(n);
 const fvShuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = fvRand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-const fvFresh = () => ({ v: 1, host: null, players: [], settings: { roleMode: 'random', champs: false, rerolls: 1 }, draw: null });
-let FV = null;
-async function fvState(){
-  if (FV) return FV;
-  try { const r = await q1("SELECT data FROM tool_state WHERE id='5v5'"); FV = (r && r.data && Array.isArray(r.data.players)) ? r.data : fvFresh(); }
-  catch { FV = fvFresh(); }
-  return FV;
+const fvCode = () => { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 6; i++) s += A[fvRand(A.length)]; return s; };   // sin 0/O/1/I
+let FV_ROOMS = null;   // code -> sala
+async function fvRooms(){
+  if (!FV_ROOMS){
+    FV_ROOMS = {};
+    try { for (const r of await q("SELECT data FROM tool_state WHERE id LIKE '5v5:%'")) if (r.data && r.data.code) FV_ROOMS[r.data.code] = r.data; } catch {}
+  }
+  // limpia las expiradas (memoria y DB)
+  const now = Date.now();
+  for (const c of Object.keys(FV_ROOMS)) if ((FV_ROOMS[c].expiresAt || 0) <= now){ delete FV_ROOMS[c]; q("DELETE FROM tool_state WHERE id=$1", ['5v5:' + c]).catch(() => {}); }
+  return FV_ROOMS;
 }
-async function fvSave(){
-  FV.v = (FV.v || 0) + 1;
-  try { await q("INSERT INTO tool_state (id, data, updated_at) VALUES ('5v5', $1::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(FV)]); } catch {}
+// Guarda la sala y RENUEVA su vencimiento (cada acción cuenta como actividad).
+async function fvSave(st){
+  st.v = (st.v || 0) + 1; st.expiresAt = Date.now() + FV_TTL;
+  try { await q("INSERT INTO tool_state (id, data, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()", ['5v5:' + st.code, JSON.stringify(st)]); } catch {}
+}
+// Sala pedida en la solicitud (?room= o body.room). Responde 404 si no existe o ya expiró.
+async function fvRoom(req, res){
+  const code = String((req.query && req.query.room) || (req.body && req.body.room) || '').trim().toUpperCase();
+  const st = code ? (await fvRooms())[code] : null;
+  if (!st){ res.status(404).json({ error: 'La sala no existe o ya expiró' }); return null; }
+  return st;
 }
 // Campeones jugables por rol, sacados de las partidas guardadas: cuenta todo campeón con al menos 25
 // partidas en esa posición (así entran picks poco comunes pero jugables, como Tahm Kench top). Cache 6 h.
@@ -2236,34 +2251,54 @@ async function fvAdmin(uid){
   let v = false; try { const u = await q1('SELECT is_admin FROM users WHERE id=$1', [uid]); v = !!(u && u.is_admin); } catch {}
   FV_ADMIN[uid] = { at: Date.now(), v }; return v;
 }
-async function fvView(uid){
-  const st = await fvState(); let me = null;
+async function fvView(st, uid){
+  let me = null;
   if (uid){ const p = st.players.find(x => x.uid === uid);
     me = { uid, id: p ? p.id : null, host: fvIsHost(st, { id: uid, is_admin: await fvAdmin(uid) }) }; }
   return { ...st, size: FV_SIZE, me };
 }
-app.get('/api/5v5', wrap(async (req, res) => { res.set('Cache-Control', 'no-store'); res.json(await fvView(await optionalUid(req))); }));
+// Crear sala: el creador queda como anfitrión y dentro de ella. Si ya tiene una sala viva, se le devuelve esa.
+app.post('/api/5v5/create', auth, wrap(async (req, res) => {
+  const rooms = await fvRooms();
+  let st = Object.values(rooms).find(r => r.owner === req.user.id);
+  if (!st){
+    if (Object.keys(rooms).length >= FV_MAX_ROOMS) return res.status(400).json({ error: 'Hay demasiadas salas abiertas; intenta más tarde' });
+    let code; do { code = fvCode(); } while (rooms[code]);
+    st = { code, v: 0, owner: req.user.id, host: req.user.id, createdAt: Date.now(), players: [], settings: { roleMode: 'random', champs: false, rerolls: 1 }, draw: null };
+    st.players.push(await fvPlayerForUser(req.user));
+    rooms[code] = st;
+  }
+  await fvSave(st); res.json(await fvView(st, req.user.id));
+}));
+app.get('/api/5v5', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const st = await fvRoom(req, res); if (!st) return;
+  res.json(await fvView(st, await optionalUid(req)));
+}));
 app.post('/api/5v5/join', auth, wrap(async (req, res) => {
-  const st = await fvState(), p = await fvPlayerForUser(req.user);
+  const st = await fvRoom(req, res); if (!st) return;
+  const p = await fvPlayerForUser(req.user);
   const ex = st.players.find(x => x.id === p.id || x.uid === req.user.id);
   if (ex){ ex.uid = req.user.id; }
   else { if (st.players.length >= FV_SIZE) return res.status(400).json({ error: 'La sala está llena' }); st.players.push(p); }
-  if (st.host == null || !st.players.some(x => x.uid === st.host)) st.host = req.user.id;
-  await fvSave(); res.json(await fvView(req.user.id));
+  // el anfitrión pasa a quien entra solo si no hay ninguno presente (y no es el creador de la sala)
+  if (st.host == null || (st.host !== st.owner && !st.players.some(x => x.uid === st.host))) st.host = req.user.id;
+  await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // Sacar a un jugador (uno mismo, o cualquiera si eres anfitrión). Al cambiar la sala se anula el sorteo.
 app.post('/api/5v5/leave', auth, wrap(async (req, res) => {
-  const st = await fvState(), id = String((req.body && req.body.id) || '');
+  const st = await fvRoom(req, res); if (!st) return;
+  const id = String((req.body && req.body.id) || '');
   const target = id ? st.players.find(x => x.id === id) : st.players.find(x => x.uid === req.user.id);
-  if (!target) return res.json(await fvView(req.user.id));
+  if (!target) return res.json(await fvView(st, req.user.id));
   if (target.uid !== req.user.id && !fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sacar a otros' });
   st.players = st.players.filter(x => x !== target); st.draw = null;
   if (st.host === target.uid){ const nx = st.players.find(x => x.uid); st.host = nx ? nx.uid : null; }
-  await fvSave(); res.json(await fvView(req.user.id));
+  await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // El anfitrión agrega a mano a alguien del ranking (para quienes no han iniciado sesión).
 app.post('/api/5v5/add', auth, wrap(async (req, res) => {
-  const st = await fvState();
+  const st = await fvRoom(req, res); if (!st) return;
   if (!fvIsHost(st, req.user) && st.host != null) return res.status(403).json({ error: 'Solo el anfitrión puede agregar jugadores' });
   if (st.players.length >= FV_SIZE) return res.status(400).json({ error: 'La sala está llena' });
   const key = String((req.body && req.body.key) || '');
@@ -2272,25 +2307,35 @@ app.post('/api/5v5/add', auth, wrap(async (req, res) => {
   if (st.players.some(x => x.id === e.key)) return res.status(400).json({ error: 'Ese jugador ya está en la sala' });
   st.players.push(await fvFromEntity(e, null)); st.draw = null;
   if (st.host == null) st.host = req.user.id;
-  await fvSave(); res.json(await fvView(req.user.id));
+  await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 app.post('/api/5v5/settings', auth, wrap(async (req, res) => {
-  const st = await fvState(), b = req.body || {};
+  const st = await fvRoom(req, res); if (!st) return;
+  const b = req.body || {};
   if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión cambia las opciones' });
   if (b.roleMode === 'random' || b.roleMode === 'off') st.settings.roleMode = b.roleMode;
   if (typeof b.champs === 'boolean') st.settings.champs = b.champs;
   if (b.rerolls != null) st.settings.rerolls = Math.max(0, Math.min(20, parseInt(b.rerolls, 10) || 0));
-  await fvSave(); res.json(await fvView(req.user.id));
+  await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
+// Vaciar: saca a todos y borra el sorteo, pero la sala (y su enlace) sigue viva.
 app.post('/api/5v5/reset', auth, wrap(async (req, res) => {
-  const st = await fvState();
+  const st = await fvRoom(req, res); if (!st) return;
   if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede vaciar la sala' });
-  const keep = st.settings; FV = fvFresh(); FV.settings = keep; FV.v = st.v;
-  await fvSave(); res.json(await fvView(req.user.id));
+  st.players = []; st.draw = null; st.host = st.owner;
+  await fvSave(st); res.json(await fvView(st, req.user.id));
+}));
+// Cerrar: elimina la sala; el enlace deja de funcionar.
+app.post('/api/5v5/close', auth, wrap(async (req, res) => {
+  const st = await fvRoom(req, res); if (!st) return;
+  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede cerrar la sala' });
+  delete (await fvRooms())[st.code];
+  try { await q("DELETE FROM tool_state WHERE id=$1", ['5v5:' + st.code]); } catch {}
+  res.json({ ok: true, closed: true });
 }));
 // Sorteo: equipos de elo parecido + roles + (opcional) campeones.
 app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
-  const st = await fvState();
+  const st = await fvRoom(req, res); if (!st) return;
   if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sortear' });
   const P = st.players;
   if (P.length !== FV_SIZE) return res.status(400).json({ error: `Se necesitan ${FV_SIZE} jugadores (hay ${P.length})` });
@@ -2330,11 +2375,12 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
     return { avg: Math.round(sum / team.length), players };
   });
   st.draw = { at: Date.now(), diff: S.diff, roleMode: st.settings.roleMode, champs: !!pool, teams };
-  await fvSave(); res.json(await fvView(req.user.id));
+  await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // Cambiar el campeón propio: sale otro del mismo rol que no haya salido antes ni tenga un compañero.
 app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
-  const st = await fvState(), id = String((req.body && req.body.id) || '');
+  const st = await fvRoom(req, res); if (!st) return;
+  const id = String((req.body && req.body.id) || '');
   if (!st.draw || !st.draw.champs) return res.status(400).json({ error: 'No hay campeones sorteados' });
   const team = st.draw.teams.find(t => t.players.some(p => p.id === id)), slot = team && team.players.find(p => p.id === id);
   const pl = st.players.find(p => p.id === id);
@@ -2345,7 +2391,7 @@ app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
   const opts = ((await fvChampPool())[slot.role] || []).filter(c => !slot.used.includes(c) && !mates.has(c));
   if (!opts.length) return res.status(400).json({ error: 'No quedan campeones disponibles para ese rol' });
   slot.champ = opts[fvRand(opts.length)]; slot.used.push(slot.champ); slot.left--;
-  await fvSave(); res.json(await fvView(req.user.id));
+  await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
