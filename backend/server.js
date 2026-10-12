@@ -2218,6 +2218,7 @@ async function fvRoom(req, res){
 }
 // Campeones jugables por rol, sacados de las partidas guardadas: cuenta todo campeón con al menos 25
 // partidas en esa posición (así entran picks poco comunes pero jugables, como Tahm Kench top). Cache 6 h.
+const FV_EXTRA = { TOP: ['Janna'] };   // id de Data Dragon del campeón, por rol
 let FV_POOL = { at: 0, data: null };
 async function fvChampPool(){
   if (FV_POOL.data && Date.now() - FV_POOL.at < 6 * 3600 * 1000) return FV_POOL.data;
@@ -2225,6 +2226,8 @@ async function fvChampPool(){
   for (const r of await q(`SELECT upper(position) pos, champion, count(*)::int n FROM match_participants
       WHERE coalesce(position,'')<>'' AND coalesce(champion,'')<>'' AND coalesce(duration,0) >= 300 GROUP BY 1,2 HAVING count(*) >= 25`))
     if (pool[r.pos]) pool[r.pos].push(r.champion);
+  // picks agregados a mano: jugables en ese rol aunque casi nadie los juegue en las partidas guardadas
+  for (const role in FV_EXTRA) FV_EXTRA[role].forEach(c => { if (pool[role] && !pool[role].includes(c)) pool[role].push(c); });
   FV_POOL = { at: Date.now(), data: pool };
   return pool;
 }
