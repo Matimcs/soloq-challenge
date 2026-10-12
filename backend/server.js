@@ -2265,7 +2265,7 @@ async function fvView(st, uid){
     const myTeam = me && me.id ? draw.teams.findIndex(t => t.players.some(p => p.id === me.id)) : -1;
     draw = { ...draw, teams: draw.teams.map((t, i) => i === myTeam ? t : { ...t, players: t.players.map(p => ({ ...p, champ: null, used: [], secret: true })) }) };
   }
-  return { ...st, draw, size: FV_SIZE, me };
+  return { ...st, draw, size: FV_SIZE, remakeVotes: FV_REMAKE_VOTES, me };
 }
 // Crear sala: el creador queda como anfitrión y dentro de ella. Si ya tiene una sala viva, se le devuelve esa.
 app.post('/api/5v5/create', auth, wrap(async (req, res) => {
@@ -2346,11 +2346,10 @@ app.post('/api/5v5/close', auth, wrap(async (req, res) => {
   res.json({ ok: true, closed: true });
 }));
 // Sorteo: equipos de elo parecido + roles + (opcional) campeones.
-app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
-  const st = await fvRoom(req, res); if (!st) return;
-  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sortear' });
+// Devuelve un mensaje de error, o null si sorteó (deja el resultado en st.draw).
+async function fvDoDraw(st){
   const P = st.players;
-  if (P.length !== FV_SIZE) return res.status(400).json({ error: `Se necesitan ${FV_SIZE} jugadores (hay ${P.length})` });
+  if (P.length !== FV_SIZE) return `Se necesitan ${FV_SIZE} jugadores (hay ${P.length})`;
   // A quien no tiene elo conocido se le asigna la mediana del resto, para no desbalancear el reparto.
   const known = P.map(p => p.abs).filter(v => v != null).sort((a, b) => a - b);
   const med = known.length ? known[Math.floor(known.length / 2)] : 0;
@@ -2392,8 +2391,28 @@ app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
     const sum = team.reduce((s, i) => s + elo[i], 0);
     return { avg: Math.round(sum / team.length), players };
   });
-  st.draw = { at: Date.now(), diff: S.diff, teamMode: anyTeams ? 'random' : 'elo', roleMode: st.settings.roleMode, champs: !!pool, hidden: !!pool && !!st.settings.hidden, teams };
+  st.draw = { at: Date.now(), diff: S.diff, teamMode: anyTeams ? 'random' : 'elo', roleMode: st.settings.roleMode, champs: !!pool, hidden: !!pool && !!st.settings.hidden, teams, votes: [] };
+  return null;
+}
+app.post('/api/5v5/draw', auth, wrap(async (req, res) => {
+  const st = await fvRoom(req, res); if (!st) return;
+  if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sortear' });
+  const err = await fvDoDraw(st); if (err) return res.status(400).json({ error: err });
   await fvSave(st); res.json(await fvView(st, req.user.id));
+}));
+// Votación de remake: cada jugador de la sala puede votar (o quitar su voto). Con MÁS de 5 votos
+// —o sea, 6 de los 10— el sorteo se rehace solo con las mismas opciones, y los votos vuelven a cero.
+const FV_REMAKE_VOTES = 6;
+app.post('/api/5v5/remake', auth, wrap(async (req, res) => {
+  const st = await fvRoom(req, res); if (!st) return;
+  if (!st.draw) return res.status(400).json({ error: 'Aún no hay sorteo' });
+  const me = st.players.find(p => p.uid === req.user.id);
+  if (!me) return res.status(403).json({ error: 'Solo los jugadores de la sala pueden votar' });
+  const votes = Array.isArray(st.draw.votes) ? st.draw.votes : (st.draw.votes = []);
+  const i = votes.indexOf(me.id); if (i >= 0) votes.splice(i, 1); else votes.push(me.id);
+  let remade = false;
+  if (votes.length >= FV_REMAKE_VOTES){ const err = await fvDoDraw(st); if (err) return res.status(400).json({ error: err }); remade = true; }
+  await fvSave(st); res.json({ ...(await fvView(st, req.user.id)), remade });
 }));
 app.post('/api/5v5/reveal', auth, wrap(async (req, res) => {
   const st = await fvRoom(req, res); if (!st) return;
