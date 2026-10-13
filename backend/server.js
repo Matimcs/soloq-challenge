@@ -2236,7 +2236,8 @@ async function fvFromEntity(e, uid){
   const by = await analysisRows(), valid = anGamesOf(by, e.puuids).filter(g => !g.voided && g.pos);
   const cnt = {}; valid.forEach(g => { cnt[g.pos] = (cnt[g.pos] || 0) + 1; });
   const main = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || null;
-  return { id: e.key, uid: uid || null, nick: e.nm, rid: e.rid, tier: e.tier, div: e.div, lp: e.lp, abs: e.abs, main };
+  const roles = {}; Object.keys(cnt).forEach(r => { roles[r] = Math.round(cnt[r] / valid.length * 100) / 100; });
+  return { id: e.key, uid: uid || null, nick: e.nm, rid: e.rid, tier: e.tier, div: e.div, lp: e.lp, abs: e.abs, main, roles };
 }
 async function fvPlayerForUser(u){
   const rids = new Set([normRid(u.riotid)]);
@@ -2324,7 +2325,7 @@ app.post('/api/5v5/settings', auth, wrap(async (req, res) => {
   const b = req.body || {};
   if (!fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión cambia las opciones' });
   if (b.teamMode === 'elo' || b.teamMode === 'random') st.settings.teamMode = b.teamMode;
-  if (b.roleMode === 'random' || b.roleMode === 'off') st.settings.roleMode = b.roleMode;
+  if (b.roleMode === 'random' || b.roleMode === 'off' || b.roleMode === 'main') st.settings.roleMode = b.roleMode;
   if (typeof b.champs === 'boolean') st.settings.champs = b.champs;
   if (typeof b.hidden === 'boolean') st.settings.hidden = b.hidden;
   if (b.rerolls != null) st.settings.rerolls = Math.max(0, Math.min(20, parseInt(b.rerolls, 10) || 0));
@@ -2368,12 +2369,26 @@ async function fvDoDraw(st){
   // Parejos: entre los repartos a no más de 100 PL totales (20 por jugador) del mejor posible, y nunca
   // menos de 8 opciones, para que el sorteo no dé siempre los mismos equipos.
   let balanced = splits.filter(s => s.diff <= splits[0].diff + 100); if (balanced.length < 8) balanced = splits.slice(0, 8);
+  // Las 120 formas de repartir los 5 roles en un equipo, y qué tan bien calza cada jugador con su rol.
+  const perms = []; (function pm(a, r){ if (!r.length){ perms.push(a); return; } r.forEach((x, i) => pm(a.concat(x), r.filter((_, j) => j !== i))); })([], FV_ROLES);
+  const fit = (team, pr) => team.reduce((sc, i, k) => sc + (P[i].roles ? (P[i].roles[pr[k]] || 0) : (P[i].main === pr[k] ? 1 : 0)), 0);
+  const bestFit = team => Math.max(...perms.map(pr => fit(team, pr)));
+  // Priorizando roles: entre los repartos parejos se prefieren los que dejan a más gente en lo suyo
+  // (p.ej. que no caigan tres ADC en el mismo equipo). No aplica al modo totalmente al azar.
+  if (!anyTeams && st.settings.roleMode === 'main'){
+    const scored = balanced.map(sp => ({ sp, f: bestFit(sp.A) + bestFit(sp.B) })), top = Math.max(...scored.map(x => x.f));
+    balanced = scored.filter(x => x.f >= top - 0.25).map(x => x.sp);
+  }
   const cand = anyTeams ? splits : balanced;
   const S = cand[fvRand(cand.length)];
   const teamsIdx = fvRand(2) ? [S.A, S.B] : [S.B, S.A];
-  // Permutaciones de roles; "off" = nadie en su rol principal (si no se puede, las menos posibles).
-  const perms = []; (function pm(a, r){ if (!r.length){ perms.push(a); return; } r.forEach((x, i) => pm(a.concat(x), r.filter((_, j) => j !== i))); })([], FV_ROLES);
   const rolesFor = team => {
+    if (st.settings.roleMode === 'main'){
+      // Priorizar roles: el reparto en que el equipo juega lo más posible en lo que suele jugar. Vale más
+      // el rol principal; si dos lo comparten, el otro va a su siguiente rol más jugado. Empates al azar.
+      const top = bestFit(team), ok = perms.filter(pr => fit(team, pr) >= top - 1e-9);
+      return ok[fvRand(ok.length)];
+    }
     if (st.settings.roleMode !== 'off') return fvShuffle(FV_ROLES);
     const hits = pr => team.reduce((s, i, k) => s + (P[i].main && P[i].main === pr[k] ? 1 : 0), 0);
     const best = Math.min(...perms.map(hits)), ok = perms.filter(pr => hits(pr) === best);

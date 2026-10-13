@@ -543,6 +543,7 @@
       catch (e) { FVC.err = e.message || 'No se pudo crear la sala'; fvLanding(); } };
   }
   const FV_ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support' };
+  const fvRoleMode = m => m === 'off' ? 'todos fuera de su rol' : m === 'main' ? 'priorizando el rol de cada uno' : 'al azar';
   const fvLogged = () => !!(window.SQC && SQC.token && SQC.token());
   const fvElo = p => p.abs == null ? 'Sin rango en el ranking' : anRank(p);
   // nombre legible de un campeón a partir de su id de Data Dragon (TahmKench -> Tahm Kench)
@@ -599,7 +600,7 @@
         <div class="fv-opts">
           <label>Agregar jugador<select id="fv-add"><option value="">— elegir —</option>${cands.map(c => `<option value="${esc(c.key)}">#${c.pos} ${esc(c.nm)} (${esc(c.rid)})</option>`).join('')}</select></label>
           <label>Equipos<select id="fv-team"><option value="elo" ${s.teamMode !== 'random' ? 'selected' : ''}>Parejos en elo</option><option value="random" ${s.teamMode === 'random' ? 'selected' : ''}>Totalmente al azar</option></select></label>
-          <label>Roles<select id="fv-role"><option value="random" ${s.roleMode === 'random' ? 'selected' : ''}>Al azar</option><option value="off" ${s.roleMode === 'off' ? 'selected' : ''}>Todos fuera de su rol</option></select></label>
+          <label>Roles<select id="fv-role"><option value="random" ${s.roleMode === 'random' ? 'selected' : ''}>Al azar</option><option value="main" ${s.roleMode === 'main' ? 'selected' : ''}>Priorizar su rol</option><option value="off" ${s.roleMode === 'off' ? 'selected' : ''}>Todos fuera de su rol</option></select></label>
           <label>Campeón<select id="fv-champs"><option value="0" ${!s.champs ? 'selected' : ''}>Cada uno elige</option><option value="1" ${s.champs ? 'selected' : ''}>Al azar según el rol</option></select></label>
           <label>Selección<select id="fv-hidden" ${s.champs ? '' : 'disabled'}><option value="0" ${!s.hidden ? 'selected' : ''}>Visible para todos</option><option value="1" ${s.hidden ? 'selected' : ''}>Oculta (solo tu equipo)</option></select></label>
           <label>Cambios de campeón<input type="number" id="fv-rr" min="0" max="20" value="${s.rerolls}" ${s.champs ? '' : 'disabled'}></label>
@@ -610,7 +611,7 @@
         <div class="fv-note">${P.length === st.size ? 'Sala completa: ya puedes sortear.' : `Faltan ${st.size - P.length} jugador${st.size - P.length === 1 ? '' : 'es'} para poder sortear.`} ${s.teamMode === 'random' ? 'Los equipos se reparten al azar, sin mirar el elo.' : 'Los equipos se arman con el elo de la cuenta más alta de cada jugador.'}</div>
       </div>`
       : `<div class="card"><h3>Opciones del sorteo</h3>
-          <div class="fv-note" style="margin-top:0">Equipos: <b>${s.teamMode === 'random' ? 'totalmente al azar' : 'parejos en elo'}</b> · Roles: <b>${s.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b> · Selección: <b>${s.hidden ? 'oculta' : 'visible'}</b>` : ''}<br>
+          <div class="fv-note" style="margin-top:0">Equipos: <b>${s.teamMode === 'random' ? 'totalmente al azar' : 'parejos en elo'}</b> · Roles: <b>${fvRoleMode(s.roleMode)}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b> · Selección: <b>${s.hidden ? 'oculta' : 'visible'}</b>` : ''}<br>
           ${hostP ? `El anfitrión es <b>${esc(hostP.nick)}</b>; solo esa persona o un admin puede sortear.` : 'Aún no hay anfitrión: el primero que se una lo será.'}</div></div>`;
     let drawHtml = '';
     if (st.draw){
@@ -621,7 +622,7 @@
         ${joined ? `<button class="fv-btn sm ${iVoted ? 'on' : ''}" id="fv-remake">${iVoted ? 'Quitar mi voto' : 'Votar remake'}</button>` : ''}</div>`;
       drawHtml = rmk + hid + `<div class="fv-teams">` + d.teams.map((t, ti) => `<div class="card fv-team">
           <h3>Equipo ${ti + 1}<small>promedio ${esc(anAbsLabel(t.avg))}</small></h3>
-          <div class="cap">${ti === 0 ? `${d.teamMode === 'random' ? 'Equipos totalmente al azar' : 'Equipos parejos en elo'} · diferencia total: ${d.diff} PL.` : `Roles: ${d.roleMode === 'off' ? 'todos fuera de su rol' : 'al azar'}.`}</div>` +
+          <div class="cap">${ti === 0 ? `${d.teamMode === 'random' ? 'Equipos totalmente al azar' : 'Equipos parejos en elo'} · diferencia total: ${d.diff} PL.` : `Roles: ${fvRoleMode(d.roleMode)}.`}</div>` +
           t.players.map(sl => { const p = byId[sl.id] || { nick:'(salió)', abs:null }; const mine = me && me.id === sl.id;
             const hint = !p.main ? '' : p.main === sl.role ? ' · en su rol' : ' · suele jugar ' + FV_ROLE[p.main];
             const canRr = d.champs && !sl.secret && sl.left > 0 && (mine || host);
