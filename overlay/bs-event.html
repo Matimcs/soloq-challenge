@@ -124,7 +124,7 @@
         SQCRoulette.loading(false);
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
         SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio, champIcon: ev.champIcon, champName: ev.champ,
-          title: '🛡 Te lanzaron una Blue Shell', subtitle: from + ' → tú', onDone: done });
+          title: '🛡 <b style="color:#ffd24a">' + from + '</b> te lanzó una Blue Shell', subtitle: 'De ' + from + ' para ti', onDone: done });
         setChrome(true);
         // Re-escala en varios momentos (el layout/imagenes tardan un frame) para que no salga cortada.
         [0, 120, 300, 700].forEach(t => setTimeout(fitBox, t));
