@@ -304,6 +304,28 @@ async function init(){
       updated_at TIMESTAMPTZ DEFAULT now()
     );
 
+    -- Ranked (cola interna): perfil de cada jugador. lp y mmr van en puntos absolutos de liga
+    -- (2400 = Diamante IV con 0 PL, donde parten todos). strikes = votos de resultado equivocados.
+    CREATE TABLE IF NOT EXISTS ranked_players (
+      user_id    INTEGER PRIMARY KEY,
+      role1      TEXT,
+      role2      TEXT,
+      mmr        REAL    NOT NULL DEFAULT 2400,
+      lp         INTEGER NOT NULL DEFAULT 2400,
+      wins       INTEGER NOT NULL DEFAULT 0,
+      losses     INTEGER NOT NULL DEFAULT 0,
+      strikes    INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ DEFAULT now()
+    );
+    -- Ranked: cada sala con sus equipos, draft, votos y resultado (JSON).
+    CREATE TABLE IF NOT EXISTS ranked_matches (
+      id         SERIAL PRIMARY KEY,
+      status     TEXT NOT NULL,            -- draft | playing | dispute | done | cancelled
+      data       JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      ended_at   TIMESTAMPTZ
+    );
+
     -- Vista para TODAS las estadísticas (tops, ficha, récords, duelos, dúos…). Deja fuera:
     --   1) las partidas anuladas (terminadas por conducta disruptiva), y
     --   2) las partidas jugadas de SUPPORT por una cuenta del challenge cuyo rol principal no es
