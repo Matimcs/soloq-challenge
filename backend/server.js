@@ -64,7 +64,14 @@ let _ridPuuid = { at: 0, data: null };
 async function ridPuuidMap(){
   if (_ridPuuid.data && Date.now() - _ridPuuid.at < 600000) return _ridPuuid.data;
   const m = {};
-  try { for (const r of await q("SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants WHERE coalesce(puuid,'')<>'' GROUP BY 1")) m[r.rid] = r.puuid; } catch {}
+  // Solo las cuentas que alguien consulta (torneo, usuarios, smurfs, roster). Antes traía TODOS los rivales
+  // que alguna vez aparecieron (~27 mil filas, 2,5 MB por lectura): era la mayor fuente de egress de Supabase.
+  try { for (const r of await q(`SELECT lower(riotid) rid, (array_agg(puuid ORDER BY game_end DESC NULLS LAST))[1] puuid FROM match_participants
+      WHERE coalesce(puuid,'')<>'' AND (is_tournament=true OR replace(lower(riotid),' ','') IN (
+        SELECT replace(lower(riotid),' ','') FROM users  WHERE coalesce(riotid,'')<>'' UNION
+        SELECT replace(lower(riotid),' ','') FROM smurfs WHERE coalesce(riotid,'')<>'' UNION
+        SELECT replace(lower(riotid),' ','') FROM roster WHERE coalesce(riotid,'')<>''))
+      GROUP BY 1`)) m[r.rid] = r.puuid; } catch {}
   _ridPuuid = { at: Date.now(), data: m };
   return m;
 }
@@ -1572,22 +1579,19 @@ app.get('/api/stats', wrap(async (req, res) => {
   // ---- CONTRINCANTES externos: rivales AJENOS al torneo, por victorias/derrotas nuestras ----
   // Cada partida guardada trae los 10 jugadores; los que NO son del torneo son "contrincantes".
   // Si su equipo perdió, nosotros les ganamos (w++); si ganó, nos ganaron (l++).
-  const partRows = await q(`
-    SELECT match_id, team_id, puuid, max(name) nm, max(lower(riotid)) rid, bool_or(win) win, bool_or(is_tournament) is_t
-    FROM mp_stats WHERE coalesce(puuid,'')<>'' GROUP BY match_id, team_id, puuid`);
-  const tournPuuids = new Set(), teamHasTourn = {};
-  for (const r of partRows) if (r.is_t){ tournPuuids.add(r.puuid); (teamHasTourn[r.match_id] = teamHasTourn[r.match_id] || {})[r.team_id] = true; }
-  const opp = {};   // puuid contrincante -> { nm, rid, w, l }
-  for (const r of partRows){
-    if (tournPuuids.has(r.puuid)) continue;                 // es del torneo, no es contrincante externo
-    const tt = teamHasTourn[r.match_id]; if (!tt) continue;
-    const oppTeam = r.team_id === 100 ? 200 : 100;
-    if (!tt[oppTeam]) continue;                              // no hubo alguien del torneo enfrentándolo
-    const o = opp[r.puuid] || (opp[r.puuid] = { nm: r.nm, rid: r.rid, w: 0, l: 0 });
-    if (r.nm) o.nm = r.nm; if (r.rid) o.rid = r.rid;
-    if (r.win) o.l++; else o.w++;                            // ganó el contrincante => perdimos nosotros
-  }
-  const oppArr = Object.values(opp).filter(o => (o.w + o.l) >= 2);   // solo rivales enfrentados ≥2 veces
+  // El conteo se hace en la base y vuelven solo los 15 mejores y 15 peores rivales enfrentados ≥2 veces (antes se traían las ~78 mil
+  // filas de participantes, ~10 MB por lectura, para contarlas aquí: la segunda mayor fuente de egress).
+  const oppArr = await q(`
+    WITH g AS (SELECT match_id, team_id, puuid, max(name) nm, max(lower(riotid)) rid, bool_or(win) win, bool_or(is_tournament) is_t
+               FROM mp_stats WHERE coalesce(puuid,'')<>'' GROUP BY match_id, team_id, puuid),
+         tp AS (SELECT DISTINCT puuid FROM g WHERE is_t),
+         tt AS (SELECT DISTINCT match_id, team_id FROM g WHERE is_t),
+         o AS (SELECT max(g.nm) nm, max(g.rid) rid, (count(*) FILTER (WHERE NOT g.win))::int w, (count(*) FILTER (WHERE g.win))::int l
+               FROM g JOIN tt ON tt.match_id = g.match_id AND tt.team_id = CASE WHEN g.team_id = 100 THEN 200 ELSE 100 END
+               WHERE NOT EXISTS (SELECT 1 FROM tp WHERE tp.puuid = g.puuid)
+               GROUP BY g.puuid HAVING count(*) >= 2)   -- w = le ganamos (su equipo perdió) · l = nos ganó
+    SELECT nm, rid, w, l FROM (SELECT o.*, row_number() OVER (ORDER BY w DESC, l ASC) rb, row_number() OVER (ORDER BY l DESC, w ASC) rw FROM o) x
+    WHERE rb <= 15 OR rw <= 15`);              // solo hacen falta los 15 mejores y los 15 peores
   // Mejores: más victorias; en empate, primero al que MENOS le hemos perdido.
   const rivalesBest  = oppArr.slice().sort((a, b) => b.w - a.w || a.l - b.l).slice(0, 15);
   // Peores: más derrotas; en empate, primero al que MENOS le hemos ganado.
