@@ -53,7 +53,20 @@
     { "round": 3, "winner": "UTEM B", "loser": "UCT B", "loserMaps": 0 },
     { "round": 3, "winner": "USM D", "loser": "UTAL C", "loserMaps": 0 },
     { "round": 3, "winner": "UCN", "loser": "UTAL D", "loserMaps": 0 },
-    { "round": 3, "winner": "UCH A", "loser": "PUCV", "loserMaps": 0 }
+    { "round": 3, "winner": "UCH A", "loser": "PUCV", "loserMaps": 0 },
+
+    { "round": 4, "winner": "USM B", "loser": "UMAYOR", "loserMaps": 1 },
+    { "round": 4, "winner": "UC B", "loser": "UCT A", "loserMaps": 0 },
+    { "round": 4, "winner": "UNAB B", "loser": "USM C", "loserMaps": 0 },
+    { "round": 4, "winner": "DUOC", "loser": "UNAB C", "loserMaps": 0 },
+    { "round": 4, "winner": "UDD", "loser": "UDA", "loserMaps": 0 },
+    { "round": 4, "winner": "UCH B", "loser": "USACH", "loserMaps": 0 },
+    { "round": 4, "winner": "UTEM B", "loser": "UCSH", "loserMaps": 0 },
+    { "round": 4, "winner": "UTAL A", "loser": "UCH A", "loserMaps": 1 },
+    { "round": 4, "winner": "UDEC", "loser": "UCH D", "loserMaps": 0 },
+    { "round": 4, "winner": "UCN", "loser": "UCH C", "loserMaps": 0 },
+    { "round": 4, "winner": "USM D", "loser": "UTEM A", "loserMaps": 0 },
+    { "round": 4, "winner": "UDP A", "loser": "UTAL B", "loserMaps": 0 }
   ],
   "pairings": {
     "2": {
