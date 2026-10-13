@@ -691,9 +691,10 @@ function renderSimSwiss(){
     const canNext = ri===SIM.rounds.length-1 && roundDone(rd) && live>0 && q<16;
     return `<div class="sround"><div class="sround-h"><span>Ronda ${rd.n}</span><span class="bo">${rd.bo}</span></div>
       <div class="scol-wrap">${cols}</div>
-      ${canNext?`<div style="margin-top:10px"><button class="btn primary" id="sim-next">Generar Ronda ${rd.n+1} →</button></div>`:''}</div>`;
+      ${canNext?`<div style="margin-top:10px"><button class="btn primary" id="sim-next">Generar Ronda ${rd.n+1} →</button></div>`:''}
+      ${ri===SIM.rounds.length-1 && q>=16?`<div style="margin-top:14px"><div class="sim-note" style="margin:0 0 8px">Ya están los 16 clasificados: se termina la Fase Suiza.</div><button class="btn primary" id="sim-po2">🏆 Generar Playoffs →</button></div>`:''}</div>`;
   }).join('');
-  setTimeout(()=>{ const n=document.getElementById('sim-next'); if(n)n.onclick=nextSwissRound; },0);
+  setTimeout(()=>{ const n=document.getElementById('sim-next'); if(n)n.onclick=nextSwissRound; const po=document.getElementById('sim-po2'); if(po)po.onclick=()=>{ buildBracket(); const t=document.getElementById('tab-sim'); if(t)t.scrollIntoView({block:'start'}); }; },0);
   return stat+rounds;
 }
 function renderSimBracket(){
