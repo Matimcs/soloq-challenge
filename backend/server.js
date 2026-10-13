@@ -2671,7 +2671,10 @@ app.get('/api/ranked/state', wrap(async (req, res) => {
   }
   res.json(out);
 }));
-app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=3600'); res.json(await rkChamps()); }));
+app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=3600');
+  // roles: líneas donde ese campeón se juega de verdad (según las partidas guardadas), para filtrar en el selector
+  let pool = {}; try { pool = await fvChampPool(); } catch {}
+  res.json((await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => (pool[r] || []).includes(c.id)) }))); }));
 app.post('/api/ranked/roles', auth, wrap(async (req, res) => {
   await rkInit(); const ok = v => RK_ROLES.includes(v) || v === 'FILL', r1 = String((req.body && req.body.role1) || ''), r2 = String((req.body && req.body.role2) || '');
   if (!ok(r1) || !ok(r2)) return res.status(400).json({ error: 'Elige rol principal y secundario' });

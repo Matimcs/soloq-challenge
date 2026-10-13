@@ -293,6 +293,7 @@
   .rk-picker{ margin-top:14px; }
   .rk-pbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
   .rk-pbar input{ font-family:inherit; font-size:13px; font-weight:600; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; width:200px; }
+  .rk-rf{ display:flex; gap:4px; } .rk-rf button{ font-family:inherit; cursor:pointer; height:36px; min-width:36px; padding:0 8px; border-radius:9px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:11.5px; font-weight:700; display:grid; place-items:center; } .rk-rf button:hover{ border-color:var(--line-2); color:var(--text); } .rk-rf button.on{ border-color:var(--accent); color:var(--text); background:rgba(233,255,31,.07); }
   .rk-selname{ flex:1; font-size:13.5px; font-weight:700; min-width:120px; }
   .rk-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(66px,1fr)); gap:8px; max-height:330px; overflow-y:auto; padding:2px; }
   .rk-c{ font-family:inherit; cursor:pointer; background:none; border:2px solid transparent; border-radius:10px; padding:3px; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px; }
@@ -744,7 +745,7 @@
   setInterval(() => { if (CUR_TAB === 'fv' && !document.hidden) fvLoad(false); }, 3000);
 
   // ================= RANKED: cola interna con ranking propio =================
-  const RKC = { st:null, off:0, sig:'', champs:null, sel:null, q:'', lb:null, err:'', tick:0, busy:false };
+  const RKC = { st:null, off:0, sig:'', champs:null, sel:null, q:'', role:null, lb:null, err:'', tick:0, busy:false };
   const RK_ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Relleno' };
   const RK_ICON = { TOP:'top', JUNGLE:'jg', MIDDLE:'mid', BOTTOM:'adc', UTILITY:'support' };
   const RK_TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Retador' };
@@ -848,13 +849,16 @@
         const taken = new Set(); m.teams.forEach(t => { t.bans.forEach(b => b && taken.add(b)); t.players.forEach(p => p.champ && taken.add(p.champ)); });
         if (RKC.sel && (!canBan && taken.has(RKC.sel))) RKC.sel = null;
         const qy = RKC.q.trim().toLowerCase();
+        // filtro por línea: al elegir parte en tu rol; al banear, en todos. Al escribir en el buscador se busca en todos.
+        const myRole = (mineTeam.players.find(p => p.me) || {}).role, rf = RKC.role || (canBan ? 'ALL' : myRole);
+        const rfBar = `<div class="rk-rf">` + ['ALL','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY'].map(r => `<button class="${rf === r ? 'on' : ''}" data-rf="${r}" title="${r === 'ALL' ? 'Todos' : RK_ROLE[r]}">${r === 'ALL' ? 'Todos' : rkRoleIco(r)}</button>`).join('') + `</div>`;
         picker = `<div class="card rk-picker"><h3>${canBan ? 'Elige a quién banear' : 'Elige tu campeón'}</h3>
-          <div class="rk-pbar"><input type="text" id="rk-search" placeholder="Buscar campeón…" value="${esc(RKC.q)}" autocomplete="off">
+          <div class="rk-pbar">${rfBar}<input type="text" id="rk-search" placeholder="Buscar campeón…" value="${esc(RKC.q)}" autocomplete="off">
             <span class="rk-selname">${RKC.sel ? esc(rkChampName(RKC.sel)) : 'Ninguno seleccionado'}</span>
             <button class="fv-btn pri" id="rk-lock" ${RKC.sel ? '' : 'disabled'}>${canBan ? 'BANEAR' : 'FIJAR'}</button>
             ${canBan ? `<button class="fv-btn" id="rk-noban">Pasar sin ban</button>` : ''}</div>
-          <div class="rk-grid">` + RKC.champs.map(c => { const off = !canBan && taken.has(c.id), hide = qy && !c.name.toLowerCase().includes(qy) && !c.id.toLowerCase().includes(qy);
-            return `<button class="rk-c ${RKC.sel === c.id ? 'on' : ''} ${off ? 'off' : ''}" data-c="${esc(c.id)}" ${off ? 'disabled' : ''} style="${hide ? 'display:none' : ''}" title="${esc(c.name)}"><img src="${anChamp(c.id)}" alt="" loading="lazy"><span>${esc(c.name)}</span></button>`; }).join('') + `</div></div>`;
+          <div class="rk-grid">` + RKC.champs.map(c => { const off = !canBan && taken.has(c.id), hide = qy ? (!c.name.toLowerCase().includes(qy) && !c.id.toLowerCase().includes(qy)) : (rf !== 'ALL' && !(c.roles || []).includes(rf));
+            return `<button class="rk-c ${RKC.sel === c.id ? 'on' : ''} ${off ? 'off' : ''}" data-c="${esc(c.id)}" data-r="${(c.roles || []).join(',')}" ${off ? 'disabled' : ''} style="${hide ? 'display:none' : ''}" title="${esc(c.name)}"><img src="${anChamp(c.id)}" alt="" loading="lazy"><span>${esc(c.name)}</span></button>`; }).join('') + `</div></div>`;
       }
     }
     let play = '';
@@ -895,10 +899,12 @@
     box.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => rkAct('vote', { team: b.dataset.vote }));
     box.querySelectorAll('.rk-c').forEach(b => b.onclick = () => { RKC.sel = b.dataset.c; rkRender(); });
     const sr = $('rk-search'); if (sr){ sr.oninput = () => { RKC.q = sr.value; const qy = RKC.q.trim().toLowerCase();
-        box.querySelectorAll('.rk-c').forEach(b => { b.style.display = (!qy || b.title.toLowerCase().includes(qy) || b.dataset.c.toLowerCase().includes(qy)) ? '' : 'none'; }); };
+        const on = box.querySelector('.rk-rf .on'), rf = on ? on.dataset.rf : 'ALL';
+        box.querySelectorAll('.rk-c').forEach(b => { b.style.display = (qy ? (b.title.toLowerCase().includes(qy) || b.dataset.c.toLowerCase().includes(qy)) : (rf === 'ALL' || b.dataset.r.split(',').includes(rf))) ? '' : 'none'; }); };
       if (focused){ sr.focus(); sr.setSelectionRange(sr.value.length, sr.value.length); } }
-    on('rk-lock', () => { const c = RKC.sel; RKC.sel = null; RKC.q = ''; const ban = RKC.st.match.draft.phase === 'ban'; rkAct(ban ? 'ban' : 'pick', { champ: c }); });
-    on('rk-noban', () => { RKC.sel = null; rkAct('ban', { champ: null }); });
+    box.querySelectorAll('[data-rf]').forEach(b => b.onclick = () => { RKC.role = b.dataset.rf; RKC.q = ''; rkRender(); });
+    on('rk-lock', () => { const c = RKC.sel; RKC.sel = null; RKC.q = ''; RKC.role = null; const ban = RKC.st.match.draft.phase === 'ban'; rkAct(ban ? 'ban' : 'pick', { champ: c }); });
+    on('rk-noban', () => { RKC.sel = null; RKC.role = null; rkAct('ban', { champ: null }); });
     rkClocks();
   }
   // relojes (no re-dibujan la sala): cuenta regresiva de fases y tiempo en cola
