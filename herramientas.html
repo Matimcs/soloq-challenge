@@ -289,6 +289,7 @@
   .rk-bans i.now{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
   .rk-bans img{ filter:grayscale(.7) brightness(.75); }
   .rk-p{ display:grid; grid-template-columns:22px 40px 1fr auto; gap:10px; align-items:center; padding:8px 6px; border-top:1px solid var(--line); border-radius:8px; }
+  .rk-p .act{ display:flex; gap:5px; align-items:center; flex-wrap:wrap; justify-content:flex-end; max-width:230px; } .rk-p .kb{ color:var(--muted); } .rk-p .kb:hover, .rk-p .kb.on{ color:#fb7185; border-color:#fb7185; } .rk-p .kk{ font-size:11px; font-weight:700; color:#fb7185; }
   .rk-p.turn{ background:rgba(233,255,31,.07); box-shadow:inset 0 0 0 1px rgba(233,255,31,.45); } .rk-p.me .nm{ color:var(--accent); }
   .rk-p .ch{ width:40px; height:40px; border-radius:9px; background:var(--panel-2); display:grid; place-items:center; font-weight:800; color:var(--muted-2); } .rk-p .ch.ph{ border:1px dashed var(--line-2); }
   .rk-p .nm{ font-size:14px; font-weight:700; } .rk-p .nm small{ font-size:11px; color:var(--muted-2); font-weight:600; } .rk-p .nf{ min-width:0; }
@@ -803,7 +804,7 @@
     return `<div class="rk-sim"><div class="h"><b>MODO PRUEBA</b><span>Solo tú ves esto. Las salas con bots no se guardan ni cambian PL.</span></div>
       <div class="r"><span>Jugar como</span><button class="${sim.as ? '' : 'on'}" data-as="">Yo</button>` +
         sim.bots.map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}" title="${b.inMatch ? 'En sala' : b.inQueue ? 'En cola' : 'Fuera de la cola'}">${esc(b.nick)}${b.inMatch ? ' ●' : b.inQueue ? ' ○' : ''}</button>`).join('') + `</div>
-      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
+      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="kick" title="Los bots se suman a la expulsión que ya tenga algún voto">Bots apoyan expulsión</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
   }
   function rkLobbyHtml(){
     const st = RKC.st, me = st.me, inQ = !!st.queue.inQueue;
@@ -821,7 +822,7 @@
       </div>`;
     // aviso del último resultado (una vez)
     let last = '';
-    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
+    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = st.last.cancelled ? `<div class="rk-last"><span><b>Partida anulada</b>${st.last.kicked ? (st.last.wasMe ? ' · fuiste expulsado por votación' : ' · ' + esc(st.last.kicked) + ' fue expulsado por votación') : ''} · nadie ganó ni perdió PL</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>` : `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
     const lb = RKC.lb;
     const board = !lb ? `<div class="loading" style="padding:24px 0">Cargando tabla…</div>` : !lb.board.length ? `<div class="fv-note">Aún no se ha jugado ninguna clasificatoria. Todos parten en Diamante IV con 0 PL.</div>`
       : `<table class="lb-rk"><thead><tr><th class="n">#</th><th>Jugador</th><th>Rango</th><th class="n">PL</th><th class="n">V</th><th class="n">D</th><th class="n">% vict.</th></tr></thead><tbody>` +
@@ -851,19 +852,24 @@
     const team = t => { const blue = t.side === 'blue';
       return `<div class="card rk-team ${t.side}"><h3><span>${blue ? 'Equipo Azul' : 'Equipo Rojo'}${t.mine ? ' · tu equipo' : ''}</span><a class="fv-btn sm" href="${rkMulti(t.players.map(p => p.rid))}" target="_blank" rel="noopener">OP.GG del equipo</a></h3>
         <div class="cap">Rango promedio: ${rkDot(t.avgRank)}${rkRankTxt(t.avgRank)}</div>
-        <div class="rk-bans"><span>Bans</span>${t.bans.map((b, i) => b ? `<img src="${anChamp(b)}" title="${esc(rkChampName(b))}" alt="">` : `<i class="${m.status === 'draft' && d.phase === 'ban' && d.turn.includes(t.players[i].uid) ? 'now' : ''}" title="${t.players[i].banned ? 'Sin ban' : 'Ban de ' + esc(t.players[i].nick)}">${t.players[i].banned ? '—' : ''}</i>`).join('')}</div>` +
+        <div class="rk-bans"><span>Bans</span>${t.bans.map(b => b.champ ? `<img src="${anChamp(b.champ)}" title="${esc(rkChampName(b.champ))} · ban de ${esc(b.nick)}" alt="">` : `<i class="${m.status === 'draft' && d.phase === 'ban' && d.turn.includes(b.uid) ? 'now' : ''}" title="${b.done ? 'Sin ban (' + esc(b.nick) + ')' : 'Ban de ' + esc(b.nick)}">${b.done ? '—' : ''}</i>`).join('')}</div>` +
         t.players.map(p => { const turn = m.status === 'draft' && d.turn.includes(p.uid) && (d.phase === 'pick' ? !p.champ : !p.banned), banTurn = turn && d.phase === 'ban';
           return `<div class="rk-p ${p.me ? 'me' : ''} ${turn ? 'turn' : ''}">
             ${rkRoleIco(p.role)}
             ${p.champ ? `<img class="ch" src="${anChamp(p.champ)}" alt="" title="${esc(rkChampName(p.champ))}">` : `<span class="ch ph">${turn ? (banTurn ? '🚫' : '…') : ''}</span>`}
             <div class="nf"><div class="nm">${esc(p.nick)}${p.me ? ' <small>(tú)</small>' : ''}</div>
               <div class="ps">${rkDot(p.rank)}${rkRankTxt(p.rank)} ${p.rank.lp} PL · ${RK_ROLE[p.role]}${p.pref === 'auto' ? ' (autofill)' : p.pref === 'sec' ? ' (secundario)' : ''}${p.champ ? ' · ' + esc(rkChampName(p.champ)) + (p.auto ? ' (automático)' : '') : ''}</div></div>
-            <a class="fv-btn sm" href="${rkOpgg(p.rid)}" target="_blank" rel="noopener" title="${esc(p.rid)}">OP.GG</a></div>`; }).join('') + `</div>`; };
+            <div class="act">
+              ${(d.swapIn || []).includes(p.uid) ? `<button class="fv-btn sm pri" data-swap="${p.uid}|accept" title="${esc(p.nick)} quiere cambiar de turno contigo">Aceptar cambio</button><button class="fv-btn sm" data-swap="${p.uid}|decline" title="Rechazar">✕</button>`
+                : d.swapOut === p.uid ? `<button class="fv-btn sm" data-swap="${p.uid}|cancel" title="Esperando que acepte">Cancelar cambio</button>`
+                : p.canSwap ? `<button class="fv-btn sm" data-swap="${p.uid}|ask" title="Pedir cambio de turno con ${esc(p.nick)}">⇄ Turno</button>` : ''}
+              ${p.me ? (p.kick ? `<span class="kk" title="Votos para expulsarte">Expulsión ${p.kick}/${m.kickNeed}</span>` : '') : `<button class="fv-btn sm kb ${p.myKick ? 'on' : ''}" data-kick="${p.uid}|${p.myKick ? 0 : 1}|${esc(p.nick)}" title="${p.myKick ? 'Quitar mi voto de expulsión' : 'Votar para expulsar: si ' + m.kickNeed + ' de 10 votan, la partida se cancela'}">Expulsar${p.kick ? ' ' + p.kick + '/' + m.kickNeed : ''}</button>`}
+              <a class="fv-btn sm" href="${rkOpgg(p.rid)}" target="_blank" rel="noopener" title="${esc(p.rid)}">OP.GG</a></div></div>`; }).join('') + `</div>`; };
     let picker = '';
     if (canBan || myTurn){
       if (!RKC.champs){ rkEnsureChamps(); picker = `<div class="card"><div class="loading" style="padding:24px 0">Cargando campeones…</div></div>`; }
       else {
-        const taken = new Set(); m.teams.forEach(t => { t.bans.forEach(b => b && taken.add(b)); t.players.forEach(p => p.champ && taken.add(p.champ)); });
+        const taken = new Set(); m.teams.forEach(t => { t.bans.forEach(b => b.champ && taken.add(b.champ)); t.players.forEach(p => p.champ && taken.add(p.champ)); });
         if (RKC.sel && taken.has(RKC.sel)) RKC.sel = null;
         const qy = RKC.q.trim().toLowerCase();
         // filtro por línea: al elegir parte en tu rol; al banear, en todos. Al escribir en el buscador se busca en todos.
@@ -917,6 +923,10 @@
     box.querySelectorAll('[data-res]').forEach(b => b.onclick = () => { const [id, w] = b.dataset.res.split('|');
       if (confirm(w === 'cancel' ? '¿Anular la partida? Nadie gana ni pierde PL.' : `¿Dar por ganador al equipo ${w === 'blue' ? 'Azul' : 'Rojo'}?`)) rkAct('admin/resolve', { matchId: +id, winner: w }).then(rkBoard); });
     box.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => rkAct('vote', { team: b.dataset.vote }));
+    box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.swap.split('|'); rkAct('swap', { with: +w, action }); });
+    box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => { const [t, on, nick] = b.dataset.kick.split('|');
+      if (on === '1' && !confirm(`¿Votar para expulsar a ${nick}? Si ${RKC.st.match.kickNeed} de los 10 votan, la partida se cancela y nadie pierde PL.`)) return;
+      rkAct('kick', { target: +t, on: on === '1' }).then(rkBoard); });
     box.querySelectorAll('.rk-c').forEach(b => b.onclick = () => { RKC.sel = b.dataset.c; rkRender(); });
     const sr = $('rk-search'); if (sr){ sr.oninput = () => { RKC.q = sr.value; const qy = RKC.q.trim().toLowerCase();
         const on = box.querySelector('.rk-rf .on'), rf = on ? on.dataset.rf : 'ALL';

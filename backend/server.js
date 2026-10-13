@@ -2550,16 +2550,16 @@ async function rkCreateMatch(uids){
       .sort((x, y) => RK_ROLES.indexOf(x.role) - RK_ROLES.indexOf(y.role)) });
   const flip = fvRand(2) === 1;
   const blue = mk(flip ? best.B : best.A, flip ? best.pb : best.pa, 'blue'), red = mk(flip ? best.A : best.B, flip ? best.pa : best.pb, 'red');
-  // Draft por turnos, como en torneo (azul = equipo de la izquierda). Cada jugador banea uno, en orden de rol
-  // (top, jungla, mid en la primera fase; adc y support en la segunda). El orden de pick de cada equipo es al azar.
+  // Draft por turnos, como en torneo (azul = equipo de la izquierda). El orden dentro de cada equipo es al azar
+  // y vale para banear y para elegir; dos compañeros pueden intercambiar sus turnos (ver /api/ranked/swap).
   //   bans  A R A R A R  →  picks A · RR · AA · R  →  bans A R A R  →  picks R · AA · R
   const bo = fvShuffle(blue.players.map(p => p.uid)), ro = fvShuffle(red.players.map(p => p.uid));
-  const bb = blue.players.map(p => p.uid), rb = red.players.map(p => p.uid);
+  const bb = bo, rb = ro;
   const B = u => ({ t: 'ban', u: [u] }), K = (...u) => ({ t: 'pick', u });
   const seq = [B(bb[0]), B(rb[0]), B(bb[1]), B(rb[1]), B(bb[2]), B(rb[2]), K(bo[0]), K(ro[0], ro[1]), K(bo[1], bo[2]), K(ro[2]),
                B(bb[3]), B(rb[3]), B(bb[4]), B(rb[4]), K(ro[3]), K(bo[3], bo[4]), K(ro[4])];
   const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red],
-    draft: { phase: 'ban', deadline: Date.now() + RK_BAN_MS, bans: {}, locked: {}, step: 0, picks: {}, seq },
+    draft: { phase: 'ban', deadline: Date.now() + RK_BAN_MS, bans: {}, locked: {}, step: 0, picks: {}, seq, swaps: {} }, kicks: {},
     lobby: null, votes: {}, winner: null, resolvedBy: null, lpChanges: {} };
   await rkSaveMatch(m);
   RK.matches.set(m.id, m); uids.forEach(u => { RK.byUser.set(u, m.id); RK.queue.delete(u); });
@@ -2617,9 +2617,31 @@ async function rkResolve(m, winner, by){
   }
   await rkSaveMatch(m); RK.matches.delete(m.id); rkUids(m).forEach(u => RK.byUser.delete(u));
 }
-async function rkCancel(m, by){
-  m.status = 'cancelled'; m.resolvedBy = by; m.endedAt = Date.now();
+async function rkCancel(m, by, kicked){
+  m.status = 'cancelled'; m.resolvedBy = by; m.endedAt = Date.now(); if (kicked != null) m.kicked = kicked;
+  const kn = kicked != null ? (rkSlot(m, kicked) || {}).nick : null;
+  rkUids(m).forEach(u => RK.last.set(u, { matchId: m.id, cancelled: true, kicked: kn, wasMe: u === kicked, at: m.endedAt, by }));
   await rkSaveMatch(m); RK.matches.delete(m.id); rkUids(m).forEach(u => RK.byUser.delete(u));
+}
+// Cambio de turno entre dos compañeros: solo se intercambian los turnos (de ban y/o de pick) que AMBOS tienen
+// todavía por delante; un turno en curso o ya jugado no se toca (así nadie banea dos veces ni se queda sin elegir).
+function rkSwapTypes(m, a, b){
+  const d = m.draft; if (m.status !== 'draft' || !d.seq) return [];
+  const pend = (u, t) => d.seq.some((x, i) => i > d.step && x.t === t && x.u.includes(u));
+  return ['ban', 'pick'].filter(t => pend(a, t) && pend(b, t));
+}
+function rkDoSwap(m, a, b){
+  const d = m.draft, types = rkSwapTypes(m, a, b);
+  d.seq.forEach((x, i) => { if (i > d.step && types.includes(x.t)) x.u = x.u.map(u => u === a ? b : u === b ? a : u); });
+  return types;
+}
+// Expulsión por votación: si 9 de los 10 marcan al mismo jugador (troleo, o jugar algo distinto a lo elegido),
+// la partida se cancela sin cambios de PL.
+const RK_KICK_NEED = 9;
+async function rkKickVote(m, voter, target, on){
+  m.kicks = m.kicks || {}; const v = new Set(m.kicks[target] || []); if (on === false) v.delete(voter); else v.add(voter); m.kicks[target] = [...v];
+  if (v.size >= RK_KICK_NEED){ await rkCancel(m, 'expulsion', target); return true; }
+  await rkSaveMatch(m); return false;
 }
 // Recuento ponderado. Gana quien supera la mitad del peso total; si ya votaron todos los que pueden y
 // nadie la supera (p.ej. 5 contra 5), queda "en disputa" y lo resuelve un admin.
@@ -2690,6 +2712,11 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
     const side = req.body.team; if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
     for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'playing') continue;
       rkUids(m).forEach(u => { if (u < 0 && !m.votes[u]) m.votes[u] = side; }); await rkCheckVotes(m); }
+  } else if (act === 'kick'){
+    // los bots se suman a toda expulsión que ya tenga algún voto
+    for (const m of [...RK.matches.values()]){ if (!m.sim) continue;
+      for (const [t, v] of Object.entries(m.kicks || {})){ if (!v.length || !RK.matches.has(m.id)) continue;
+        for (const b of rkUids(m)) if (b < 0 && b !== Number(t) && RK.matches.has(m.id)) await rkKickVote(m, b, Number(t), true); } }
   } else if (act === 'clear'){
     RK_BOTS.forEach(b => RK.queue.delete(b));
     for (const pd of [...RK.pending.values()]) if (pd.players.some(u => u < 0)) RK.pending.delete(pd.id);
@@ -2700,15 +2727,22 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
 }));
 // Lo que ve cada jugador de su sala.
 async function rkMatchView(m, uid){
-  const d = m.draft, my = rkTeamOf(m, uid), cur = m.status === 'draft' && d.seq ? d.seq[d.step] : null;
+  const d = m.draft, my = rkTeamOf(m, uid), cur = m.status === 'draft' && d.seq ? d.seq[d.step] : null, sw = d.swaps || {};
+  // posición de cada jugador en el orden de bans / de picks (para mostrarlos en ese orden)
+  const flat = { ban: [], pick: [] }; (d.seq || []).forEach(x => flat[x.t].push(...x.u));
+  const ord = (t, u) => { const i = flat[t].indexOf(u); return i < 0 ? 99 : i; };
   const w = u => rkVoteWeight(rkPlayer(u).strikes);
   return { id: m.id, status: m.status, createdAt: m.createdAt, lobby: m.lobby, winner: m.winner, resolvedBy: m.resolvedBy,
+    kickNeed: RK_KICK_NEED,
     teams: m.teams.map(t => ({ side: t.side, mine: t === my, avgRank: rkRank(t.players.reduce((s, p) => s + p.lp, 0) / 5),
-      players: t.players.map(p => ({ uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, rank: rkRank(p.lp), me: p.uid === uid,
-        champ: d.picks[p.uid] || null, auto: !!p.auto, banned: !!d.locked[p.uid] })),
-      bans: t.players.map(p => d.bans[p.uid] || null) })),
+      players: t.players.slice().sort((x, y) => ord('pick', x.uid) - ord('pick', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, rank: rkRank(p.lp), me: p.uid === uid,
+        champ: d.picks[p.uid] || null, auto: !!p.auto, banned: !!d.locked[p.uid],
+        kick: ((m.kicks || {})[p.uid] || []).length, myKick: ((m.kicks || {})[p.uid] || []).includes(uid),
+        canSwap: t === my && p.uid !== uid && rkSwapTypes(m, uid, p.uid).length > 0 })),
+      bans: t.players.slice().sort((x, y) => ord('ban', x.uid) - ord('ban', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, champ: d.bans[p.uid] || null, done: !!d.locked[p.uid] })) })),
     draft: { phase: d.phase, deadline: d.deadline, step: d.step, turn: cur ? cur.u : [], order: d.seq || [],
-      myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: false },
+      myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: false,
+      swapOut: m.status === 'draft' && sw[uid] != null ? sw[uid] : null, swapIn: m.status === 'draft' ? Object.keys(sw).map(Number).filter(a => sw[a] === uid) : [] },
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length, mine: m.votes[uid] || null,
       weight: w(uid), need: rkUids(m).reduce((s, u) => s + w(u), 0) / 2 },
     lpChange: m.lpChanges[uid] || null };
@@ -2797,6 +2831,30 @@ app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
   if (Object.values(d.bans).includes(champ)) return res.status(400).json({ error: 'Ese campeón está baneado' });
   if (Object.values(d.picks).includes(champ)) return res.status(400).json({ error: 'Ese campeón ya fue elegido' });
   d.picks[uid] = champ; await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
+}));
+// Pedir / aceptar / rechazar / cancelar un cambio de turno con un compañero de equipo.
+app.post('/api/ranked/swap', auth, rkImp, wrap(async (req, res) => {
+  const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, other = Number(req.body && req.body.with), act = req.body && req.body.action;
+  if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
+  d.swaps = d.swaps || {};
+  if (act === 'cancel') delete d.swaps[uid];
+  else if (act === 'decline'){ if (d.swaps[other] === uid) delete d.swaps[other]; }
+  else {
+    const t = rkTeamOf(m, uid);
+    if (other === uid || !t.players.some(p => p.uid === other)) return res.status(400).json({ error: 'Solo puedes cambiar de turno con alguien de tu equipo' });
+    if (!rkSwapTypes(m, uid, other).length) return res.status(400).json({ error: 'Ya no se puede cambiar: esos turnos ya pasaron o están en curso' });
+    if (act === 'accept'){
+      if (d.swaps[other] !== uid) return res.status(400).json({ error: 'Esa solicitud ya no existe' });
+      rkDoSwap(m, uid, other);
+      for (const k of Object.keys(d.swaps)) if ([uid, other].includes(Number(k)) || [uid, other].includes(d.swaps[k])) delete d.swaps[k];
+    } else d.swaps[uid] = other;
+  }
+  await rkSaveMatch(m); res.json({ ok: true });
+}));
+app.post('/api/ranked/kick', auth, rkImp, wrap(async (req, res) => {
+  const m = await rkMine(req, res); if (!m) return; const uid = req.user.id, target = Number(req.body && req.body.target);
+  if (target === uid || !rkUids(m).includes(target)) return res.status(400).json({ error: 'Jugador inválido' });
+  res.json({ ok: true, cancelled: await rkKickVote(m, uid, target, req.body.on) });
 }));
 app.post('/api/ranked/vote', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const side = req.body && req.body.team;
