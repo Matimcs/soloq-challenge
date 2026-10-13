@@ -241,7 +241,7 @@
   @media (max-width:860px){ .rk-top{ grid-template-columns:1fr; } }
   .rk-left > .card + .card{ margin-top:14px; }
   .rk-me{ display:flex; gap:14px; align-items:center; }
-  .rk-emblem{ width:64px; height:64px; flex:none; border-radius:50%; border:3px solid; display:grid; place-items:center; background:var(--panel-2); font-size:28px; font-weight:800; }
+  .rk-emblem{ width:84px; height:84px; flex:none; object-fit:contain; }
   .rk-rname{ font-size:18px; font-weight:800; } .rk-lp{ font-size:12.5px; color:var(--muted); font-weight:700; margin-top:1px; }
   .rk-bar{ height:6px; border-radius:3px; background:rgba(255,255,255,.09); overflow:hidden; margin:6px 0 4px; } .rk-bar i{ display:block; height:100%; border-radius:3px; }
   .rk-wl{ font-size:11.5px; color:var(--muted-2); font-weight:600; }
@@ -258,7 +258,7 @@
   .rk-find.on{ background:var(--panel-2); color:var(--text); border:1px solid var(--accent); }
   .rk-qcard.searching{ border-color:rgba(233,255,31,.4); }
   .rk-qinfo{ font-size:12px; color:var(--muted); margin-top:9px; text-align:center; } .rk-qinfo b{ color:var(--text); }
-  .rk-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .rk-dot{ display:inline-block; width:22px; height:22px; object-fit:contain; margin:-5px 5px -5px -2px; vertical-align:middle; }
   .lb-rk{ width:100%; border-collapse:collapse; } .lb-rk th, .lb-rk td{ padding:8px 10px; font-size:13px; text-align:left; border-top:1px solid var(--line); }
   .lb-rk th{ font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); border-top:none; }
   .lb-rk .n{ text-align:center; font-variant-numeric:tabular-nums; } .lb-rk td a{ font-weight:700; } .lb-rk td a:hover{ text-decoration:underline; } .lb-rk tr.me td{ background:rgba(233,255,31,.05); }
@@ -269,6 +269,7 @@
   .rk-adm{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
   /* partida encontrada */
   .rk-modal{ position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.72); display:grid; place-items:center; padding:16px; }
+  .rk-modal.low{ place-items:end center; padding-bottom:8vh; }
   .rk-found{ width:min(380px,100%); background:var(--panel); border:1px solid var(--accent); border-radius:18px; padding:24px 22px; text-align:center; box-shadow:0 0 60px rgba(233,255,31,.18); }
   .rk-found .t{ font-size:20px; font-weight:800; letter-spacing:.05em; } .rk-found .c{ font-size:54px; font-weight:800; font-variant-numeric:tabular-nums; margin:6px 0; }
   .rk-found .s{ font-size:13px; color:var(--muted); font-weight:700; margin-bottom:14px; } .rk-found .ok{ font-size:13px; font-weight:700; color:var(--up); }
@@ -294,6 +295,11 @@
   .rk-pbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
   .rk-pbar input{ font-family:inherit; font-size:13px; font-weight:600; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:8px 10px; width:200px; }
   .rk-rf{ display:flex; gap:4px; } .rk-rf button{ font-family:inherit; cursor:pointer; height:36px; min-width:36px; padding:0 8px; border-radius:9px; background:var(--panel-2); border:1px solid var(--line); color:var(--muted); font-size:11.5px; font-weight:700; display:grid; place-items:center; } .rk-rf button:hover{ border-color:var(--line-2); color:var(--text); } .rk-rf button.on{ border-color:var(--accent); color:var(--text); background:rgba(233,255,31,.07); }
+  .rk-sim{ position:relative; z-index:95; background:rgba(192,132,252,.08); border:1px dashed rgba(192,132,252,.55); border-radius:12px; padding:10px 12px; margin-bottom:14px; }
+  .rk-sim .h{ display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; } .rk-sim .h b{ font-size:12px; letter-spacing:.06em; color:#c084fc; } .rk-sim .h span{ font-size:11.5px; color:var(--muted); }
+  .rk-sim .r{ display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-top:8px; } .rk-sim .r span{ font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); width:76px; }
+  .rk-sim button{ font-family:inherit; cursor:pointer; font-size:11.5px; font-weight:700; padding:5px 9px; border-radius:8px; background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); }
+  .rk-sim button:hover{ border-color:#c084fc; } .rk-sim button.on{ background:#c084fc; border-color:#c084fc; color:#0b0b0b; }
   .rk-selname{ flex:1; font-size:13.5px; font-weight:700; min-width:120px; }
   .rk-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(66px,1fr)); gap:8px; max-height:330px; overflow-y:auto; padding:2px; }
   .rk-c{ font-family:inherit; cursor:pointer; background:none; border:2px solid transparent; border-radius:10px; padding:3px; color:var(--muted); display:flex; flex-direction:column; align-items:center; gap:3px; }
@@ -745,21 +751,23 @@
   setInterval(() => { if (CUR_TAB === 'fv' && !document.hidden) fvLoad(false); }, 3000);
 
   // ================= RANKED: cola interna con ranking propio =================
-  const RKC = { st:null, off:0, sig:'', champs:null, sel:null, q:'', role:null, lb:null, err:'', tick:0, busy:false };
+  const RKC = { st:null, off:0, sig:'', champs:null, sel:null, q:'', role:null, as:null, lb:null, err:'', tick:0, busy:false };
   const RK_ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Relleno' };
   const RK_ICON = { TOP:'top', JUNGLE:'jg', MIDDLE:'mid', BOTTOM:'adc', UTILITY:'support' };
   const RK_TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Retador' };
   const RK_COL = { IRON:'#9ca3af', BRONZE:'#d6a06a', SILVER:'#cbd5e1', GOLD:'#fcd34d', PLATINUM:'#5eead4', EMERALD:'#34d399', DIAMOND:'#7dd3fc', MASTER:'#c084fc', GRANDMASTER:'#fb7185', CHALLENGER:'#f4c14b' };
+  try { RKC.as = +sessionStorage.getItem('sqc_rk_as') || null; } catch (e) {}
   const rkLogged = () => !!(window.SQC && SQC.token && SQC.token());
   const rkRankTxt = r => `${RK_TIER[r.tier] || r.tier}${r.div ? ' ' + r.div : ''}`;
-  const rkDot = r => `<span class="rk-dot" style="background:${RK_COL[r.tier] || '#888'}"></span>`;
+  const rkEmb = tier => { const t = String(tier || 'UNRANKED').toLowerCase(); return `overlay/assets/ranks/Season_2023_-_${t[0].toUpperCase() + t.slice(1)}.webp`; };
+  const rkDot = r => `<img class="rk-dot" src="${rkEmb(r.tier)}" alt="">`;
   const rkRoleIco = role => RK_ICON[role] ? `<img class="rk-rico" src="overlay/assets/roles/${RK_ICON[role]}.webp" alt="">` : `<span class="rk-rico fill">✦</span>`;
   const rkOpgg = rid => { const [n, t] = String(rid || '').split('#'); return `https://op.gg/summoners/las/${encodeURIComponent((n || '').trim())}-${encodeURIComponent((t || '').trim())}`; };
   const rkMulti = rids => 'https://op.gg/multisearch/las?summoners=' + encodeURIComponent(rids.filter(Boolean).join(','));
   const rkNow = () => Date.now() + RKC.off;
   const rkChampName = id => { const c = (RKC.champs || []).find(x => x.id === id); return c ? c.name : fvChampName(id); };
   async function rkLoad(force){
-    try { const st = await SQC.api('/ranked/state'); RKC.off = st.now - Date.now(); RKC.st = st;
+    try { const st = await SQC.api('/ranked/state' + (RKC.as ? '?as=' + RKC.as : '')); RKC.off = st.now - Date.now(); RKC.st = st;
       const sig = JSON.stringify({ ...st, now: 0 }) + '|' + (rkLogged() ? 1 : 0);
       if (force || sig !== RKC.sig){ RKC.sig = sig; rkRender(); } }
     catch (e) { if (!RKC.st) $('p-rk').innerHTML = `<div class="loading">No se pudo cargar Ranked.</div>`; }
@@ -767,7 +775,7 @@
   async function rkBoard(){ try { const r = await fetch('/api/ranked/leaderboard'); if (r.ok){ RKC.lb = await r.json(); if (RKC.st && !RKC.st.match) rkRender(); } } catch (e) {} }
   async function rkAct(path, body){
     if (RKC.busy) return; RKC.busy = true; RKC.err = '';
-    try { await SQC.api('/ranked/' + path, { method:'POST', body: body || {} }); }
+    try { await SQC.api('/ranked/' + path, { method:'POST', body: { ...(body || {}), ...(RKC.as ? { as: RKC.as } : {}) } }); }
     catch (e) { RKC.err = e.message || 'No se pudo completar la acción'; }
     RKC.busy = false; await rkLoad(true);
   }
@@ -776,7 +784,7 @@
   function rkProfile(me){
     const r = me.rank, g = me.wins + me.losses, apex = !r.div;
     return `<div class="card rk-me">
-        <div class="rk-emblem" style="border-color:${RK_COL[r.tier]}"><span style="color:${RK_COL[r.tier]}">${(RK_TIER[r.tier] || '?')[0]}</span></div>
+        <img class="rk-emblem" src="${rkEmb(r.tier)}" alt="${rkRankTxt(r)}">
         <div style="flex:1;min-width:0"><div class="rk-rname">${rkRankTxt(r)}</div>
           <div class="rk-lp">${r.lp} PL${apex ? '' : ' / 100'}</div>
           ${apex ? '' : `<div class="rk-bar"><i style="width:${Math.max(0, Math.min(100, r.lp))}%;background:${RK_COL[r.tier]}"></i></div>`}
@@ -787,6 +795,14 @@
   function rkRolePick(which, cur){
     return `<div class="rk-roles" data-which="${which}">` + ['TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY','FILL'].map(r =>
       `<button class="rk-role ${cur === r ? 'on' : ''}" data-role="${r}" title="${RK_ROLE[r]}">${rkRoleIco(r)}<span>${RK_ROLE[r]}</span></button>`).join('') + `</div>`;
+  }
+  // ---------- modo prueba (solo superadmin): manejar 9 jugadores ficticios ----------
+  function rkSimBar(){
+    const sim = RKC.st.sim; if (!sim) return '';
+    return `<div class="rk-sim"><div class="h"><b>MODO PRUEBA</b><span>Solo tú ves esto. Las salas con bots no se guardan ni cambian PL.</span></div>
+      <div class="r"><span>Jugar como</span><button class="${sim.as ? '' : 'on'}" data-as="">Yo</button>` +
+        sim.bots.map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}" title="${b.inMatch ? 'En sala' : b.inQueue ? 'En cola' : 'Fuera de la cola'}">${esc(b.nick)}${b.inMatch ? ' ●' : b.inQueue ? ' ○' : ''}</button>`).join('') + `</div>
+      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
   }
   function rkLobbyHtml(){
     const st = RKC.st, me = st.me, inQ = !!st.queue.inQueue;
@@ -804,16 +820,16 @@
       </div>`;
     // aviso del último resultado (una vez)
     let last = '';
-    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
+    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
     const lb = RKC.lb;
     const board = !lb ? `<div class="loading" style="padding:24px 0">Cargando tabla…</div>` : !lb.board.length ? `<div class="fv-note">Aún no se ha jugado ninguna clasificatoria. Todos parten en Diamante IV con 0 PL.</div>`
       : `<table class="lb-rk"><thead><tr><th class="n">#</th><th>Jugador</th><th>Rango</th><th class="n">PL</th><th class="n">V</th><th class="n">D</th><th class="n">% vict.</th></tr></thead><tbody>` +
         lb.board.map(b => `<tr class="${me && b.nick === me.nick ? 'me' : ''}"><td class="n">${b.pos}</td><td><a href="${rkOpgg(b.rid)}" target="_blank" rel="noopener">${esc(b.nick)}</a></td><td>${rkDot(b.rank)}${rkRankTxt(b.rank)}</td><td class="n">${b.rank.lp}</td><td class="n">${b.wins}</td><td class="n">${b.losses}</td><td class="n">${Math.round(b.wins / (b.wins + b.losses) * 100)}%</td></tr>`).join('') + `</tbody></table>`;
-    const open = lb && lb.open.length ? `<div class="card" style="margin-top:14px"><h3>Salas abiertas</h3>` + lb.open.map(o => `<div class="rk-open"><div><b>Sala ${o.id}</b> · ${({ draft:'en pick y ban', playing:'en juego', dispute:'votación empatada' })[o.status] || o.status} · votos ${o.votes.blue}-${o.votes.red}
+    const open = lb && lb.open.length ? `<div class="card" style="margin-top:14px"><h3>Salas abiertas</h3>` + lb.open.map(o => `<div class="rk-open"><div><b>Sala ${o.id}</b>${o.sim ? ' (prueba)' : ''} · ${({ draft:'en pick y ban', playing:'en juego', dispute:'votación empatada' })[o.status] || o.status} · votos ${o.votes.blue}-${o.votes.red}
           <div class="ps">Azul: ${o.blue.map(esc).join(', ')}<br>Rojo: ${o.red.map(esc).join(', ')}</div></div>
           ${me && me.admin && o.status !== 'draft' ? `<div class="rk-adm"><button class="fv-btn sm" data-res="${o.id}|blue">Ganó Azul</button><button class="fv-btn sm" data-res="${o.id}|red">Ganó Rojo</button><button class="fv-btn sm" data-res="${o.id}|cancel">Anular</button></div>` : ''}</div>`).join('') + `</div>` : '';
     const recent = lb && lb.recent.length ? `<div class="card" style="margin-top:14px"><h3>Últimas partidas</h3>` + lb.recent.map(m => `<div class="rk-rec"><div class="${m.winner === 'blue' ? 'w' : ''}"><b>Azul</b> ${m.blue.map(p => esc(p.nick)).join(', ')}</div><div class="${m.winner === 'red' ? 'w' : ''}"><b>Rojo</b> ${m.red.map(p => esc(p.nick)).join(', ')}</div><small>Ganó ${m.winner === 'blue' ? 'Azul' : 'Rojo'} · ${fdate(m.endedAt)}</small></div>`).join('') + `</div>` : '';
-    const pend = st.pending ? `<div class="rk-modal"><div class="rk-found">
+    const pend = st.pending ? `<div class="rk-modal ${st.sim ? 'low' : ''}"><div class="rk-found">
         <div class="t">¡PARTIDA ENCONTRADA!</div><div class="c rk-count" data-deadline="${st.pending.deadline}">30</div>
         <div class="s">${st.pending.accepted} de ${st.pending.total} aceptaron</div>
         ${st.pending.iAccepted ? `<div class="ok">Aceptaste. Esperando a los demás…</div>` : `<div class="b"><button class="rk-acc" id="rk-acc">ACEPTAR</button><button class="rk-dec" id="rk-dec">Rechazar</button></div>`}
@@ -833,7 +849,7 @@
       : { t:'VOTACIÓN EMPATADA', s:'No hubo mayoría. Un admin definirá el resultado.' };
     const team = t => { const blue = t.side === 'blue';
       return `<div class="card rk-team ${t.side}"><h3><span>${blue ? 'Equipo Azul' : 'Equipo Rojo'}${t.mine ? ' · tu equipo' : ''}</span><a class="fv-btn sm" href="${rkMulti(t.players.map(p => p.rid))}" target="_blank" rel="noopener">OP.GG del equipo</a></h3>
-        <div class="cap">Rango promedio: ${rkRankTxt(t.avgRank)}</div>
+        <div class="cap">Rango promedio: ${rkDot(t.avgRank)}${rkRankTxt(t.avgRank)}</div>
         <div class="rk-bans"><span>Bans</span>${t.bans.map((b, i) => b ? `<img src="${anChamp(b)}" title="${esc(rkChampName(b))}" alt="">` : `<i title="${d.bansHidden && !t.mine ? 'Oculto hasta que terminen los bans' : (t.players[i].banned ? 'Sin ban' : 'Pendiente')}">${d.bansHidden && !t.mine ? '?' : (t.players[i].banned ? '—' : '')}</i>`).join('')}</div>` +
         t.players.map(p => { const turn = d.phase === 'pick' && d.turn.includes(p.uid) && !p.champ;
           return `<div class="rk-p ${p.me ? 'me' : ''} ${turn ? 'turn' : ''}">
@@ -882,7 +898,7 @@
   function rkRender(){
     const box = $('p-rk'), st = RKC.st; if (!st) return;
     const grid = box.querySelector('.rk-grid'), keep = grid ? grid.scrollTop : 0, focused = document.activeElement && document.activeElement.id === 'rk-search';
-    box.innerHTML = (st.match && st.me) ? rkRoomHtml() : rkLobbyHtml();
+    box.innerHTML = rkSimBar() + ((st.match && st.me) ? rkRoomHtml() : rkLobbyHtml());
     const g2 = box.querySelector('.rk-grid'); if (g2) g2.scrollTop = keep;
     const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
     box.querySelectorAll('.rk-roles').forEach(row => row.querySelectorAll('.rk-role').forEach(b => b.onclick = () => {
@@ -891,6 +907,9 @@
       if (r1 && r2 && r1 === r2 && r1 !== 'FILL'){ if (row.dataset.which === '1') r2 = me.role1 && me.role1 !== r1 ? me.role1 : 'FILL'; else r1 = me.role2 && me.role2 !== r2 ? me.role2 : 'FILL'; }
       me.role1 = r1; me.role2 = r2; rkRender();
       if (r1 && r2) rkAct('roles', { role1: r1, role2: r2 }); }));
+    box.querySelectorAll('[data-as]').forEach(b => b.onclick = () => { RKC.as = +b.dataset.as || null; RKC.sel = null; RKC.role = null; RKC.q = ''; RKC.err = '';
+      try { sessionStorage.setItem('sqc_rk_as', RKC.as || ''); } catch (e) {} rkLoad(true); });
+    box.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => { const [action, team] = b.dataset.sim.split(':'); rkAct('admin/sim', { action, team }); });
     on('rk-find', () => rkAct('queue')); on('rk-cancel', () => rkAct('dequeue'));
     on('rk-acc', () => rkAct('accept', { accept: true })); on('rk-dec', () => rkAct('accept', { accept: false }));
     on('rk-seen', () => { try { localStorage.setItem('sqc_rk_seen', String(RKC.st.last.matchId)); } catch (e) {} rkRender(); });

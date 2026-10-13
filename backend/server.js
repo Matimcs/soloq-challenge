@@ -2491,11 +2491,13 @@ function rkPlayer(uid){
   return p;
 }
 async function rkSavePlayer(p){
+  if (p.uid < 0) return;                       // jugadores ficticios del modo prueba: solo en memoria
   try { await q(`INSERT INTO ranked_players (user_id, role1, role2, mmr, lp, wins, losses, strikes, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
     ON CONFLICT (user_id) DO UPDATE SET role1=$2, role2=$3, mmr=$4, lp=$5, wins=$6, losses=$7, strikes=$8, updated_at=now()`,
     [p.uid, p.role1, p.role2, p.mmr, Math.round(p.lp), p.wins, p.losses, p.strikes]); } catch {}
 }
 async function rkSaveMatch(m){
+  if (m.sim){ if (m.id == null) m.id = -Date.now(); return; }   // sala de prueba: no se guarda
   try {
     if (m.id == null){ const r = await q1('INSERT INTO ranked_matches (status, data) VALUES ($1, $2::jsonb) RETURNING id', [m.status, JSON.stringify(m)]); m.id = r ? r.id : -Date.now(); }
     await q('UPDATE ranked_matches SET status=$2, data=$3::jsonb, ended_at=$4 WHERE id=$1', [m.id, m.status, JSON.stringify(m), m.endedAt ? new Date(m.endedAt) : null]);
@@ -2507,6 +2509,7 @@ async function rkUsers(){
   if (Date.now() - RK_USERS.at < 300000) return RK_USERS.map;
   const map = new Map();
   try { for (const u of await q('SELECT id, nickname, riotid, is_admin FROM users')) map.set(u.id, { nick: (u.nickname || '').trim() || (u.riotid || '').split('#')[0], rid: u.riotid || '', admin: !!u.is_admin }); } catch {}
+  RK_BOTS.forEach(b => map.set(b, rkBotUser(b)));
   RK_USERS = { at: Date.now(), map }; return map;
 }
 // Campeones válidos para el draft (id y nombre desde Data Dragon; si falla, los de las partidas guardadas).
@@ -2545,7 +2548,7 @@ async function rkCreateMatch(uids){
   const blue = mk(flip ? best.B : best.A, flip ? best.pb : best.pa, 'blue'), red = mk(flip ? best.A : best.B, flip ? best.pa : best.pb, 'red');
   // Orden de pick dentro de cada equipo al azar (como en ranked); turnos 1-2-2-2-2-1 empezando el azul.
   const bo = fvShuffle(blue.players.map(p => p.uid)), ro = fvShuffle(red.players.map(p => p.uid));
-  const m = { id: null, status: 'draft', createdAt: Date.now(), teams: [blue, red],
+  const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red],
     draft: { phase: 'ban', deadline: Date.now() + RK_BAN_MS, bans: {}, locked: {}, step: 0, picks: {},
       groups: [[bo[0]], [ro[0], ro[1]], [bo[1], bo[2]], [ro[2], ro[3]], [bo[3], bo[4]], [ro[4]]] },
     lobby: null, votes: {}, winner: null, resolvedBy: null, lpChanges: {} };
@@ -2585,6 +2588,11 @@ async function rkAdvance(m){
 async function rkResolve(m, winner, by){
   const [blue, red] = m.teams, eBlue = 1 / (1 + Math.pow(10, (red.avgMmr - blue.avgMmr) / 400));
   m.winner = winner; m.resolvedBy = by; m.status = 'done'; m.endedAt = Date.now();
+  if (m.sim){   // sala de prueba: se muestra el resultado, pero no se mueven PL, MMR ni faltas de nadie
+    for (const t of m.teams) for (const s of t.players){ const won = t.side === winner, lp = rkPlayer(s.uid).lp;
+      RK.last.set(s.uid, { matchId: m.id, won, delta: won ? 20 : -20, before: lp, after: lp, at: m.endedAt, by, sim: true }); }
+    RK.matches.delete(m.id); rkUids(m).forEach(u => RK.byUser.delete(u)); return;
+  }
   for (const t of m.teams){
     const won = t.side === winner, e = t.side === 'blue' ? eBlue : 1 - eBlue;
     for (const s of t.players){ const p = rkPlayer(s.uid);
@@ -2641,6 +2649,49 @@ async function rkTick(){
   finally { _rkTicking = false; }
 }
 setInterval(() => { rkTick(); }, 1000);
+// ---- Modo prueba (solo el superadmin): 9 jugadores ficticios (ids negativos) que el superadmin maneja como
+// si fuera cada uno, para probar cola, aceptar, draft y votación sin juntar a 10 personas. Una sala con
+// algún ficticio queda marcada como `sim`: no se guarda en la base ni cambia PL, MMR o faltas.
+const RK_SUPER = 'sionantisionista#sas', RK_BOTS = [-1, -2, -3, -4, -5, -6, -7, -8, -9];
+const rkIsSuper = rid => String(rid || '').trim().toLowerCase() === RK_SUPER;
+const rkBotUser = uid => ({ nick: 'Bot ' + (-uid), rid: 'Bot ' + (-uid) + '#TEST', admin: false });
+// Tras `auth`: si el superadmin manda `as` con un ficticio, la acción se ejecuta como ese jugador.
+function rkImp(req, res, next){
+  const as = Number(req.body && req.body.as);
+  if (RK_BOTS.includes(as) && rkIsSuper(req.user.riotid)) req.user = { id: as, riotid: rkBotUser(as).rid, is_admin: false };
+  next();
+}
+app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
+  if (!rkIsSuper(req.user.riotid)) return res.status(403).json({ error: 'Solo superadmin' });
+  await rkInit(); const act = req.body && req.body.action, now = Date.now();
+  if (act === 'fill'){
+    RK_BOTS.forEach((b, i) => { const p = rkPlayer(b);
+      if (!p.role1){ p.role1 = RK_ROLES[i % 5]; p.role2 = RK_ROLES[(i + 1 + fvRand(4)) % 5]; }
+      if (!RK.byUser.has(b) && !RK.queue.has(b)) RK.queue.set(b, { uid: b, since: now }); });
+  } else if (act === 'accept'){
+    for (const pd of RK.pending.values()) pd.players.forEach(u => { if (u < 0) pd.accepted.add(u); });
+  } else if (act === 'draft'){
+    const valid = (await rkChamps()).map(c => c.id), pool = await fvChampPool();
+    for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'draft') continue; const d = m.draft;
+      if (d.phase === 'ban'){
+        for (const u of rkUids(m)) if (u < 0 && !d.locked[u]){ const used = new Set(Object.values(d.bans)), o = valid.filter(c => !used.has(c)); d.bans[u] = o[fvRand(o.length)] || null; d.locked[u] = true; }
+      } else if (d.phase === 'pick'){
+        for (const u of d.groups[d.step]) if (u < 0 && !d.picks[u]){ const taken = new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
+          let o = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!o.length) o = valid.filter(c => !taken.has(c)); d.picks[u] = o[fvRand(o.length)]; }
+      }
+      await rkAdvance(m); }
+  } else if (act === 'vote'){
+    const side = req.body.team; if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
+    for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'playing') continue;
+      rkUids(m).forEach(u => { if (u < 0 && !m.votes[u]) m.votes[u] = side; }); await rkCheckVotes(m); }
+  } else if (act === 'clear'){
+    RK_BOTS.forEach(b => RK.queue.delete(b));
+    for (const pd of [...RK.pending.values()]) if (pd.players.some(u => u < 0)) RK.pending.delete(pd.id);
+    for (const m of [...RK.matches.values()]) if (m.sim) await rkCancel(m, 'prueba');
+    RK_BOTS.forEach(b => { RK.players.delete(b); RK.last.delete(b); });
+  } else return res.status(400).json({ error: 'Acción inválida' });
+  await rkTick(); res.json({ ok: true });
+}));
 // Lo que ve cada jugador de su sala. En la fase de bans no se envían los del equipo rival.
 async function rkMatchView(m, uid){
   const d = m.draft, my = rkTeamOf(m, uid), banPhase = m.status === 'draft' && d.phase === 'ban';
@@ -2658,7 +2709,9 @@ async function rkMatchView(m, uid){
 }
 app.get('/api/ranked/state', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkTick();
-  const uid = await optionalUid(req), out = { now: Date.now(), size: RK_SIZE, queue: { count: RK.queue.size }, me: null, pending: null, match: null, last: null };
+  const real = await optionalUid(req); let uid = real, sup = false;
+  if (real){ const ru = (await rkUsers()).get(real), as = Number(req.query.as); sup = !!ru && rkIsSuper(ru.rid); if (sup && RK_BOTS.includes(as)) uid = as; }
+  const out = { now: Date.now(), size: RK_SIZE, queue: { count: RK.queue.size }, me: null, pending: null, match: null, last: null };
   if (uid){
     const users = await rkUsers(), u = users.get(uid) || { nick: '', rid: '', admin: false }, p = rkPlayer(uid);
     out.me = { uid, nick: u.nick, rid: u.rid, admin: u.admin, role1: p.role1, role2: p.role2, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, strikes: p.strikes, voteWeight: rkVoteWeight(p.strikes) };
@@ -2668,6 +2721,7 @@ app.get('/api/ranked/state', wrap(async (req, res) => {
     const mid = RK.byUser.get(uid), m = mid != null ? RK.matches.get(mid) : null;
     if (m) out.match = await rkMatchView(m, uid);
     out.last = RK.last.get(uid) || null;
+    if (sup) out.sim = { as: uid < 0 ? uid : null, bots: RK_BOTS.map(b => ({ uid: b, nick: rkBotUser(b).nick, inQueue: RK.queue.has(b), inMatch: RK.byUser.has(b) })) };
   }
   res.json(out);
 }));
@@ -2685,7 +2739,7 @@ app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control'
   // roles: líneas habituales de cada campeón (lista general de posiciones + lo que se juega en las partidas guardadas)
   const pos = await rkPositions(); let pool = {}; try { pool = await fvChampPool(); } catch {}
   res.json((await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => (pos[c.id.toLowerCase()] || []).includes(r) || (pool[r] || []).includes(c.id)) }))); }));
-app.post('/api/ranked/roles', auth, wrap(async (req, res) => {
+app.post('/api/ranked/roles', auth, rkImp, wrap(async (req, res) => {
   await rkInit(); const ok = v => RK_ROLES.includes(v) || v === 'FILL', r1 = String((req.body && req.body.role1) || ''), r2 = String((req.body && req.body.role2) || '');
   if (!ok(r1) || !ok(r2)) return res.status(400).json({ error: 'Elige rol principal y secundario' });
   if (r1 === r2 && r1 !== 'FILL') return res.status(400).json({ error: 'El rol secundario debe ser distinto del principal' });
@@ -2693,7 +2747,7 @@ app.post('/api/ranked/roles', auth, wrap(async (req, res) => {
   const p = rkPlayer(req.user.id); p.role1 = r1; p.role2 = r2; await rkSavePlayer(p);
   res.json({ ok: true });
 }));
-app.post('/api/ranked/queue', auth, wrap(async (req, res) => {
+app.post('/api/ranked/queue', auth, rkImp, wrap(async (req, res) => {
   await rkInit(); const p = rkPlayer(req.user.id);
   if (!req.user.riotid) return res.status(400).json({ error: 'Tu cuenta no tiene Riot ID' });
   if (!p.role1 || !p.role2) return res.status(400).json({ error: 'Elige primero tu rol principal y secundario' });
@@ -2701,12 +2755,12 @@ app.post('/api/ranked/queue', auth, wrap(async (req, res) => {
   if (!RK.queue.has(req.user.id)) RK.queue.set(req.user.id, { uid: req.user.id, since: Date.now() });
   await rkTick(); res.json({ ok: true });
 }));
-app.post('/api/ranked/dequeue', auth, wrap(async (req, res) => {
+app.post('/api/ranked/dequeue', auth, rkImp, wrap(async (req, res) => {
   await rkInit();
   const pd = [...RK.pending.values()].find(x => x.players.includes(req.user.id)); if (pd) pd.declined.add(req.user.id);
   RK.queue.delete(req.user.id); await rkTick(); res.json({ ok: true });
 }));
-app.post('/api/ranked/accept', auth, wrap(async (req, res) => {
+app.post('/api/ranked/accept', auth, rkImp, wrap(async (req, res) => {
   await rkInit(); const pd = [...RK.pending.values()].find(x => x.players.includes(req.user.id));
   if (!pd) return res.status(400).json({ error: 'No hay partida por aceptar' });
   if (req.body && req.body.accept === false){ pd.declined.add(req.user.id); pd.accepted.delete(req.user.id); } else pd.accepted.add(req.user.id);
@@ -2717,7 +2771,7 @@ async function rkMine(req, res){
   await rkTick(); const mid = RK.byUser.get(req.user.id), m = mid != null ? RK.matches.get(mid) : null;
   if (!m){ res.status(400).json({ error: 'No estás en una partida' }); return null; } return m;
 }
-app.post('/api/ranked/ban', auth, wrap(async (req, res) => {
+app.post('/api/ranked/ban', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'ban') return res.status(400).json({ error: 'No es la fase de bans' });
   if (d.locked[uid]) return res.status(400).json({ error: 'Ya baneaste' });
@@ -2725,7 +2779,7 @@ app.post('/api/ranked/ban', auth, wrap(async (req, res) => {
   if (champ && !(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Campeón inválido' });
   d.bans[uid] = champ; d.locked[uid] = true; await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
 }));
-app.post('/api/ranked/pick', auth, wrap(async (req, res) => {
+app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'pick') return res.status(400).json({ error: 'No es la fase de picks' });
   if (!d.groups[d.step].includes(uid)) return res.status(400).json({ error: 'No es tu turno' });
@@ -2736,7 +2790,7 @@ app.post('/api/ranked/pick', auth, wrap(async (req, res) => {
   if (Object.values(d.picks).includes(champ)) return res.status(400).json({ error: 'Ese campeón ya fue elegido' });
   d.picks[uid] = champ; await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
 }));
-app.post('/api/ranked/vote', auth, wrap(async (req, res) => {
+app.post('/api/ranked/vote', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const side = req.body && req.body.team;
   if (m.status !== 'playing') return res.status(400).json({ error: m.status === 'dispute' ? 'La votación quedó empatada: decide un admin' : 'Aún no se puede votar' });
   if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
@@ -2755,9 +2809,9 @@ app.post('/api/ranked/admin/resolve', auth, requireAdmin, wrap(async (req, res) 
 // Tabla de posiciones + salas abiertas (para admins) + últimas partidas.
 app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit(); const users = await rkUsers();
-  const board = [...RK.players.values()].filter(p => p.wins + p.losses > 0).sort((a, b) => b.lp - a.lp || b.wins - a.wins)
+  const board = [...RK.players.values()].filter(p => p.uid > 0 && p.wins + p.losses > 0).sort((a, b) => b.lp - a.lp || b.wins - a.wins)
     .map((p, i) => { const u = users.get(p.uid) || { nick: '?', rid: '' }; return { pos: i + 1, nick: u.nick, rid: u.rid, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, role1: p.role1, role2: p.role2 }; });
-  const open = [...RK.matches.values()].map(m => ({ id: m.id, status: m.status, createdAt: m.createdAt, blue: m.teams[0].players.map(p => p.nick), red: m.teams[1].players.map(p => p.nick),
+  const open = [...RK.matches.values()].map(m => ({ id: m.id, sim: !!m.sim, status: m.status, createdAt: m.createdAt, blue: m.teams[0].players.map(p => p.nick), red: m.teams[1].players.map(p => p.nick),
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length } }));
   let recent = [];
   try { recent = (await q("SELECT id, data FROM ranked_matches WHERE status='done' ORDER BY ended_at DESC NULLS LAST LIMIT 10")).map(r => ({ id: r.id, winner: r.data.winner, endedAt: r.data.endedAt, by: r.data.resolvedBy,
