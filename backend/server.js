@@ -2671,10 +2671,20 @@ app.get('/api/ranked/state', wrap(async (req, res) => {
   }
   res.json(out);
 }));
+// Posiciones habituales por campeón (fuente abierta de Meraki Analytics; caché de 12 h). Si falla, queda solo lo de las partidas guardadas.
+const RK_POS = { at: 0, map: null };
+async function rkPositions(){
+  if (RK_POS.map && Date.now() - RK_POS.at < 12 * 3600 * 1000) return RK_POS.map;
+  try { const r = await fetch('https://cdn.merakianalytics.com/riot/lol/resources/latest/en-US/champions.json');
+    if (r.ok){ const j = await r.json(), map = {};
+      for (const k of Object.keys(j)) map[k.toLowerCase()] = (j[k].positions || []).map(x => x === 'SUPPORT' ? 'UTILITY' : x);
+      if (Object.keys(map).length){ RK_POS.map = map; RK_POS.at = Date.now(); } } } catch {}
+  return RK_POS.map || {};
+}
 app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=3600');
-  // roles: líneas donde ese campeón se juega de verdad (según las partidas guardadas), para filtrar en el selector
-  let pool = {}; try { pool = await fvChampPool(); } catch {}
-  res.json((await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => (pool[r] || []).includes(c.id)) }))); }));
+  // roles: líneas habituales de cada campeón (lista general de posiciones + lo que se juega en las partidas guardadas)
+  const pos = await rkPositions(); let pool = {}; try { pool = await fvChampPool(); } catch {}
+  res.json((await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => (pos[c.id.toLowerCase()] || []).includes(r) || (pool[r] || []).includes(c.id)) }))); }));
 app.post('/api/ranked/roles', auth, wrap(async (req, res) => {
   await rkInit(); const ok = v => RK_ROLES.includes(v) || v === 'FILL', r1 = String((req.body && req.body.role1) || ''), r2 = String((req.body && req.body.role2) || '');
   if (!ok(r1) || !ok(r2)) return res.status(400).json({ error: 'Elige rol principal y secundario' });
