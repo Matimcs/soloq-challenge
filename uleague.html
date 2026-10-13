@@ -597,8 +597,14 @@ function simReset(){
   const fix=n=>dispOf[n]||n;
   // Pre-cargamos los resultados REALES ya jugados (m.w) y los dejamos fijos (fixed):
   // solo se pueden elegir los partidos que aún no se jugaron.
-  const r1=((DATA.swiss[0]&&DATA.swiss[0].buckets[0])?DATA.swiss[0].buckets[0].matches:[]).map(m=>({a:fix(m.a),b:fix(m.b),w:m.w?fix(m.w):null,fixed:!!m.w}));
-  SIM={teams, rounds:[{n:1,bo:'BO1',matches:r1}], bracket:null, phase:'swiss'};
+  // Se cargan TODAS las rondas reales que ya tienen emparejamientos (no solo la 1): las jugadas quedan fijas
+  // y la ronda en curso trae sus cruces reales para elegir. Las rondas siguientes se generan por récord.
+  const rounds=[];
+  (DATA.swiss||[]).forEach(r=>{ const ms=[];
+    (r.buckets||[]).forEach(b=>(b.matches||[]).forEach(m=>ms.push({a:fix(m.a),b:fix(m.b),w:m.w?fix(m.w):null,fixed:!!m.w,rec:b.record})));
+    if(ms.length) rounds.push({n:r.n,bo:r.bo||(r.n<=2?'BO1':'BO3'),matches:ms}); });
+  if(!rounds.length) rounds.push({n:1,bo:'BO1',matches:[]});
+  SIM={teams, rounds, bracket:null, phase:'swiss'};
   recomputeSwiss(); renderSim();
 }
 function recomputeSwiss(){
