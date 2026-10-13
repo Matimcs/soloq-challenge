@@ -626,7 +626,7 @@
   .pat-body{ padding:13px 12px; text-align:center; }
   .pat-msg{ font-size:13.5px; color:var(--text); line-height:1.4; }
   .pat-msg .pat-lp{ color:var(--down); }
-  .pat-img{ width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:12px; margin:10px 0 12px; display:block; }
+  .pat-img{ width:100%; aspect-ratio:512/565; object-fit:cover; background:#0b0b0b; border-radius:12px; margin:10px 0 12px; display:block; }
   .pat-sub{ font-size:11px; color:var(--muted); margin:8px 0 12px; line-height:1.35; }
   .pat-btn{ width:100%; font-family:inherit; cursor:pointer; font-size:14px; font-weight:800; padding:10px; border-radius:10px; border:0; background:var(--up); color:#05271d; transition:transform .1s ease, filter .1s ease; }
   .pat-btn:hover:not(:disabled){ filter:brightness(1.08); }
@@ -642,13 +642,13 @@
 </head>
 <body>
 
-  <!-- Popup: Acaricia a Matotomato -->
+  <!-- Popup: Acaricia a TIDE -->
   <div id="pat-popup" class="hidden">
-    <div class="pat-h"><span>🐶</span><span class="t">ACARICIA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
+    <div class="pat-h"><span>🌊</span><span class="t">ACARICIA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
     <div class="pat-body">
-      <div class="pat-msg"><b>Acaricia a Matotomato</b></div>
-      <img class="pat-img" id="pat-img" src="matotomato-triste.webp" alt="Matotomato" loading="lazy">
-      <button class="pat-btn" id="pat-btn">🐾 Acariciar</button>
+      <div class="pat-msg"><b>Acaricia a TIDE</b></div>
+      <img class="pat-img" id="pat-img" src="tide-triste.webp" alt="UCH TIDE" loading="lazy">
+      <button class="pat-btn" id="pat-btn">🌊 Acariciar</button>
       <div class="pat-count" id="pat-count">—</div>
     </div>
   </div>
@@ -2041,13 +2041,13 @@ SQC.preNav(); SQC.mountNav();
 /* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
 if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 
-/* ===== Popup: Acaricia a Matotomato ===== */
+/* ===== Popup: Acaricia a TIDE ===== */
 (function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
   const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
   const COOLDOWN = 10 * 60 * 1000, KEY = 'patLast';
   const CLOSE_TTL = 10 * 60 * 1000, CKEY = 'matoClosed';   // tras cerrarlo, reaparece a los 10 min
-  const IMG_SAD = 'matotomato-triste.webp', IMG_HAPPY = 'matotomato.webp';
+  const IMG_SAD = 'tide-triste.webp', IMG_HAPPY = 'tide.webp';   // sombrío = triste; el otro = normal (tras acariciar)
   let count = 0, timer = null, reopenT = null;
   window.__patRank = function(){};   // ya no se usa (lo llama el refresco del ranking)
   const lastPat = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
@@ -2055,14 +2055,14 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   function refreshBtn(){
     const left = COOLDOWN - (Date.now() - lastPat());
     if (left > 0){ btn.disabled = true; const m = Math.floor(left/60000), s = Math.floor(left%60000/1000);
-      btn.textContent = `🐾 Gracias · ${m}:${String(s).padStart(2,'0')}`;
+      btn.textContent = `🌊 Gracias · ${m}:${String(s).padStart(2,'0')}`;
       if (imgEl && !imgEl.src.endsWith(IMG_HAPPY)) imgEl.src = IMG_HAPPY;   // acariciado → feliz
       clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
-    else { btn.disabled = false; btn.textContent = '🐾 Acariciar'; clearTimeout(timer);
+    else { btn.disabled = false; btn.textContent = '🌊 Acariciar'; clearTimeout(timer);
       if (imgEl && !imgEl.src.endsWith(IMG_SAD)) imgEl.src = IMG_SAD; }   // se puede acariciar → triste
   }
   function pop(){ const s = document.createElement('span'); s.className = 'pat-pop';
-    s.textContent = ['🐶','🐾','❤️','🙌','😊'][Math.floor(Math.random()*5)];
+    s.textContent = ['🌊','🖤','❤️','🙌','😊'][Math.floor(Math.random()*5)];
     s.style.left = (12 + Math.random()*66) + '%'; s.style.bottom = '46px'; box.appendChild(s); setTimeout(() => s.remove(), 1000); }
   async function load(){ try { if (window.SQC && SQC.api){ const d = await SQC.api('/palmadita'); count = (d && d.count) || 0; paintCount(); } } catch (e) {} }
   async function send(){
