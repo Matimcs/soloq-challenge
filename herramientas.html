@@ -286,6 +286,7 @@
   .rk-team.blue{ border-top:3px solid #3987e5; } .rk-team.red{ border-top:3px solid #d9662b; }
   .rk-bans{ display:flex; align-items:center; gap:6px; margin:4px 0 8px; } .rk-bans span{ font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); margin-right:4px; }
   .rk-bans img, .rk-bans i{ width:30px; height:30px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line); display:grid; place-items:center; font-style:normal; font-size:13px; font-weight:800; color:var(--muted-2); }
+  .rk-bans i.now{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
   .rk-bans img{ filter:grayscale(.7) brightness(.75); }
   .rk-p{ display:grid; grid-template-columns:22px 40px 1fr auto; gap:10px; align-items:center; padding:8px 6px; border-top:1px solid var(--line); border-radius:8px; }
   .rk-p.turn{ background:rgba(233,255,31,.07); box-shadow:inset 0 0 0 1px rgba(233,255,31,.45); } .rk-p.me .nm{ color:var(--accent); }
@@ -839,22 +840,22 @@
   // ---------- sala: equipos, pick y ban, partida y votación ----------
   function rkRoomHtml(){
     const st = RKC.st, m = st.match, d = m.draft, me = st.me;
-    const mineTeam = m.teams.find(t => t.mine), myTurn = d.phase === 'pick' && d.turn.includes(me.uid) && !(mineTeam.players.find(p => p.me) || {}).champ;
-    const canBan = m.status === 'draft' && d.phase === 'ban' && !d.myBanLocked;
+    const mineTeam = m.teams.find(t => t.mine), myTurn = m.status === 'draft' && d.phase === 'pick' && d.turn.includes(me.uid) && !(mineTeam.players.find(p => p.me) || {}).champ;
+    const canBan = m.status === 'draft' && d.phase === 'ban' && d.turn.includes(me.uid) && !d.myBanLocked;
     const nickOf = uid => { for (const t of m.teams){ const p = t.players.find(x => x.uid === uid); if (p) return p.nick; } return '?'; };
     const head = m.status === 'draft'
-      ? (d.phase === 'ban' ? { t:'FASE DE BANS', s: d.myBanLocked ? 'Ya baneaste. Esperando al resto…' : 'Todos banean a la vez. Elige un campeón o pasa sin ban.' }
+      ? (d.phase === 'ban' ? { t:'FASE DE BANS', s: canBan ? '¡Es tu turno! Banea un campeón o pasa sin ban.' : 'Banea ' + d.turn.map(nickOf).join(' y ') }
                            : { t:'FASE DE PICKS', s: myTurn ? '¡Es tu turno! Elige tu campeón.' : 'Turno de ' + d.turn.map(nickOf).join(' y ') })
       : m.status === 'playing' ? { t:'PARTIDA EN CURSO', s:'Jueguen la partida y al terminar voten quién ganó.' }
       : { t:'VOTACIÓN EMPATADA', s:'No hubo mayoría. Un admin definirá el resultado.' };
     const team = t => { const blue = t.side === 'blue';
       return `<div class="card rk-team ${t.side}"><h3><span>${blue ? 'Equipo Azul' : 'Equipo Rojo'}${t.mine ? ' · tu equipo' : ''}</span><a class="fv-btn sm" href="${rkMulti(t.players.map(p => p.rid))}" target="_blank" rel="noopener">OP.GG del equipo</a></h3>
         <div class="cap">Rango promedio: ${rkDot(t.avgRank)}${rkRankTxt(t.avgRank)}</div>
-        <div class="rk-bans"><span>Bans</span>${t.bans.map((b, i) => b ? `<img src="${anChamp(b)}" title="${esc(rkChampName(b))}" alt="">` : `<i title="${d.bansHidden && !t.mine ? 'Oculto hasta que terminen los bans' : (t.players[i].banned ? 'Sin ban' : 'Pendiente')}">${d.bansHidden && !t.mine ? '?' : (t.players[i].banned ? '—' : '')}</i>`).join('')}</div>` +
-        t.players.map(p => { const turn = d.phase === 'pick' && d.turn.includes(p.uid) && !p.champ;
+        <div class="rk-bans"><span>Bans</span>${t.bans.map((b, i) => b ? `<img src="${anChamp(b)}" title="${esc(rkChampName(b))}" alt="">` : `<i class="${m.status === 'draft' && d.phase === 'ban' && d.turn.includes(t.players[i].uid) ? 'now' : ''}" title="${t.players[i].banned ? 'Sin ban' : 'Ban de ' + esc(t.players[i].nick)}">${t.players[i].banned ? '—' : ''}</i>`).join('')}</div>` +
+        t.players.map(p => { const turn = m.status === 'draft' && d.turn.includes(p.uid) && (d.phase === 'pick' ? !p.champ : !p.banned), banTurn = turn && d.phase === 'ban';
           return `<div class="rk-p ${p.me ? 'me' : ''} ${turn ? 'turn' : ''}">
             ${rkRoleIco(p.role)}
-            ${p.champ ? `<img class="ch" src="${anChamp(p.champ)}" alt="" title="${esc(rkChampName(p.champ))}">` : `<span class="ch ph">${turn ? '…' : ''}</span>`}
+            ${p.champ ? `<img class="ch" src="${anChamp(p.champ)}" alt="" title="${esc(rkChampName(p.champ))}">` : `<span class="ch ph">${turn ? (banTurn ? '🚫' : '…') : ''}</span>`}
             <div class="nf"><div class="nm">${esc(p.nick)}${p.me ? ' <small>(tú)</small>' : ''}</div>
               <div class="ps">${rkDot(p.rank)}${rkRankTxt(p.rank)} ${p.rank.lp} PL · ${RK_ROLE[p.role]}${p.pref === 'auto' ? ' (autofill)' : p.pref === 'sec' ? ' (secundario)' : ''}${p.champ ? ' · ' + esc(rkChampName(p.champ)) + (p.auto ? ' (automático)' : '') : ''}</div></div>
             <a class="fv-btn sm" href="${rkOpgg(p.rid)}" target="_blank" rel="noopener" title="${esc(p.rid)}">OP.GG</a></div>`; }).join('') + `</div>`; };
@@ -863,7 +864,7 @@
       if (!RKC.champs){ rkEnsureChamps(); picker = `<div class="card"><div class="loading" style="padding:24px 0">Cargando campeones…</div></div>`; }
       else {
         const taken = new Set(); m.teams.forEach(t => { t.bans.forEach(b => b && taken.add(b)); t.players.forEach(p => p.champ && taken.add(p.champ)); });
-        if (RKC.sel && (!canBan && taken.has(RKC.sel))) RKC.sel = null;
+        if (RKC.sel && taken.has(RKC.sel)) RKC.sel = null;
         const qy = RKC.q.trim().toLowerCase();
         // filtro por línea: al elegir parte en tu rol; al banear, en todos. Al escribir en el buscador se busca en todos.
         const myRole = (mineTeam.players.find(p => p.me) || {}).role, rf = RKC.role || (canBan ? 'ALL' : myRole);
@@ -873,7 +874,7 @@
             <span class="rk-selname">${RKC.sel ? esc(rkChampName(RKC.sel)) : 'Ninguno seleccionado'}</span>
             <button class="fv-btn pri" id="rk-lock" ${RKC.sel ? '' : 'disabled'}>${canBan ? 'BANEAR' : 'FIJAR'}</button>
             ${canBan ? `<button class="fv-btn" id="rk-noban">Pasar sin ban</button>` : ''}</div>
-          <div class="rk-grid">` + RKC.champs.map(c => { const off = !canBan && taken.has(c.id), hide = qy ? (!c.name.toLowerCase().includes(qy) && !c.id.toLowerCase().includes(qy)) : (rf !== 'ALL' && !(c.roles || []).includes(rf));
+          <div class="rk-grid">` + RKC.champs.map(c => { const off = taken.has(c.id), hide = qy ? (!c.name.toLowerCase().includes(qy) && !c.id.toLowerCase().includes(qy)) : (rf !== 'ALL' && !(c.roles || []).includes(rf));
             return `<button class="rk-c ${RKC.sel === c.id ? 'on' : ''} ${off ? 'off' : ''}" data-c="${esc(c.id)}" data-r="${(c.roles || []).join(',')}" ${off ? 'disabled' : ''} style="${hide ? 'display:none' : ''}" title="${esc(c.name)}"><img src="${anChamp(c.id)}" alt="" loading="lazy"><span>${esc(c.name)}</span></button>`; }).join('') + `</div></div>`;
       }
     }

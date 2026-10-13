@@ -2460,7 +2460,7 @@ app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
 // ================= HERRAMIENTAS · RANKED (cola interna con ranking propio) =================
 // Los jugadores eligen rol principal/secundario y entran a una cola. Al juntarse 10 hay que aceptar
 // (como en el LoL); después se arma la sala con equipos parejos por MMR, se hace el pick/ban igual
-// que en ranked (10 bans simultáneos y picks 1-2-2-2-2-1) y al terminar los jugadores votan quién ganó.
+// por turnos como en torneo (cada jugador banea uno; bans y picks en dos fases) y al terminar los jugadores votan quién ganó.
 // Ranking como el del LoL: Hierro→Diamante con 4 divisiones de 100 PL, y Maestro+ con PL abiertos.
 // Todos parten en Diamante IV con 0 PL. El estado vive en memoria y se respalda en la DB.
 const RK_ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
@@ -2546,11 +2546,16 @@ async function rkCreateMatch(uids){
       .sort((x, y) => RK_ROLES.indexOf(x.role) - RK_ROLES.indexOf(y.role)) });
   const flip = fvRand(2) === 1;
   const blue = mk(flip ? best.B : best.A, flip ? best.pb : best.pa, 'blue'), red = mk(flip ? best.A : best.B, flip ? best.pa : best.pb, 'red');
-  // Orden de pick dentro de cada equipo al azar (como en ranked); turnos 1-2-2-2-2-1 empezando el azul.
+  // Draft por turnos, como en torneo (azul = equipo de la izquierda). Cada jugador banea uno, en orden de rol
+  // (top, jungla, mid en la primera fase; adc y support en la segunda). El orden de pick de cada equipo es al azar.
+  //   bans  A R A R A R  →  picks A · RR · AA · R  →  bans A R A R  →  picks R · AA · R
   const bo = fvShuffle(blue.players.map(p => p.uid)), ro = fvShuffle(red.players.map(p => p.uid));
+  const bb = blue.players.map(p => p.uid), rb = red.players.map(p => p.uid);
+  const B = u => ({ t: 'ban', u: [u] }), K = (...u) => ({ t: 'pick', u });
+  const seq = [B(bb[0]), B(rb[0]), B(bb[1]), B(rb[1]), B(bb[2]), B(rb[2]), K(bo[0]), K(ro[0], ro[1]), K(bo[1], bo[2]), K(ro[2]),
+               B(bb[3]), B(rb[3]), B(bb[4]), B(rb[4]), K(ro[3]), K(bo[3], bo[4]), K(ro[4])];
   const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red],
-    draft: { phase: 'ban', deadline: Date.now() + RK_BAN_MS, bans: {}, locked: {}, step: 0, picks: {},
-      groups: [[bo[0]], [ro[0], ro[1]], [bo[1], bo[2]], [ro[2], ro[3]], [bo[3], bo[4]], [ro[4]]] },
+    draft: { phase: 'ban', deadline: Date.now() + RK_BAN_MS, bans: {}, locked: {}, step: 0, picks: {}, seq },
     lobby: null, votes: {}, winner: null, resolvedBy: null, lpChanges: {} };
   await rkSaveMatch(m);
   RK.matches.set(m.id, m); uids.forEach(u => { RK.byUser.set(u, m.id); RK.queue.delete(u); });
@@ -2558,28 +2563,27 @@ async function rkCreateMatch(uids){
 }
 const rkTeamOf = (m, uid) => m.teams.find(t => t.players.some(p => p.uid === uid));
 const rkSlot = (m, uid) => { for (const t of m.teams){ const p = t.players.find(x => x.uid === uid); if (p) return p; } return null; };
-// Avanza el draft cuando todos terminaron o se acabó el tiempo. A quien no eligió se le asigna un campeón
-// al azar jugable en su rol (para no cancelar la sala por un despistado).
+// Avanza el draft cuando el turno terminó o se acabó el tiempo. Quien no banea a tiempo pierde su ban; a quien
+// no elige se le asigna un campeón al azar jugable en su rol (para no cancelar la sala por un despistado).
 async function rkAdvance(m){
-  const d = m.draft, now = Date.now(); let changed = false;
+  const d = m.draft; let changed = false;
   if (m.status !== 'draft') return false;
-  if (d.phase === 'ban'){
-    const all = rkUids(m);
-    if (all.every(u => d.locked[u]) || now >= d.deadline){ all.forEach(u => { if (!d.locked[u]){ d.locked[u] = true; if (!(u in d.bans)) d.bans[u] = null; } });
-      d.phase = 'pick'; d.step = 0; d.deadline = now + RK_PICK_MS; changed = true; }
-  }
-  while (m.status === 'draft' && d.phase === 'pick'){
-    const g = d.groups[d.step], t = Date.now();
-    if (!(g.every(u => d.picks[u]) || t >= d.deadline)) break;
-    const pool = await fvChampPool(), valid = (await rkChamps()).map(c => c.id);
-    for (const u of g){ if (d.picks[u]) continue;
-      const taken = new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
-      let opts = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!opts.length) opts = valid.filter(c => !taken.has(c));
-      d.picks[u] = opts[fvRand(opts.length)]; rkSlot(m, u).auto = true; }
+  if (!d.seq){ await rkCancel(m, 'formato antiguo'); return true; }
+  while (m.status === 'draft'){
+    const st = d.seq[d.step], done = u => st.t === 'ban' ? d.locked[u] : d.picks[u];
+    if (!(st.u.every(done) || Date.now() >= d.deadline)) break;
+    if (st.t === 'ban') st.u.forEach(u => { if (!d.locked[u]){ d.locked[u] = true; d.bans[u] = null; } });
+    else {
+      const pool = await fvChampPool(), valid = (await rkChamps()).map(c => c.id);
+      for (const u of st.u){ if (d.picks[u]) continue;
+        const taken = new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
+        let opts = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!opts.length) opts = valid.filter(c => !taken.has(c));
+        d.picks[u] = opts[fvRand(opts.length)]; rkSlot(m, u).auto = true; }
+    }
     d.step++; changed = true;
-    if (d.step >= d.groups.length){ d.phase = 'done'; d.deadline = null; m.status = 'playing';
-      m.lobby = { name: 'SQC-' + String(Math.abs(m.id)).padStart(3, '0'), pass: String(1000 + fvRand(9000)) }; }
-    else d.deadline = Date.now() + RK_PICK_MS;
+    if (d.step >= d.seq.length){ d.phase = 'done'; d.deadline = null; m.status = 'playing';
+      m.lobby = { name: 'SQC-' + String(Math.abs(m.id)).slice(-3).padStart(3, '0'), pass: String(1000 + fvRand(9000)) }; }
+    else { d.phase = d.seq[d.step].t; d.deadline = Date.now() + (d.phase === 'ban' ? RK_BAN_MS : RK_PICK_MS); }
   }
   if (changed) await rkSaveMatch(m);
   return changed;
@@ -2673,12 +2677,10 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
   } else if (act === 'draft'){
     const valid = (await rkChamps()).map(c => c.id), pool = await fvChampPool();
     for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'draft') continue; const d = m.draft;
-      if (d.phase === 'ban'){
-        for (const u of rkUids(m)) if (u < 0 && !d.locked[u]){ const used = new Set(Object.values(d.bans)), o = valid.filter(c => !used.has(c)); d.bans[u] = o[fvRand(o.length)] || null; d.locked[u] = true; }
-      } else if (d.phase === 'pick'){
-        for (const u of d.groups[d.step]) if (u < 0 && !d.picks[u]){ const taken = new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
-          let o = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!o.length) o = valid.filter(c => !taken.has(c)); d.picks[u] = o[fvRand(o.length)]; }
-      }
+      // actúan solo los bots a los que les toca en el turno actual
+      for (const u of d.seq[d.step].u){ if (u >= 0) continue; const taken = new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
+        if (d.phase === 'ban'){ if (!d.locked[u]){ const o = valid.filter(c => !taken.has(c)); d.bans[u] = o[fvRand(o.length)] || null; d.locked[u] = true; } }
+        else if (!d.picks[u]){ let o = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!o.length) o = valid.filter(c => !taken.has(c)); d.picks[u] = o[fvRand(o.length)]; } }
       await rkAdvance(m); }
   } else if (act === 'vote'){
     const side = req.body.team; if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
@@ -2692,17 +2694,17 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
   } else return res.status(400).json({ error: 'Acción inválida' });
   await rkTick(); res.json({ ok: true });
 }));
-// Lo que ve cada jugador de su sala. En la fase de bans no se envían los del equipo rival.
+// Lo que ve cada jugador de su sala.
 async function rkMatchView(m, uid){
-  const d = m.draft, my = rkTeamOf(m, uid), banPhase = m.status === 'draft' && d.phase === 'ban';
+  const d = m.draft, my = rkTeamOf(m, uid), cur = m.status === 'draft' && d.seq ? d.seq[d.step] : null;
   const w = u => rkVoteWeight(rkPlayer(u).strikes);
   return { id: m.id, status: m.status, createdAt: m.createdAt, lobby: m.lobby, winner: m.winner, resolvedBy: m.resolvedBy,
     teams: m.teams.map(t => ({ side: t.side, mine: t === my, avgRank: rkRank(t.players.reduce((s, p) => s + p.lp, 0) / 5),
       players: t.players.map(p => ({ uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, rank: rkRank(p.lp), me: p.uid === uid,
         champ: d.picks[p.uid] || null, auto: !!p.auto, banned: !!d.locked[p.uid] })),
-      bans: t.players.map(p => (banPhase && t !== my) ? null : (d.bans[p.uid] || null)) })),
-    draft: { phase: d.phase, deadline: d.deadline, step: d.step, turn: d.phase === 'pick' ? d.groups[d.step] : [], order: d.groups,
-      myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: banPhase },
+      bans: t.players.map(p => d.bans[p.uid] || null) })),
+    draft: { phase: d.phase, deadline: d.deadline, step: d.step, turn: cur ? cur.u : [], order: d.seq || [],
+      myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: false },
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length, mine: m.votes[uid] || null,
       weight: w(uid), need: rkUids(m).reduce((s, u) => s + w(u), 0) / 2 },
     lpChange: m.lpChanges[uid] || null };
@@ -2775,14 +2777,16 @@ app.post('/api/ranked/ban', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'ban') return res.status(400).json({ error: 'No es la fase de bans' });
   if (d.locked[uid]) return res.status(400).json({ error: 'Ya baneaste' });
+  if (!d.seq[d.step].u.includes(uid)) return res.status(400).json({ error: 'No es tu turno de ban' });
   const champ = (req.body && req.body.champ) || null;
   if (champ && !(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Campeón inválido' });
+  if (champ && (Object.values(d.bans).includes(champ) || Object.values(d.picks).includes(champ))) return res.status(400).json({ error: 'Ese campeón ya fue baneado o elegido' });
   d.bans[uid] = champ; d.locked[uid] = true; await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
 }));
 app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'pick') return res.status(400).json({ error: 'No es la fase de picks' });
-  if (!d.groups[d.step].includes(uid)) return res.status(400).json({ error: 'No es tu turno' });
+  if (!d.seq[d.step].u.includes(uid)) return res.status(400).json({ error: 'No es tu turno' });
   if (d.picks[uid]) return res.status(400).json({ error: 'Ya elegiste' });
   const champ = String((req.body && req.body.champ) || '');
   if (!(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Campeón inválido' });
