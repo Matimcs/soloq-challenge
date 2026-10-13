@@ -133,9 +133,19 @@
   .pill-st.q{ color:#001; background:var(--up); } .pill-st.e{ color:#fff; background:var(--down); } .pill-st.p{ color:var(--muted); background:rgba(255,255,255,.07); }
 
   /* Bracket */
-  .bracket{ display:flex; gap:26px; overflow-x:auto; padding-bottom:12px; }
-  .bcol{ display:flex; flex-direction:column; justify-content:space-around; gap:14px; min-width:190px; }
-  .bcol-h{ font-size:11px; font-weight:800; letter-spacing:.05em; color:var(--muted-2); text-transform:uppercase; text-align:center; margin-bottom:2px; }
+  .bracket{ display:flex; gap:28px; overflow-x:auto; padding-bottom:12px; }
+  .bcol{ display:flex; flex-direction:column; min-width:190px; flex:1 1 0; max-width:260px; }
+  .bcol-h{ font-size:11px; font-weight:800; letter-spacing:.05em; color:var(--muted-2); text-transform:uppercase; text-align:center; margin-bottom:6px; }
+  /* Cada llave ocupa una franja de igual alto: así la siguiente ronda queda centrada entre las dos que la alimentan
+     y las líneas (pseudo-elementos en el espacio entre columnas) unen cada par con su cruce siguiente. */
+  .bcol-b{ flex:1; display:flex; flex-direction:column; }
+  .bslot{ flex:1; display:flex; align-items:center; position:relative; padding:7px 0; }
+  .bslot > .bmatch{ width:100%; }
+  .bcol:not(.first) .bslot::before{ content:''; position:absolute; left:-14px; width:14px; top:50%; border-top:2px solid var(--bline); }
+  .bcol:not(.last) .bslot::after{ content:''; position:absolute; right:-14px; width:14px; border-right:2px solid var(--bline); }
+  .bcol:not(.last) .bslot:nth-child(odd)::after{ top:50%; height:50%; border-top:2px solid var(--bline); border-top-right-radius:6px; }
+  .bcol:not(.last) .bslot:nth-child(even)::after{ top:0; height:calc(50% + 2px); border-bottom:2px solid var(--bline); border-bottom-right-radius:6px; }
+  .bracket{ --bline:rgba(255,255,255,.2); }
   .bmatch{ background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
   .brow{ display:flex; align-items:center; gap:7px; padding:8px 10px; font-size:12.5px; font-weight:700; }
   .brow+.brow{ border-top:1px solid rgba(255,255,255,.06); }
@@ -511,16 +521,16 @@ async function onUlWinClick(e){
 
 // ================= ELIMINATORIAS =================
 function bracketCols(b){
-  const col=(title,matches)=>`<div class="bcol"><div class="bcol-h">${title}</div>${matches.map(m=>bm(m)).join('')}</div>`;
+  const col=(title,matches,cls)=>`<div class="bcol ${cls||''}"><div class="bcol-h">${title}</div><div class="bcol-b">${matches.map(m=>`<div class="bslot">${bm(m)}</div>`).join('')}</div></div>`;
   const bm=m=>{ m=m||{}; const a=m.a||'Por definir', bb=m.b||'Por definir';
     return `<div class="bmatch">
       <div class="brow ${m.w&&m.w===m.a?'win':''} ${isOurs(m.a)?'ours':''}"><span class="seed">${m.sa||''}</span><span class="bn">${esc(a)}</span></div>
       <div class="brow ${m.w&&m.w===m.b?'win':''} ${isOurs(m.b)?'ours':''}"><span class="seed">${m.sb||''}</span><span class="bn">${esc(bb)}</span></div></div>`; };
   const blank=n=>Array.from({length:n},()=>({}));
-  return col('Octavos', b.octavos.length?b.octavos:blank(8))
+  return col('Octavos', b.octavos.length?b.octavos:blank(8), 'first')
        + col('Cuartos', b.cuartos.length?b.cuartos:blank(4))
        + col('Semis', b.semis.length?b.semis:blank(2))
-       + col('Final', b.final.length?b.final:blank(1));
+       + col('Final', b.final.length?b.final:blank(1), 'last');
 }
 function renderPlayoffs(){
   const b = (DATA.bracket && DATA.bracket.octavos) ? DATA.bracket : {octavos:[],cuartos:[],semis:[],final:[]};
@@ -727,9 +737,9 @@ function renderSimSwiss(){
 function renderSimBracket(){
   const b=SIM.bracket;
   const champ = b.final[0] && b.final[0].w;
-  const col=(title,arr,key)=>`<div class="bcol"><div class="bcol-h">${title}</div>`+
-    (arr.length?arr:[{}]).map((m,i)=>sMatchBr(m,key,i)).join('')+`</div>`;
-  const brk=`<div class="bracket">${col('Octavos',b.octavos,'octavos')}${col('Cuartos',b.cuartos,'cuartos')}${col('Semis',b.semis,'semis')}${col('Final',b.final,'final')}</div>`;
+  const col=(title,arr,key,n,cls)=>`<div class="bcol ${cls||''}"><div class="bcol-h">${title}</div><div class="bcol-b">`+
+    (arr.length?arr:Array.from({length:n},()=>({}))).map((m,i)=>`<div class="bslot">${sMatchBr(m,key,i)}</div>`).join('')+`</div></div>`;
+  const brk=`<div class="bracket">${col('Octavos',b.octavos,'octavos',8,'first')}${col('Cuartos',b.cuartos,'cuartos',4)}${col('Semis',b.semis,'semis',2)}${col('Final',b.final,'final',1,'last')}</div>`;
   const tercer=`<div class="sect-h">3er lugar</div>${sMatchBr(b.tercer[0]||{},'tercer',0)}`;
   const champBox = champ?`<div class="champ"><div class="lbl">🏆 Campeón proyectado</div><div class="nm ${isOurs(champ)?'ours':''}">${esc(champ)}</div></div>`:'';
   const note=`<div class="sim-note">Octavos sorteados según las bases: los 3-0 contra equipos 3-2, y los 3-1 contra 3-2 u otro 3-1, sin repetir cruces de la Fase Suiza. Cada 3-0 queda en un cuarto distinto del cuadro, así no se cruzan entre ellos antes de semifinales (esa ubicación es un supuesto: las bases no la detallan).</div>`;
