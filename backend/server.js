@@ -2913,7 +2913,7 @@ const SB_OPEN_MS = 20000, SB_BID_MS = 15000, SB_TTL = 3 * 3600 * 1000;
 const SB_GRACE_MS = 1500;
 // Modo pistas: cuánto dura cada pista por defecto (el anfitrión lo ajusta y puede adelantarla) y recargo (%) por defecto
 // para la 1ª puja de cada fase.
-const SB_CLUE_MS = 15000, SB_CLUE_PCT = 25;
+const SB_CLUE_MS = 15000, SB_CLUE_PCT = 25, SB_REVEAL_MS = 3000;   // modo pistas: el nombre se muestra 3 s al cerrar y sigue solo
 const sbClueMs = st => (st.settings && st.settings.clueSecs ? st.settings.clueSecs * 1000 : SB_CLUE_MS);
 let SB_ROOMS = null;
 async function sbRooms(){
@@ -2997,7 +2997,7 @@ function sbNext(st){
   const clues = !!(st.settings && st.settings.clues) && !st.recycled[i];   // un reciclado ya se conoce: sale con nombre
   st.lot = { i, price: 0, leader: null, bids: [], deadline: clues ? null : Date.now() + SB_OPEN_MS, free, again: !!st.recycled[i],
     stage: clues ? 1 : null, stageEnd: clues ? Date.now() + sbClueMs(st) : null };
-  st.last = null;
+  st.last = null; st.reveal = null; st.autoNextAt = null;
 }
 // Cierra el jugador en juego: al mejor postor; sin pujas, se recicla al final de la fila (o va gratis al que más necesita).
 function sbClose(st, how){
@@ -3011,6 +3011,7 @@ function sbClose(st, how){
   else { st.sold[L.i] = { cap: winner, price, how }; st.caps[winner].spent += price; delete st.recycled[L.i]; if (L.leader != null) st.noSale = 0; sbRecord(st, L.i); }
   st.log.unshift({ i: L.i, cap: winner, price: winner == null ? null : price, how, at: Date.now() }); st.log = st.log.slice(0, 40);
   st.last = st.log[0]; st.lot = null;
+  if (L.stage){ st.reveal = { i: L.i, until: Date.now() + SB_REVEAL_MS }; st.autoNextAt = Date.now() + SB_REVEAL_MS; }
   if (!sbNeeders(st).length) sbToAssign(st);
 }
 // Puja mínima. Modo pistas: la puja que quedó ganando al cerrar una fase "se arrastra" a la siguiente, y la
@@ -3046,6 +3047,7 @@ function sbClueNext(st){
   return true;
 }
 function sbTick(st){
+  if (st.status === 'auction' && !st.lot && st.autoNextAt && Date.now() >= st.autoNextAt){ st.autoNextAt = null; sbNext(st); return true; }
   if (st.status !== 'auction' || !st.lot) return false;
   if (st.lot.stage && st.lot.stage < 4){ if (Date.now() >= st.lot.stageEnd){ sbClueNext(st); return true; } return false; }
   if (Date.now() < st.lot.deadline + SB_GRACE_MS) return false;
@@ -3053,7 +3055,7 @@ function sbTick(st){
 }
 function sbView(st, uid){
   const me = st.caps.findIndex(c => c && c.uid === uid);
-  const L = st.lot, now = Date.now(), mystery = !!(L && L.stage && L.stage < 4);
+  const L = st.lot, now = Date.now(), mystery = !!(L && L.stage), cluing = !!(L && L.stage && L.stage < 4);
   const reveal = i => st.status !== 'auction' || st.sold[i] || (st.seen && st.seen[i] && !(mystery && L.i === i));
   const pl = i => { const { clue, ...p } = st.pool[i]; return { ...p, i, price: st.sold[i] ? st.sold[i].price : null }; };
   const C = L && st.pool[L.i].clue, P = L && st.pool[L.i];
@@ -3068,13 +3070,17 @@ function sbView(st, uid){
     pool: st.pool.map((_, i) => i).sort((a, b) => st.order.indexOf(a) - st.order.indexOf(b))
       .map(i => reveal(i) ? { ...pl(i), sold: st.sold[i] || null, recycled: (st.recycled || {})[i] || 0 } : { hidden: true }),
     lot: L && { i: mystery ? null : L.i, price: L.price, leader: L.leader, bids: L.bids.slice(0, 8), left: L.deadline ? Math.max(0, L.deadline - now) : null, free: !!L.free, again: !!L.again,
-      stage: L.stage || null, stageLeft: mystery ? Math.max(0, L.stageEnd - now) : null, minBid: sbMinBid(st), carry: L.firstOfStage ? L.carry : null, out: L.out || [],
+      stage: L.stage || null, stageLeft: cluing ? Math.max(0, L.stageEnd - now) : null, minBid: sbMinBid(st), carry: L.firstOfStage ? L.carry : null, out: L.out || [],
       // si nadie sube antes de que cambie la fase: mínimo para la 1ª puja de la fase siguiente
-      nextMin: mystery && L.leader != null ? Math.max(L.price + SB_STEP, Math.ceil(L.price * (1 + (((st.settings && st.settings.cluePct) != null ? st.settings.cluePct : SB_CLUE_PCT)) / 100) / SB_STEP) * SB_STEP) : null,
-      // pistas que ya salieron (la 1 siempre; la 2 desde la etapa 2; la 3 desde la 3). Al revelar, cuál de los 5 era.
-      // orden de las pistas: 1) una partida suya, 2) su rol, 3) un campeón que jugó
+      nextMin: cluing && L.leader != null ? Math.max(L.price + SB_STEP, Math.ceil(L.price * (1 + (((st.settings && st.settings.cluePct) != null ? st.settings.cluePct : SB_CLUE_PCT)) / 100) / SB_STEP) * SB_STEP) : null,
+      // pistas que ya salieron, en orden: 1) una partida suya, 2) su rol, 3) un campeón que jugó.
+      // Cuál de los 5 era él (y el nombre) recién se sabe al cerrar su puja.
       clues: L.stage ? { role: L.stage >= 2 ? P.role : null, roleSrc: L.stage >= 2 ? P.roleSrc : null, game: C ? C.game : null, champ: L.stage >= 3 && C ? C.champ : null,
-        none: !C || (!C.game && !C.champ), idx: L.stage >= 4 && C ? C.idx : null } : null },
+        none: !C || (!C.game && !C.champ), idx: null } : null },
+    // revelación tras cerrar (modo pistas): quién era, a quién fue y cuánto falta para el siguiente
+    reveal: st.reveal && !L ? (() => { const R = st.pool[st.reveal.i], RC = R.clue, s = st.sold[st.reveal.i];
+      return { p: pl(st.reveal.i), cap: s ? s.cap : null, price: s ? s.price : null, left: st.autoNextAt ? Math.max(0, st.autoNextAt - now) : 0,
+        clues: { role: R.role, roleSrc: R.roleSrc, game: RC ? RC.game : null, champ: RC ? RC.champ : null, none: !RC || (!RC.game && !RC.champ), idx: RC ? RC.idx : null } }; })() : null,
     player: L && !mystery ? pl(L.i) : null,
     last: st.last ? { ...st.last, p: pl(st.last.i) } : null,
     log: st.log.slice(0, 15).map(l => ({ ...l, p: pl(l.i) })),

@@ -401,6 +401,7 @@
   .sb-vp{ display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:5px 7px; min-width:0; }
   .sb-vp b{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .sb-vp small{ margin-left:auto; font-size:10px; color:var(--muted-2); white-space:nowrap; }
   .sb-vp.off{ border-color:rgba(251,191,36,.45); } .sb-vote{ max-width:900px; }
+  .sb-reveal{ border-color:rgba(52,211,153,.55); } .sb-reveal .nm{ font-size:28px; }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -1107,7 +1108,15 @@
         <div class="sb-money"><b>${sbMoney(c.left)}</b><small>de ${sbMoney(st.budget)}</small></div></div>${inner}</div>`;
   }
   function sbLotHtml(st){
-    const L = st.lot, p = st.player, meCap = st.caps[st.me], cl = L && L.clues, mystery = !!(L && L.stage && L.stage < 4);
+    const L = st.lot, p = st.player, meCap = st.caps[st.me], cl = L && L.clues, mystery = !!(L && L.stage);
+    if (!L && st.reveal){
+      const R = st.reveal, p = R.p;
+      return `<div class="card sb-lot sb-reveal"><div class="sb-loth"><span class="lbl">ERA…</span><span class="sb-cluet">Siguiente jugador en <b class="sb-clock" data-left="${R.left}" data-at="${Date.now()}">${Math.ceil(R.left / 1000)}</b></span></div>
+        <div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div></div>
+        <div class="sb-price"><small>${R.cap == null ? 'Nadie pujó: vuelve a salir al final' : 'Se lo lleva ' + esc(st.caps[R.cap].nick)}</small><b>${R.cap == null ? '—' : sbMoney(R.price)}</b></div>
+        ${sbCluesHtml(R.clues, 3)}
+        ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span><button class="fv-btn sm" id="sb-next">Siguiente ya →</button></div>` : ''}</div>`;
+    }
     if (!L){
       const l = st.last;
       return `<div class="card sb-lot idle"><div class="sb-loth"><span class="lbl">${l ? 'ÚLTIMO JUGADOR' : 'LISTOS'}</span><span class="ps">${st.queueLeft} por salir</span></div>
@@ -1120,25 +1129,25 @@
     if (!meCap) ctrl = `<div class="fv-note">Solo miras.</div>`;
     else if (meCap.need <= 0) ctrl = `<div class="sb-wait">Ya completaste tu equipo.</div>`;
     else if (out) ctrl = `<div class="sb-wait">Te retiraste de este jugador.</div>`;
-    else if (L.leader === st.me) ctrl = `${L.nextMin != null ? `<div class="sb-prem next">Si nadie te supera antes de ${L.stage >= 3 ? 'revelar el nombre' : 'la pista ' + (L.stage + 1)}, para quitártelo tendrán que poner mínimo <b>${sbMoney(L.nextMin)}</b>.</div>` : ''}<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
+    else if (L.leader === st.me) ctrl = `${L.nextMin != null ? `<div class="sb-prem next">Si nadie te supera antes de ${L.stage >= 3 ? 'la puja final' : 'la pista ' + (L.stage + 1)}, para quitártelo tendrán que poner mínimo <b>${sbMoney(L.nextMin)}</b>.</div>` : ''}<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
     else ctrl = `${p && (p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
         <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span>
         <button class="fv-btn sb-drop" id="sb-out" title="No vuelves a pujar por este jugador">Me retiro</button></div>
-        ${L.nextMin != null && L.leader !== st.me ? `<div class="sb-prem next">Si nadie supera los ${sbMoney(L.price)} de ${esc(st.caps[L.leader].nick)} antes de ${L.stage >= 3 ? 'revelar el nombre' : 'la pista ' + (L.stage + 1)}, ahí la primera puja tendrá que ser de mínimo <b>${sbMoney(L.nextMin)}</b> (+${st.cluePct}%).</div>` : ''}
+        ${L.nextMin != null && L.leader !== st.me ? `<div class="sb-prem next">Si nadie supera los ${sbMoney(L.price)} de ${esc(st.caps[L.leader].nick)} antes de ${L.stage >= 3 ? 'la puja final' : 'la pista ' + (L.stage + 1)}, ahí la primera puja tendrá que ser de mínimo <b>${sbMoney(L.nextMin)}</b> (+${st.cluePct}%).</div>` : ''}
         ${L.carry != null ? `<div class="sb-prem">Nueva fase: la primera puja debe superar en ${st.cluePct}% los ${sbMoney(L.carry)} de ${esc(st.caps[L.leader].nick)} → mínimo <b>${sbMoney(min)}</b></div>` : ''}
         ${min > meCap.left ? `<div class="fv-note">No te alcanza para subir (te quedan ${sbMoney(meCap.left)}).</div>` : ''}`;
     return `<div class="card sb-lot">
-      <div class="sb-loth"><span class="lbl">${mystery ? 'JUGADOR MISTERIOSO · PISTA ' + L.stage + '/3' : 'EN SUBASTA' + (L.again ? ' · VUELVE A SALIR' : '')}</span>${mystery ? `<span class="sb-cluet">Siguiente pista en <b class="sb-clock" data-left="${L.stageLeft}" data-at="${Date.now()}">${Math.ceil(L.stageLeft / 1000)}</b></span>` : `<span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span>`}</div>
-      ${mystery ? `<div class="sb-player"><div class="sb-myst">?</div><div class="nf"><div class="nm">¿Quién será?</div><div class="ps">Se revela después de la 3ª pista. Ya puedes pujar.</div></div></div>`
+      <div class="sb-loth"><span class="lbl">${mystery ? 'JUGADOR MISTERIOSO · ' + (L.stage >= 4 ? 'PUJA FINAL' : 'PISTA ' + L.stage + '/3') : 'EN SUBASTA' + (L.again ? ' · VUELVE A SALIR' : '')}</span>${mystery && L.stage < 4 ? `<span class="sb-cluet">Siguiente pista en <b class="sb-clock" data-left="${L.stageLeft}" data-at="${Date.now()}">${Math.ceil(L.stageLeft / 1000)}</b></span>` : `<span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span>`}</div>
+      ${mystery ? `<div class="sb-player"><div class="sb-myst">?</div><div class="nf"><div class="nm">¿Quién será?</div><div class="ps">${L.stage >= 4 ? 'Última oportunidad: el nombre se revela cuando se cierre la puja.' : 'El nombre se revela al cerrar la puja. Ya puedes pujar.'}</div></div></div>`
         : `<div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div>
         <a class="fv-btn sm" href="${rkOpgg(p.opgg)}" target="_blank" rel="noopener">OP.GG</a></div>`}
       ${cl ? sbCluesHtml(cl, L.stage) : ''}
       <div class="sb-price"><small>${L.leader == null ? (L.free ? 'Nadie lo ha querido: si nadie puja, va gratis al que más jugadores necesita' : 'Nadie ha pujado · si nadie puja, vuelve al final') : 'Puja más alta · ' + esc(st.caps[L.leader].nick)}</small><b>${sbMoney(L.price)}</b></div>
-      ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}${b.stage ? ' · ' + (b.stage >= 4 ? 'revelado' : 'pista ' + b.stage) : ''}</span>`).join('')}</div>` : ''}
+      ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}${b.stage ? ' · ' + (b.stage >= 4 ? 'puja final' : 'pista ' + b.stage) : ''}</span>`).join('')}</div>` : ''}
       ${(L.out || []).length ? `<div class="sb-outs">Se retiraron: ${L.out.map(k => esc(st.caps[k].nick)).join(', ')}</div>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>${ctrl}
-      ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span>${mystery ? `<button class="fv-btn sm pri" id="sb-clue">${L.stage >= 3 ? 'Revelar nombre' : 'Siguiente pista'}</button>` : `<button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button>`}</div>` : ''}</div>`;
+      ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span>${mystery && L.stage < 4 ? `<button class="fv-btn sm pri" id="sb-clue">${L.stage >= 3 ? 'Ir a la puja final' : 'Siguiente pista'}</button>` : `<button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button>`}</div>` : ''}</div>`;
   }
   // Las pistas que ya salieron (y, revelado el nombre, cuál de los 5 de la partida era).
   function sbCluesHtml(cl, stage){
@@ -1202,7 +1211,7 @@
     let body = '';
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (o comprarse a sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
-      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso y se descubre en 3 pistas (una partida suya sin decir cuál era él, su rol de torneo y un campeón que jugó) antes de revelar el nombre. Se puede pujar desde la primera pista.</span></label>
+      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso con 3 pistas (una partida suya sin decir cuál era él, su rol de torneo y un campeón que jugó). Se puja sin saber quién es: el nombre se revela 3 s al cerrar su puja y sale el siguiente solo.</span></label>
       ${st.clues ? `<label class="sb-opt"><span><b>Tiempo por pista</b> · cuánto dura cada pista antes de pasar a la siguiente (el anfitrión igual puede adelantarla):</span> ${st.isHost ? `<select id="sb-secs">${[10, 15, 20, 30, 45, 60].map(v => `<option value="${v}" ${st.clueSecs === v ? 'selected' : ''}>${v} s</option>`).join('')}</select>` : `<b>${st.clueSecs} s</b>`}</label>` : ''}
       ${st.clues ? `<label class="sb-opt"><span><b>Recargo al cambiar de fase</b> · la primera puja de cada pista nueva debe superar en este % a la que quedó ganando:</span> ${st.isHost ? `<select id="sb-pct">${[10, 15, 20, 25, 30, 40, 50].map(v => `<option value="${v}" ${st.cluePct === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>` : `<b>${st.cluePct}%</b>`}</label>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>
