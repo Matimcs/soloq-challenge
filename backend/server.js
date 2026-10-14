@@ -127,6 +127,9 @@ async function loadChampions(){
 const champIconUrl = id => `https://ddragon.leagueoflegends.com/cdn/${DD_VER}/img/champion/${id}.png`;
 
 const app = express();
+// gzip en el origen: Render cobra la banda que sale del servidor, y antes salía sin comprimir (Cloudflare
+// comprimía recién hacia el visitante). JSON/HTML/JS bajan ~70-85%.
+app.use(require('compression')({ threshold: 1024 }));
 app.use(express.json({ limit: '8mb' }));
 app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.header('Access-Control-Allow-Headers','Content-Type,Authorization'); res.header('Access-Control-Allow-Methods','GET,POST,OPTIONS'); if(req.method==='OPTIONS') return res.sendStatus(204); next(); });
 
@@ -3438,6 +3441,8 @@ app.use(express.static(ROOT, {
     // borde (1 fetch al origen cada ~20s en vez de 1 por cliente) → baja mucho la banda.
     // El ranking igual se actualiza cada ~2 min, así que ~20s de "atraso" es imperceptible.
     if (/players\.json$/.test(filePath)) res.setHeader('Cache-Control', 'public, max-age=20');
+    // imágenes y fuentes: casi nunca cambian → una semana en el navegador y en Cloudflare (no vuelven a salir de Render)
+    else if (/\.(webp|png|jpe?g|gif|svg|ico|woff2?|ttf|mp3|ogg|webm|mp4)$/i.test(filePath)) res.setHeader('Cache-Control', 'public, max-age=604800');
     else if (/players\.js$/.test(filePath)) res.setHeader('Cache-Control', 'no-store');   // carga inicial: siempre fresca
   }
 }));
@@ -3480,7 +3485,7 @@ function startEmbeddedRunner(){
     if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive:true });
     for (const [id, file] of Object.entries(CACHE_FILES)){
       try { const row = await q1('SELECT data FROM fetch_cache WHERE id=$1', [id]);
-        if (row && row.data) fs.writeFileSync(path.join(CACHE_DIR, file), JSON.stringify(row.data)); } catch {}
+        if (row && row.data){ const raw = JSON.stringify(row.data); fs.writeFileSync(path.join(CACHE_DIR, file), raw); lastSaved[id] = hashOf(raw); } } catch {}
     }
     await mergeSeed();
   };
@@ -3523,10 +3528,16 @@ function startEmbeddedRunner(){
       }
     } catch {}
   };
+  // Solo se sube lo que cambió desde el último respaldo (p.ej. regions.json pesa ~1,9 MB y casi nunca cambia):
+  // era la mayor parte de la banda "Service-Initiated" de Render.
+  const lastSaved = {};
+  const hashOf = raw => crypto.createHash('sha1').update(raw).digest('hex');
   const saveCache = async () => {
     for (const [id, file] of Object.entries(CACHE_FILES)){
-      try { const raw = fs.readFileSync(path.join(CACHE_DIR, file), 'utf8');
-        await q('INSERT INTO fetch_cache (id,data,updated_at) VALUES ($1,$2::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()', [id, raw]); } catch {}
+      try { const raw = fs.readFileSync(path.join(CACHE_DIR, file), 'utf8'), h = hashOf(raw);
+        if (lastSaved[id] === h) continue;
+        await q('INSERT INTO fetch_cache (id,data,updated_at) VALUES ($1,$2::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()', [id, raw]);
+        lastSaved[id] = h; } catch {}
     }
   };
   const runOnce = () => new Promise(res => {
@@ -3540,8 +3551,15 @@ function startEmbeddedRunner(){
     // players.json viejo del repo durante los ~2-3 min del primer ciclo tras un redeploy.
     try { const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data) liveData = row.data; } catch {}
     await loadCache();   // restaura el historial ±LP/aegis persistido
-    let lastPersist = 0;
-    const PERSIST_MS = (Number(process.env.PERSIST_MIN) || 30) * 60 * 1000;   // cada cuánto persistir los blobs a Supabase (antes: cada ciclo)
+    let lastPersist = Date.now(), lastPlayersHash = '';
+    const PERSIST_MS = (Number(process.env.PERSIST_MIN) || 120) * 60 * 1000;   // cada cuánto persistir los blobs a Supabase (antes: cada ciclo; luego 30 min)
+    const persistPlayers = async () => { const raw = JSON.stringify(liveData), h = hashOf(raw); if (h === lastPlayersHash) return;
+      try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [raw]); lastPlayersHash = h; } catch {} };
+    // Al apagarse (deploy/reinicio, Render manda SIGTERM y espera ~30 s) se respalda lo último: así el intervalo
+    // largo no pierde historial.
+    let stopping = false;
+    process.once('SIGTERM', async () => { if (stopping) return; stopping = true;
+      const t = setTimeout(() => process.exit(0), 20000); try { await saveCache(); await persistPlayers(); } catch {} clearTimeout(t); process.exit(0); });
     for (;;){
       const t = Date.now();
       try {
@@ -3552,7 +3570,7 @@ function startEmbeddedRunner(){
         if (Date.now() - lastPersist >= PERSIST_MS){
           lastPersist = Date.now();
           await saveCache();
-          try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(liveData)]); } catch {}
+          await persistPlayers();
         }
         // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
         try {
