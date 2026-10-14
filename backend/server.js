@@ -2889,15 +2889,22 @@ app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
   res.json({ board, open, recent, queue: RK.queue.size });
 }));
 
-// ================= HERRAMIENTAS · SUBASTA (2 capitanes arman su equipo pujando) =================
-// Dos capitanes con 1.000 dólares cada uno. Se sortean 3 jugadores por rol (rol de TORNEO, el de los
-// rosters del admin) y salen a subasta uno por uno. En cada jugador los capitanes se turnan: suben la
-// puja o desisten, y al desistir el jugador queda para el otro al precio actual. Cada capitán necesita
-// exactamente uno por rol: si ya tiene ese rol no puja, y si es el único que lo necesita lo puede tomar
-// gratis o esperar al siguiente de ese rol. Los de UCH B (coaches) no salen a subasta.
-// Salas con enlace, igual que el 5v5: viven 3 h sin actividad, en memoria y respaldadas en tool_state.
-const SB_ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'];
-const SB_BUDGET = 1000, SB_STEP = 10, SB_TURN_MS = 30000, SB_PER_ROLE = 3, SB_TTL = 3 * 3600 * 1000;
+// ================= HERRAMIENTAS · SUBASTA (capitanes arman su equipo pujando) =================
+// Abierta a cualquier usuario con sesión. Quien crea la sala es el anfitrión y DIRIGE la subasta (empieza,
+// saca cada jugador y puede adjudicarlo antes de que corra el tiempo); se unen hasta 5 capitanes en total
+// (el anfitrión incluido) con 1.000 dólares cada uno, y cada uno compra 6 jugadores: 5 titulares + 1
+// suplente comodín (menos si no alcanzan los jugadores para tantos capitanes).
+// Salen jugadores AL AZAR, sin importar su rol (se muestra su rol de torneo, o el de SoloQ si no juega
+// torneo), y cada uno se descubre recién cuando sale. La puja es abierta: cualquier capitán al que le falten
+// jugadores puede subir en cualquier momento; cada puja reinicia una cuenta regresiva corta y, cuando
+// termina sin nuevas pujas, se lo lleva el mejor postor. Si nadie puja, queda sin equipo y vuelve a salir
+// al final (en esa segunda vuelta, si nadie lo quiere, se le asigna gratis al que más jugadores necesita).
+// Al terminar, cada capitán reparte a los suyos en top/jungla/mid/ADC/support + suplente y confirma.
+// Salen todos los jugadores (coaches incluidos) menos los que participan como capitanes. Salas con enlace:
+// viven 3 h sin actividad (memoria + tool_state).
+const SB_ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'], SB_SLOTS = [...SB_ROLES, 'SUB'];
+const SB_BUDGET = 1000, SB_STEP = 10, SB_MAX_CAPS = 5, SB_TEAM = 6;
+const SB_OPEN_MS = 20000, SB_BID_MS = 12000, SB_TTL = 3 * 3600 * 1000;
 let SB_ROOMS = null;
 async function sbRooms(){
   if (!SB_ROOMS){ SB_ROOMS = {};
@@ -2916,159 +2923,194 @@ async function sbRoom(req, res){
   if (!st){ res.status(404).json({ error: 'La subasta no existe o ya expiró' }); return null; }
   return st;
 }
-// Riot IDs de UCH B (los coaches), desde el roster de uLeague.
-function sbCoaches(){
-  try { const d = JSON.parse(fs.readFileSync(path.join(ROOT, 'uleague-data.json'), 'utf8'));
-    const t = (d.teams || []).find(x => x.name === 'UCH B');
-    return new Set(((t && t.players) || []).map(p => String(p.rid || p.riotId || '').trim().toLowerCase()).filter(Boolean)); } catch { return new Set(); }
-}
-// Solo la usan los coaches (UCH B) y los admins: middleware tras `auth`.
-async function sbAllowed(req, res, next){
-  if (req.user.is_admin) return next();
-  const coach = sbCoaches(), rids = [(req.user.riotid || '').toLowerCase()];
-  try { for (const s of await q('SELECT riotid FROM smurfs WHERE user_id=$1', [req.user.id])) rids.push((s.riotid || '').toLowerCase()); } catch {}
-  if (rids.some(r => r && coach.has(r))) return next();
-  res.status(403).json({ error: 'La subasta es solo para los coaches y los admins' });
-}
-app.get('/api/subasta/access', auth, sbAllowed, wrap(async (req, res) => res.json({ ok: true })));
-// Candidatos: jugadores con rol de torneo en los rosters (una vez cada uno), sin coaches ni los capitanes.
+// Candidatos: los jugadores de los rosters (con su rol de torneo) + las cuentas principales del ranking
+// (con su rol de SoloQ). Sin smurfs y sin los capitanes de esta subasta. Uno por jugador.
+const SB_SOLO_ROLE = { Top: 'TOP', Jungla: 'JUNGLE', Medio: 'MID', ADC: 'ADC', Support: 'SUPPORT' };
 async function sbCandidates(exclude){
-  const R = await buildRosters(), seen = new Set(), coach = sbCoaches(), out = [];
+  const seen = new Set(), out = [];
+  const smurf = new Set();
+  try { for (const r of await q('SELECT lower(riotid) r FROM smurfs')) smurf.add(r.r); } catch {}
+  try { for (const r of await q('SELECT lower(smurf_riotid) r FROM smurf_links')) smurf.add(r.r); } catch {}
+  const skip = k => !k || seen.has(k) || exclude.has(k) || smurf.has(k);
+  const R = await buildRosters();
   for (const [team, list] of Object.entries(R)) for (const p of list){
-    const k = (p.riotid || '').toLowerCase();
-    if (!p.role || seen.has(k) || coach.has(k) || exclude.has(k)) continue; seen.add(k);
-    out.push({ rid: p.riotid, nick: p.nickname || p.riotid.split('#')[0], role: p.role, team, tier: p.tier, div: p.div, lp: p.lp, opgg: p.bestRiotid || p.riotid });
+    const k = (p.riotid || '').toLowerCase(), b = (p.bestRiotid || '').toLowerCase();
+    if (!p.role || skip(k) || exclude.has(b)) continue; seen.add(k); if (b) seen.add(b);
+    out.push({ rid: p.riotid, nick: p.nickname || p.riotid.split('#')[0], role: p.role, roleSrc: 'torneo', team, tier: p.tier, div: p.div, lp: p.lp, opgg: p.bestRiotid || p.riotid });
+  }
+  for (const p of (liveSnapshot().players || [])){
+    const k = (p.rid || '').toLowerCase(), role = SB_SOLO_ROLE[p.role];
+    if (!role || skip(k)) continue; seen.add(k);
+    out.push({ rid: p.rid, nick: p.nm || p.rid.split('#')[0], role, roleSrc: 'soloq', team: '', tier: p.tier, div: p.div, lp: p.lp, opgg: p.rid });
   }
   return out;
 }
-// Situación del jugador en subasta: quién puede pujar por él.
-const sbHas = (st, c, role) => st.pool.some((p, i) => st.sold[i] && st.sold[i].cap === c && p.role === role);
-const sbNeeds = (st, c, role) => !sbHas(st, c, role);
-const sbLeftOfRole = (st, role, after) => st.pool.filter((p, i) => i !== after && p.role === role && !st.sold[i] && !st.passed.includes(i)).length;
-const sbTeamDone = (st, c) => SB_ROLES.every(r => sbHas(st, c, r));
-// Pasa al siguiente jugador sin resolver y prepara la puja (o lo resuelve solo si nadie lo necesita
-// o si es el último de su rol para el único que lo necesita).
+const sbCapsIdx = st => st.caps.map((_, k) => k);
+const sbBought = (st, c) => st.pool.map((_, i) => i).filter(i => st.sold[i] && st.sold[i].cap === c);
+const sbNeed = (st, c) => st.teamSize - sbBought(st, c).length;
+const sbNeeders = st => sbCapsIdx(st).filter(c => sbNeed(st, c) > 0);
+// Reparto inicial sugerido: cada uno a su rol si está libre; el resto a los huecos; el que sobra → suplente.
+function sbAutoAssign(st, c){
+  const mine = sbBought(st, c).slice(), a = {};
+  for (const r of SB_ROLES){ const k = mine.findIndex(i => st.pool[i].role === r); if (k >= 0) a[r] = mine.splice(k, 1)[0]; }
+  for (const s of SB_SLOTS) if (a[s] == null && mine.length) a[s] = mine.shift();
+  return a;
+}
+function sbToAssign(st){ st.lot = null; st.status = 'assign'; st.assign = sbCapsIdx(st).map(c => sbAutoAssign(st, c)); st.confirmed = st.caps.map(() => false); }
+// Saca el siguiente jugador de la fila (lo decide el anfitrión). Si se acabó la fila y quedan sin equipo,
+// empieza la segunda vuelta con ellos.
 function sbNext(st){
-  while (true){
-    if (sbTeamDone(st, 0) && sbTeamDone(st, 1)){ st.status = 'done'; st.lot = null; return; }
-    const i = st.order.find(j => !st.sold[j] && !st.passed.includes(j));
-    if (i == null){ st.status = 'done'; st.lot = null; return; }
-    const role = st.pool[i].role, need = [0, 1].filter(c => sbNeeds(st, c, role));
-    if (!need.length){ st.passed.push(i); continue; }                                  // nadie lo necesita
-    if (need.length === 1 && !sbLeftOfRole(st, role, i)){ st.sold[i] = { cap: need[0], price: 0, free: true }; continue; }   // último de su rol
-    const opener = need.length === 2 ? st.nextOpener : need[0];
-    if (need.length === 2) st.nextOpener = 1 - st.nextOpener;
-    st.lot = { i, price: 0, leader: null, turn: opener, solo: need.length === 1, bids: [], deadline: Date.now() + SB_TURN_MS };
-    return;
-  }
+  if (!sbNeeders(st).length) return sbToAssign(st);
+  if (!st.queue.length && st.passed.length && st.round === 1){ st.round = 2; st.queue = st.passed.slice(); st.passed = []; }
+  if (!st.queue.length) return sbToAssign(st);
+  const i = st.queue.shift();
+  st.lot = { i, price: 0, leader: null, bids: [], deadline: Date.now() + SB_OPEN_MS, round: st.round };
+  st.last = null;
 }
-// Cierra el jugador en juego a favor de un capitán (o lo deja pasar).
-function sbClose(st, winner, how){
-  const L = st.lot;
-  if (winner == null) st.passed.push(L.i);
-  else st.sold[L.i] = { cap: winner, price: L.price, how };
-  if (winner != null) st.caps[winner].spent += L.price;
-  st.log.unshift({ i: L.i, cap: winner, price: winner == null ? null : L.price, how, at: Date.now() });
-  st.log = st.log.slice(0, 40);
-  sbNext(st);
-}
-// Acción de un capitán sobre el jugador en juego: 'bid' (con monto), 'drop' (desistir), 'take'/'pass' (si es el único que lo necesita).
-function sbAct(st, c, action, amount){
-  const L = st.lot; if (!L) return 'No hay ningún jugador en subasta';
-  if (L.turn !== c) return 'No es tu turno';
-  const cap = st.caps[c], left = SB_BUDGET - cap.spent;
-  if (L.solo){
-    if (action === 'take') return sbClose(st, c, 'gratis');
-    if (action === 'pass') return sbClose(st, null, 'pasó');
-    return 'Acción inválida';
+// Cierra el jugador en juego: al mejor postor; sin pujas, queda sin equipo (1ª vuelta) o va gratis al que más necesita (2ª).
+function sbClose(st, how){
+  const L = st.lot; if (!L) return;
+  let winner = L.leader, price = L.price;
+  if (winner == null && L.round === 2){
+    const need = sbNeeders(st).sort((a, b) => sbNeed(st, b) - sbNeed(st, a) || st.caps[a].spent - st.caps[b].spent);
+    if (need.length){ winner = need[0]; price = 0; how = 'asignado gratis'; }
   }
-  if (action === 'drop'){ const other = 1 - c; return sbClose(st, other, L.leader == null ? 'cedido' : 'puja'); }
-  if (action === 'bid'){
-    const amt = Math.floor(Number(amount));
-    const min = L.leader == null ? Math.max(SB_STEP, L.price) : L.price + SB_STEP;
-    if (!Number.isFinite(amt) || amt < min) return `La puja mínima es $${min}`;
-    if (amt > left) return `Solo te quedan $${left}`;
-    L.price = amt; L.leader = c; L.bids.unshift({ c, amt }); L.turn = 1 - c; L.deadline = Date.now() + SB_TURN_MS;
-    return null;
-  }
-  return 'Acción inválida';
+  if (winner == null){ st.passed.push(L.i); how = 'nadie pujó'; }
+  else { st.sold[L.i] = { cap: winner, price, how }; st.caps[winner].spent += price; }
+  st.log.unshift({ i: L.i, cap: winner, price: winner == null ? null : price, how, at: Date.now() }); st.log = st.log.slice(0, 40);
+  st.last = st.log[0]; st.lot = null;
+  if (!sbNeeders(st).length) sbToAssign(st);
 }
-// Si se acabó el tiempo del turno: en una puja cuenta como desistir; si era el único que lo necesitaba, lo toma gratis.
+function sbBid(st, c, amount){
+  const L = st.lot; if (st.status !== 'auction' || !L) return 'No hay ningún jugador en subasta';
+  if (sbNeed(st, c) <= 0) return 'Ya completaste tu equipo';
+  if (L.leader === c) return 'Ya vas ganando esta puja';
+  const left = SB_BUDGET - st.caps[c].spent, amt = Math.floor(Number(amount));
+  const min = L.leader == null ? SB_STEP : L.price + SB_STEP;
+  if (!Number.isFinite(amt) || amt < min) return `La puja mínima es $${min}`;
+  if (amt > left) return `Solo te quedan $${left}`;
+  L.price = amt; L.leader = c; L.bids.unshift({ c, amt }); L.bids = L.bids.slice(0, 12);
+  L.deadline = Math.max(L.deadline, Date.now() + SB_BID_MS);
+  return null;
+}
+// Se acabó la cuenta regresiva del jugador en juego → se cierra solo.
 function sbTick(st){
-  if (st.status !== 'auction' || !st.lot || !st.lot.deadline || Date.now() < st.lot.deadline) return false;
-  const L = st.lot; if (L.solo) sbClose(st, L.turn, 'gratis (tiempo)'); else sbClose(st, 1 - L.turn, 'tiempo');
-  return true;
+  if (st.status !== 'auction' || !st.lot || Date.now() < st.lot.deadline) return false;
+  sbClose(st, 'puja'); return true;
 }
 function sbView(st, uid){
   const me = st.caps.findIndex(c => c && c.uid === uid);
-  const L = st.lot, now = Date.now();
-  return { code: st.code, status: st.status, v: st.v, now, expiresAt: st.expiresAt, budget: SB_BUDGET, step: SB_STEP, perRole: SB_PER_ROLE, roles: SB_ROLES,
-    me, isHost: uid != null && uid === st.host,
-    caps: st.caps.map((c, k) => c && { nick: c.nick, rid: c.rid, left: SB_BUDGET - c.spent, spent: c.spent,
-      team: SB_ROLES.map(r => { const i = st.pool.findIndex((p, j) => p.role === r && st.sold[j] && st.sold[j].cap === k); return i < 0 ? null : { ...st.pool[i], price: st.sold[i].price }; }) }),
-    // Los que aún no salen a subasta van ocultos (solo su rol): se descubren al salir, para darle suspenso.
-    pool: st.pool.map((p, i) => (st.sold[i] || st.passed.includes(i) || (L && L.i === i) || st.status === 'done')
-      ? { ...p, sold: st.sold[i] || null, passed: st.passed.includes(i) } : { role: p.role, hidden: true }),
-    lot: L && { i: L.i, price: L.price, leader: L.leader, turn: L.turn, solo: L.solo, bids: L.bids.slice(0, 8), left: Math.max(0, L.deadline - now) },
-    log: st.log.slice(0, 12) };
+  const L = st.lot, now = Date.now(), reveal = i => st.status !== 'auction' || st.sold[i] || st.passed.includes(i) || (L && L.i === i) || (st.round === 2);
+  const pl = i => ({ ...st.pool[i], i, price: st.sold[i] ? st.sold[i].price : null });
+  return { code: st.code, status: st.status, v: st.v, now, expiresAt: st.expiresAt, budget: SB_BUDGET, step: SB_STEP, maxCaps: SB_MAX_CAPS,
+    teamSize: st.teamSize || SB_TEAM, poolSize: st.pool.length, roles: SB_ROLES, slots: SB_SLOTS, round: st.round || 1, queueLeft: (st.queue || []).length,
+    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick,
+    caps: st.caps.map((c, k) => ({ nick: c.nick, rid: c.rid, host: c.uid === st.host, left: SB_BUDGET - c.spent, spent: c.spent,
+      bought: sbBought(st, k).map(pl), need: st.status === 'lobby' ? null : sbNeed(st, k),
+      lineup: st.assign ? SB_SLOTS.map(s => st.assign[k][s] != null ? pl(st.assign[k][s]) : null) : null,
+      confirmed: !!(st.confirmed && st.confirmed[k]) })),
+    // Los que aún no salen van ocultos (sin nombre ni rol): se descubren al salir, para darle suspenso.
+    pool: st.pool.map((_, i) => i).sort((a, b) => st.order.indexOf(a) - st.order.indexOf(b))
+      .map(i => reveal(i) ? { ...pl(i), sold: st.sold[i] || null, passed: st.passed.includes(i) } : { hidden: true }),
+    lot: L && { i: L.i, price: L.price, leader: L.leader, bids: L.bids.slice(0, 8), left: Math.max(0, L.deadline - now), round: L.round },
+    player: L ? pl(L.i) : null,
+    last: st.last ? { ...st.last, p: pl(st.last.i) } : null,
+    log: st.log.slice(0, 15).map(l => ({ ...l, p: pl(l.i) })) };
 }
-app.get('/api/subasta', auth, sbAllowed, wrap(async (req, res) => {
+app.get('/api/subasta/access', auth, wrap(async (req, res) => res.json({ ok: true })));
+app.get('/api/subasta', auth, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); const st = await sbRoom(req, res); if (!st) return;
   if (sbTick(st)) await sbSave(st);
   res.json(sbView(st, req.user.id));
 }));
 async function sbCapOf(uid){ const u = await q1('SELECT id, nickname, riotid FROM users WHERE id=$1', [uid]); return { uid, nick: (u && (u.nickname || '').trim()) || (u && u.riotid ? u.riotid.split('#')[0] : 'Capitán'), rid: (u && u.riotid) || '', spent: 0 }; }
-app.post('/api/subasta/create', auth, sbAllowed, wrap(async (req, res) => {
+const sbFresh = st => Object.assign(st, { status: 'lobby', pool: [], order: [], queue: [], sold: {}, passed: [], round: 1, lot: null, last: null, log: [], assign: null, confirmed: null });
+app.post('/api/subasta/create', auth, wrap(async (req, res) => {
   const rooms = await sbRooms(); let code; do code = fvCode(); while (rooms[code]);
-  const st = { code, host: req.user.id, createdAt: Date.now(), status: 'lobby', caps: [await sbCapOf(req.user.id), null], pool: [], order: [], sold: {}, passed: [], lot: null, log: [], nextOpener: 0 };
+  const st = sbFresh({ code, host: req.user.id, createdAt: Date.now(), caps: [await sbCapOf(req.user.id)], teamSize: SB_TEAM });
   rooms[code] = st; await sbSave(st); res.json(sbView(st, req.user.id));
 }));
-app.post('/api/subasta/join', auth, sbAllowed, wrap(async (req, res) => {
+app.post('/api/subasta/join', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
-  if (st.caps.some(c => c && c.uid === req.user.id)) return res.json(sbView(st, req.user.id));
-  if (st.status !== 'lobby' || st.caps[1]) return res.status(400).json({ error: 'La subasta ya tiene sus dos capitanes' });
-  st.caps[1] = await sbCapOf(req.user.id); await sbSave(st); res.json(sbView(st, req.user.id));
+  if (st.caps.some(c => c.uid === req.user.id)) return res.json(sbView(st, req.user.id));
+  if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
+  if (st.caps.length >= SB_MAX_CAPS) return res.status(400).json({ error: `La sala ya tiene ${SB_MAX_CAPS} capitanes` });
+  st.caps.push(await sbCapOf(req.user.id)); await sbSave(st); res.json(sbView(st, req.user.id));
 }));
-app.post('/api/subasta/leave', auth, sbAllowed, wrap(async (req, res) => {
+app.post('/api/subasta/leave', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
   if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
-  if (st.caps[1] && st.caps[1].uid === req.user.id) st.caps[1] = null;
+  const k = req.body && req.body.k != null ? Number(req.body.k) : -1, target = st.caps[k] ? st.caps[k].uid : req.user.id;
+  if (target !== req.user.id && req.user.id !== st.host) return res.status(403).json({ error: 'Solo el anfitrión puede sacar a otro' });
+  if (target === st.host) return res.status(400).json({ error: 'El anfitrión no puede salir: cierra la subasta' });
+  st.caps = st.caps.filter(c => c.uid !== target); await sbSave(st); res.json(sbView(st, req.user.id));
+}));
+// Acciones del anfitrión: empezar, sacar el siguiente jugador y adjudicar ya.
+app.post('/api/subasta/host', auth, wrap(async (req, res) => {
+  const st = await sbRoom(req, res); if (!st) return; sbTick(st);
+  if (req.user.id !== st.host) return res.status(403).json({ error: 'Solo el anfitrión dirige la subasta' });
+  const act = req.body && req.body.action;
+  if (act === 'start'){
+    if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
+    if (st.caps.length < 2) return res.status(400).json({ error: 'Se necesitan al menos 2 capitanes' });
+    const cands = await sbCandidates(new Set(st.caps.map(c => (c.rid || '').toLowerCase()).filter(Boolean)));
+    const team = Math.min(SB_TEAM, Math.floor(cands.length / st.caps.length));
+    if (team < 5) return res.status(400).json({ error: `No alcanzan los jugadores: hay ${cands.length} para ${st.caps.length} capitanes (se necesitan ${st.caps.length * 5})` });
+    sbFresh(st); st.teamSize = team;
+    st.pool = fvShuffle(cands).slice(0, Math.min(cands.length, team * st.caps.length + 3)); st.order = st.pool.map((_, i) => i); st.queue = st.order.slice();
+    st.caps.forEach(c => { c.spent = 0; }); st.status = 'auction'; sbNext(st);
+  } else if (act === 'next'){
+    if (st.status !== 'auction') return res.status(400).json({ error: 'La subasta no está en curso' });
+    if (st.lot) return res.status(400).json({ error: 'Todavía hay un jugador en subasta' });
+    sbNext(st);
+  } else if (act === 'hammer'){
+    if (!st.lot) return res.status(400).json({ error: 'No hay ningún jugador en subasta' });
+    sbClose(st, 'adjudicado');
+  } else return res.status(400).json({ error: 'Acción inválida' });
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
-// El anfitrión empieza: sortea hasta 3 jugadores por rol y el orden de salida.
-app.post('/api/subasta/start', auth, sbAllowed, wrap(async (req, res) => {
+app.post('/api/subasta/bid', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
-  if (req.user.id !== st.host) return res.status(403).json({ error: 'Solo el anfitrión puede empezar' });
-  if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
-  if (!st.caps[1]) return res.status(400).json({ error: 'Falta el segundo capitán' });
-  const cands = await sbCandidates(new Set(st.caps.map(c => (c.rid || '').toLowerCase()).filter(Boolean)));
-  const pool = [];
-  for (const r of SB_ROLES){ const of = fvShuffle(cands.filter(p => p.role === r)).slice(0, SB_PER_ROLE);
-    if (of.length < 2) return res.status(400).json({ error: `No hay suficientes jugadores de ${r} con rol de torneo` }); pool.push(...of); }
-  st.pool = pool; st.order = fvShuffle(pool.map((_, i) => i)); st.sold = {}; st.passed = []; st.log = [];
-  st.caps.forEach(c => { c.spent = 0; }); st.nextOpener = fvRand(2); st.status = 'auction';
-  sbNext(st); await sbSave(st); res.json(sbView(st, req.user.id));
-}));
-app.post('/api/subasta/act', auth, sbAllowed, wrap(async (req, res) => {
-  const st = await sbRoom(req, res); if (!st) return; sbTick(st);
-  const c = st.caps.findIndex(x => x && x.uid === req.user.id);
+  if (sbTick(st)){ await sbSave(st); return res.status(400).json({ error: 'Se acabó el tiempo de ese jugador' }); }
+  const c = st.caps.findIndex(x => x.uid === req.user.id);
   if (c < 0) return res.status(403).json({ error: 'Solo los capitanes pujan' });
-  const err = sbAct(st, c, String((req.body && req.body.action) || ''), req.body && req.body.amount);
-  if (err){ await sbSave(st); return res.status(400).json({ error: err }); }
+  const err = sbBid(st, c, req.body && req.body.amount);
+  if (err) return res.status(400).json({ error: err });
+  await sbSave(st); res.json(sbView(st, req.user.id));
+}));
+// Reparto de los comprados en los 5 roles + suplente (cada uno el suyo). Cambiarlo quita la confirmación.
+app.post('/api/subasta/assign', auth, wrap(async (req, res) => {
+  const st = await sbRoom(req, res); if (!st) return;
+  const c = st.caps.findIndex(x => x.uid === req.user.id);
+  if (c < 0) return res.status(403).json({ error: 'Solo los capitanes arman su equipo' });
+  if (st.status !== 'assign') return res.status(400).json({ error: 'Ahora no se puede cambiar el equipo' });
+  const mine = sbBought(st, c), body = (req.body && req.body.slots) || {}, a = {};
+  for (const s of SB_SLOTS){ const v = body[s]; if (v == null || v === '') continue; const n = Number(v);
+    if (!mine.includes(n)) return res.status(400).json({ error: 'Ese jugador no es tuyo' }); a[s] = n; }
+  if (new Set(Object.values(a)).size !== Object.values(a).length) return res.status(400).json({ error: 'Un jugador no puede ir en dos puestos' });
+  st.assign[c] = a; st.confirmed[c] = false; await sbSave(st); res.json(sbView(st, req.user.id));
+}));
+app.post('/api/subasta/confirm', auth, wrap(async (req, res) => {
+  const st = await sbRoom(req, res); if (!st) return;
+  const c = st.caps.findIndex(x => x.uid === req.user.id);
+  if (c < 0 || st.status !== 'assign') return res.status(400).json({ error: 'No hay equipo que confirmar' });
+  if (req.body && req.body.on === false) st.confirmed[c] = false;
+  else { if (!SB_ROLES.every(r => st.assign[c][r] != null)) return res.status(400).json({ error: 'Te falta poner a alguien en algún rol' }); st.confirmed[c] = true; }
+  if (st.confirmed.every(Boolean)) st.status = 'done';
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
 // Cerrar la subasta: se borra la sala (el enlace deja de funcionar).
-app.post('/api/subasta/close', auth, sbAllowed, wrap(async (req, res) => {
+app.post('/api/subasta/close', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
   if (req.user.id !== st.host && !req.user.is_admin) return res.status(403).json({ error: 'Solo el anfitrión puede cerrarla' });
   delete (await sbRooms())[st.code]; try { await q('DELETE FROM tool_state WHERE id=$1', ['sub:' + st.code]); } catch {}
   res.json({ ok: true, closed: true });
 }));
 // Volver a la sala de espera (misma sala y capitanes) para repetir la subasta (en cualquier momento).
-app.post('/api/subasta/reset', auth, sbAllowed, wrap(async (req, res) => {
+app.post('/api/subasta/reset', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
   if (req.user.id !== st.host && !req.user.is_admin) return res.status(403).json({ error: 'Solo el anfitrión' });
-  Object.assign(st, { status: 'lobby', pool: [], order: [], sold: {}, passed: [], lot: null, log: [] }); st.caps.forEach(c => { if (c) c.spent = 0; });
+  sbFresh(st); st.caps.forEach(c => { c.spent = 0; });
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
 
