@@ -2911,6 +2911,7 @@ const sbMaxCaps = st => st.settings && st.settings.capsInPool ? SB_MAX_CAPS_IN :
 const SB_OPEN_MS = 20000, SB_BID_MS = 15000, SB_TTL = 3 * 3600 * 1000;
 // Margen tras la cuenta regresiva: una puja enviada justo al final que llega tarde por la conexión igual vale.
 const SB_GRACE_MS = 1500;
+const SB_CLUE_MS = 15000;   // modo pistas: cuánto dura cada pista antes de la siguiente (el anfitrión puede adelantarla)
 let SB_ROOMS = null;
 async function sbRooms(){
   if (!SB_ROOMS){ SB_ROOMS = {};
@@ -2990,7 +2991,9 @@ function sbNext(st){
   const i = st.queue.shift(); st.seen[i] = true;
   // vuelta completa sin ventas → los que nadie quiere van gratis (si no, la subasta no terminaría nunca)
   const free = (st.noSale || 0) > st.queue.length;
-  st.lot = { i, price: 0, leader: null, bids: [], deadline: Date.now() + SB_OPEN_MS, free, again: !!st.recycled[i] };
+  const clues = !!(st.settings && st.settings.clues) && !st.recycled[i];   // un reciclado ya se conoce: sale con nombre
+  st.lot = { i, price: 0, leader: null, bids: [], deadline: clues ? null : Date.now() + SB_OPEN_MS, free, again: !!st.recycled[i],
+    stage: clues ? 1 : null, stageEnd: clues ? Date.now() + SB_CLUE_MS : null };
   st.last = null;
 }
 // Cierra el jugador en juego: al mejor postor; sin pujas, se recicla al final de la fila (o va gratis al que más necesita).
@@ -3016,21 +3019,32 @@ function sbBid(st, c, amount){
   if (!Number.isFinite(amt) || amt < min) return `La puja mínima es $${min}`;
   if (amt > left) return `Solo te quedan $${left}`;
   L.price = amt; L.leader = c; L.bids.unshift({ c, amt }); L.bids = L.bids.slice(0, 12);
-  L.deadline = Math.max(L.deadline, Date.now() + SB_BID_MS);
+  if (!L.stage || L.stage >= 4) L.deadline = Math.max(L.deadline, Date.now() + SB_BID_MS);
   return null;
 }
 // Se acabó la cuenta regresiva del jugador en juego → se cierra solo.
+// Modo pistas: pasa a la siguiente pista; tras la 3ª se revela el nombre y empieza la cuenta regresiva normal.
+function sbClueNext(st){
+  const L = st.lot; if (!L || !L.stage || L.stage >= 4) return false;
+  L.stage++; const now = Date.now();
+  if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_OPEN_MS; } else L.stageEnd = now + SB_CLUE_MS;
+  return true;
+}
 function sbTick(st){
-  if (st.status !== 'auction' || !st.lot || Date.now() < st.lot.deadline + SB_GRACE_MS) return false;
+  if (st.status !== 'auction' || !st.lot) return false;
+  if (st.lot.stage && st.lot.stage < 4){ if (Date.now() >= st.lot.stageEnd){ sbClueNext(st); return true; } return false; }
+  if (Date.now() < st.lot.deadline + SB_GRACE_MS) return false;
   sbClose(st, 'puja'); return true;
 }
 function sbView(st, uid){
   const me = st.caps.findIndex(c => c && c.uid === uid);
-  const L = st.lot, now = Date.now(), reveal = i => st.status !== 'auction' || st.sold[i] || (st.seen && st.seen[i]);
-  const pl = i => ({ ...st.pool[i], i, price: st.sold[i] ? st.sold[i].price : null });
+  const L = st.lot, now = Date.now(), mystery = !!(L && L.stage && L.stage < 4);
+  const reveal = i => st.status !== 'auction' || st.sold[i] || (st.seen && st.seen[i] && !(mystery && L.i === i));
+  const pl = i => { const { clue, ...p } = st.pool[i]; return { ...p, i, price: st.sold[i] ? st.sold[i].price : null }; };
+  const C = L && st.pool[L.i].clue, P = L && st.pool[L.i];
   return { code: st.code, status: st.status, v: st.v, now, expiresAt: st.expiresAt, budget: SB_BUDGET, step: SB_STEP, maxCaps: sbMaxCaps(st),
     teamSize: st.teamSize || SB_TEAM, poolSize: st.pool.length, roles: SB_ROLES, slots: SB_SLOTS, queueLeft: (st.queue || []).length,
-    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick, capsInPool: !!(st.settings && st.settings.capsInPool),
+    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick, capsInPool: !!(st.settings && st.settings.capsInPool), clues: !!(st.settings && st.settings.clues),
     caps: st.caps.map((c, k) => ({ nick: c.nick, rid: c.rid, host: c.uid === st.host, left: SB_BUDGET - c.spent, spent: c.spent,
       bought: sbBought(st, k).map(pl), need: st.status === 'lobby' ? null : sbNeed(st, k),
       lineup: st.assign ? SB_SLOTS.map(s => st.assign[k][s] != null ? pl(st.assign[k][s]) : null) : null,
@@ -3038,8 +3052,12 @@ function sbView(st, uid){
     // Los que aún no salen van ocultos (sin nombre ni rol): se descubren al salir, para darle suspenso.
     pool: st.pool.map((_, i) => i).sort((a, b) => st.order.indexOf(a) - st.order.indexOf(b))
       .map(i => reveal(i) ? { ...pl(i), sold: st.sold[i] || null, recycled: (st.recycled || {})[i] || 0 } : { hidden: true }),
-    lot: L && { i: L.i, price: L.price, leader: L.leader, bids: L.bids.slice(0, 8), left: Math.max(0, L.deadline - now), free: !!L.free, again: !!L.again },
-    player: L ? pl(L.i) : null,
+    lot: L && { i: mystery ? null : L.i, price: L.price, leader: L.leader, bids: L.bids.slice(0, 8), left: L.deadline ? Math.max(0, L.deadline - now) : null, free: !!L.free, again: !!L.again,
+      stage: L.stage || null, stageLeft: mystery ? Math.max(0, L.stageEnd - now) : null,
+      // pistas que ya salieron (la 1 siempre; la 2 desde la etapa 2; la 3 desde la 3). Al revelar, cuál de los 5 era.
+      clues: L.stage ? { role: P.role, roleSrc: P.roleSrc, game: L.stage >= 2 && C ? C.game : null, champ: L.stage >= 3 && C ? C.champ : null,
+        none: !C || (!C.game && !C.champ), idx: L.stage >= 4 && C ? C.idx : null } : null },
+    player: L && !mystery ? pl(L.i) : null,
     last: st.last ? { ...st.last, p: pl(st.last.i) } : null,
     log: st.log.slice(0, 15).map(l => ({ ...l, p: pl(l.i) })),
     // votación final: quién ya votó (lo que votó cada uno se ve recién al terminar) y mi propio voto
@@ -3088,18 +3106,26 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
     if (team < 5) return res.status(400).json({ error: `No alcanzan los jugadores: hay ${cands.length} para ${st.caps.length} capitanes (se necesitan ${st.caps.length * 5})` });
     sbFresh(st); st.teamSize = team;
     st.pool = fvShuffle(cands).slice(0, Math.min(cands.length, team * st.caps.length + 3)); st.order = st.pool.map((_, i) => i); st.queue = st.order.slice();
+    if (st.settings && st.settings.clues){ const res = await clueResolver();
+      for (const p of st.pool){ try { p.clue = await clueGame(res(p.rid, [p.opgg])); } catch { p.clue = null; } } }
     st.caps.forEach(c => { c.spent = 0; }); st.status = 'auction'; st.startedAt = Date.now(); sbNext(st);
   } else if (act === 'settings'){
     if (st.status !== 'lobby') return res.status(400).json({ error: 'Las opciones se cambian antes de empezar' });
-    const on = !!(req.body && req.body.capsInPool);
-    if (!on && st.caps.length > SB_MAX_CAPS) return res.status(400).json({ error: `Hay ${st.caps.length} capitanes: sin esta opción el máximo es ${SB_MAX_CAPS}` });
-    st.settings = { ...(st.settings || {}), capsInPool: on };
+    st.settings = st.settings || {};
+    if (req.body && req.body.capsInPool !== undefined){ const on = !!req.body.capsInPool;
+      if (!on && st.caps.length > SB_MAX_CAPS) return res.status(400).json({ error: `Hay ${st.caps.length} capitanes: sin esta opción el máximo es ${SB_MAX_CAPS}` });
+      st.settings.capsInPool = on; }
+    if (req.body && req.body.clues !== undefined) st.settings.clues = !!req.body.clues;
   } else if (act === 'next'){
     if (st.status !== 'auction') return res.status(400).json({ error: 'La subasta no está en curso' });
     if (st.lot) return res.status(400).json({ error: 'Todavía hay un jugador en subasta' });
     sbNext(st);
+  } else if (act === 'clue'){
+    if (!st.lot || !st.lot.stage || st.lot.stage >= 4) return res.status(400).json({ error: 'No hay pistas por mostrar' });
+    sbClueNext(st);
   } else if (act === 'hammer'){
     if (!st.lot) return res.status(400).json({ error: 'No hay ningún jugador en subasta' });
+    if (st.lot.stage && st.lot.stage < 4) return res.status(400).json({ error: 'Primero revela al jugador' });
     sbClose(st, 'adjudicado');
   } else return res.status(400).json({ error: 'Acción inválida' });
   await sbSave(st); res.json(sbView(st, req.user.id));
@@ -3171,51 +3197,36 @@ app.post('/api/subasta/reset', auth, wrap(async (req, res) => {
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
 
-// ================= HERRAMIENTAS · ¿QUIÉN ES? (3 pistas para adivinar a un jugador) =================
-// Se elige al azar un jugador de los rosters de torneo con partidas guardadas. Pistas, en orden:
-//   1) su rol de TORNEO; 2) una partida al azar suya: los 5 de su equipo con campeón, KDA y farm, sin decir
-//   cuál era él; 3) un campeón al azar de todas sus partidas (solo el campeón). Después se revela.
-// La respuesta queda en el servidor (la ronda solo trae las pistas) hasta que se pide revelar.
-const QN_ROUNDS = new Map();   // id -> { at, rid, nick, team, role, idx }
-const QN_ROLE = { TOP: 'Top', JUNGLE: 'Jungla', MID: 'Mid', ADC: 'ADC', SUPPORT: 'Support' };
-app.get('/api/quien/nueva', wrap(async (req, res) => {
-  res.set('Cache-Control', 'no-store');
-  for (const [k, v] of QN_ROUNDS) if (Date.now() - v.at > 3 * 3600 * 1000) QN_ROUNDS.delete(k);
-  const R = await buildRosters(), seen = new Set(), cands = [];
-  for (const [team, list] of Object.entries(R)) for (const p of list){ const k = (p.riotid || '').toLowerCase(); if (!p.role || seen.has(k)) continue; seen.add(k); cands.push({ ...p, team }); }
-  // cuentas de cada jugador: la principal + smurfs registradas + vinculadas a mano → sus puuid
+// ================= SUBASTA · MODO PISTAS: ayudantes =================
+// En el modo pistas el jugador sale "misterioso" y se descubre en 3 pistas antes del nombre:
+//   1) su rol de torneo (o el de SoloQ si no juega torneo); 2) una partida suya al azar: los 5 de su equipo
+//   con campeón, KDA y farm, sin decir cuál era él; 3) un campeón al azar de todas sus partidas.
+// Resuelve los puuid de un jugador: su cuenta + la mejor cuenta del roster + smurfs registradas + vinculadas.
+async function clueResolver(){
   const smurfs = await q('SELECT u.riotid main, s.riotid smurf FROM smurfs s JOIN users u ON u.id = s.user_id');
   const links = await q('SELECT main_riotid main, smurf_riotid smurf FROM smurf_links');
   const rid2pu = await ridPuuidMap(), nr = r => (r || '').trim().toLowerCase().replace(/\s*#\s*/g, '#');
   const puOf = {}; for (const [r, pu] of Object.entries(rid2pu)) puOf[nr(r)] = pu;
   for (const p of (liveSnapshot().players || [])) if (p.rid && p.puuid) puOf[nr(p.rid)] = p.puuid;
-  for (const c of fvShuffle(cands)){
-    const rids = [c.riotid, c.bestRiotid, ...smurfs.filter(s => nr(s.main) === nr(c.riotid)).map(s => s.smurf), ...links.filter(l => nr(l.main) === nr(c.riotid)).map(l => l.smurf)];
-    const pus = [...new Set(rids.map(r => puOf[nr(r)]).filter(Boolean))]; if (!pus.length) continue;
-    const g = await q1(`SELECT match_id, team_id, puuid FROM match_participants WHERE puuid = ANY($1) AND coalesce(duration,0) >= 600 ORDER BY random() LIMIT 1`, [pus]);
-    if (!g) continue;
-    const team = await q(`SELECT puuid, champion, position, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, win, coalesce(duration,0) dur, game_end
-      FROM match_participants WHERE match_id=$1 AND team_id=$2 ORDER BY CASE upper(position) WHEN 'TOP' THEN 1 WHEN 'JUNGLE' THEN 2 WHEN 'MIDDLE' THEN 3 WHEN 'BOTTOM' THEN 4 WHEN 'UTILITY' THEN 5 ELSE 6 END`, [g.match_id, g.team_id]);
-    if (team.length < 5) continue;
-    const ch = await q1(`SELECT champion FROM match_participants WHERE puuid = ANY($1) AND coalesce(champion,'')<>'' ORDER BY random() LIMIT 1`, [pus]);
-    const id = crypto.randomBytes(9).toString('base64url'), five = fvShuffle(team.slice(0, 5));
-    QN_ROUNDS.set(id, { at: Date.now(), rid: c.riotid, nick: c.nickname || c.riotid.split('#')[0], team: c.team, role: c.role, idx: five.findIndex(t => t.puuid === g.puuid) });
-    return res.json({ id, role: c.role, roleName: QN_ROLE[c.role] || c.role,
-      game: { win: !!team[0].win, durMin: Math.round((+team[0].dur) / 60), end: Number(team[0].game_end) || 0,
-        players: five.map(t => ({ champ: t.champion, k: +t.k, d: +t.d, a: +t.a, cs: +t.cs })) },
-      champ: ch ? ch.champion : null, names: cands.map(x => x.nickname || x.riotid.split('#')[0]).sort((a, b) => a.localeCompare(b, 'es')) });
+  return (rid, extra) => {
+    const rids = [rid, ...(extra || []), ...smurfs.filter(s => nr(s.main) === nr(rid)).map(s => s.smurf), ...links.filter(l => nr(l.main) === nr(rid)).map(l => l.smurf)];
+    return [...new Set(rids.map(r => puOf[nr(r)]).filter(Boolean))];
+  };
+}
+// Pistas 2 y 3 a partir de sus puuid (null si no tiene partidas guardadas).
+async function clueGame(pus){
+  if (!pus.length) return null;
+  const g = await q1(`SELECT match_id, team_id, puuid FROM match_participants WHERE puuid = ANY($1) AND coalesce(duration,0) >= 600 ORDER BY random() LIMIT 1`, [pus]);
+  const ch = await q1(`SELECT champion FROM match_participants WHERE puuid = ANY($1) AND coalesce(champion,'')<>'' ORDER BY random() LIMIT 1`, [pus]);
+  let game = null, idx = -1;
+  if (g){
+    const team = await q(`SELECT puuid, champion, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, win, coalesce(duration,0) dur, game_end
+      FROM match_participants WHERE match_id=$1 AND team_id=$2`, [g.match_id, g.team_id]);
+    if (team.length >= 5){ const five = fvShuffle(team.slice(0, 5)); idx = five.findIndex(t => t.puuid === g.puuid);
+      game = { win: !!team[0].win, durMin: Math.round((+team[0].dur) / 60), end: Number(team[0].game_end) || 0, players: five.map(t => ({ champ: t.champion, k: +t.k, d: +t.d, a: +t.a, cs: +t.cs })) }; }
   }
-  res.status(404).json({ error: 'No encontré jugadores con partidas guardadas' });
-}));
-app.post('/api/quien/adivinar', wrap(async (req, res) => {
-  const r = QN_ROUNDS.get(String((req.body && req.body.id) || '')); if (!r) return res.status(404).json({ error: 'La ronda expiró: empieza otra' });
-  const g = String((req.body && req.body.nick) || '').trim().toLowerCase();
-  res.json({ ok: !!g && (g === r.nick.toLowerCase() || g === r.rid.toLowerCase() || g === r.rid.split('#')[0].toLowerCase()) });
-}));
-app.post('/api/quien/revelar', wrap(async (req, res) => {
-  const r = QN_ROUNDS.get(String((req.body && req.body.id) || '')); if (!r) return res.status(404).json({ error: 'La ronda expiró: empieza otra' });
-  res.json({ nick: r.nick, rid: r.rid, team: r.team, idx: r.idx });
-}));
+  return { game, idx, champ: ch ? ch.champion : null };
+}
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
 const RECORDS_CACHE = { at: 0, data: null };

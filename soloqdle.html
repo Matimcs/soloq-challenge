@@ -99,6 +99,9 @@
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
+<script>/* SoloQdle vive dentro de Herramientas: suelta, redirige a esa pestaña; embebida, oculta la barra */
+(function(){ var emb = window.top !== window; if (!emb){ location.replace('herramientas.html#soloqdle'); return; } document.documentElement.classList.add('embed'); })();</script>
+<style>html.embed header{ display:none; } html.embed body{ background:transparent; } html.embed main.wrap{ padding-top:4px; }</style>
 </head>
 <body>
   <header><div class="wrap nav" style="max-width:1000px">
@@ -108,9 +111,8 @@
       <a href="index.html#live">Live Games</a>
       <a href="encuentros.html">Encuentros</a>
       <a href="estadisticas.html">Estadísticas</a>
-      <a href="herramientas.html">Herramientas</a>
+      <a href="herramientas.html" class="active">Herramientas</a>
       <a href="uleague.html">Torneos</a>
-      <a href="soloqdle.html" class="active">SoloQdle</a>
       <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
       <a href="admin.html" id="nav-admin" style="display:none">Admin</a>

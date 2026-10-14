@@ -636,9 +636,8 @@
   .pat-count b{ color:var(--up); font-variant-numeric:tabular-nums; }
   .pat-pop{ position:absolute; font-size:16px; pointer-events:none; animation:patfloat 1s ease forwards; }
   @keyframes patfloat{ from{ opacity:1; transform:translateY(0) scale(1); } to{ opacity:0; transform:translateY(-34px) scale(1.5); } }
-  .live-ad{ position:relative; max-width:1100px; margin:34px auto 6px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.08); box-shadow:0 10px 30px rgba(0,0,0,.35); }
-  .live-ad img{ display:block; width:100%; height:auto; }
-  .live-ad-tag{ position:absolute; top:8px; right:10px; font-size:9.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.75); background:rgba(0,0,0,.55); border-radius:5px; padding:2px 6px; }
+  .sqc-promo{ position:relative; max-width:1100px; margin:34px auto 6px; border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.08); box-shadow:0 10px 30px rgba(0,0,0,.35); }
+  .sqc-promo img{ display:block; width:100%; height:auto; }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
 <link rel="icon" type="image/png" href="overlay/assets/logo.png">
@@ -669,7 +668,6 @@
         <a href="estadisticas.html">Estadísticas</a>
         <a href="herramientas.html">Herramientas</a>
       <a href="uleague.html">Torneos</a>
-      <a href="soloqdle.html">SoloQdle</a>
         <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
         <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
         <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
@@ -759,8 +757,8 @@
           </table>
         </div>
       </div>
-      <!-- "Publicidad" (meme) al pie del ranking -->
-      <div class="live-ad"><span class="live-ad-tag">Publicidad</span><img src="ad-yoyobox.webp" alt="Juega SoloQ contra Yoyobox y gana" loading="lazy" width="1600" height="640"></div>
+      <!-- "Promo" (meme) al pie del ranking -->
+      <div class="sqc-promo"><img src="promo-yoyobox.webp" alt="Juega SoloQ contra Yoyobox y gana" loading="lazy" width="1600" height="640"></div>
     </section>
 
     <!-- ===================== LIVE GAMES ===================== -->
@@ -778,8 +776,8 @@
       <div id="live-empty" class="live-empty" style="display:none">
         Nadie del challenge está en partida en este momento.
       </div>
-      <!-- "Publicidad" (meme) al pie de Live Games -->
-      <div class="live-ad"><span class="live-ad-tag">Publicidad</span><img src="ad-yoyobox.webp" alt="Juega SoloQ contra Yoyobox y gana" loading="lazy" width="1600" height="640"></div>
+      <!-- "Promo" (meme) al pie de Live Games -->
+      <div class="sqc-promo"><img src="promo-yoyobox.webp" alt="Juega SoloQ contra Yoyobox y gana" loading="lazy" width="1600" height="640"></div>
     </section>
 
     <footer>

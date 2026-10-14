@@ -386,6 +386,14 @@
   .qn-guess{ display:flex; gap:8px; margin-top:8px; } .qn-guess input{ flex:1; font-family:inherit; font-size:14px; font-weight:700; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; }
   .qn-res{ margin-top:10px; font-size:14px; font-weight:800; } .qn-res.ok{ color:var(--up); } .qn-res.no{ color:#fb7185; }
   .qn-out{ border-color:rgba(52,211,153,.5); } .qn-name{ font-size:30px; font-weight:800; margin-top:2px; }
+  .dle-frame{ width:100%; min-height:700px; border:0; display:block; background:transparent; }
+  .sb-clues{ display:flex; flex-direction:column; gap:8px; margin:10px 0 12px; }
+  .sb-clue{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-size:13px; color:var(--muted); } .sb-clue b{ color:var(--text); font-size:15px; }
+  .sb-clue.col{ flex-direction:column; align-items:stretch; } .sb-clue .n{ font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-right:4px; }
+  .sb-clue .qn-five{ margin-top:8px; } .sb-clue .qn-p{ cursor:default; padding:8px 4px; } .sb-clue .qn-p img{ width:44px; height:44px; }
+  .sb-cch{ width:34px; height:34px; border-radius:8px; }
+  .sb-myst{ width:34px; height:34px; border-radius:9px; display:grid; place-items:center; font-size:22px; font-weight:800; color:var(--accent); border:1px dashed var(--accent); flex:none; }
+  .sb-cluet{ font-size:12px; color:var(--muted); font-weight:700; } .sb-cluet b{ font-size:16px; color:var(--text); }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -403,7 +411,6 @@
       <a href="estadisticas.html">Estadísticas</a>
       <a href="herramientas.html" class="active">Herramientas</a>
       <a href="uleague.html">Torneos</a>
-      <a href="soloqdle.html">SoloQdle</a>
       <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
       <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
       <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
@@ -423,12 +430,12 @@
       <button class="tab active" data-t="fv">5V5</button>
       <button class="tab" data-t="rk">RANKED</button>
       <button class="tab" data-t="sb">SUBASTA</button>
-      <button class="tab" data-t="qn">¿QUIÉN ES?</button>
+      <button class="tab" data-t="dle">SOLOQDLE</button>
       <button class="tab" data-t="analisis">ANÁLISIS</button>
     </div>
 
     <div class="panel active" id="p-fv"><div class="loading">Cargando sala…</div></div>
-    <div class="panel" id="p-qn"><div class="loading">Cargando…</div></div>
+    <div class="panel" id="p-dle"><iframe id="dle-frame" title="SoloQdle" class="dle-frame" loading="lazy"></iframe></div>
     <div class="panel" id="p-sb"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rk"><div class="loading">Cargando Ranked…</div></div>
     <div class="panel" id="p-analisis"><div class="loading">Cargando…</div></div>
@@ -453,8 +460,8 @@
     if (t === 'analisis' && !AN.data) loadAnalysis();
     if (t === 'fv') fvLoad(true);
     if (t === 'rk'){ rkLoad(true); rkBoard(); }
+    if (t === 'dle'){ const f = $('dle-frame'); if (!f.src) f.src = 'soloqdle.html'; }
     if (t === 'sb'){ sbLoad(true); sbRankLoad().then(() => { if (!SBC.st || SBC.st.status === 'done') sbRender(); }); }
-    if (t === 'qn') qnRender();
   }
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.t));
 
@@ -1093,8 +1100,8 @@
         <div class="sb-money"><b>${sbMoney(c.left)}</b><small>de ${sbMoney(st.budget)}</small></div></div>${inner}</div>`;
   }
   function sbLotHtml(st){
-    const L = st.lot, p = st.player, meCap = st.caps[st.me];
-    if (!L || !p){
+    const L = st.lot, p = st.player, meCap = st.caps[st.me], cl = L && L.clues, mystery = !!(L && L.stage && L.stage < 4);
+    if (!L){
       const l = st.last;
       return `<div class="card sb-lot idle"><div class="sb-loth"><span class="lbl">${l ? 'ÚLTIMO JUGADOR' : 'LISTOS'}</span><span class="ps">${st.queueLeft} por salir</span></div>
         ${l ? `<div class="sb-player">${sbIco(l.p.role)}<div class="nf"><div class="nm">${esc(l.p.nick)}</div><div class="ps">${l.cap == null ? 'Sin pujas: se recicla y vuelve a salir al final' : '→ ' + esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}</div></div></div>` : ''}
@@ -1106,18 +1113,32 @@
     if (!meCap) ctrl = `<div class="fv-note">Solo miras.</div>`;
     else if (meCap.need <= 0) ctrl = `<div class="sb-wait">Ya completaste tu equipo.</div>`;
     else if (L.leader === st.me) ctrl = `<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
-    else ctrl = `${(p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
+    else ctrl = `${p && (p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
         <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span></div>
         ${min > meCap.left ? `<div class="fv-note">No te alcanza para subir (te quedan ${sbMoney(meCap.left)}).</div>` : ''}`;
     return `<div class="card sb-lot">
-      <div class="sb-loth"><span class="lbl">EN SUBASTA${L.again ? ' · VUELVE A SALIR' : ''}</span><span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span></div>
-      <div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div>
-        <a class="fv-btn sm" href="${rkOpgg(p.opgg)}" target="_blank" rel="noopener">OP.GG</a></div>
+      <div class="sb-loth"><span class="lbl">${mystery ? 'JUGADOR MISTERIOSO · PISTA ' + L.stage + '/3' : 'EN SUBASTA' + (L.again ? ' · VUELVE A SALIR' : '')}</span>${mystery ? `<span class="sb-cluet">Siguiente pista en <b class="sb-clock" data-left="${L.stageLeft}" data-at="${Date.now()}">${Math.ceil(L.stageLeft / 1000)}</b></span>` : `<span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span>`}</div>
+      ${mystery ? `<div class="sb-player"><div class="sb-myst">?</div><div class="nf"><div class="nm">¿Quién será?</div><div class="ps">Se revela después de la 3ª pista. Ya puedes pujar.</div></div></div>`
+        : `<div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div>
+        <a class="fv-btn sm" href="${rkOpgg(p.opgg)}" target="_blank" rel="noopener">OP.GG</a></div>`}
+      ${cl ? sbCluesHtml(cl, L.stage) : ''}
       <div class="sb-price"><small>${L.leader == null ? (L.free ? 'Nadie lo ha querido: si nadie puja, va gratis al que más jugadores necesita' : 'Nadie ha pujado · si nadie puja, vuelve al final') : 'Puja más alta · ' + esc(st.caps[L.leader].nick)}</small><b>${sbMoney(L.price)}</b></div>
       ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}</span>`).join('')}</div>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>${ctrl}
-      ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span><button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button></div>` : ''}</div>`;
+      ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span>${mystery ? `<button class="fv-btn sm pri" id="sb-clue">${L.stage >= 3 ? 'Revelar nombre' : 'Siguiente pista'}</button>` : `<button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button>`}</div>` : ''}</div>`;
+  }
+  // Las pistas que ya salieron (y, revelado el nombre, cuál de los 5 de la partida era).
+  function sbCluesHtml(cl, stage){
+    const g = cl.game;
+    return `<div class="sb-clues">
+      <div class="sb-clue"><span class="n">Pista 1</span><span>Rol${cl.roleSrc === 'soloq' ? ' (de SoloQ: no juega torneo)' : ' de torneo'}:</span> ${sbIco(cl.role)} <b>${SB_ROLE[cl.role] || cl.role}</b></div>
+      ${stage >= 2 ? (g ? `<div class="sb-clue col"><div><span class="n">Pista 2</span><span>Una partida suya · ${g.win ? 'Victoria' : 'Derrota'} · ${g.durMin} min. ${cl.idx != null ? 'Era él:' : '¿Cuál de los 5 era?'}</span></div>
+          <div class="qn-five">${g.players.map((x, i) => `<div class="qn-p ${cl.idx === i ? 'him' : ''}"><img src="${anChamp(x.champ)}" alt=""><b>${esc(fvChampName(x.champ))}</b><span>${x.k}/${x.d}/${x.a}</span><small>${x.cs} CS</small>${cl.idx === i ? '<i>era él</i>' : ''}</div>`).join('')}</div></div>`
+        : `<div class="sb-clue"><span class="n">Pista 2</span><span>No tiene partidas guardadas.</span></div>`) : ''}
+      ${stage >= 3 ? (cl.champ ? `<div class="sb-clue"><span class="n">Pista 3</span><span>Un campeón que jugó alguna vez:</span> <img class="sb-cch" src="${anChamp(cl.champ)}" alt=""> <b>${esc(fvChampName(cl.champ))}</b></div>`
+        : `<div class="sb-clue"><span class="n">Pista 3</span><span>Sin campeones guardados.</span></div>`) : ''}
+    </div>`;
   }
   function sbBoard(st){
     return `<div class="card"><h3>Jugadores en subasta</h3><div class="cap">${st.poolSize} jugadores al azar, de cualquier rol (el de torneo, o el de SoloQ si no juega torneo), en el orden en que salen. Cada uno se descubre cuando le toca.</div><div class="sb-board">` +
@@ -1164,6 +1185,7 @@
     let body = '';
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (o comprarse a sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
+      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso y se descubre en 3 pistas (su rol de torneo, una partida suya sin decir cuál era él, y un campeón que jugó) antes de revelar el nombre. Se puede pujar desde la primera pista.</span></label>
       <div class="fv-err">${esc(SBC.err)}</div>
       <div class="sb-btns">${st.me < 0 && st.caps.length < st.maxCaps ? `<button class="fv-btn pri" id="sb-join">Unirme como capitán</button>` : ''}
       ${st.isHost ? `<button class="fv-btn pri" id="sb-start" ${st.caps.length >= 2 ? '' : 'disabled'}>Empezar subasta</button><span class="fv-note">Mínimo 2 capitanes.</span>` : st.me >= 0 ? `<span class="fv-note">${esc(st.hostNick)} empieza cuando estén todos.</span>` : ''}</div>`;
@@ -1181,6 +1203,8 @@
     on('sb-join', () => sbAct('join')); on('sb-leave', () => sbAct('leave'));
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => sbAct('leave', { k: +b.dataset.kick }));
     const ci = $('sb-capsin'); if (ci) ci.onchange = () => sbAct('host', { action: 'settings', capsInPool: ci.checked });
+    const cq = $('sb-clues'); if (cq) cq.onchange = () => sbAct('host', { action: 'settings', clues: cq.checked });
+    on('sb-clue', () => sbAct('host', { action: 'clue' }));
     on('sb-start', () => sbAct('host', { action: 'start' })); on('sb-next', () => sbAct('host', { action: 'next' }));
     on('sb-hammer', () => sbAct('host', { action: 'hammer' }));
     on('sb-reset', () => { if (confirm('¿Reiniciar? Se borran las pujas y los equipos, y vuelven a la sala de espera con los mismos capitanes (al empezar se sortean jugadores nuevos).')) sbAct('reset'); });
@@ -1208,43 +1232,6 @@
   // refresco cada 1 s (no mientras escribes un monto o eliges en el reparto, para no cortarte)
   setInterval(() => { if (CUR_TAB === 'sb' && !document.hidden && SBC.room && rkLogged() && !(document.activeElement && document.activeElement.matches && document.activeElement.matches('#p-sb select'))) sbLoad(false); }, 1000);
 
-  // ================= ¿QUIÉN ES?: 3 pistas para adivinar a un jugador de torneo =================
-  const QN = { r:null, step:1, rev:null, pick:null, guess:'', res:null, err:'', busy:false };
-  async function qnNew(){
-    if (QN.busy) return; QN.busy = true; QN.err = '';
-    try { const r = await fetch('/api/quien/nueva', { cache:'no-store' }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'No se pudo armar la ronda');
-      Object.assign(QN, { r:d, step:1, rev:null, pick:null, guess:'', res:null }); }
-    catch (e) { QN.err = e.message; }
-    QN.busy = false; qnRender();
-  }
-  async function qnPost(path, body){ const r = await fetch('/api/quien/' + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ id: QN.r.id, ...body }) }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Error'); return d; }
-  function qnRender(){
-    const box = $('p-qn'), R = QN.r;
-    if (!R){ box.innerHTML = `<div class="card" style="max-width:620px"><h3>¿Quién es?</h3><div class="fv-note" style="margin-top:6px">Adivina al jugador de torneo con 3 pistas: su rol de torneo, una partida suya (los 5 de su equipo, sin decir cuál era él) y un campeón que jugó alguna vez.</div>
-        <div class="fv-err">${esc(QN.err)}</div><button class="fv-btn pri" id="qn-new" style="margin-top:12px">${QN.busy ? 'Buscando…' : 'Empezar'}</button></div>`;
-      const b = $('qn-new'); if (b) b.onclick = qnNew; return; }
-    const rev = QN.rev, g = R.game;
-    const p1 = `<div class="card qn-clue"><div class="qn-n">Pista 1</div><div class="qn-t">Su rol de torneo es</div><div class="qn-role">${R.role && ({TOP:'top',JUNGLE:'jg',MID:'mid',ADC:'adc',SUPPORT:'support'})[R.role] ? `<img src="overlay/assets/roles/${({TOP:'top',JUNGLE:'jg',MID:'mid',ADC:'adc',SUPPORT:'support'})[R.role]}.webp" alt="">` : ''}<b>${esc(R.roleName)}</b></div></div>`;
-    const p2 = QN.step < 2 ? '' : `<div class="card qn-clue"><div class="qn-n">Pista 2</div><div class="qn-t">Una partida suya: estos son los 5 de su equipo. ¿Cuál era él?${rev ? '' : ' (toca uno para apostar)'}</div>
-      <div class="qn-game"><span class="${g.win ? 'w' : 'l'}">${g.win ? 'Victoria' : 'Derrota'}</span> · ${g.durMin} min${g.end ? ' · ' + fdate(g.end) : ''}</div>
-      <div class="qn-five">${g.players.map((p, i) => `<button class="qn-p ${QN.pick === i ? 'pick' : ''} ${rev && rev.idx === i ? 'him' : ''} ${rev && QN.pick === i && rev.idx !== i ? 'miss' : ''}" data-qp="${i}" ${rev ? 'disabled' : ''}>
-        <img src="${anChamp(p.champ)}" alt=""><b>${esc(fvChampName(p.champ))}</b><span>${p.k}/${p.d}/${p.a}</span><small>${p.cs} CS</small>${rev && rev.idx === i ? '<i>era él</i>' : ''}</button>`).join('')}</div></div>`;
-    const p3 = QN.step < 3 ? '' : `<div class="card qn-clue"><div class="qn-n">Pista 3</div><div class="qn-t">Un campeón que jugó alguna vez</div><div class="qn-champ"><img src="${anChamp(R.champ)}" alt=""><b>${esc(fvChampName(R.champ))}</b></div></div>`;
-    const guess = rev ? '' : `<div class="card"><h3>¿Quién es?</h3><div class="qn-guess"><input list="qn-names" id="qn-in" placeholder="Escribe el nombre…" value="${esc(QN.guess)}" autocomplete="off"><datalist id="qn-names">${R.names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
-        <button class="fv-btn pri" id="qn-try">Adivinar</button></div>${QN.res ? `<div class="qn-res ${QN.res.ok ? 'ok' : 'no'}">${QN.res.ok ? '¡Correcto! Es ' + esc(QN.res.nick) : '✗ No es ' + esc(QN.res.nick)}</div>` : ''}
-      <div class="sb-btns">${QN.step < 3 ? `<button class="fv-btn" id="qn-more">Siguiente pista (${QN.step + 1}/3)</button>` : ''}<button class="fv-btn" id="qn-rev">Revelar</button></div><div class="fv-err">${esc(QN.err)}</div></div>`;
-    const out = rev ? `<div class="card qn-out"><div class="qn-n">Era</div><div class="qn-name">${esc(rev.nick)}</div><div class="ps">${esc(rev.rid)} · ${esc(rev.team)}</div>
-      ${QN.pick != null ? `<div class="qn-res ${QN.pick === rev.idx ? 'ok' : 'no'}">${QN.pick === rev.idx ? '✓ Acertaste quién era en la partida' : '✗ En la partida no era ese'}</div>` : ''}
-      <div class="sb-btns"><a class="fv-btn sm" href="${rkOpgg(rev.rid)}" target="_blank" rel="noopener">OP.GG</a><button class="fv-btn pri" id="qn-new">Otra ronda</button></div></div>` : '';
-    box.innerHTML = `<div class="qn-wrap">${out}${p1}${p2}${p3}${guess}</div>`;
-    const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
-    on('qn-new', qnNew); on('qn-more', () => { QN.step++; qnRender(); });
-    on('qn-rev', async () => { try { QN.rev = await qnPost('revelar', {}); QN.step = 3; } catch (e) { QN.err = e.message; } qnRender(); });
-    const inp = $('qn-in'); if (inp) inp.oninput = () => { QN.guess = inp.value; };
-    on('qn-try', async () => { const nick = (QN.guess || '').trim(); if (!nick) return;
-      try { const d = await qnPost('adivinar', { nick }); QN.res = { ok: d.ok, nick }; if (d.ok){ QN.rev = await qnPost('revelar', {}); QN.step = 3; } } catch (e) { QN.err = e.message; } qnRender(); });
-    box.querySelectorAll('[data-qp]').forEach(b => b.onclick = () => { QN.pick = QN.pick === +b.dataset.qp ? null : +b.dataset.qp; qnRender(); });
-  }
   // ---- ranking histórico de la subasta: los jugadores más caros ----
   let SB_RANK = null;
   async function sbRankLoad(){ try { const r = await fetch('/api/subasta/ranking', { cache:'no-store' }); if (r.ok) SB_RANK = await r.json(); } catch (e) {} }
@@ -1256,8 +1243,10 @@
         : `<div class="fv-note">Todavía no hay ventas guardadas.</div>`) + `</div>`;
   }
 
+  // SoloQdle embebido: el marco toma el alto de su contenido
+  setInterval(() => { if (CUR_TAB !== 'dle') return; const f = $('dle-frame'); try { const h = f.contentDocument.documentElement.scrollHeight; if (h && Math.abs(f.offsetHeight - h) > 4) f.style.height = h + 'px'; } catch (e) {} }, 400);
   const h0 = (location.hash || '').slice(1);
-  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'rk' || h0 === 'ranked') ? 'rk' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : (h0 === 'qn' || h0 === 'quien') ? 'qn' : 'fv');
+  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'rk' || h0 === 'ranked') ? 'rk' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
 </script>
 </body>
 </html>
