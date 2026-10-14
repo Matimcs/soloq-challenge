@@ -137,6 +137,14 @@ const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.s
 const sign = u => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
 const TEAMS = new Set(['Exilium', 'Tide', 'Zenith', 'Hundred Blossom']);
 const ROLES = new Set(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT']);   // rol dentro del equipo (puede diferir del de SoloQ)
+// El nombre real de los jugadores solo lo ven los admins: las rutas públicas lo omiten salvo que pida un admin.
+const _admCache = new Map();
+async function reqIsAdmin(req){
+  const uid = await optionalUid(req); if (!uid) return false;
+  const c = _admCache.get(uid); if (c && Date.now() - c.at < 300000) return c.v;
+  let v = false; try { const u = await q1('SELECT is_admin FROM users WHERE id=$1', [uid]); v = !!(u && u.is_admin); } catch {}
+  _admCache.set(uid, { at: Date.now(), v }); return v;
+}
 const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, team:u.team || null, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
@@ -241,12 +249,12 @@ const AVATARS_TTL = 10 * 60 * 1000;
 app.get('/api/avatars', wrap(async (req,res) => {
   res.set('Cache-Control', 'public, max-age=600');   // avatares cambian muy poco
   if (AVATARS_CACHE.data && Date.now() - AVATARS_CACHE.at < AVATARS_TTL) return res.json(AVATARS_CACHE.data);
-  const users = await q('SELECT id, riotid, nickname, realname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
+  const users = await q('SELECT id, riotid, nickname, avatar, pos1, pos2, main, champ1, champ2, champ3, flash_slot FROM users');
   const smurfs = await q('SELECT user_id, riotid FROM smurfs ORDER BY id');
   const byUser = {}; smurfs.forEach(s => { (byUser[s.user_id] = byUser[s.user_id] || []).push(s.riotid); });
   const out = [];
   users.forEach(u => {
-    const base = { nickname:u.nickname, realname:u.realname, avatar:u.avatar, pos1:u.pos1, pos2:u.pos2, main:u.main, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, owner:u.nickname };
+    const base = { nickname:u.nickname, avatar:u.avatar, pos1:u.pos1, pos2:u.pos2, main:u.main, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, owner:u.nickname };
     out.push({ ...base, riotid:u.riotid, label:'Main' });
     const list = byUser[u.id] || [];
     list.forEach((rid, i) => out.push({ ...base, riotid:rid, label: list.length > 1 ? `Smurf ${i+1}` : 'Smurf' }));
@@ -632,7 +640,8 @@ function buildHistoryRow(m, puuid){
 app.get('/api/player/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();   // Express ya decodifica el parámetro
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
-  res.set('Cache-Control', 'public, max-age=300');   // ficha: Cloudflare la sirve del borde ~90s
+  const admin = await reqIsAdmin(req);
+  res.set('Cache-Control', admin ? 'private, no-store' : 'public, max-age=300');   // ficha: Cloudflare la sirve del borde ~90s (la de admin trae el nombre real: no se cachea)
 
   // Perfil desde la caché del ranking (players.json) + usuario registrado
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
@@ -730,7 +739,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
 
   const profile = {
     riotid, nickname: (u && u.nickname) || (lp && lp.nm) || riotid.split('#')[0],
-    realname: u && u.realname, avatar: u && u.avatar, pos1: u && u.pos1, pos2: u && u.pos2,
+    realname: admin && u ? u.realname : undefined, avatar: u && u.avatar, pos1: u && u.pos1, pos2: u && u.pos2,
     champs: u ? [u.champ1,u.champ2,u.champ3].filter(Boolean) : [], flashSlot: u && u.flash_slot,
     isRegistered: !!u, isAdmin: !!(u && u.is_admin), label: accLabel,
     tier: lp && lp.tier, div: lp && lp.div, lp: lp && lp.lp, rankPos,
@@ -888,7 +897,8 @@ async function excludedSmurfRids(){
 
 app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();
-  res.set('Cache-Control', 'public, max-age=300');   // ficha completa: Cloudflare la sirve del borde ~90s
+  const admin = await reqIsAdmin(req);
+  res.set('Cache-Control', admin ? 'private, no-store' : 'public, max-age=300');   // ficha completa: Cloudflare la sirve del borde ~90s
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
   const rankPos = lp && liveData ? liveData.players.indexOf(lp) + 1 : null;
   const u = await q1('SELECT nickname, realname, avatar, pos1 FROM users WHERE riotid=$1', [riotid]);
@@ -997,7 +1007,7 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
 
   const w = lp ? lp.w : 0, l = lp ? lp.l : 0, tot = w+l;
   res.json({
-    profile: { riotid, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:u&&u.realname, avatar:u&&u.avatar,
+    profile: { riotid, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:admin&&u?u.realname:undefined, avatar:u&&u.avatar,
       tier:lp&&lp.tier, div:lp&&lp.div, lp:lp&&lp.lp, rankPos, role:(u&&u.pos1)||(lp&&lp.role),
       elo: lp && ['MASTER','GRANDMASTER','CHALLENGER'].includes(lp.tier) ? 'High Elo' : 'Low Elo',
       w, l, winrate: tot?Math.round(w/tot*100):0 },
