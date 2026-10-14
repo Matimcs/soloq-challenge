@@ -163,8 +163,10 @@
             <option value="COMPETITIVO">Competitivo</option>
             <option value="GOD">GOD</option>
           </select>
+          <input type="text" id="tg-stream" placeholder="Canal (solo streamers): https://kick.com/canal o https://twitch.tv/canal" style="flex:1 1 260px">
           <button class="btn btn-accent" id="tg-add">Etiquetar</button>
         </div>
+        <div class="sub" style="margin:6px 0 0;font-size:12px">Si un <b>Streamer</b> tiene canal y está en vivo, aparece en el recuadro de stream del inicio cuando no hay una transmisión agregada abajo (rota entre los que estén en vivo).</div>
         <div class="list" id="tg-list" style="margin-top:12px"></div>
       </div>
     </section>
@@ -559,7 +561,7 @@
       let list = []; try { list = await SQC.api('/admin/player-tags'); } catch(e){ return; }
       $('tg-count').textContent = `(${list.length})`;
       $('tg-list').innerHTML = list.length ? list.map(t=>`
-        <div class="item"><div class="info"><div class="t">${escA(t.riotid)} — <b>${TG_LABEL[t.tag]||t.tag}</b></div><div class="s">Etiquetado ${fdate(t.updated_at)}</div></div>
+        <div class="item"><div class="info"><div class="t">${escA(t.riotid)} — <b>${TG_LABEL[t.tag]||t.tag}</b></div><div class="s">Etiquetado ${fdate(t.updated_at)}${t.tag === 'STREAMER' ? (t.stream_url ? ` · canal: <a href="${escA(t.stream_url)}" target="_blank" rel="noopener">${escA(t.stream_url.replace(/^https?:\/\/(www\.)?/, ''))}</a>` : ' · <span style="color:#f0b429">sin canal</span>') : ''}</div></div>
           <div class="acts"><button class="btn btn-no" data-rid="${escA(t.riotid)}">Quitar</button></div></div>`).join('')
         : '<div class="empty">Sin jugadores etiquetados.</div>';
       $('tg-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
@@ -568,9 +570,10 @@
       }));
     }
     $('tg-add').addEventListener('click', async () => {
-      const riotid = $('tg-riotid').value.trim(), tag = $('tg-tag').value;
+      const riotid = $('tg-riotid').value.trim(), tag = $('tg-tag').value, stream = $('tg-stream').value.trim();
       if (!/^.+#.+$/.test(riotid)){ toast('Formato Nombre#TAG'); return; }
-      try { await SQC.api('/admin/player-tag', {method:'POST', body:{ riotid, tag }}); $('tg-riotid').value=''; toast('Etiqueta puesta'); renderTags(); }
+      const body = { riotid, tag }; if (stream) body.stream = stream;
+      try { await SQC.api('/admin/player-tag', {method:'POST', body}); $('tg-riotid').value=''; $('tg-stream').value=''; toast('Etiqueta puesta'); renderTags(); }
       catch(e){ toast(e.message); }
     });
 

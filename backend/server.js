@@ -475,13 +475,46 @@ app.post('/api/admin/player-tag', auth, requireAdmin, wrap(async (req,res) => {
   const tag = ((req.body && req.body.tag) || '').trim().toUpperCase();
   if (!tag){ await q('DELETE FROM player_tags WHERE lower(riotid)=lower($1)', [riotid]); invalidateTags(); return res.json({ ok:true, cleared:true }); }
   if (!PLAYER_TAGS.has(tag)) return res.status(400).json({ error:'Etiqueta inválida' });
-  await q(`INSERT INTO player_tags (riotid, tag, updated_at) VALUES ($1,$2,now())
-           ON CONFLICT (riotid) DO UPDATE SET tag=EXCLUDED.tag, updated_at=now()`, [riotid, tag]);
-  invalidateTags();
+  // canal de stream (opcional): sin el campo se conserva; vacío lo borra
+  const stream = req.body && req.body.stream !== undefined ? String(req.body.stream || '').trim() : undefined;
+  if (stream && !/^https?:\/\/(www\.)?(twitch\.tv|kick\.com)\/[A-Za-z0-9_]+\/?$/i.test(stream)) return res.status(400).json({ error:'Canal inválido: usa https://twitch.tv/canal o https://kick.com/canal' });
+  await q(`INSERT INTO player_tags (riotid, tag, stream_url, updated_at) VALUES ($1,$2,$3,now())
+           ON CONFLICT (riotid) DO UPDATE SET tag=EXCLUDED.tag, stream_url=CASE WHEN $4 THEN EXCLUDED.stream_url ELSE player_tags.stream_url END, updated_at=now()`,
+    [riotid, tag, stream || null, stream !== undefined]);
+  invalidateTags(); STREAM_LIVE.at = 0;
   res.json({ ok:true, riotid, tag });
 }));
 app.get('/api/admin/player-tags', auth, requireAdmin, wrap(async (req,res) =>
-  res.json(await q('SELECT riotid, tag, updated_at FROM player_tags ORDER BY updated_at DESC'))));
+  res.json(await q('SELECT riotid, tag, stream_url, updated_at FROM player_tags ORDER BY updated_at DESC'))));
+// Streamers etiquetados que están EN VIVO ahora (Twitch vía decapi.me, Kick vía su API pública). Cache 2 min.
+// El inicio rota entre ellos cuando el admin no puso ningún stream.
+const STREAM_LIVE = { at: 0, data: [] };
+async function streamIsLive(url){
+  const m = String(url).match(/(twitch\.tv|kick\.com)\/([A-Za-z0-9_]+)/i); if (!m) return null;
+  const host = m[1].toLowerCase(), ch = m[2];
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 6000);
+  try {
+    if (host === 'twitch.tv'){
+      const txt = (await (await fetch('https://decapi.me/twitch/uptime/' + encodeURIComponent(ch), { signal: ctl.signal })).text()).trim();
+      if (/offline|error|not found|no user/i.test(txt) || !txt) return null;
+      return { platform: 'twitch', channel: ch, uptime: txt };
+    }
+    const r = await fetch('https://kick.com/api/v2/channels/' + encodeURIComponent(ch), { signal: ctl.signal, headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' } });
+    if (!r.ok) return null; const j = await r.json(); if (!j || !j.livestream) return null;
+    return { platform: 'kick', channel: ch, viewers: j.livestream.viewer_count || null, title: j.livestream.session_title || null };
+  } catch { return null; } finally { clearTimeout(t); }
+}
+app.get('/api/streams/live', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=60');
+  if (Date.now() - STREAM_LIVE.at > 120000){
+    STREAM_LIVE.at = Date.now();
+    let rows = []; try { rows = await q("SELECT riotid, stream_url FROM player_tags WHERE tag='STREAMER' AND coalesce(stream_url,'')<>''"); } catch {}
+    const out = [];
+    await Promise.all(rows.map(async r => { const live = await streamIsLive(r.stream_url); if (live) out.push({ riotid: r.riotid, nick: r.riotid.split('#')[0].replace(/^(kick|twitch)\s+/i, ''), url: r.stream_url, ...live }); }));
+    STREAM_LIVE.data = out.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+  }
+  res.json(STREAM_LIVE.data);
+}));
 
 // ---- APUESTA: ¿quién llega antes a Challenger, Krok o Petu? (vota cualquier jugador logueado) ----
 const BET_ID = 'dia_krok_petu';   // carrera a Diamante (id nuevo => votos reiniciados)

@@ -273,6 +273,8 @@ async function init(){
       tag        TEXT NOT NULL,           -- PRO | STREAMER | COMPETITIVO
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Canal del streamer (Twitch / Kick): si no hay stream del admin, el inicio rota entre los que estén en vivo.
+    ALTER TABLE player_tags ADD COLUMN IF NOT EXISTS stream_url TEXT;
 
     -- Transmisiones en vivo (streams) que el admin agrega a mano para verlas embebidas en la web.
     CREATE TABLE IF NOT EXISTS streams (

@@ -260,6 +260,7 @@
   .stream-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; font-size:13px; font-weight:700; }
   .stream-top .st-lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .stream-top a{ color:var(--accent); font-size:12px; font-weight:700; text-decoration:none; flex-shrink:0; }
+  .rot-next{ font-family:inherit; cursor:pointer; margin-left:8px; font-size:11px; font-weight:800; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:7px; padding:2px 8px; }
   .stream-embed{ position:relative; aspect-ratio:16/9; background:#000; }
   .stream-embed iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
   .stream-embed.nofit{ display:grid; place-items:center; }
@@ -1329,13 +1330,32 @@ function fillHeroStream(list){
   if(who) who.textContent = s.label || streamLabel(s.url);
   if(views) views.innerHTML = `<a href="${escAttr(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">● en vivo ↗</a>`;
 }
+// Sin stream del admin: rota entre los streamers etiquetados que estén en vivo (cambia cada 4 min o con "Otro").
+let _liveRot = { list: [], i: 0, at: 0 };
+function fillLiveRotation(){
+  const L = _liveRot.list; if (!L.length){ fillHeroStream([]); return; }
+  const s = L[_liveRot.i % L.length];
+  fillHeroStream([{ url: s.url, label: `🔴 ${s.nick} en vivo${L.length > 1 ? ` (${(_liveRot.i % L.length) + 1}/${L.length})` : ''}` }]);
+  const views = document.getElementById('hero-stream-views');
+  if (views && L.length > 1) views.innerHTML += ` <button class="rot-next" id="rot-next" title="Ver otro streamer en vivo">Otro ›</button>`;
+  const nb = document.getElementById('rot-next'); if (nb) nb.onclick = () => { _liveRot.i++; _liveRot.at = Date.now(); fillLiveRotation(); };
+}
+async function loadLiveStreamers(){
+  try{ const r = await fetch('/api/streams/live'); if(!r.ok) return; const list = await r.json();
+    const sig = list.map(s => s.url).join('|'), had = _liveRot.list.map(s => s.url).join('|');
+    if (sig !== had){ const cur = _liveRot.list[_liveRot.i % (_liveRot.list.length || 1)]; _liveRot.list = list;
+      const keep = cur ? list.findIndex(s => s.url === cur.url) : -1; _liveRot.i = keep >= 0 ? keep : 0; _liveRot.at = Date.now(); fillLiveRotation(); }
+    else if (list.length > 1 && Date.now() - _liveRot.at > 240000){ _liveRot.i++; _liveRot.at = Date.now(); fillLiveRotation(); }
+  }catch{}
+}
 async function loadStreams(){
   try{
     const r = await fetch('/api/streams'); if(!r.ok) return;
     const list = await r.json();
+    if (!list.length){ _streamSig = 'rot'; return loadLiveStreamers(); }
     const sig = JSON.stringify(list.map(s=>s.id+'|'+s.url+'|'+(s.label||'')));
     if (sig === _streamSig) return;   // sin cambios: no recargar el reproductor
-    _streamSig = sig;
+    _streamSig = sig; _liveRot = { list: [], i: 0, at: 0 };
     fillHeroStream(list);             // stream principal en el recuadro del hero
   }catch{}
 }

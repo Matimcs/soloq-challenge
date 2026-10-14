@@ -235,6 +235,11 @@
   .ttab-btn{ font-family:inherit; cursor:pointer; background:transparent; border:1px solid var(--line-2); color:var(--muted); border-radius:999px; padding:9px 20px; font-size:13.5px; font-weight:800; letter-spacing:.01em; display:inline-flex; align-items:center; gap:7px; }
   .ttab-btn:hover{ color:#fff; border-color:#fff; }
   .ttab-btn.active{ background:var(--gold); color:#000; border-color:var(--gold); }
+  .arch-list{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; }
+  .arch-card{ font-family:inherit; cursor:pointer; text-align:left; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; color:var(--text); }
+  .arch-card:hover{ border-color:var(--gold); } .arch-k{ font-size:11px; font-weight:800; letter-spacing:.08em; color:var(--gold); } .arch-t{ font-size:24px; font-weight:800; margin:4px 0; }
+  .arch-s{ font-size:13px; color:var(--muted); } .arch-b{ margin-top:14px; font-size:13px; font-weight:800; color:var(--gold); }
+  .arch-back{ font-family:inherit; cursor:pointer; background:transparent; border:1px solid var(--line-2); color:var(--muted); border-radius:999px; padding:6px 14px; font-size:12.5px; font-weight:700; } .arch-back:hover{ color:#fff; border-color:#fff; }
   .ttab-btn .dotlive{ width:7px; height:7px; border-radius:50%; background:var(--up); box-shadow:0 0 8px var(--up); }
 
   /* Clasificatorias internas */
@@ -298,15 +303,27 @@
     <!-- Pestañas de TORNEO: cada torneo en curso -->
     <div class="tourn-tabs" id="tourn-tabs">
       <a class="ttab-btn" href="uleague.html">🏆 uLeague Clausura 2026</a>
-      <button class="ttab-btn active" data-t="udporros">UDPORROS 2026 · cerrado</button>
       <button class="ttab-btn" data-t="internas"><span class="dotlive"></span> Clasificatorias Internas</button>
+      <button class="ttab-btn active" data-t="archivo">📦 Torneos archivados</button>
     </div>
 
+  <!-- ===== TORNEOS ARCHIVADOS: los que ya terminaron ===== -->
+  <div class="tourn-view" id="tv-archivo">
+    <div class="arch-list">
+      <button class="arch-card" data-open="udporros">
+        <div class="arch-k">TORNEO LoL UDPORROS 2026</div>
+        <div class="arch-t">UDPORROS 2026</div>
+        <div class="arch-s">23 equipos · fase de grupos y playoffs · auspiciado por Jugabet</div>
+        <div class="arch-b">🏁 Finalizado · ver torneo →</div>
+      </button>
+    </div>
+  </div>
+
+  <div class="tourn-view" id="tv-udporros" style="display:none">
+    <div style="margin-bottom:12px"><button class="arch-back" data-open="archivo">← Torneos archivados</button></div>
     <div style="background:linear-gradient(90deg,rgba(255,210,74,.12),transparent);border:1px solid rgba(255,210,74,.25);border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--muted);line-height:1.5">
       🏁 <b style="color:var(--text)">Torneo finalizado.</b> Los rangos y LP de los jugadores quedaron <b>congelados</b> y ya no se actualizan — el tracker ahora sigue a <a href="uleague.html" style="color:var(--blue);font-weight:700">uLeague</a>, el torneo en curso.
     </div>
-
-  <div class="tourn-view" id="tv-udporros">
     <div class="page-tabs">
       <button class="ptab-btn active" data-p="torneo">🏆 Torneo</button>
       <button class="ptab-btn" data-p="fixture">📅 Fixture</button>
@@ -851,18 +868,24 @@
   });
 
   // ===== Pestañas de TORNEO (nivel superior) =====
+  // Vistas: 'internas', 'archivo' (lista de torneos terminados) y 'udporros' (un torneo archivado).
   function showTourn(t){
-    const internas=(t==='internas');
-    document.getElementById('tv-udporros').style.display = internas?'none':'';
+    const internas=(t==='internas'), archivo=(t==='archivo');
+    document.getElementById('tv-udporros').style.display = (!internas && !archivo)?'':'none';
     document.getElementById('tv-internas').style.display = internas?'':'none';
-    document.querySelectorAll('.ttab-btn').forEach(b=>b.classList.toggle('active', !!b.dataset.t && b.dataset.t===(internas?'internas':'udporros')));
+    document.getElementById('tv-archivo').style.display = archivo?'':'none';
+    document.querySelectorAll('.ttab-btn').forEach(b=>b.classList.toggle('active', !!b.dataset.t && b.dataset.t===(internas?'internas':'archivo')));
     if(internas){ if(history.replaceState) history.replaceState(null,'','#internas'); renderQual(); loadQual().then(renderQual); }
-    else if((location.hash||'')==='#internas'){ showPage('torneo'); }
+    else if(archivo){ if(history.replaceState) history.replaceState(null,'','#archivo'); }
+    else if(['#internas','#archivo',''].includes(location.hash||'')){ showPage('torneo'); }
   }
   document.querySelectorAll('.ttab-btn').forEach(b=>{ if(b.dataset.t) b.onclick = ()=>showTourn(b.dataset.t); });
+  document.querySelectorAll('[data-open]').forEach(b=> b.onclick = ()=>{ showTourn(b.dataset.open); window.scrollTo(0,0); });
   (function initTourn(){
     const h=(location.hash||'').replace('#','');
-    if(h==='internas') showTourn('internas'); else { showTourn('udporros'); showPage(h); }
+    if(h==='internas') showTourn('internas');
+    else if(h==='archivo' || h==='') showTourn('archivo');
+    else { showTourn('udporros'); showPage(h); }
   })();
 
   SQC.preNav(); SQC.mountNav();
