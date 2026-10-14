@@ -260,6 +260,8 @@
   .stream-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 14px; font-size:13px; font-weight:700; }
   .stream-top .st-lbl{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .stream-top a{ color:var(--accent); font-size:12px; font-weight:700; text-decoration:none; flex-shrink:0; }
+  .st-cover{ font-family:inherit; cursor:pointer; position:absolute; inset:0; width:100%; border:0; background:radial-gradient(circle at 50% 45%,rgba(145,70,255,.18),rgba(0,0,0,.85)); color:var(--text); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; }
+  .st-cover:hover .play{ transform:scale(1.08); } .st-cover .play{ transition:transform .15s; } .st-cl{ font-size:15px; font-weight:800; } .st-cs{ font-size:11.5px; color:var(--muted); font-weight:600; }
   .rot-next{ font-family:inherit; cursor:pointer; margin-left:8px; font-size:11px; font-weight:800; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:7px; padding:2px 8px; }
   .stream-embed{ position:relative; aspect-ratio:16/9; background:#000; }
   .stream-embed iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
@@ -1322,20 +1324,24 @@ function streamEmbed(url){
       if (parts[0]==='embed' && parts[1]) return url;
     }
     if (host==='youtu.be' && parts[0]) return `https://www.youtube.com/embed/${encodeURIComponent(parts[0])}?autoplay=1&mute=1`;
-    if (host==='kick.com' && parts[0]) return `https://player.kick.com/${encodeURIComponent(parts[0])}`;
+    if (host==='kick.com' && parts[0]) return `https://player.kick.com/${encodeURIComponent(parts[0])}?autoplay=true&muted=true`;
   }catch{}
   return null;
 }
 function streamLabel(url){ try{ const u=new URL(url); const p=u.pathname.split('/').filter(Boolean); return p[p.length-1] || u.hostname.replace(/^www\./,''); }catch{ return url; } }
-let _streamSig = '';
+let _streamSig = '', _streamOn = false;   // _streamOn: el visitante ya apretó ▶
 function fillHeroStream(list){
   const scr = document.getElementById('hero-stream-scr'); if(!scr) return;
   const who = document.getElementById('hero-stream-who'), views = document.getElementById('hero-stream-views');
   if(!list.length){ scr.innerHTML = '<div class="play">▶</div>'; if(who) who.textContent='Partidas en Stream'; if(views) views.textContent='— en vivo pronto —'; return; }
   const s = list[0], emb = streamEmbed(s.url);
-  scr.innerHTML = emb
-    ? `<iframe src="${escAttr(emb)}" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" scrolling="no" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`
-    : `<a href="${escAttr(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:none">Ver transmisión ↗</a>`;
+  // El stream no se carga hasta que el visitante aprieta ▶ (siempre parte sin sonido; se activa en el reproductor).
+  // Una vez que lo activó, los cambios de stream (rotación) cargan directo.
+  const play = () => { _streamOn = true; scr.innerHTML = `<iframe src="${escAttr(emb)}" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" scrolling="no" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`; };
+  if (!emb) scr.innerHTML = `<a href="${escAttr(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:none">Ver transmisión ↗</a>`;
+  else if (_streamOn) play();
+  else { scr.innerHTML = `<button class="st-cover" type="button" title="Ver el stream (parte sin sonido)"><span class="play">▶</span><span class="st-cl">${escAttr(s.label || streamLabel(s.url))}</span><span class="st-cs">Toca para ver · parte sin sonido</span></button>`;
+    scr.querySelector('.st-cover').onclick = play; }
   if(who) who.textContent = s.label || streamLabel(s.url);
   if(views) views.innerHTML = `<a href="${escAttr(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">● en vivo ↗</a>`;
 }
