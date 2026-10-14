@@ -354,6 +354,7 @@
   .sb-card.sold{ opacity:.75; } .sb-card.sold .st{ color:var(--gold); } .sb-card.passed{ opacity:.4; }
   .sb-log{ display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--line); font-size:12.5px; } .sb-log:first-of-type{ border-top:none; }
   .sb-log small{ margin-left:auto; font-size:11px; color:var(--muted-2); }
+  .sb-host{ display:flex; gap:6px; align-items:center; justify-content:flex-end; margin-bottom:10px; } .sb-host span{ font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); margin-right:4px; }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -1022,7 +1023,7 @@
   async function sbAct(path, body){
     if (SBC.busy) return; SBC.busy = true; SBC.err = '';
     try { const st = await SQC.api('/subasta/' + path, { method:'POST', body: { ...(body || {}), room: SBC.room } });
-      if (path === 'create') sbSetRoom(st.code); SBC.amt = ''; }
+      if (path === 'create') sbSetRoom(st.code); if (path === 'close') sbSetRoom(''); SBC.amt = ''; }
     catch (e) { SBC.err = e.message || 'No se pudo completar'; }
     SBC.busy = false; await sbLoad(true);
   }
@@ -1085,15 +1086,17 @@
       ${st.isHost ? `<button class="fv-btn pri" id="sb-start" ${st.caps[1] ? '' : 'disabled'}>Empezar subasta</button>` : `<div class="fv-note">El anfitrión empieza cuando estén los dos capitanes.</div>`}`;
     else {
       const done = st.status === 'done';
-      body = `${done ? `<div class="card sb-done"><h3>Subasta terminada</h3><div class="fv-note">Así quedaron los equipos.</div>${st.isHost ? `<button class="fv-btn" id="sb-reset" style="margin-top:10px">Repetir con los mismos capitanes</button>` : ''}</div>` : ''}
+      body = `${done ? `<div class="card sb-done"><h3>Subasta terminada</h3><div class="fv-note">Así quedaron los equipos.</div></div>` : ''}
         <div class="sb-main">${sbCapCard(st, 0)}${done ? '' : sbLotHtml(st)}${sbCapCard(st, 1)}</div>${sbBoard(st)}
         ${st.log.length ? `<div class="card" style="margin-top:14px"><h3>Historial</h3>${st.log.map(l => { const p = st.pool[l.i];
           return `<div class="sb-log">${sbIco(p.role)}<b>${esc(p.nick)}</b> → ${l.cap == null ? 'sin equipo' : esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}<small>${esc(l.how || '')}</small></div>`; }).join('')}</div>` : ''}`;
     }
-    box.innerHTML = body;
+    const hostBar = st.isHost ? `<div class="sb-host"><span>Anfitrión</span>${st.status !== 'lobby' ? `<button class="fv-btn sm" id="sb-reset">↺ Reiniciar subasta</button>` : ''}<button class="fv-btn sm sb-drop" id="sb-close">Cerrar subasta</button></div>` : '';
+    box.innerHTML = hostBar + body;
     const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+    on('sb-close', () => { if (confirm('¿Cerrar la subasta? Se borra la sala y el enlace deja de funcionar.')) sbAct('close'); });
     on('sb-join', () => sbAct('join')); on('sb-leave', () => sbAct('leave')); on('sb-start', () => sbAct('start'));
-    on('sb-reset', () => { if (confirm('¿Volver a la sala y repetir la subasta? Se borran los equipos de esta.')) sbAct('reset'); });
+    on('sb-reset', () => { if (confirm('¿Reiniciar? Se borran las pujas y los equipos, y vuelven a la sala de espera con los mismos capitanes (al empezar se sortean jugadores nuevos).')) sbAct('reset'); });
     on('sb-copy', async e => { const b = e.target; try { await navigator.clipboard.writeText(sbUrl(st.code)); } catch (err) { const i = $('sb-link'); i.select(); try { document.execCommand('copy'); } catch (e2) {} }
       b.textContent = '¡Copiado!'; setTimeout(() => { b.textContent = 'Copiar enlace'; }, 1500); });
     box.querySelectorAll('[data-sb]').forEach(b => b.onclick = () => sbAct('act', { action: b.dataset.sb, amount: b.dataset.amt ? +b.dataset.amt : undefined }));

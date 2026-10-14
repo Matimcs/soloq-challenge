@@ -3057,10 +3057,17 @@ app.post('/api/subasta/act', auth, sbAllowed, wrap(async (req, res) => {
   if (err){ await sbSave(st); return res.status(400).json({ error: err }); }
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
-// Volver a la sala de espera (misma sala y capitanes) para repetir la subasta.
+// Cerrar la subasta: se borra la sala (el enlace deja de funcionar).
+app.post('/api/subasta/close', auth, sbAllowed, wrap(async (req, res) => {
+  const st = await sbRoom(req, res); if (!st) return;
+  if (req.user.id !== st.host && !req.user.is_admin) return res.status(403).json({ error: 'Solo el anfitrión puede cerrarla' });
+  delete (await sbRooms())[st.code]; try { await q('DELETE FROM tool_state WHERE id=$1', ['sub:' + st.code]); } catch {}
+  res.json({ ok: true, closed: true });
+}));
+// Volver a la sala de espera (misma sala y capitanes) para repetir la subasta (en cualquier momento).
 app.post('/api/subasta/reset', auth, sbAllowed, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
-  if (req.user.id !== st.host) return res.status(403).json({ error: 'Solo el anfitrión' });
+  if (req.user.id !== st.host && !req.user.is_admin) return res.status(403).json({ error: 'Solo el anfitrión' });
   Object.assign(st, { status: 'lobby', pool: [], order: [], sold: {}, passed: [], lot: null, log: [] }); st.caps.forEach(c => { if (c) c.spent = 0; });
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
