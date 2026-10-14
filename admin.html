@@ -562,9 +562,16 @@
       $('tg-count').textContent = `(${list.length})`;
       $('tg-list').innerHTML = list.length ? list.map(t=>`
         <div class="item"><div class="info"><div class="t">${escA(t.riotid)} — <b>${TG_LABEL[t.tag]||t.tag}</b></div><div class="s">Etiquetado ${fdate(t.updated_at)}${t.tag === 'STREAMER' ? (t.stream_url ? ` · canal: <a href="${escA(t.stream_url)}" target="_blank" rel="noopener">${escA(t.stream_url.replace(/^https?:\/\/(www\.)?/, ''))}</a>` : ' · <span style="color:#f0b429">sin canal</span>') : ''}</div></div>
-          <div class="acts"><button class="btn btn-no" data-rid="${escA(t.riotid)}">Quitar</button></div></div>`).join('')
+          <div class="acts">${t.tag === 'STREAMER' ? `<button class="btn" data-chan="${escA(t.riotid)}" data-cur="${escA(t.stream_url||'')}">${t.stream_url ? 'Cambiar canal' : 'Poner canal'}</button>` : ''}<button class="btn btn-no" data-rid="${escA(t.riotid)}">Quitar</button></div></div>`).join('')
         : '<div class="empty">Sin jugadores etiquetados.</div>';
-      $('tg-list').querySelectorAll('button').forEach(b=>b.addEventListener('click',async()=>{
+      // cambiar / poner / quitar el canal de un streamer (vacío = sin canal)
+      $('tg-list').querySelectorAll('button[data-chan]').forEach(b=>b.addEventListener('click',async()=>{
+        const v = prompt('Canal de ' + b.dataset.chan + ' (https://kick.com/canal o https://twitch.tv/canal). Déjalo vacío para quitarlo:', b.dataset.cur);
+        if (v === null) return;
+        try { await SQC.api('/admin/player-tag',{method:'POST',body:{riotid:b.dataset.chan, tag:'STREAMER', stream:v.trim()}}); toast(v.trim() ? 'Canal guardado' : 'Canal quitado'); renderTags(); }
+        catch(e){ toast(e.message); }
+      }));
+      $('tg-list').querySelectorAll('button[data-rid]').forEach(b=>b.addEventListener('click',async()=>{
         try { await SQC.api('/admin/player-tag',{method:'POST',body:{riotid:b.dataset.rid, tag:''}}); toast('Etiqueta quitada'); renderTags(); }
         catch(e){ toast(e.message); }
       }));

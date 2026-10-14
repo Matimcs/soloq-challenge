@@ -469,6 +469,12 @@ app.get('/api/player-tags', wrap(async (req,res) => {
   _tagsCache = { at: Date.now(), data: out };
   res.json(out);
 }));
+// Canales de los streamers etiquetados (Riot ID en minúsculas → URL): el tag "Streamer" lleva a su stream.
+app.get('/api/streamer-links', wrap(async (req,res) => {
+  res.set('Cache-Control', 'public, max-age=120');
+  const out = {}; try { for (const r of await q("SELECT riotid, stream_url FROM player_tags WHERE tag='STREAMER' AND coalesce(stream_url,'')<>''")) out[r.riotid.toLowerCase()] = r.stream_url; } catch {}
+  res.json(out);
+}));
 app.post('/api/admin/player-tag', auth, requireAdmin, wrap(async (req,res) => {
   const riotid = ((req.body && req.body.riotid) || '').trim();
   if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'Riot ID debe ser Nombre#TAG' });

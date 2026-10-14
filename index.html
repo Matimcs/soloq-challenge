@@ -307,6 +307,7 @@
   .lg-ptag{ margin-left:5px; font-size:9px; font-weight:800; border-radius:5px; padding:1px 6px; vertical-align:middle; }
   .lg-ptag.pro{ color:#000; background:#e9ff1f; }
   .lg-ptag.streamer{ color:#fff; background:#9146ff; }
+  a.ptag-link{ text-decoration:none; cursor:pointer; } a.ptag-link:hover{ filter:brightness(1.2); text-decoration:underline; }
   .lg-ptag.competitivo{ color:#000; background:#5eead4; }
   .lg-ptag.god{ color:#1a1205; background:linear-gradient(180deg,#ffe07a,#f0b429); box-shadow:0 0 6px rgba(255,210,74,.5); }
   .lg-rank{ font-size:11px; color:var(--muted); display:flex; align-items:center; gap:5px; margin-top:1px; }
@@ -892,7 +893,7 @@ async function loadTeams(fresh){
   } catch {}
 }
 // Etiquetas de torneo (Riot ID -> {tag,team}) y de jugador (PRO/Streamer/Competitivo).
-let TOURNEY_MAP = {}, PTAGS = {};
+let TOURNEY_MAP = {}, PTAGS = {}, PLINKS = {};
 const PTAG_LABEL = { PRO:'PRO', STREAMER:'Streamer', COMPETITIVO:'Competitivo', GOD:'GOD' };
 function tourneyOf(rid){ return TOURNEY_MAP[(rid||'').toLowerCase()] || TOURNEY_MAP[nrid(rid)] || null; }
 // Etiqueta manual (PRO/Streamer/Competitivo); si no tiene y está en un torneo, se considera
@@ -909,6 +910,13 @@ function ptagOf(rid){
   if (t && !OUR_TEAMS.has(tm) && !UNI_TEAMS.has(tm)) return 'COMPETITIVO';
   return null;
 }
+// Badge de etiqueta (PRO / Streamer / …). Un "Streamer" con canal es un link a su stream.
+function ptagHtml(rid, cls){
+  const pg = ptagOf(rid); if (!pg) return '';
+  const label = PTAG_LABEL[pg] || pg, link = pg === 'STREAMER' ? (PLINKS[(rid||'').toLowerCase()] || PLINKS[nrid(rid)]) : null;
+  return link ? `<a class="${cls} ${pg.toLowerCase()} ptag-link" href="${escAttr(link)}" target="_blank" rel="noopener" title="Ver su stream" onclick="event.stopPropagation()">${label} ↗</a>`
+              : `<span class="${cls} ${pg.toLowerCase()}">${label}</span>`;
+}
 // Tag del equipo de torneo para equipos de la universidad ajenos a la org (ej. "420" de Los 420).
 function uniTag(rid){ const t = tourneyOf(rid); if (!t) return '';
   if (!UNI_TEAMS.has((t.team||'').toLowerCase())) return '';
@@ -918,6 +926,7 @@ async function loadTourneyTags(){
   if (!location.protocol.startsWith('http')) return;
   try { const r = await fetch('/api/tourney-players'); if (r.ok) TOURNEY_MAP = await r.json(); } catch {}
   try { const r = await fetch('/api/player-tags');    if (r.ok) PTAGS       = await r.json(); } catch {}
+  try { const r = await fetch('/api/streamer-links'); if (r.ok) PLINKS      = await r.json(); } catch {}
   render(); renderLive();
 }
 function avaSrc(rid, nm){ return AVA_BY_RID[nrid(rid)] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
@@ -1047,7 +1056,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
         <button class="fav" onclick="event.stopPropagation(); this.classList.toggle('on')" title="Marcar como favorito" aria-label="Marcar como favorito">${STAR}</button>
         ${avaHtml(p.rid, p.nm)}
         <div><div class="nm">${NICK_BY_RID[rl] || p.nm}</div><div class="rid">${p.rid}</div></div>
-        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${uniTag(p.rid)}${ptagOf(p.rid) ? `<span class="acc-tag ptag ${ptagOf(p.rid).toLowerCase()}">${PTAG_LABEL[ptagOf(p.rid)]||ptagOf(p.rid)}</span>` : ''}</span>${afkBadge(p)}
+        <span class="tag-stack">${LABEL_BY_RID[rl] ? `<span class="acc-tag ${LABEL_BY_RID[rl].startsWith('Smurf')?'smurf':'main'}">${LABEL_BY_RID[rl]}</span>` : ''}${teamTag(p.rid)}${uniTag(p.rid)}${ptagHtml(p.rid, 'acc-tag ptag')}</span>${afkBadge(p)}
         ${badges}
       </div></td>
       <td>${roleCell(p)}</td>
@@ -1228,7 +1237,7 @@ function playerRow(p){
   // Para nuestros 4 equipos UChile el badge muestra el nombre COMPLETO; para el resto, la abreviatura.
   const tt = tourneyOf(rid);
   const teamBadge = tt ? `<span class="lg-team ${OUR_TEAMS.has((tt.team||'').toLowerCase())?'ours':''}" title="${escAttr(tt.team||'')}">${OUR_TEAMS.has((tt.team||'').toLowerCase()) ? (tt.team||'') : (tt.tag||'')}</span>` : '';
-  const pg = ptagOf(rid);    const ptagBadge = pg ? `<span class="lg-ptag ${pg.toLowerCase()}">${PTAG_LABEL[pg]||pg}</span>` : '';
+  const ptagBadge = ptagHtml(rid, 'lg-ptag');
   return `
     <div class="lg-row ${p.tracked?'tracked':''}">
       <div class="lg-champ">${champ}${spells}${rune}</div>
@@ -1723,7 +1732,7 @@ function mbRow(p, mid, assigned){
   const ours = tourney && OUR_TEAMS.has((tourney.team||'').toLowerCase());
   const teamBadge = tourney ? `<span class="lg-team ${ours?'ours':''}" title="${escAttr(tourney.team||'')}">${escAttr(tourney.tag || tourney.team || '')}</span>` : '';
   const pg = rid ? ptagOf(rid) : null;   // el tag de equipo ya implica "Competitivo": no lo repetimos
-  const pt = (pg && pg !== 'COMPETITIVO') ? `<span class="lg-ptag ${pg.toLowerCase()}">${PTAG_LABEL[pg]||pg}</span>` : '';
+  const pt = (pg && pg !== 'COMPETITIVO') ? ptagHtml(rid, 'lg-ptag') : '';
   // Account sharing: quién jugó de verdad esta cuenta en esta partida (asignación del admin).
   const asg = (assigned && p.puuid) ? assigned[p.puuid] : null;
   const asgBadge = asg ? `<span class="mb-asg" title="Asignada por admin (account sharing)">→ ${escAttr(asg)}</span>` : '';
