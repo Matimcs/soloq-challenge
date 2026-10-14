@@ -402,6 +402,16 @@
   .sb-vp b{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .sb-vp small{ margin-left:auto; font-size:10px; color:var(--muted-2); white-space:nowrap; }
   .sb-vp.off{ border-color:rgba(251,191,36,.45); } .sb-vote{ max-width:900px; }
   .sb-reveal{ border-color:rgba(52,211,153,.55); } .sb-reveal .nm{ font-size:28px; }
+  .sb-lotrow{ display:grid; grid-template-columns:minmax(0,760px) minmax(220px,280px); gap:14px; align-items:start; margin-bottom:14px; }
+  .sb-lotrow .sb-lot{ margin-bottom:0; max-width:none; }
+  @media (max-width:900px){ .sb-lotrow{ grid-template-columns:1fr; } }
+  .sb-side{ position:sticky; top:84px; } .sb-side h3{ margin-bottom:8px; }
+  .sb-sc{ display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; border:2px solid var(--line); background:var(--panel-2); margin-top:6px; }
+  .sb-sc .nf{ flex:1; min-width:0; } .sb-sc b{ display:block; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .sb-sc b small{ font-size:10.5px; color:var(--muted-2); }
+  .sb-sc .nf > small{ font-size:11px; color:var(--muted-2); font-weight:600; } .sb-sc .mn{ font-size:16px; font-weight:800; color:var(--up); font-variant-numeric:tabular-nums; }
+  .sb-sc.lead{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); } .sb-sc.dim{ opacity:.5; } .sb-sc.me{ background:rgba(233,255,31,.05); }
+  .sb-cens{ border-style:dashed; } .sb-cens .nf b{ color:var(--muted); } .sb-card.cens .nm{ font-size:18px; }
+  .sb-allin{ background:#e11d48; border-color:#e11d48; color:#fff; } .sb-allin:hover{ background:#be123c; border-color:#be123c; }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -1084,7 +1094,7 @@
     catch (e) { SBC.err = e.message || 'No se pudo completar'; sbRender(); sbLoad(true); }
     finally { sbInFlight.delete(key); if (path === 'bid'){ SBC.sending = null; sbRender(); } }
   }
-  const sbRow = p => `<div class="sb-slot full">${sbIco(p.role)}<div class="nf"><b>${esc(p.nick)}</b><small>${sbRoleTxt(p)} · ${sbRank(p)}</small></div><span class="pr">${sbPrice(p)}</span></div>`;
+  const sbRow = p => p.hidden ? `<div class="sb-slot full sb-cens"><span class="sb-ico sub">🔒</span><div class="nf"><b>Jugador oculto</b><small>Modo censura: ¿te acuerdas quién era?</small></div></div>` : `<div class="sb-slot full">${sbIco(p.role)}<div class="nf"><b>${esc(p.nick)}</b><small>${sbRoleTxt(p)} · ${sbRank(p)}</small></div><span class="pr">${sbPrice(p)}</span></div>`;
   function sbCapCard(st, k){
     const c = st.caps[k], mine = st.me === k, lead = st.lot && st.lot.leader === k;
     let inner = '';
@@ -1115,6 +1125,7 @@
         <div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div></div>
         <div class="sb-price"><small>${R.cap == null ? 'Nadie pujó: vuelve a salir al final' : 'Se lo lleva ' + esc(st.caps[R.cap].nick)}</small><b>${R.cap == null ? '—' : sbMoney(R.price)}</b></div>
         ${sbCluesHtml(R.clues, 3)}
+        ${R.clues.lg ? `<div class="sb-btns" style="margin-top:0"><a class="fv-btn sm" href="${esc(R.clues.lg)}" target="_blank" rel="noopener">Ver la partida de la pista 1 en League of Graphs ↗</a></div>` : ''}
         ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span><button class="fv-btn sm" id="sb-next">Siguiente ya →</button></div>` : ''}</div>`;
     }
     if (!L){
@@ -1132,6 +1143,7 @@
     else if (L.leader === st.me) ctrl = `${L.nextMin != null ? `<div class="sb-prem next">Si nadie te supera antes de ${L.stage >= 3 ? 'la puja final' : 'la pista ' + (L.stage + 1)}, para quitártelo tendrán que poner mínimo <b>${sbMoney(L.nextMin)}</b>.</div>` : ''}<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
     else ctrl = `${p && (p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
+        ${meCap.need === 1 && meCap.left >= min ? `<button class="fv-btn sb-allin" data-bid="${meCap.left}" title="Te falta un solo jugador: apuesta todo lo que te queda">All in · ${sbMoney(meCap.left)}</button>` : ''}
         <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span>
         <button class="fv-btn sb-drop" id="sb-out" title="No vuelves a pujar por este jugador">Me retiro</button></div>
         ${L.nextMin != null && L.leader !== st.me ? `<div class="sb-prem next">Si nadie supera los ${sbMoney(L.price)} de ${esc(st.caps[L.leader].nick)} antes de ${L.stage >= 3 ? 'la puja final' : 'la pista ' + (L.stage + 1)}, ahí la primera puja tendrá que ser de mínimo <b>${sbMoney(L.nextMin)}</b> (+${st.cluePct}%).</div>` : ''}
@@ -1162,9 +1174,19 @@
         : `<div class="sb-clue"><span class="n">Pista 3</span><span>Sin campeones guardados.</span></div>`) : ''}
     </div>`;
   }
+  // Columna junto al jugador en subasta: presupuesto y jugadores de cada capitán, para pujar sin bajar.
+  function sbSideHtml(st){
+    const L = st.lot;
+    return `<div class="card sb-side"><h3>Capitanes</h3>` + st.caps.map((c, k) => {
+      const lead = L && L.leader === k, out = L && (L.out || []).includes(k), full = c.need != null && c.need <= 0;
+      return `<div class="sb-sc ${lead ? 'lead' : ''} ${out || full ? 'dim' : ''} ${st.me === k ? 'me' : ''}">
+        <div class="nf"><b>${esc(c.nick)}${st.me === k ? ' <small>(tú)</small>' : ''}</b><small>${c.bought.length}/${st.teamSize} jugadores${full ? ' · completo' : out ? ' · se retiró' : lead ? ' · <span class="sb-gold">se lo lleva</span>' : ''}</small></div>
+        <span class="mn">${sbMoney(c.left)}</span></div>`; }).join('') + `</div>`;
+  }
   function sbBoard(st){
     return `<div class="card"><h3>Jugadores en subasta</h3><div class="cap">${st.poolSize} jugadores al azar, de cualquier rol (el de torneo, o el de SoloQ si no juega torneo), en el orden en que salen. Cada uno se descubre cuando le toca.</div><div class="sb-board">` +
-      st.pool.map((p, n) => { if (p.hidden) return `<div class="sb-card hid"><div class="no">#${n + 1}</div><div class="nm">?</div><div class="ps">Por descubrir</div></div>`;
+      st.pool.map((p, n) => { if (p.censored) return `<div class="sb-card hid cens"><div class="no">#${n + 1}</div><div class="nm">🔒</div><div class="ps">Vendido a otro</div></div>`;
+        if (p.hidden) return `<div class="sb-card hid"><div class="no">#${n + 1}</div><div class="nm">?</div><div class="ps">Por descubrir</div></div>`;
         const now = st.lot && st.lot.i === p.i, s = p.sold;
         return `<div class="sb-card ${now ? 'now' : ''} ${s ? 'sold' : ''} ${!s && p.recycled ? 'passed' : ''}"><div class="no">#${n + 1}</div><div class="nm">${sbIco(p.role)} ${esc(p.nick)}</div><div class="ps">${sbRank(p)}</div>
           <div class="st">${now ? 'En subasta' : s ? `${esc(st.caps[s.cap].nick)} · ${s.price ? sbMoney(s.price) : 'gratis'}` : p.recycled ? 'Sin pujas · vuelve al final' : st.status === 'auction' ? 'Por salir' : 'No salió'}</div></div>`; }).join('') + `</div></div>`;
@@ -1195,7 +1217,49 @@
     return `<div class="card sb-done"><h3>Tabla final · según las votaciones</h3>
       <table class="lb-rk sb-final"><thead><tr><th class="n">#</th><th>Equipo</th><th class="n">Puntos</th><th class="n">Votos como 1º</th><th class="n">Gastó</th><th>Titulares</th></tr></thead><tbody>` +
       f.map(r => { const c = st.caps[r.cap]; return `<tr class="${r.cap === st.me ? 'me' : ''}"><td class="n">${r.pos === 1 ? '🏆' : r.pos}</td><td><b>${esc(c.nick)}</b></td><td class="n">${r.pts}</td><td class="n">${r.firsts}</td><td class="n">${sbMoney(c.spent)}</td><td class="sb-fl">${sbLine(c)}</td></tr>`; }).join('') +
-      `</tbody></table>${votes ? `<div style="margin-top:12px">${votes}</div>` : ''}</div>`;
+      `</tbody></table><div class="sb-btns"><button class="fv-btn pri" id="sb-img">⬇ Descargar imagen de la tabla</button></div>${votes ? `<div style="margin-top:12px">${votes}</div>` : ''}</div>`;
+  }
+  // Imagen PNG de la tabla final con los equipos (dibujada en canvas, sin librerías; los íconos de rol son del mismo sitio).
+  async function sbFinalImage(st){
+    const f = st.final || [], slots = st.teamSize > 5 ? st.slots : st.roles;
+    const icon = r => new Promise(ok => { if (!SB_ICON[r]){ ok(null); return; } const im = new Image(); im.onload = () => ok(im); im.onerror = () => ok(null); im.src = 'overlay/assets/roles/' + SB_ICON[r] + '.webp'; });
+    const ICO = {}; for (const r of st.roles) ICO[r] = await icon(r);
+    const S = 2, W = 1400, padX = 40, top = 150, rowH = 128, H = top + f.length * (rowH + 12) + 60;
+    const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S; const c = cv.getContext('2d'); c.scale(S, S);
+    const rr = (x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    const fit = (t, w) => { t = String(t || ''); if (c.measureText(t).width <= w) return t; while (t.length > 1 && c.measureText(t + '…').width > w) t = t.slice(0, -1); return t + '…'; };
+    c.fillStyle = '#0b0c10'; c.fillRect(0, 0, W, H);
+    const gl = c.createRadialGradient(W / 2, -140, 0, W / 2, -140, 820); gl.addColorStop(0, 'rgba(233,255,31,.12)'); gl.addColorStop(1, 'rgba(233,255,31,0)'); c.fillStyle = gl; c.fillRect(0, 0, W, 340);
+    c.textBaseline = 'alphabetic'; c.textAlign = 'left';
+    c.fillStyle = '#e9ff1f'; c.font = '800 14px system-ui,Segoe UI,Arial'; c.fillText('SOLOQ CHALLENGE · SUBASTA', padX, 48);
+    c.fillStyle = '#fff'; c.font = '800 34px system-ui,Segoe UI,Arial'; c.fillText('Tabla final · según las votaciones', padX, 92);
+    c.fillStyle = 'rgba(255,255,255,.45)'; c.font = '600 13px system-ui,Arial';
+    c.fillText(`soloquchile.cl  ·  ${new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })}  ·  ${st.caps.length} capitanes · presupuesto ${sbMoney(st.budget)}`, padX, 118);
+    f.forEach((r, n) => {
+      const cap = st.caps[r.cap], y = top + n * (rowH + 12), win = r.pos === 1;
+      c.fillStyle = win ? 'rgba(255,210,74,.12)' : 'rgba(255,255,255,.035)'; rr(padX, y, W - padX * 2, rowH, 14); c.fill();
+      if (win){ c.fillStyle = '#ffd24a'; rr(padX, y, 5, rowH, 3); c.fill(); }
+      c.textBaseline = 'middle'; c.textAlign = 'center'; c.fillStyle = win ? '#ffd24a' : 'rgba(255,255,255,.6)'; c.font = '800 34px system-ui,Arial';
+      c.fillText(win ? '🏆' : String(r.pos), padX + 44, y + rowH / 2);
+      c.textAlign = 'left'; c.fillStyle = win ? '#ffd24a' : '#fff'; c.font = '800 22px system-ui,Arial'; c.fillText(fit(cap.nick, 210), padX + 86, y + 36);
+      c.fillStyle = 'rgba(255,255,255,.55)'; c.font = '700 13px system-ui,Arial';
+      c.fillText(`${r.pts} pts · ${r.firsts} voto${r.firsts === 1 ? '' : 's'} como 1º`, padX + 86, y + 64); c.fillText(`Gastó ${sbMoney(cap.spent)} · le quedan ${sbMoney(cap.left)}`, padX + 86, y + 86);
+      // los jugadores en su puesto
+      const x0 = padX + 320, cw = (W - padX - 16 - x0) / slots.length;
+      slots.forEach((sl, j) => { const p = (cap.lineup || [])[st.slots.indexOf(sl)], x = x0 + j * cw, cy = y + 14;
+        c.fillStyle = 'rgba(0,0,0,.28)'; rr(x + 4, cy, cw - 8, rowH - 28, 10); c.fill();
+        const off = p && sl !== 'SUB' && p.role !== sl;
+        if (off){ c.strokeStyle = 'rgba(251,191,36,.6)'; c.lineWidth = 1.5; rr(x + 4, cy, cw - 8, rowH - 28, 10); c.stroke(); }
+        c.textAlign = 'left'; const ic = ICO[sl];
+        if (ic) c.drawImage(ic, x + 14, cy + 10, 20, 20);
+        c.fillStyle = 'rgba(255,255,255,.5)'; c.font = '800 10px system-ui,Arial'; c.fillText(SB_ROLE[sl].toUpperCase(), ic ? x + 40 : x + 14, cy + 21);
+        c.fillStyle = '#fff'; c.font = '800 15px system-ui,Arial'; c.fillText(p ? fit(p.nick, cw - 30) : '—', x + 14, cy + 50);
+        c.font = '600 11px system-ui,Arial'; c.fillStyle = off ? '#fbbf24' : 'rgba(255,255,255,.5)';
+        c.fillText(p ? fit(off ? 'fuera de rol (es ' + SB_ROLE[p.role] + ')' : (p.tier ? rkRankTxt({ tier: p.tier, div: p.div }) : 'Sin rango'), cw - 30) : '', x + 14, cy + 70);
+        c.fillStyle = '#ffd24a'; c.font = '800 13px system-ui,Arial'; c.fillText(p ? (p.price ? sbMoney(p.price) : 'gratis') : '', x + 14, cy + 88);
+      });
+    });
+    cv.toBlob(b => { if (!b) return; const u = URL.createObjectURL(b), a = document.createElement('a'); a.href = u; a.download = 'subasta-tabla-final.png'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 2000); }, 'image/png');
   }
   function sbRender(){
     const box = $('p-sb'), st = SBC.st;
@@ -1211,6 +1275,7 @@
     let body = '';
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (o comprarse a sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
+      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-censor" ${st.censor ? 'checked' : ''}>` : (st.censor ? '✓' : '✗')} <span><b>Modo censura</b> · durante la subasta no se ven los jugadores que compraron los demás (solo cuántos tienen y su plata): hay que acordarse de quién se llevó a quién. Al final se muestran todos.</span></label>
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso con 3 pistas (una partida suya sin decir cuál era él, su rol de torneo y un campeón que jugó). Se puja sin saber quién es: el nombre se revela 3 s al cerrar su puja y sale el siguiente solo.</span></label>
       ${st.clues ? `<label class="sb-opt"><span><b>Tiempo por pista</b> · cuánto dura cada pista antes de pasar a la siguiente (el anfitrión igual puede adelantarla):</span> ${st.isHost ? `<select id="sb-secs">${[10, 15, 20, 30, 45, 60].map(v => `<option value="${v}" ${st.clueSecs === v ? 'selected' : ''}>${v} s</option>`).join('')}</select>` : `<b>${st.clueSecs} s</b>`}</label>` : ''}
       ${st.clues ? `<label class="sb-opt"><span><b>Recargo al cambiar de fase</b> · la primera puja de cada pista nueva debe superar en este % a la que quedó ganando:</span> ${st.isHost ? `<select id="sb-pct">${[10, 15, 20, 25, 30, 40, 50].map(v => `<option value="${v}" ${st.cluePct === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>` : `<b>${st.cluePct}%</b>`}</label>` : ''}
@@ -1220,8 +1285,8 @@
     else {
       const head = st.status === 'assign' ? `<div class="card sb-done"><h3>Subasta terminada · armen sus equipos</h3><div class="fv-note">Cada capitán reparte a sus jugadores en los 5 roles${st.teamSize > 5 ? ' + suplente' : ''} y confirma. Cuando confirmen todos, viene la votación para ordenar los equipos.</div></div>`
         : st.status === 'vote' ? sbVoteHtml(st) : st.status === 'done' ? sbFinalHtml(st) + sbRankHtml() : '';
-      body = `${head}${st.status === 'auction' ? sbLotHtml(st) : ''}${caps}${sbBoard(st)}
-        ${st.log.length ? `<div class="card" style="margin-top:14px"><h3>Historial</h3>${st.log.map(l => `<div class="sb-log">${sbIco(l.p.role)}<b>${esc(l.p.nick)}</b> → ${l.cap == null ? 'sin pujas' : esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}<small>${esc(l.how || '')}</small></div>`).join('')}</div>` : ''}`;
+      body = `${head}${st.status === 'auction' ? `<div class="sb-lotrow">${sbLotHtml(st)}${sbSideHtml(st)}</div>` : ''}${caps}${sbBoard(st)}
+        ${st.log.length ? `<div class="card" style="margin-top:14px"><h3>Historial</h3>${st.log.map(l => `<div class="sb-log">${l.p.hidden ? '<span class="sb-ico sub">🔒</span><b>Jugador oculto</b>' : sbIco(l.p.role) + '<b>' + esc(l.p.nick) + '</b>'} → ${l.cap == null ? 'sin pujas' : esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}<small>${esc(l.how || '')}${l.lg ? ` · <a href="${esc(l.lg)}" target="_blank" rel="noopener">partida de la pista 1 ↗</a>` : ''}</small></div>`).join('')}</div>` : ''}`;
     }
     const hostBar = st.isHost ? `<div class="sb-host"><span>Anfitrión</span>${st.status !== 'lobby' ? `<button class="fv-btn sm" id="sb-reset">↺ Reiniciar subasta</button>` : ''}<button class="fv-btn sm sb-drop" id="sb-close">Cerrar subasta</button></div>` : '';
     const hadFocus = document.activeElement && document.activeElement.id === 'sb-amt';   // escribir un monto no se interrumpe al redibujar
@@ -1232,6 +1297,7 @@
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => sbAct('leave', { k: +b.dataset.kick }));
     const ci = $('sb-capsin'); if (ci) ci.onchange = () => sbAct('host', { action: 'settings', capsInPool: ci.checked });
     const cq = $('sb-clues'); if (cq) cq.onchange = () => sbAct('host', { action: 'settings', clues: cq.checked });
+    const cz = $('sb-censor'); if (cz) cz.onchange = () => sbAct('host', { action: 'settings', censor: cz.checked });
     const cp = $('sb-pct'); if (cp) cp.onchange = () => sbAct('host', { action: 'settings', cluePct: +cp.value });
     const cs = $('sb-secs'); if (cs) cs.onchange = () => sbAct('host', { action: 'settings', clueSecs: +cs.value });
     on('sb-clue', () => sbAct('host', { action: 'clue' }));
@@ -1252,6 +1318,7 @@
       const v = sel.value === '' ? '' : +sel.value, prev = slots[sel.dataset.slot];
       for (const s of Object.keys(slots)) if (v !== '' && slots[s] === v && s !== sel.dataset.slot) slots[s] = prev;
       slots[sel.dataset.slot] = v; sbAct('assign', { slots }); });
+    on('sb-img', () => sbFinalImage(SBC.st));
     on('sb-confirm', () => sbAct('confirm')); on('sb-unconfirm', () => sbAct('confirm', { on: false }));
     box.querySelectorAll('[data-vup],[data-vdown]').forEach(b => b.onclick = () => { const n = +(b.dataset.vup ?? b.dataset.vdown), m = b.dataset.vup != null ? n - 1 : n + 1, o = SBC.vorder;
       [o[n], o[m]] = [o[m], o[n]]; sbRender(); });
