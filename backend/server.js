@@ -2916,7 +2916,8 @@ async function sbRooms(){
   if (!SB_ROOMS){ SB_ROOMS = {};
     try { for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'sub:%'")) if (r.data && r.data.code) { r.data.caps = (r.data.caps || []).filter(Boolean); SB_ROOMS[r.data.code] = r.data; } } catch {}
     // salas que venían de antes del historial: se importan sus ventas (no duplica gracias al UNIQUE)
-    for (const st of Object.values(SB_ROOMS)) for (const i of Object.keys(st.sold || {})) sbRecord(st, Number(i)); }
+    const imp = []; for (const st of Object.values(SB_ROOMS)) for (const i of Object.keys(st.sold || {})) imp.push(sbRecord(st, Number(i)));
+    await Promise.all(imp); }
   const now = Date.now();
   for (const c of Object.keys(SB_ROOMS)) if ((SB_ROOMS[c].expiresAt || 0) <= now){ delete SB_ROOMS[c]; q('DELETE FROM tool_state WHERE id=$1', ['sub:' + c]).catch(() => {}); }
   return SB_ROOMS;
@@ -2967,15 +2968,16 @@ function sbAutoAssign(st, c){
 function sbToAssign(st){ st.lot = null; st.status = 'assign'; st.assign = sbCapsIdx(st).map(c => sbAutoAssign(st, c)); st.confirmed = st.caps.map(() => false); }
 // Historial de ventas pagadas (para el ranking de los más caros). No frena la subasta si falla.
 function sbRecord(st, i){
-  const s = st.sold && st.sold[i], p = st.pool && st.pool[i]; if (!s || !p || !(s.price > 0)) return;
+  const s = st.sold && st.sold[i], p = st.pool && st.pool[i]; if (!s || !p || !(s.price > 0)) return Promise.resolve();
   const buyer = st.caps[s.cap] ? st.caps[s.cap].nick : null;
-  q(`INSERT INTO auction_sales (room, started_at, riotid, nick, price, buyer) VALUES ($1,$2,$3,$4,$5,$6)
+  return q(`INSERT INTO auction_sales (room, started_at, riotid, nick, price, buyer) VALUES ($1,$2,$3,$4,$5,$6)
      ON CONFLICT (room, started_at, riotid) DO UPDATE SET price=EXCLUDED.price, buyer=EXCLUDED.buyer`,
     [st.code, st.startedAt || st.createdAt || 0, p.rid, p.nick, s.price, buyer]).catch(() => {});
 }
 // Ranking histórico: el precio más alto que se pagó por cada jugador, cuántas veces lo compraron y el promedio.
 app.get('/api/subasta/ranking', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store');
+  await sbRooms();   // la primera vez importa al historial las ventas de las salas guardadas
   let rows = [];
   try { rows = await q(`SELECT lower(riotid) k, (array_agg(riotid ORDER BY sold_at DESC))[1] rid, (array_agg(nick ORDER BY sold_at DESC))[1] nick,
       max(price)::int top, round(avg(price))::int avg, count(*)::int n, (array_agg(buyer ORDER BY price DESC, sold_at DESC))[1] buyer
