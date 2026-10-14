@@ -1143,11 +1143,12 @@
   // Las pistas que ya salieron (y, revelado el nombre, cuál de los 5 de la partida era).
   function sbCluesHtml(cl, stage){
     const g = cl.game;
+    // Pista 1: una partida suya · Pista 2: su rol · Pista 3: un campeón que jugó
     return `<div class="sb-clues">
-      <div class="sb-clue"><span class="n">Pista 1</span><span>Rol${cl.roleSrc === 'soloq' ? ' (de SoloQ: no juega torneo)' : ' de torneo'}:</span> ${sbIco(cl.role)} <b>${SB_ROLE[cl.role] || cl.role}</b></div>
-      ${stage >= 2 ? (g ? `<div class="sb-clue col"><div><span class="n">Pista 2</span><span>Una partida suya · ${g.win ? 'Victoria' : 'Derrota'} · ${g.durMin} min. ${cl.idx != null ? 'Era él:' : '¿Cuál de los 5 era?'}</span></div>
+      ${g ? `<div class="sb-clue col"><div><span class="n">Pista 1</span><span>Una partida suya · ${g.win ? 'Victoria' : 'Derrota'} · ${g.durMin} min. ${cl.idx != null ? 'Era él:' : '¿Cuál de los 5 era?'}</span></div>
           <div class="qn-five">${g.players.map((x, i) => `<div class="qn-p ${cl.idx === i ? 'him' : ''}"><img src="${anChamp(x.champ)}" alt=""><b>${esc(fvChampName(x.champ))}</b><span>${x.k}/${x.d}/${x.a}</span><small>${x.cs} CS</small>${cl.idx === i ? '<i>era él</i>' : ''}</div>`).join('')}</div></div>`
-        : `<div class="sb-clue"><span class="n">Pista 2</span><span>No tiene partidas guardadas.</span></div>`) : ''}
+        : `<div class="sb-clue"><span class="n">Pista 1</span><span>No tiene partidas guardadas.</span></div>`}
+      ${stage >= 2 ? `<div class="sb-clue"><span class="n">Pista 2</span><span>Rol${cl.roleSrc === 'soloq' ? ' (de SoloQ: no juega torneo)' : ' de torneo'}:</span> ${sbIco(cl.role)} <b>${SB_ROLE[cl.role] || cl.role}</b></div>` : ''}
       ${stage >= 3 ? (cl.champ ? `<div class="sb-clue"><span class="n">Pista 3</span><span>Un campeón que jugó alguna vez:</span> <img class="sb-cch" src="${anChamp(cl.champ)}" alt=""> <b>${esc(fvChampName(cl.champ))}</b></div>`
         : `<div class="sb-clue"><span class="n">Pista 3</span><span>Sin campeones guardados.</span></div>`) : ''}
     </div>`;
@@ -1201,7 +1202,8 @@
     let body = '';
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (o comprarse a sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
-      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso y se descubre en 3 pistas (su rol de torneo, una partida suya sin decir cuál era él, y un campeón que jugó) antes de revelar el nombre. Se puede pujar desde la primera pista.</span></label>
+      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso y se descubre en 3 pistas (una partida suya sin decir cuál era él, su rol de torneo y un campeón que jugó) antes de revelar el nombre. Se puede pujar desde la primera pista.</span></label>
+      ${st.clues ? `<label class="sb-opt"><span><b>Tiempo por pista</b> · cuánto dura cada pista antes de pasar a la siguiente (el anfitrión igual puede adelantarla):</span> ${st.isHost ? `<select id="sb-secs">${[10, 15, 20, 30, 45, 60].map(v => `<option value="${v}" ${st.clueSecs === v ? 'selected' : ''}>${v} s</option>`).join('')}</select>` : `<b>${st.clueSecs} s</b>`}</label>` : ''}
       ${st.clues ? `<label class="sb-opt"><span><b>Recargo al cambiar de fase</b> · la primera puja de cada pista nueva debe superar en este % a la que quedó ganando:</span> ${st.isHost ? `<select id="sb-pct">${[10, 15, 20, 25, 30, 40, 50].map(v => `<option value="${v}" ${st.cluePct === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>` : `<b>${st.cluePct}%</b>`}</label>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>
       <div class="sb-btns">${st.me < 0 && st.caps.length < st.maxCaps ? `<button class="fv-btn pri" id="sb-join">Unirme como capitán</button>` : ''}
@@ -1222,6 +1224,7 @@
     const ci = $('sb-capsin'); if (ci) ci.onchange = () => sbAct('host', { action: 'settings', capsInPool: ci.checked });
     const cq = $('sb-clues'); if (cq) cq.onchange = () => sbAct('host', { action: 'settings', clues: cq.checked });
     const cp = $('sb-pct'); if (cp) cp.onchange = () => sbAct('host', { action: 'settings', cluePct: +cp.value });
+    const cs = $('sb-secs'); if (cs) cs.onchange = () => sbAct('host', { action: 'settings', clueSecs: +cs.value });
     on('sb-clue', () => sbAct('host', { action: 'clue' }));
     on('sb-start', () => sbAct('host', { action: 'start' })); on('sb-next', () => sbAct('host', { action: 'next' }));
     on('sb-hammer', () => sbAct('host', { action: 'hammer' }));
