@@ -46,7 +46,7 @@ const PHASES = [
   { key:'suiza',   name:'Fase Suiza',        dates:'3 – 15 oct',      format:'Sistema suizo · 5 rondas · R1-2 Bo1, R3-5 Bo3',  detail:'Ganas 3 → clasificas al Top 16 · Pierdes 3 → eliminado' },
   { key:'octavos', name:'Octavos de final',  dates:'por confirmar',   format:'Bo3 · eliminación directa',                      detail:'16 clasificados, sorteo por récord suizo (3-0 / 3-1 / 3-2)' },
   { key:'cuartos', name:'Cuartos de final',  dates:'20 – 22 oct',     format:'Bo3 · online',                                   detail:'' },
-  { key:'semis',   name:'Semifinales',       dates:'31 oct – 1 nov',  format:'Bo3 · online',                                   detail:'' },
+  { key:'semis',   name:'Semifinales',       dates:'24 – 25 oct',    format:'Bo3 · online',                                   detail:'' },
   { key:'final',   name:'Final (presencial)',dates:'por confirmar',   format:'Bo3 · presencial en Santiago',                   detail:'Incluye definición por el 3er lugar' },
 ];
 
