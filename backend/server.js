@@ -3006,7 +3006,9 @@ function sbView(st, uid){
     me, isHost: uid != null && uid === st.host,
     caps: st.caps.map((c, k) => c && { nick: c.nick, rid: c.rid, left: SB_BUDGET - c.spent, spent: c.spent,
       team: SB_ROLES.map(r => { const i = st.pool.findIndex((p, j) => p.role === r && st.sold[j] && st.sold[j].cap === k); return i < 0 ? null : { ...st.pool[i], price: st.sold[i].price }; }) }),
-    pool: st.pool.map((p, i) => ({ ...p, sold: st.sold[i] || null, passed: st.passed.includes(i) })),
+    // Los que aún no salen a subasta van ocultos (solo su rol): se descubren al salir, para darle suspenso.
+    pool: st.pool.map((p, i) => (st.sold[i] || st.passed.includes(i) || (L && L.i === i) || st.status === 'done')
+      ? { ...p, sold: st.sold[i] || null, passed: st.passed.includes(i) } : { role: p.role, hidden: true }),
     lot: L && { i: L.i, price: L.price, leader: L.leader, turn: L.turn, solo: L.solo, bids: L.bids.slice(0, 8), left: Math.max(0, L.deadline - now) },
     log: st.log.slice(0, 12) };
 }

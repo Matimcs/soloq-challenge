@@ -350,6 +350,7 @@
   .sb-card .nm{ font-size:13.5px; font-weight:800; } .sb-card .ps{ font-size:10.5px; color:var(--muted-2); font-weight:600; margin-top:2px; }
   .sb-card .st{ font-size:11px; font-weight:700; color:var(--muted); margin-top:5px; }
   .sb-card.now{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); } .sb-card.now .st{ color:var(--accent); }
+  .sb-card.hid{ border-style:dashed; text-align:center; } .sb-card.hid .nm{ font-size:20px; color:var(--muted-2); }
   .sb-card.sold{ opacity:.75; } .sb-card.sold .st{ color:var(--gold); } .sb-card.passed{ opacity:.4; }
   .sb-log{ display:flex; align-items:center; gap:8px; padding:6px 0; border-top:1px solid var(--line); font-size:12.5px; } .sb-log:first-of-type{ border-top:none; }
   .sb-log small{ margin-left:auto; font-size:11px; color:var(--muted-2); }
@@ -1061,8 +1062,9 @@
       <div class="fv-err">${esc(SBC.err)}</div>${ctrl}</div>`;
   }
   function sbBoard(st){
-    return `<div class="card"><h3>Jugadores en subasta</h3><div class="cap">Hasta ${st.perRole} por rol (rol de torneo). Los coaches de UCH B no entran.</div><div class="sb-board">` +
+    return `<div class="card"><h3>Jugadores en subasta</h3><div class="cap">Hasta ${st.perRole} por rol (rol de torneo). Cada jugador se descubre recién cuando sale a subasta. Los coaches de UCH B no entran.</div><div class="sb-board">` +
       st.roles.map(r => `<div class="sb-col"><div class="sb-colh">${sbIco(r)}${SB_ROLE[r]}</div>` + st.pool.map((p, i) => ({ p, i })).filter(x => x.p.role === r).map(({ p, i }) => {
+        if (p.hidden) return `<div class="sb-card hid"><div class="nm">?</div><div class="ps">Por descubrir</div></div>`;
         const now = st.lot && st.lot.i === i, s = p.sold;
         return `<div class="sb-card ${now ? 'now' : ''} ${s ? 'sold' : ''} ${p.passed ? 'passed' : ''}"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRank(p)}</div>
           <div class="st">${now ? 'En subasta' : s ? `${esc(st.caps[s.cap].nick)} · ${s.price ? sbMoney(s.price) : 'gratis'}` : p.passed ? 'Sin equipo' : 'Por subastar'}</div></div>`; }).join('') + `</div>`).join('') + `</div></div>`;
