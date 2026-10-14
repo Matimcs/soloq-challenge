@@ -372,6 +372,20 @@
   .sb-vprog{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; } .sb-vprog span{ font-size:11.5px; font-weight:700; color:var(--muted); background:var(--panel-2); border-radius:7px; padding:3px 8px; } .sb-vprog span.ok{ color:var(--up); }
   .sb-final{ margin-top:8px; } .sb-final .sb-fl{ font-size:12px; color:var(--muted); }
   .sb-opt{ display:flex; gap:9px; align-items:flex-start; font-size:12.5px; color:var(--muted); margin:4px 0 10px; max-width:640px; cursor:pointer; } .sb-opt b{ color:var(--text); } .sb-opt input{ margin-top:2px; accent-color:var(--accent); }
+  .sb-gold{ color:var(--gold); }
+  .qn-wrap{ display:flex; flex-direction:column; gap:12px; max-width:760px; }
+  .qn-n{ font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); } .qn-t{ font-size:13px; color:var(--muted); margin:3px 0 10px; }
+  .qn-role{ display:flex; align-items:center; gap:10px; } .qn-role img{ width:34px; height:34px; } .qn-role b{ font-size:24px; font-weight:800; }
+  .qn-game{ font-size:12px; color:var(--muted-2); font-weight:700; margin-bottom:8px; } .qn-game .w{ color:var(--up); } .qn-game .l{ color:#fb7185; }
+  .qn-five{ display:grid; grid-template-columns:repeat(5,1fr); gap:8px; } @media (max-width:640px){ .qn-five{ grid-template-columns:repeat(3,1fr); } }
+  .qn-p{ font-family:inherit; cursor:pointer; background:var(--panel-2); border:2px solid var(--line); border-radius:12px; padding:10px 6px; display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--text); }
+  .qn-p img{ width:52px; height:52px; border-radius:10px; } .qn-p b{ font-size:12px; } .qn-p span{ font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; } .qn-p small{ font-size:11px; color:var(--muted-2); font-weight:700; }
+  .qn-p i{ font-style:normal; font-size:10.5px; font-weight:800; color:var(--up); }
+  .qn-p.pick{ border-color:var(--accent); } .qn-p.him{ border-color:var(--up); background:rgba(52,211,153,.1); } .qn-p.miss{ border-color:#fb7185; } .qn-p:disabled{ cursor:default; }
+  .qn-champ{ display:flex; align-items:center; gap:12px; } .qn-champ img{ width:64px; height:64px; border-radius:12px; } .qn-champ b{ font-size:20px; font-weight:800; }
+  .qn-guess{ display:flex; gap:8px; margin-top:8px; } .qn-guess input{ flex:1; font-family:inherit; font-size:14px; font-weight:700; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; }
+  .qn-res{ margin-top:10px; font-size:14px; font-weight:800; } .qn-res.ok{ color:var(--up); } .qn-res.no{ color:#fb7185; }
+  .qn-out{ border-color:rgba(52,211,153,.5); } .qn-name{ font-size:30px; font-weight:800; margin-top:2px; }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -409,10 +423,12 @@
       <button class="tab active" data-t="fv">5V5</button>
       <button class="tab" data-t="rk">RANKED</button>
       <button class="tab" data-t="sb">SUBASTA</button>
+      <button class="tab" data-t="qn">¿QUIÉN ES?</button>
       <button class="tab" data-t="analisis">ANÁLISIS</button>
     </div>
 
     <div class="panel active" id="p-fv"><div class="loading">Cargando sala…</div></div>
+    <div class="panel" id="p-qn"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-sb"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rk"><div class="loading">Cargando Ranked…</div></div>
     <div class="panel" id="p-analisis"><div class="loading">Cargando…</div></div>
@@ -437,7 +453,8 @@
     if (t === 'analisis' && !AN.data) loadAnalysis();
     if (t === 'fv') fvLoad(true);
     if (t === 'rk'){ rkLoad(true); rkBoard(); }
-    if (t === 'sb') sbLoad(true);
+    if (t === 'sb'){ sbLoad(true); sbRankLoad().then(() => { if (!SBC.st || SBC.st.status === 'done') sbRender(); }); }
+    if (t === 'qn') qnRender();
   }
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.t));
 
@@ -1023,20 +1040,34 @@
   const sbPrice = p => p.price ? sbMoney(p.price) : 'gratis';
   function sbSetRoom(code){ SBC.room = code || ''; SBC.st = null; SBC.sig = '';
     if (history.replaceState) history.replaceState(null, '', location.pathname + (code ? '?subasta=' + encodeURIComponent(code) : '') + '#sb'); }
+  // Sincronía: nunca dos lecturas a la vez, y una respuesta más vieja (versión menor) no pisa a una más nueva.
+  let sbLoading = false;
+  function sbApply(st, force){
+    if (SBC.st && SBC.st.code === st.code && (st.v || 0) < (SBC.st.v || 0)) return;   // llegó tarde: se descarta
+    const sig = JSON.stringify({ ...st, now: 0, lot: st.lot && { ...st.lot, left: 0 } });
+    SBC.st = st; if (force || sig !== SBC.sig){ SBC.sig = sig; sbRender(); }
+  }
   async function sbLoad(force){
     if (!rkLogged()){ $('p-sb').innerHTML = `<div class="card" style="max-width:560px"><h3>Subasta</h3><div class="fv-note" style="margin-top:6px">Inicia sesión para crear una subasta o unirte a una.</div><a class="fv-btn pri" href="cuenta.html" style="display:inline-block;margin-top:12px">Iniciar sesión</a></div>`; return; }
     if (!SBC.room){ SBC.st = null; sbRender(); return; }
-    try { const st = await SQC.api('/subasta?room=' + encodeURIComponent(SBC.room));
-      const sig = JSON.stringify({ ...st, now: 0, lot: st.lot && { ...st.lot, left: 0 } });
-      SBC.st = st; if (force || sig !== SBC.sig){ SBC.sig = sig; sbRender(); } }
+    if (sbLoading) return; sbLoading = true;
+    try { sbApply(await SQC.api('/subasta?room=' + encodeURIComponent(SBC.room)), force); }
     catch (e) { if (/expir|no existe/i.test(e.message)){ sbSetRoom(''); SBC.err = e.message; sbRender(); } }
+    finally { sbLoading = false; }
   }
+  // Acciones: la respuesta del servidor ya trae la sala actualizada y se dibuja al tiro (sin esperar otra lectura).
+  // Solo se bloquea repetir la MISMA acción mientras va en camino (antes cualquier clic se ignoraba en silencio).
+  const sbInFlight = new Set();
   async function sbAct(path, body){
-    if (SBC.busy) return; SBC.busy = true; SBC.err = '';
+    const key = path + (body && body.action ? ':' + body.action : '');
+    if (sbInFlight.has(key)) return; sbInFlight.add(key); SBC.err = '';
+    if (path === 'bid'){ SBC.sending = body.amount; sbRender(); }
     try { const st = await SQC.api('/subasta/' + path, { method:'POST', body: { ...(body || {}), room: SBC.room } });
-      if (path === 'create') sbSetRoom(st.code); if (path === 'close') sbSetRoom(''); SBC.amt = ''; }
-    catch (e) { SBC.err = e.message || 'No se pudo completar'; }
-    SBC.busy = false; await sbLoad(true);
+      if (path === 'create') sbSetRoom(st.code);
+      if (path === 'close'){ sbSetRoom(''); sbRender(); }
+      else if (st && st.code){ if (path === 'bid') SBC.amt = ''; sbApply(st, true); } }
+    catch (e) { SBC.err = e.message || 'No se pudo completar'; sbRender(); sbLoad(true); }
+    finally { sbInFlight.delete(key); if (path === 'bid'){ SBC.sending = null; sbRender(); } }
   }
   const sbRow = p => `<div class="sb-slot full">${sbIco(p.role)}<div class="nf"><b>${esc(p.nick)}</b><small>${sbRoleTxt(p)} · ${sbRank(p)}</small></div><span class="pr">${sbPrice(p)}</span></div>`;
   function sbCapCard(st, k){
@@ -1074,9 +1105,8 @@
     let ctrl = '';
     if (!meCap) ctrl = `<div class="fv-note">Solo miras.</div>`;
     else if (meCap.need <= 0) ctrl = `<div class="sb-wait">Ya completaste tu equipo.</div>`;
-    else if ((p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase()) ctrl = `<div class="sb-wait">¡Eres tú! No puedes pujar por ti mismo: mira quién te compra.</div>`;
     else if (L.leader === st.me) ctrl = `<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
-    else ctrl = `<div class="sb-btns">
+    else ctrl = `${(p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
         <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span></div>
         ${min > meCap.left ? `<div class="fv-note">No te alcanza para subir (te quedan ${sbMoney(meCap.left)}).</div>` : ''}`;
@@ -1125,7 +1155,7 @@
     if (!st){
       box.innerHTML = `<div class="card" style="max-width:640px"><h3>Subasta</h3>
         <div class="fv-note" style="margin-top:6px">Hasta 5 capitanes (6 si los capitanes también salen a subasta), con ${sbMoney(1000)} cada uno, compran 6 jugadores: 5 titulares y un suplente comodín (5 si no alcanzan los jugadores para tantos capitanes). Salen jugadores al azar, de cualquier rol, y cada uno se descubre cuando le toca. La puja es abierta: cualquiera sube cuando quiera y, cuando se acaba el tiempo sin nuevas pujas, se lo lleva el mejor postor. Quien crea la sala dirige: empieza, saca cada jugador y puede adjudicar antes. Al final cada capitán reparte a sus jugadores en los 5 roles (puede ponerlos fuera de su rol).</div>
-        <div class="fv-err">${esc(SBC.err)}</div><button class="fv-btn pri" id="sb-create" style="margin-top:12px">Crear subasta</button></div>`;
+        <div class="fv-err">${esc(SBC.err)}</div><button class="fv-btn pri" id="sb-create" style="margin-top:12px">Crear subasta</button></div>${sbRankHtml()}`;
       const b = $('sb-create'); if (b) b.onclick = () => sbAct('create'); return;
     }
     const link = `<div class="fv-invite"><label>Enlace</label><input id="sb-link" readonly value="${esc(sbUrl(st.code))}"><button class="fv-btn sm" id="sb-copy">Copiar enlace</button>
@@ -1133,17 +1163,18 @@
     const caps = `<div class="sb-capgrid n${st.caps.length}">${st.caps.map((_, k) => sbCapCard(st, k)).join('')}</div>`;
     let body = '';
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
-      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (nadie puja por sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
+      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (o comprarse a sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
       <div class="fv-err">${esc(SBC.err)}</div>
       <div class="sb-btns">${st.me < 0 && st.caps.length < st.maxCaps ? `<button class="fv-btn pri" id="sb-join">Unirme como capitán</button>` : ''}
       ${st.isHost ? `<button class="fv-btn pri" id="sb-start" ${st.caps.length >= 2 ? '' : 'disabled'}>Empezar subasta</button><span class="fv-note">Mínimo 2 capitanes.</span>` : st.me >= 0 ? `<span class="fv-note">${esc(st.hostNick)} empieza cuando estén todos.</span>` : ''}</div>`;
     else {
       const head = st.status === 'assign' ? `<div class="card sb-done"><h3>Subasta terminada · armen sus equipos</h3><div class="fv-note">Cada capitán reparte a sus jugadores en los 5 roles${st.teamSize > 5 ? ' + suplente' : ''} y confirma. Cuando confirmen todos, viene la votación para ordenar los equipos.</div></div>`
-        : st.status === 'vote' ? sbVoteHtml(st) : st.status === 'done' ? sbFinalHtml(st) : '';
+        : st.status === 'vote' ? sbVoteHtml(st) : st.status === 'done' ? sbFinalHtml(st) + sbRankHtml() : '';
       body = `${head}${st.status === 'auction' ? sbLotHtml(st) : ''}${caps}${sbBoard(st)}
         ${st.log.length ? `<div class="card" style="margin-top:14px"><h3>Historial</h3>${st.log.map(l => `<div class="sb-log">${sbIco(l.p.role)}<b>${esc(l.p.nick)}</b> → ${l.cap == null ? 'sin pujas' : esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}<small>${esc(l.how || '')}</small></div>`).join('')}</div>` : ''}`;
     }
     const hostBar = st.isHost ? `<div class="sb-host"><span>Anfitrión</span>${st.status !== 'lobby' ? `<button class="fv-btn sm" id="sb-reset">↺ Reiniciar subasta</button>` : ''}<button class="fv-btn sm sb-drop" id="sb-close">Cerrar subasta</button></div>` : '';
+    const hadFocus = document.activeElement && document.activeElement.id === 'sb-amt';   // escribir un monto no se interrumpe al redibujar
     box.innerHTML = hostBar + body;
     const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
     on('sb-close', () => { if (confirm('¿Cerrar la subasta? Se borra la sala y el enlace deja de funcionar.')) sbAct('close'); });
@@ -1155,9 +1186,11 @@
     on('sb-reset', () => { if (confirm('¿Reiniciar? Se borran las pujas y los equipos, y vuelven a la sala de espera con los mismos capitanes (al empezar se sortean jugadores nuevos).')) sbAct('reset'); });
     on('sb-copy', async e => { const b = e.target; try { await navigator.clipboard.writeText(sbUrl(st.code)); } catch (err) { const i = $('sb-link'); i.select(); try { document.execCommand('copy'); } catch (e2) {} }
       b.textContent = '¡Copiado!'; setTimeout(() => { b.textContent = 'Copiar enlace'; }, 1500); });
-    box.querySelectorAll('[data-bid]').forEach(b => b.onclick = () => sbAct('bid', { amount: +b.dataset.bid }));
+    box.querySelectorAll('[data-bid]').forEach(b => b.onpointerdown = e => { e.preventDefault(); sbAct('bid', { amount: +b.dataset.bid }); });
     const ai = $('sb-amt'); if (ai) ai.oninput = () => { SBC.amt = ai.value; };
-    on('sb-bidc', () => sbAct('bid', { amount: +($('sb-amt').value || 0) }));
+    const bc = $('sb-bidc'); if (bc) bc.onpointerdown = e => { e.preventDefault(); sbAct('bid', { amount: +($('sb-amt').value || 0) }); };
+    if (ai){ ai.onkeydown = e => { if (e.key === 'Enter') sbAct('bid', { amount: +(ai.value || 0) }); };
+      if (hadFocus){ ai.focus(); try { const n = ai.value.length; ai.setSelectionRange(n, n); } catch (e) {} } }
     // reparto: al elegir a alguien que ya estaba en otro puesto, se intercambian
     box.querySelectorAll('select[data-slot]').forEach(sel => sel.onchange = () => {
       const me = SBC.st.caps[SBC.st.me], slots = {}; SBC.st.slots.forEach((s, n) => { slots[s] = me.lineup[n] ? me.lineup[n].i : ''; });
@@ -1173,10 +1206,58 @@
   function sbClock(){ document.querySelectorAll('#p-sb .sb-clock').forEach(el => { const s = Math.max(0, Math.ceil((+el.dataset.left - (Date.now() - +el.dataset.at)) / 1000)); el.textContent = s + ' s'; el.classList.toggle('low', s <= 5); }); }
   setInterval(sbClock, 250);
   // refresco cada 1 s (no mientras escribes un monto o eliges en el reparto, para no cortarte)
-  setInterval(() => { if (CUR_TAB === 'sb' && !document.hidden && SBC.room && rkLogged() && !(document.activeElement && document.activeElement.matches && document.activeElement.matches('#p-sb select, #p-sb input'))) sbLoad(false); }, 1000);
+  setInterval(() => { if (CUR_TAB === 'sb' && !document.hidden && SBC.room && rkLogged() && !(document.activeElement && document.activeElement.matches && document.activeElement.matches('#p-sb select'))) sbLoad(false); }, 1000);
+
+  // ================= ¿QUIÉN ES?: 3 pistas para adivinar a un jugador de torneo =================
+  const QN = { r:null, step:1, rev:null, pick:null, guess:'', res:null, err:'', busy:false };
+  async function qnNew(){
+    if (QN.busy) return; QN.busy = true; QN.err = '';
+    try { const r = await fetch('/api/quien/nueva', { cache:'no-store' }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'No se pudo armar la ronda');
+      Object.assign(QN, { r:d, step:1, rev:null, pick:null, guess:'', res:null }); }
+    catch (e) { QN.err = e.message; }
+    QN.busy = false; qnRender();
+  }
+  async function qnPost(path, body){ const r = await fetch('/api/quien/' + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ id: QN.r.id, ...body }) }); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'Error'); return d; }
+  function qnRender(){
+    const box = $('p-qn'), R = QN.r;
+    if (!R){ box.innerHTML = `<div class="card" style="max-width:620px"><h3>¿Quién es?</h3><div class="fv-note" style="margin-top:6px">Adivina al jugador de torneo con 3 pistas: su rol de torneo, una partida suya (los 5 de su equipo, sin decir cuál era él) y un campeón que jugó alguna vez.</div>
+        <div class="fv-err">${esc(QN.err)}</div><button class="fv-btn pri" id="qn-new" style="margin-top:12px">${QN.busy ? 'Buscando…' : 'Empezar'}</button></div>`;
+      const b = $('qn-new'); if (b) b.onclick = qnNew; return; }
+    const rev = QN.rev, g = R.game;
+    const p1 = `<div class="card qn-clue"><div class="qn-n">Pista 1</div><div class="qn-t">Su rol de torneo es</div><div class="qn-role">${R.role && ({TOP:'top',JUNGLE:'jg',MID:'mid',ADC:'adc',SUPPORT:'support'})[R.role] ? `<img src="overlay/assets/roles/${({TOP:'top',JUNGLE:'jg',MID:'mid',ADC:'adc',SUPPORT:'support'})[R.role]}.webp" alt="">` : ''}<b>${esc(R.roleName)}</b></div></div>`;
+    const p2 = QN.step < 2 ? '' : `<div class="card qn-clue"><div class="qn-n">Pista 2</div><div class="qn-t">Una partida suya: estos son los 5 de su equipo. ¿Cuál era él?${rev ? '' : ' (toca uno para apostar)'}</div>
+      <div class="qn-game"><span class="${g.win ? 'w' : 'l'}">${g.win ? 'Victoria' : 'Derrota'}</span> · ${g.durMin} min${g.end ? ' · ' + fdate(g.end) : ''}</div>
+      <div class="qn-five">${g.players.map((p, i) => `<button class="qn-p ${QN.pick === i ? 'pick' : ''} ${rev && rev.idx === i ? 'him' : ''} ${rev && QN.pick === i && rev.idx !== i ? 'miss' : ''}" data-qp="${i}" ${rev ? 'disabled' : ''}>
+        <img src="${anChamp(p.champ)}" alt=""><b>${esc(fvChampName(p.champ))}</b><span>${p.k}/${p.d}/${p.a}</span><small>${p.cs} CS</small>${rev && rev.idx === i ? '<i>era él</i>' : ''}</button>`).join('')}</div></div>`;
+    const p3 = QN.step < 3 ? '' : `<div class="card qn-clue"><div class="qn-n">Pista 3</div><div class="qn-t">Un campeón que jugó alguna vez</div><div class="qn-champ"><img src="${anChamp(R.champ)}" alt=""><b>${esc(fvChampName(R.champ))}</b></div></div>`;
+    const guess = rev ? '' : `<div class="card"><h3>¿Quién es?</h3><div class="qn-guess"><input list="qn-names" id="qn-in" placeholder="Escribe el nombre…" value="${esc(QN.guess)}" autocomplete="off"><datalist id="qn-names">${R.names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+        <button class="fv-btn pri" id="qn-try">Adivinar</button></div>${QN.res ? `<div class="qn-res ${QN.res.ok ? 'ok' : 'no'}">${QN.res.ok ? '¡Correcto! Es ' + esc(QN.res.nick) : '✗ No es ' + esc(QN.res.nick)}</div>` : ''}
+      <div class="sb-btns">${QN.step < 3 ? `<button class="fv-btn" id="qn-more">Siguiente pista (${QN.step + 1}/3)</button>` : ''}<button class="fv-btn" id="qn-rev">Revelar</button></div><div class="fv-err">${esc(QN.err)}</div></div>`;
+    const out = rev ? `<div class="card qn-out"><div class="qn-n">Era</div><div class="qn-name">${esc(rev.nick)}</div><div class="ps">${esc(rev.rid)} · ${esc(rev.team)}</div>
+      ${QN.pick != null ? `<div class="qn-res ${QN.pick === rev.idx ? 'ok' : 'no'}">${QN.pick === rev.idx ? '✓ Acertaste quién era en la partida' : '✗ En la partida no era ese'}</div>` : ''}
+      <div class="sb-btns"><a class="fv-btn sm" href="${rkOpgg(rev.rid)}" target="_blank" rel="noopener">OP.GG</a><button class="fv-btn pri" id="qn-new">Otra ronda</button></div></div>` : '';
+    box.innerHTML = `<div class="qn-wrap">${out}${p1}${p2}${p3}${guess}</div>`;
+    const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+    on('qn-new', qnNew); on('qn-more', () => { QN.step++; qnRender(); });
+    on('qn-rev', async () => { try { QN.rev = await qnPost('revelar', {}); QN.step = 3; } catch (e) { QN.err = e.message; } qnRender(); });
+    const inp = $('qn-in'); if (inp) inp.oninput = () => { QN.guess = inp.value; };
+    on('qn-try', async () => { const nick = (QN.guess || '').trim(); if (!nick) return;
+      try { const d = await qnPost('adivinar', { nick }); QN.res = { ok: d.ok, nick }; if (d.ok){ QN.rev = await qnPost('revelar', {}); QN.step = 3; } } catch (e) { QN.err = e.message; } qnRender(); });
+    box.querySelectorAll('[data-qp]').forEach(b => b.onclick = () => { QN.pick = QN.pick === +b.dataset.qp ? null : +b.dataset.qp; qnRender(); });
+  }
+  // ---- ranking histórico de la subasta: los jugadores más caros ----
+  let SB_RANK = null;
+  async function sbRankLoad(){ try { const r = await fetch('/api/subasta/ranking', { cache:'no-store' }); if (r.ok) SB_RANK = await r.json(); } catch (e) {} }
+  function sbRankHtml(){
+    if (!SB_RANK) return '';
+    return `<div class="card" style="margin-top:14px;max-width:760px"><h3>Los más caros de la historia</h3><div class="cap">El precio más alto que se pagó por cada jugador en todas las subastas.</div>` +
+      (SB_RANK.length ? `<table class="lb-rk"><thead><tr><th class="n">#</th><th>Jugador</th><th class="n">Récord</th><th>Lo pagó</th><th class="n">Veces comprado</th><th class="n">Promedio</th></tr></thead><tbody>` +
+        SB_RANK.map((r, k) => `<tr><td class="n">${k === 0 ? '👑' : k + 1}</td><td><b>${esc(r.nick || r.rid)}</b></td><td class="n"><b class="sb-gold">${sbMoney(r.top)}</b></td><td>${esc(r.buyer || '')}</td><td class="n">${r.n}</td><td class="n">${sbMoney(r.avg)}</td></tr>`).join('') + `</tbody></table>`
+        : `<div class="fv-note">Todavía no hay ventas guardadas.</div>`) + `</div>`;
+  }
 
   const h0 = (location.hash || '').slice(1);
-  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'rk' || h0 === 'ranked') ? 'rk' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
+  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'rk' || h0 === 'ranked') ? 'rk' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : (h0 === 'qn' || h0 === 'quien') ? 'qn' : 'fv');
 </script>
 </body>
 </html>

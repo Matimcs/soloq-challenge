@@ -303,6 +303,19 @@ async function init(){
       data       JSONB NOT NULL,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Subasta: cada jugador vendido (historial para el ranking de "los más caros"). Una fila por jugador
+    -- por subasta (sala + momento en que empezó), así reimportar una sala no duplica.
+    CREATE TABLE IF NOT EXISTS auction_sales (
+      id         SERIAL PRIMARY KEY,
+      room       TEXT NOT NULL,
+      started_at BIGINT NOT NULL,
+      riotid     TEXT NOT NULL,
+      nick       TEXT,
+      price      INTEGER NOT NULL,
+      buyer      TEXT,
+      sold_at    TIMESTAMPTZ DEFAULT now(),
+      UNIQUE (room, started_at, riotid)
+    );
 
     -- Ranked (cola interna): perfil de cada jugador. lp y mmr van en puntos absolutos de liga
     -- (2400 = Diamante IV con 0 PL, donde parten todos). strikes = votos de resultado equivocados.

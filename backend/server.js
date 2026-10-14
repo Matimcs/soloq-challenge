@@ -2903,16 +2903,20 @@ app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
 // top/jungla/mid/ADC/support + suplente y confirma; después cada uno ordena a los OTROS equipos de mejor a
 // peor y la tabla final sale de esas votaciones (Borda: en una votación de n equipos, el 1º suma n-1 puntos).
 // Salen todos los jugadores (coaches incluidos). Por defecto los capitanes no salen; el anfitrión puede activar
-// que también salgan (así un capitán puede terminar jugando en el equipo de otro; nadie puja por sí mismo). Salas con enlace:
+// que también salgan (así un capitán puede terminar jugando en el equipo de otro, o comprarse a sí mismo). Salas con enlace:
 // viven 3 h sin actividad (memoria + tool_state).
 const SB_ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'], SB_SLOTS = [...SB_ROLES, 'SUB'];
 const SB_BUDGET = 1000, SB_STEP = 10, SB_MAX_CAPS = 5, SB_MAX_CAPS_IN = 6, SB_TEAM = 6;   // hasta 6 capitanes si ellos también salen a subasta
 const sbMaxCaps = st => st.settings && st.settings.capsInPool ? SB_MAX_CAPS_IN : SB_MAX_CAPS;
-const SB_OPEN_MS = 20000, SB_BID_MS = 12000, SB_TTL = 3 * 3600 * 1000;
+const SB_OPEN_MS = 20000, SB_BID_MS = 15000, SB_TTL = 3 * 3600 * 1000;
+// Margen tras la cuenta regresiva: una puja enviada justo al final que llega tarde por la conexión igual vale.
+const SB_GRACE_MS = 1500;
 let SB_ROOMS = null;
 async function sbRooms(){
   if (!SB_ROOMS){ SB_ROOMS = {};
-    try { for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'sub:%'")) if (r.data && r.data.code) SB_ROOMS[r.data.code] = r.data; } catch {} }
+    try { for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'sub:%'")) if (r.data && r.data.code) { r.data.caps = (r.data.caps || []).filter(Boolean); SB_ROOMS[r.data.code] = r.data; } } catch {}
+    // salas que venían de antes del historial: se importan sus ventas (no duplica gracias al UNIQUE)
+    for (const st of Object.values(SB_ROOMS)) for (const i of Object.keys(st.sold || {})) sbRecord(st, Number(i)); }
   const now = Date.now();
   for (const c of Object.keys(SB_ROOMS)) if ((SB_ROOMS[c].expiresAt || 0) <= now){ delete SB_ROOMS[c]; q('DELETE FROM tool_state WHERE id=$1', ['sub:' + c]).catch(() => {}); }
   return SB_ROOMS;
@@ -2961,6 +2965,23 @@ function sbAutoAssign(st, c){
   return a;
 }
 function sbToAssign(st){ st.lot = null; st.status = 'assign'; st.assign = sbCapsIdx(st).map(c => sbAutoAssign(st, c)); st.confirmed = st.caps.map(() => false); }
+// Historial de ventas pagadas (para el ranking de los más caros). No frena la subasta si falla.
+function sbRecord(st, i){
+  const s = st.sold && st.sold[i], p = st.pool && st.pool[i]; if (!s || !p || !(s.price > 0)) return;
+  const buyer = st.caps[s.cap] ? st.caps[s.cap].nick : null;
+  q(`INSERT INTO auction_sales (room, started_at, riotid, nick, price, buyer) VALUES ($1,$2,$3,$4,$5,$6)
+     ON CONFLICT (room, started_at, riotid) DO UPDATE SET price=EXCLUDED.price, buyer=EXCLUDED.buyer`,
+    [st.code, st.startedAt || st.createdAt || 0, p.rid, p.nick, s.price, buyer]).catch(() => {});
+}
+// Ranking histórico: el precio más alto que se pagó por cada jugador, cuántas veces lo compraron y el promedio.
+app.get('/api/subasta/ranking', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  let rows = [];
+  try { rows = await q(`SELECT lower(riotid) k, (array_agg(riotid ORDER BY sold_at DESC))[1] rid, (array_agg(nick ORDER BY sold_at DESC))[1] nick,
+      max(price)::int top, round(avg(price))::int avg, count(*)::int n, (array_agg(buyer ORDER BY price DESC, sold_at DESC))[1] buyer
+    FROM auction_sales GROUP BY 1 ORDER BY top DESC, avg DESC LIMIT 25`); } catch {}
+  res.json(rows.map(({ k, ...r }) => r));
+}));
 // Saca el siguiente jugador de la fila (lo decide el anfitrión).
 function sbNext(st){
   if (!sbNeeders(st).length || !st.queue.length) return sbToAssign(st);
@@ -2979,7 +3000,7 @@ function sbClose(st, how){
     if (need.length){ winner = need[0]; price = 0; how = 'asignado gratis'; }
   }
   if (winner == null){ st.queue.push(L.i); st.recycled[L.i] = (st.recycled[L.i] || 0) + 1; st.noSale = (st.noSale || 0) + 1; how = 'sin pujas · vuelve al final'; }
-  else { st.sold[L.i] = { cap: winner, price, how }; st.caps[winner].spent += price; delete st.recycled[L.i]; if (L.leader != null) st.noSale = 0; }
+  else { st.sold[L.i] = { cap: winner, price, how }; st.caps[winner].spent += price; delete st.recycled[L.i]; if (L.leader != null) st.noSale = 0; sbRecord(st, L.i); }
   st.log.unshift({ i: L.i, cap: winner, price: winner == null ? null : price, how, at: Date.now() }); st.log = st.log.slice(0, 40);
   st.last = st.log[0]; st.lot = null;
   if (!sbNeeders(st).length) sbToAssign(st);
@@ -2988,7 +3009,6 @@ function sbBid(st, c, amount){
   const L = st.lot; if (st.status !== 'auction' || !L) return 'No hay ningún jugador en subasta';
   if (sbNeed(st, c) <= 0) return 'Ya completaste tu equipo';
   if (L.leader === c) return 'Ya vas ganando esta puja';
-  if ((st.pool[L.i].rid || '').toLowerCase() === (st.caps[c].rid || '').toLowerCase()) return 'No puedes pujar por ti mismo';
   const left = SB_BUDGET - st.caps[c].spent, amt = Math.floor(Number(amount));
   const min = L.leader == null ? SB_STEP : L.price + SB_STEP;
   if (!Number.isFinite(amt) || amt < min) return `La puja mínima es $${min}`;
@@ -2999,7 +3019,7 @@ function sbBid(st, c, amount){
 }
 // Se acabó la cuenta regresiva del jugador en juego → se cierra solo.
 function sbTick(st){
-  if (st.status !== 'auction' || !st.lot || Date.now() < st.lot.deadline) return false;
+  if (st.status !== 'auction' || !st.lot || Date.now() < st.lot.deadline + SB_GRACE_MS) return false;
   sbClose(st, 'puja'); return true;
 }
 function sbView(st, uid){
@@ -3066,7 +3086,7 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
     if (team < 5) return res.status(400).json({ error: `No alcanzan los jugadores: hay ${cands.length} para ${st.caps.length} capitanes (se necesitan ${st.caps.length * 5})` });
     sbFresh(st); st.teamSize = team;
     st.pool = fvShuffle(cands).slice(0, Math.min(cands.length, team * st.caps.length + 3)); st.order = st.pool.map((_, i) => i); st.queue = st.order.slice();
-    st.caps.forEach(c => { c.spent = 0; }); st.status = 'auction'; sbNext(st);
+    st.caps.forEach(c => { c.spent = 0; }); st.status = 'auction'; st.startedAt = Date.now(); sbNext(st);
   } else if (act === 'settings'){
     if (st.status !== 'lobby') return res.status(400).json({ error: 'Las opciones se cambian antes de empezar' });
     const on = !!(req.body && req.body.capsInPool);
@@ -3147,6 +3167,52 @@ app.post('/api/subasta/reset', auth, wrap(async (req, res) => {
   if (req.user.id !== st.host && !req.user.is_admin) return res.status(403).json({ error: 'Solo el anfitrión' });
   sbFresh(st); st.caps.forEach(c => { c.spent = 0; });
   await sbSave(st); res.json(sbView(st, req.user.id));
+}));
+
+// ================= HERRAMIENTAS · ¿QUIÉN ES? (3 pistas para adivinar a un jugador) =================
+// Se elige al azar un jugador de los rosters de torneo con partidas guardadas. Pistas, en orden:
+//   1) su rol de TORNEO; 2) una partida al azar suya: los 5 de su equipo con campeón, KDA y farm, sin decir
+//   cuál era él; 3) un campeón al azar de todas sus partidas (solo el campeón). Después se revela.
+// La respuesta queda en el servidor (la ronda solo trae las pistas) hasta que se pide revelar.
+const QN_ROUNDS = new Map();   // id -> { at, rid, nick, team, role, idx }
+const QN_ROLE = { TOP: 'Top', JUNGLE: 'Jungla', MID: 'Mid', ADC: 'ADC', SUPPORT: 'Support' };
+app.get('/api/quien/nueva', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  for (const [k, v] of QN_ROUNDS) if (Date.now() - v.at > 3 * 3600 * 1000) QN_ROUNDS.delete(k);
+  const R = await buildRosters(), seen = new Set(), cands = [];
+  for (const [team, list] of Object.entries(R)) for (const p of list){ const k = (p.riotid || '').toLowerCase(); if (!p.role || seen.has(k)) continue; seen.add(k); cands.push({ ...p, team }); }
+  // cuentas de cada jugador: la principal + smurfs registradas + vinculadas a mano → sus puuid
+  const smurfs = await q('SELECT u.riotid main, s.riotid smurf FROM smurfs s JOIN users u ON u.id = s.user_id');
+  const links = await q('SELECT main_riotid main, smurf_riotid smurf FROM smurf_links');
+  const rid2pu = await ridPuuidMap(), nr = r => (r || '').trim().toLowerCase().replace(/\s*#\s*/g, '#');
+  const puOf = {}; for (const [r, pu] of Object.entries(rid2pu)) puOf[nr(r)] = pu;
+  for (const p of (liveSnapshot().players || [])) if (p.rid && p.puuid) puOf[nr(p.rid)] = p.puuid;
+  for (const c of fvShuffle(cands)){
+    const rids = [c.riotid, c.bestRiotid, ...smurfs.filter(s => nr(s.main) === nr(c.riotid)).map(s => s.smurf), ...links.filter(l => nr(l.main) === nr(c.riotid)).map(l => l.smurf)];
+    const pus = [...new Set(rids.map(r => puOf[nr(r)]).filter(Boolean))]; if (!pus.length) continue;
+    const g = await q1(`SELECT match_id, team_id, puuid FROM match_participants WHERE puuid = ANY($1) AND coalesce(duration,0) >= 600 ORDER BY random() LIMIT 1`, [pus]);
+    if (!g) continue;
+    const team = await q(`SELECT puuid, champion, position, coalesce(kills,0) k, coalesce(deaths,0) d, coalesce(assists,0) a, coalesce(cs,0) cs, win, coalesce(duration,0) dur, game_end
+      FROM match_participants WHERE match_id=$1 AND team_id=$2 ORDER BY CASE upper(position) WHEN 'TOP' THEN 1 WHEN 'JUNGLE' THEN 2 WHEN 'MIDDLE' THEN 3 WHEN 'BOTTOM' THEN 4 WHEN 'UTILITY' THEN 5 ELSE 6 END`, [g.match_id, g.team_id]);
+    if (team.length < 5) continue;
+    const ch = await q1(`SELECT champion FROM match_participants WHERE puuid = ANY($1) AND coalesce(champion,'')<>'' ORDER BY random() LIMIT 1`, [pus]);
+    const id = crypto.randomBytes(9).toString('base64url'), five = fvShuffle(team.slice(0, 5));
+    QN_ROUNDS.set(id, { at: Date.now(), rid: c.riotid, nick: c.nickname || c.riotid.split('#')[0], team: c.team, role: c.role, idx: five.findIndex(t => t.puuid === g.puuid) });
+    return res.json({ id, role: c.role, roleName: QN_ROLE[c.role] || c.role,
+      game: { win: !!team[0].win, durMin: Math.round((+team[0].dur) / 60), end: Number(team[0].game_end) || 0,
+        players: five.map(t => ({ champ: t.champion, k: +t.k, d: +t.d, a: +t.a, cs: +t.cs })) },
+      champ: ch ? ch.champion : null, names: cands.map(x => x.nickname || x.riotid.split('#')[0]).sort((a, b) => a.localeCompare(b, 'es')) });
+  }
+  res.status(404).json({ error: 'No encontré jugadores con partidas guardadas' });
+}));
+app.post('/api/quien/adivinar', wrap(async (req, res) => {
+  const r = QN_ROUNDS.get(String((req.body && req.body.id) || '')); if (!r) return res.status(404).json({ error: 'La ronda expiró: empieza otra' });
+  const g = String((req.body && req.body.nick) || '').trim().toLowerCase();
+  res.json({ ok: !!g && (g === r.nick.toLowerCase() || g === r.rid.toLowerCase() || g === r.rid.split('#')[0].toLowerCase()) });
+}));
+app.post('/api/quien/revelar', wrap(async (req, res) => {
+  const r = QN_ROUNDS.get(String((req.body && req.body.id) || '')); if (!r) return res.status(404).json({ error: 'La ronda expiró: empieza otra' });
+  res.json({ nick: r.nick, rid: r.rid, team: r.team, idx: r.idx });
 }));
 
 // ---- RÉCORDS: extremos de una sola partida (+ rachas de V/D) ----
