@@ -138,7 +138,7 @@
       <!-- Agregar cuenta al ranking -->
       <div class="box">
         <h2>Agregar cuenta al ranking <span class="n" id="rt-count"></span></h2>
-        <div class="sub" style="margin:-6px 0 12px">Suma una cuenta al ranking sin que el jugador se registre. Se trackea junto al resto (aparece tras el próximo ciclo del runner, ~2 min).</div>
+        <div class="sub" style="margin:-6px 0 12px">Suma una cuenta al ranking sin que el jugador se registre. Se trackea junto al resto (aparece tras el próximo ciclo del runner, ~2 min). <b>Solo para gente del challenge:</b> un streamer o pro externo NO va aquí, va en «Etiquetas de jugador».</div>
         <div class="drop-row">
           <input type="text" id="rt-riotid" placeholder="Riot ID (Nombre#TAG), ej: pancho pistolas2#LAS">
           <button class="btn btn-accent" id="rt-add">Agregar</button>
@@ -155,7 +155,7 @@
       <!-- Etiquetas de jugador -->
       <div class="box">
         <h2>Etiquetas de jugador <span class="n" id="tg-count"></span></h2>
-        <div class="sub" style="margin:-6px 0 12px">Etiqueta una cuenta como <b>PRO</b>, <b>Streamer</b>, <b>Competitivo</b> (jugadores de torneo tier 2-3) o <b style="color:#f0b429">GOD</b> (jugadores que consideramos god). Aparece en el ranking y en Live Games.</div>
+        <div class="sub" style="margin:-6px 0 12px">Etiqueta una cuenta como <b>PRO</b>, <b>Streamer</b>, <b>Competitivo</b> (jugadores de torneo tier 2-3) o <b style="color:#f0b429">GOD</b> (jugadores que consideramos god). La etiqueta <b>no agrega la cuenta al ranking</b>: solo se muestra en Live Games cuando alguien del challenge juega con o contra esa cuenta (y en el ranking si la cuenta ya es del challenge).</div>
         <div class="drop-row">
           <input type="text" id="tg-riotid" placeholder="Riot ID (Nombre#TAG), ej: rakyz#sbm">
           <select id="tg-tag" style="flex:0 0 auto;min-width:150px">
