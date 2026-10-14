@@ -2911,7 +2911,7 @@ const sbMaxCaps = st => st.settings && st.settings.capsInPool ? SB_MAX_CAPS_IN :
 const SB_OPEN_MS = 20000, SB_BID_MS = 15000, SB_TTL = 3 * 3600 * 1000;
 // Margen tras la cuenta regresiva: una puja enviada justo al final que llega tarde por la conexión igual vale.
 const SB_GRACE_MS = 1500;
-const SB_CLUE_MS = 15000;   // modo pistas: cuánto dura cada pista antes de la siguiente (el anfitrión puede adelantarla)
+const SB_CLUE_MS = 15000, SB_CLUE_PCT = 25;   // recargo por defecto (%) para la 1ª puja de cada fase   // modo pistas: cuánto dura cada pista antes de la siguiente (el anfitrión puede adelantarla)
 let SB_ROOMS = null;
 async function sbRooms(){
   if (!SB_ROOMS){ SB_ROOMS = {};
@@ -3010,15 +3010,26 @@ function sbClose(st, how){
   st.last = st.log[0]; st.lot = null;
   if (!sbNeeders(st).length) sbToAssign(st);
 }
+// Puja mínima. Modo pistas: la puja que quedó ganando al cerrar una fase "se arrastra" a la siguiente, y la
+// PRIMERA puja de la nueva fase (pista 2, pista 3 o ya revelado) debe superarla en un % (premia al que se la
+// jugó con menos información). Las siguientes de esa misma fase suben de a $10 como siempre.
+function sbMinBid(st){
+  const L = st.lot; if (!L) return null;
+  if (L.leader == null) return SB_STEP;
+  if (L.carry != null && L.firstOfStage){ const pct = (st.settings && st.settings.cluePct) || SB_CLUE_PCT;
+    return Math.max(L.price + SB_STEP, Math.ceil(L.carry * (1 + pct / 100) / SB_STEP) * SB_STEP); }
+  return L.price + SB_STEP;
+}
 function sbBid(st, c, amount){
   const L = st.lot; if (st.status !== 'auction' || !L) return 'No hay ningún jugador en subasta';
   if (sbNeed(st, c) <= 0) return 'Ya completaste tu equipo';
   if (L.leader === c) return 'Ya vas ganando esta puja';
+  if ((L.out || []).includes(c)) return 'Te retiraste de este jugador';
   const left = SB_BUDGET - st.caps[c].spent, amt = Math.floor(Number(amount));
-  const min = L.leader == null ? SB_STEP : L.price + SB_STEP;
+  const min = sbMinBid(st);
   if (!Number.isFinite(amt) || amt < min) return `La puja mínima es $${min}`;
   if (amt > left) return `Solo te quedan $${left}`;
-  L.price = amt; L.leader = c; L.bids.unshift({ c, amt }); L.bids = L.bids.slice(0, 12);
+  L.price = amt; L.leader = c; L.bids.unshift({ c, amt, stage: L.stage || null }); L.bids = L.bids.slice(0, 12); L.firstOfStage = false;
   if (!L.stage || L.stage >= 4) L.deadline = Math.max(L.deadline, Date.now() + SB_BID_MS);
   return null;
 }
@@ -3027,6 +3038,7 @@ function sbBid(st, c, amount){
 function sbClueNext(st){
   const L = st.lot; if (!L || !L.stage || L.stage >= 4) return false;
   L.stage++; const now = Date.now();
+  L.carry = L.leader != null ? L.price : null; L.firstOfStage = L.carry != null;
   if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_OPEN_MS; } else L.stageEnd = now + SB_CLUE_MS;
   return true;
 }
@@ -3044,7 +3056,7 @@ function sbView(st, uid){
   const C = L && st.pool[L.i].clue, P = L && st.pool[L.i];
   return { code: st.code, status: st.status, v: st.v, now, expiresAt: st.expiresAt, budget: SB_BUDGET, step: SB_STEP, maxCaps: sbMaxCaps(st),
     teamSize: st.teamSize || SB_TEAM, poolSize: st.pool.length, roles: SB_ROLES, slots: SB_SLOTS, queueLeft: (st.queue || []).length,
-    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick, capsInPool: !!(st.settings && st.settings.capsInPool), clues: !!(st.settings && st.settings.clues),
+    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick, capsInPool: !!(st.settings && st.settings.capsInPool), clues: !!(st.settings && st.settings.clues), cluePct: (st.settings && st.settings.cluePct != null) ? st.settings.cluePct : SB_CLUE_PCT,
     caps: st.caps.map((c, k) => ({ nick: c.nick, rid: c.rid, host: c.uid === st.host, left: SB_BUDGET - c.spent, spent: c.spent,
       bought: sbBought(st, k).map(pl), need: st.status === 'lobby' ? null : sbNeed(st, k),
       lineup: st.assign ? SB_SLOTS.map(s => st.assign[k][s] != null ? pl(st.assign[k][s]) : null) : null,
@@ -3053,7 +3065,9 @@ function sbView(st, uid){
     pool: st.pool.map((_, i) => i).sort((a, b) => st.order.indexOf(a) - st.order.indexOf(b))
       .map(i => reveal(i) ? { ...pl(i), sold: st.sold[i] || null, recycled: (st.recycled || {})[i] || 0 } : { hidden: true }),
     lot: L && { i: mystery ? null : L.i, price: L.price, leader: L.leader, bids: L.bids.slice(0, 8), left: L.deadline ? Math.max(0, L.deadline - now) : null, free: !!L.free, again: !!L.again,
-      stage: L.stage || null, stageLeft: mystery ? Math.max(0, L.stageEnd - now) : null,
+      stage: L.stage || null, stageLeft: mystery ? Math.max(0, L.stageEnd - now) : null, minBid: sbMinBid(st), carry: L.firstOfStage ? L.carry : null, out: L.out || [],
+      // si nadie sube antes de que cambie la fase: mínimo para la 1ª puja de la fase siguiente
+      nextMin: mystery && L.leader != null ? Math.max(L.price + SB_STEP, Math.ceil(L.price * (1 + (((st.settings && st.settings.cluePct) != null ? st.settings.cluePct : SB_CLUE_PCT)) / 100) / SB_STEP) * SB_STEP) : null,
       // pistas que ya salieron (la 1 siempre; la 2 desde la etapa 2; la 3 desde la 3). Al revelar, cuál de los 5 era.
       clues: L.stage ? { role: P.role, roleSrc: P.roleSrc, game: L.stage >= 2 && C ? C.game : null, champ: L.stage >= 3 && C ? C.champ : null,
         none: !C || (!C.game && !C.champ), idx: L.stage >= 4 && C ? C.idx : null } : null },
@@ -3116,6 +3130,7 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
       if (!on && st.caps.length > SB_MAX_CAPS) return res.status(400).json({ error: `Hay ${st.caps.length} capitanes: sin esta opción el máximo es ${SB_MAX_CAPS}` });
       st.settings.capsInPool = on; }
     if (req.body && req.body.clues !== undefined) st.settings.clues = !!req.body.clues;
+    if (req.body && req.body.cluePct !== undefined){ const v = Number(req.body.cluePct); if ([0, 10, 15, 20, 25, 30, 40, 50].includes(v)) st.settings.cluePct = v; }
   } else if (act === 'next'){
     if (st.status !== 'auction') return res.status(400).json({ error: 'La subasta no está en curso' });
     if (st.lot) return res.status(400).json({ error: 'Todavía hay un jugador en subasta' });
@@ -3128,6 +3143,19 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
     if (st.lot.stage && st.lot.stage < 4) return res.status(400).json({ error: 'Primero revela al jugador' });
     sbClose(st, 'adjudicado');
   } else return res.status(400).json({ error: 'Acción inválida' });
+  await sbSave(st); res.json(sbView(st, req.user.id));
+}));
+// Retirarse del jugador en juego (no vuelve a pujar por él). Si ya no queda nadie que pueda superar al que va
+// ganando, se cierra al tiro (o, sin pujas, se recicla), para agilizar.
+app.post('/api/subasta/withdraw', auth, wrap(async (req, res) => {
+  const st = await sbRoom(req, res); if (!st) return; sbTick(st);
+  const L = st.lot, c = st.caps.findIndex(x => x.uid === req.user.id);
+  if (c < 0) return res.status(403).json({ error: 'Solo los capitanes' });
+  if (!L || st.status !== 'auction') return res.status(400).json({ error: 'No hay ningún jugador en subasta' });
+  if (L.leader === c) return res.status(400).json({ error: 'Vas ganando: no puedes retirarte' });
+  L.out = L.out || []; if (!L.out.includes(c)) L.out.push(c);
+  const rivals = sbNeeders(st).filter(k => k !== L.leader && !L.out.includes(k));
+  if (!rivals.length) sbClose(st, L.leader == null ? 'todos se retiraron' : 'los demás se retiraron');
   await sbSave(st); res.json(sbView(st, req.user.id));
 }));
 app.post('/api/subasta/bid', auth, wrap(async (req, res) => {

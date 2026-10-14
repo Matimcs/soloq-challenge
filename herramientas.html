@@ -394,6 +394,13 @@
   .sb-cch{ width:34px; height:34px; border-radius:8px; }
   .sb-myst{ width:34px; height:34px; border-radius:9px; display:grid; place-items:center; font-size:22px; font-weight:800; color:var(--accent); border:1px dashed var(--accent); flex:none; }
   .sb-cluet{ font-size:12px; color:var(--muted); font-weight:700; } .sb-cluet b{ font-size:16px; color:var(--text); }
+  .sb-prem{ margin-top:8px; font-size:12px; color:var(--gold); font-weight:700; } .sb-outs{ margin-top:6px; font-size:11.5px; color:var(--muted-2); font-weight:600; }
+  .sb-vrow{ flex-direction:column; align-items:stretch; cursor:grab; } .sb-vrow.drag{ opacity:.5; } .sb-vrow.over{ border-color:var(--accent); }
+  .sb-vh{ display:flex; align-items:center; gap:10px; }
+  .sb-vteam{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; margin-top:8px; }
+  .sb-vp{ display:flex; align-items:center; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:5px 7px; min-width:0; }
+  .sb-vp b{ font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .sb-vp small{ margin-left:auto; font-size:10px; color:var(--muted-2); white-space:nowrap; }
+  .sb-vp.off{ border-color:rgba(251,191,36,.45); } .sb-vote{ max-width:900px; }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -1108,14 +1115,18 @@
         <div class="fv-err">${esc(SBC.err)}</div>
         ${st.isHost ? `<button class="fv-btn pri sb-big" id="sb-next">Sacar siguiente jugador →</button>` : `<div class="sb-wait">Esperando a que <b>${esc(st.hostNick)}</b> saque el siguiente jugador…</div>`}</div>`;
     }
-    const min = L.leader == null ? st.step : L.price + st.step;
+    const min = L.minBid != null ? L.minBid : (L.leader == null ? st.step : L.price + st.step), out = (L.out || []).includes(st.me);
     let ctrl = '';
     if (!meCap) ctrl = `<div class="fv-note">Solo miras.</div>`;
     else if (meCap.need <= 0) ctrl = `<div class="sb-wait">Ya completaste tu equipo.</div>`;
-    else if (L.leader === st.me) ctrl = `<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
+    else if (out) ctrl = `<div class="sb-wait">Te retiraste de este jugador.</div>`;
+    else if (L.leader === st.me) ctrl = `${L.nextMin != null ? `<div class="sb-prem next">Si nadie te supera antes de ${L.stage >= 3 ? 'revelar el nombre' : 'la pista ' + (L.stage + 1)}, para quitártelo tendrán que poner mínimo <b>${sbMoney(L.nextMin)}</b>.</div>` : ''}<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
     else ctrl = `${p && (p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
-        <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span></div>
+        <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span>
+        <button class="fv-btn sb-drop" id="sb-out" title="No vuelves a pujar por este jugador">Me retiro</button></div>
+        ${L.nextMin != null && L.leader !== st.me ? `<div class="sb-prem next">Si nadie supera los ${sbMoney(L.price)} de ${esc(st.caps[L.leader].nick)} antes de ${L.stage >= 3 ? 'revelar el nombre' : 'la pista ' + (L.stage + 1)}, ahí la primera puja tendrá que ser de mínimo <b>${sbMoney(L.nextMin)}</b> (+${st.cluePct}%).</div>` : ''}
+        ${L.carry != null ? `<div class="sb-prem">Nueva fase: la primera puja debe superar en ${st.cluePct}% los ${sbMoney(L.carry)} de ${esc(st.caps[L.leader].nick)} → mínimo <b>${sbMoney(min)}</b></div>` : ''}
         ${min > meCap.left ? `<div class="fv-note">No te alcanza para subir (te quedan ${sbMoney(meCap.left)}).</div>` : ''}`;
     return `<div class="card sb-lot">
       <div class="sb-loth"><span class="lbl">${mystery ? 'JUGADOR MISTERIOSO · PISTA ' + L.stage + '/3' : 'EN SUBASTA' + (L.again ? ' · VUELVE A SALIR' : '')}</span>${mystery ? `<span class="sb-cluet">Siguiente pista en <b class="sb-clock" data-left="${L.stageLeft}" data-at="${Date.now()}">${Math.ceil(L.stageLeft / 1000)}</b></span>` : `<span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span>`}</div>
@@ -1124,7 +1135,8 @@
         <a class="fv-btn sm" href="${rkOpgg(p.opgg)}" target="_blank" rel="noopener">OP.GG</a></div>`}
       ${cl ? sbCluesHtml(cl, L.stage) : ''}
       <div class="sb-price"><small>${L.leader == null ? (L.free ? 'Nadie lo ha querido: si nadie puja, va gratis al que más jugadores necesita' : 'Nadie ha pujado · si nadie puja, vuelve al final') : 'Puja más alta · ' + esc(st.caps[L.leader].nick)}</small><b>${sbMoney(L.price)}</b></div>
-      ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}</span>`).join('')}</div>` : ''}
+      ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}${b.stage ? ' · ' + (b.stage >= 4 ? 'revelado' : 'pista ' + b.stage) : ''}</span>`).join('')}</div>` : ''}
+      ${(L.out || []).length ? `<div class="sb-outs">Se retiraron: ${L.out.map(k => esc(st.caps[k].nick)).join(', ')}</div>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>${ctrl}
       ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span>${mystery ? `<button class="fv-btn sm pri" id="sb-clue">${L.stage >= 3 ? 'Revelar nombre' : 'Siguiente pista'}</button>` : `<button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button>`}</div>` : ''}</div>`;
   }
@@ -1157,8 +1169,12 @@
     if (!SBC.vorder || SBC.vorder.length !== others.length || !SBC.vorder.every(k => others.includes(k))) SBC.vorder = (st.myVote && st.myVote.length === others.length) ? st.myVote.slice() : others.slice();
     return `<div class="card sb-done"><h3>Votación final · ordena a los otros equipos</h3>
       <div class="fv-note">Del mejor al peor, sin contar el tuyo. La tabla final sale de los votos de todos (el 1º de cada votación suma ${total - 1} puntos, el 2º ${total - 2}…). Los votos se ven al terminar.</div>
-      <div class="sb-vote">${SBC.vorder.map((k, n) => `<div class="sb-vrow"><b class="pos">${n + 1}º</b><div class="nf"><div class="nm">${esc(st.caps[k].nick)}</div><small>${sbLine(st.caps[k])}</small></div>
-        <button class="fv-btn sm" data-vup="${n}" ${n === 0 ? 'disabled' : ''} title="Subir">↑</button><button class="fv-btn sm" data-vdown="${n}" ${n === SBC.vorder.length - 1 ? 'disabled' : ''} title="Bajar">↓</button></div>`).join('')}</div>
+      <div class="sb-vote">${SBC.vorder.map((k, n) => { const c = st.caps[k];
+        return `<div class="sb-vrow" draggable="true" data-vi="${n}"><div class="sb-vh"><b class="pos">${n + 1}º</b><div class="nf"><div class="nm">${esc(c.nick)}</div><small>Gastó ${sbMoney(c.spent)}</small></div>
+          <button class="fv-btn sm" data-vup="${n}" ${n === 0 ? 'disabled' : ''} title="Subir">↑</button><button class="fv-btn sm" data-vdown="${n}" ${n === SBC.vorder.length - 1 ? 'disabled' : ''} title="Bajar">↓</button></div>
+          <div class="sb-vteam">${st.slots.map((s, j) => { const p = (c.lineup || [])[j]; if (!p) return '';
+            return `<div class="sb-vp ${s !== 'SUB' && p.role !== s ? 'off' : ''}" title="${s !== 'SUB' && p.role !== s ? 'fuera de rol (es ' + SB_ROLE[p.role] + ')' : ''}">${sbIco(s)}<b>${esc(p.nick)}</b><small>${p.tier ? `<img class="rk-dot" src="${rkEmb(p.tier)}" alt="">` : ''}${p.tier ? rkRankTxt({ tier: p.tier, div: p.div }) : 'Sin rango'}</small></div>`; }).join('')}</div></div>`; }).join('')}</div>
+      <div class="cap">Arrastra los equipos o usa ↑ ↓ para ordenarlos.</div>
       <div class="fv-err">${esc(SBC.err)}</div>
       <div class="sb-btns"><button class="fv-btn pri" id="sb-vote">${st.myVote ? 'Cambiar mi votación' : 'Enviar votación'}</button>${st.myVote ? '<span class="sb-conf ok" style="margin:0">✓ Ya votaste (puedes cambiarla hasta que voten todos)</span>' : ''}</div>
       <div class="cap" style="margin-top:10px">Votaron ${done} de ${total}</div>${prog}</div>`;
@@ -1186,6 +1202,7 @@
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (o comprarse a sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
       <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-clues" ${st.clues ? 'checked' : ''}>` : (st.clues ? '✓' : '✗')} <span><b>Modo pistas</b> · cada jugador sale misterioso y se descubre en 3 pistas (su rol de torneo, una partida suya sin decir cuál era él, y un campeón que jugó) antes de revelar el nombre. Se puede pujar desde la primera pista.</span></label>
+      ${st.clues ? `<label class="sb-opt"><span><b>Recargo al cambiar de fase</b> · la primera puja de cada pista nueva debe superar en este % a la que quedó ganando:</span> ${st.isHost ? `<select id="sb-pct">${[10, 15, 20, 25, 30, 40, 50].map(v => `<option value="${v}" ${st.cluePct === v ? 'selected' : ''}>${v}%</option>`).join('')}</select>` : `<b>${st.cluePct}%</b>`}</label>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>
       <div class="sb-btns">${st.me < 0 && st.caps.length < st.maxCaps ? `<button class="fv-btn pri" id="sb-join">Unirme como capitán</button>` : ''}
       ${st.isHost ? `<button class="fv-btn pri" id="sb-start" ${st.caps.length >= 2 ? '' : 'disabled'}>Empezar subasta</button><span class="fv-note">Mínimo 2 capitanes.</span>` : st.me >= 0 ? `<span class="fv-note">${esc(st.hostNick)} empieza cuando estén todos.</span>` : ''}</div>`;
@@ -1204,9 +1221,11 @@
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => sbAct('leave', { k: +b.dataset.kick }));
     const ci = $('sb-capsin'); if (ci) ci.onchange = () => sbAct('host', { action: 'settings', capsInPool: ci.checked });
     const cq = $('sb-clues'); if (cq) cq.onchange = () => sbAct('host', { action: 'settings', clues: cq.checked });
+    const cp = $('sb-pct'); if (cp) cp.onchange = () => sbAct('host', { action: 'settings', cluePct: +cp.value });
     on('sb-clue', () => sbAct('host', { action: 'clue' }));
     on('sb-start', () => sbAct('host', { action: 'start' })); on('sb-next', () => sbAct('host', { action: 'next' }));
     on('sb-hammer', () => sbAct('host', { action: 'hammer' }));
+    const so = $('sb-out'); if (so) so.onpointerdown = e => { e.preventDefault(); sbAct('withdraw'); };
     on('sb-reset', () => { if (confirm('¿Reiniciar? Se borran las pujas y los equipos, y vuelven a la sala de espera con los mismos capitanes (al empezar se sortean jugadores nuevos).')) sbAct('reset'); });
     on('sb-copy', async e => { const b = e.target; try { await navigator.clipboard.writeText(sbUrl(st.code)); } catch (err) { const i = $('sb-link'); i.select(); try { document.execCommand('copy'); } catch (e2) {} }
       b.textContent = '¡Copiado!'; setTimeout(() => { b.textContent = 'Copiar enlace'; }, 1500); });
@@ -1224,6 +1243,14 @@
     on('sb-confirm', () => sbAct('confirm')); on('sb-unconfirm', () => sbAct('confirm', { on: false }));
     box.querySelectorAll('[data-vup],[data-vdown]').forEach(b => b.onclick = () => { const n = +(b.dataset.vup ?? b.dataset.vdown), m = b.dataset.vup != null ? n - 1 : n + 1, o = SBC.vorder;
       [o[n], o[m]] = [o[m], o[n]]; sbRender(); });
+    // arrastrar y soltar para ordenar la votación
+    box.querySelectorAll('.sb-vrow[draggable]').forEach(row => {
+      row.ondragstart = e => { e.dataTransfer.setData('text/plain', row.dataset.vi); row.classList.add('drag'); };
+      row.ondragend = () => row.classList.remove('drag');
+      row.ondragover = e => { e.preventDefault(); row.classList.add('over'); };
+      row.ondragleave = () => row.classList.remove('over');
+      row.ondrop = e => { e.preventDefault(); const from = +e.dataTransfer.getData('text/plain'), to = +row.dataset.vi; if (from === to) return;
+        const o = SBC.vorder, [x] = o.splice(from, 1); o.splice(to, 0, x); sbRender(); }; });
     on('sb-vote', () => sbAct('vote', { order: SBC.vorder }));
     sbClock();
   }
