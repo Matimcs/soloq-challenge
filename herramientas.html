@@ -366,6 +366,12 @@
   .sb-h{ font-size:12px; font-weight:800; letter-spacing:.06em; color:var(--accent); margin:4px 0 8px; }
   .sb-lot{ margin-bottom:14px; max-width:760px; } .sb-lot.idle{ border-style:dashed; } .sb-big{ margin-top:12px; font-size:15px; padding:12px 18px; }
   .sb-hostctl{ display:flex; gap:8px; align-items:center; margin-top:12px; padding-top:10px; border-top:1px solid var(--line); } .sb-hostctl span{ font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); }
+  .sb-vote{ display:flex; flex-direction:column; gap:6px; margin:10px 0; max-width:620px; }
+  .sb-vrow{ display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  .sb-vrow .pos{ font-size:18px; font-weight:800; color:var(--accent); width:34px; } .sb-vrow .nf{ flex:1; min-width:0; } .sb-vrow .nm{ font-size:14px; font-weight:800; } .sb-vrow small{ font-size:11px; color:var(--muted-2); }
+  .sb-vprog{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; } .sb-vprog span{ font-size:11.5px; font-weight:700; color:var(--muted); background:var(--panel-2); border-radius:7px; padding:3px 8px; } .sb-vprog span.ok{ color:var(--up); }
+  .sb-final{ margin-top:8px; } .sb-final .sb-fl{ font-size:12px; color:var(--muted); }
+  .sb-opt{ display:flex; gap:9px; align-items:flex-start; font-size:12.5px; color:var(--muted); margin:4px 0 10px; max-width:640px; cursor:pointer; } .sb-opt b{ color:var(--text); } .sb-opt input{ margin-top:2px; accent-color:var(--accent); }
   .sb-done{ margin-bottom:14px; border-color:rgba(52,211,153,.45); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -1059,8 +1065,8 @@
     const L = st.lot, p = st.player, meCap = st.caps[st.me];
     if (!L || !p){
       const l = st.last;
-      return `<div class="card sb-lot idle"><div class="sb-loth"><span class="lbl">${l ? 'ÚLTIMO JUGADOR' : 'LISTOS'}</span><span class="ps">${st.queueLeft} por salir${st.round === 2 ? ' · 2ª vuelta' : ''}</span></div>
-        ${l ? `<div class="sb-player">${sbIco(l.p.role)}<div class="nf"><div class="nm">${esc(l.p.nick)}</div><div class="ps">${l.cap == null ? 'Nadie pujó: vuelve a salir al final' : '→ ' + esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}</div></div></div>` : ''}
+      return `<div class="card sb-lot idle"><div class="sb-loth"><span class="lbl">${l ? 'ÚLTIMO JUGADOR' : 'LISTOS'}</span><span class="ps">${st.queueLeft} por salir</span></div>
+        ${l ? `<div class="sb-player">${sbIco(l.p.role)}<div class="nf"><div class="nm">${esc(l.p.nick)}</div><div class="ps">${l.cap == null ? 'Sin pujas: se recicla y vuelve a salir al final' : '→ ' + esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}</div></div></div>` : ''}
         <div class="fv-err">${esc(SBC.err)}</div>
         ${st.isHost ? `<button class="fv-btn pri sb-big" id="sb-next">Sacar siguiente jugador →</button>` : `<div class="sb-wait">Esperando a que <b>${esc(st.hostNick)}</b> saque el siguiente jugador…</div>`}</div>`;
     }
@@ -1068,16 +1074,17 @@
     let ctrl = '';
     if (!meCap) ctrl = `<div class="fv-note">Solo miras.</div>`;
     else if (meCap.need <= 0) ctrl = `<div class="sb-wait">Ya completaste tu equipo.</div>`;
+    else if ((p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase()) ctrl = `<div class="sb-wait">¡Eres tú! No puedes pujar por ti mismo: mira quién te compra.</div>`;
     else if (L.leader === st.me) ctrl = `<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
     else ctrl = `<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
         <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span></div>
         ${min > meCap.left ? `<div class="fv-note">No te alcanza para subir (te quedan ${sbMoney(meCap.left)}).</div>` : ''}`;
     return `<div class="card sb-lot">
-      <div class="sb-loth"><span class="lbl">EN SUBASTA${L.round === 2 ? ' · 2ª VUELTA' : ''}</span><span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span></div>
+      <div class="sb-loth"><span class="lbl">EN SUBASTA${L.again ? ' · VUELVE A SALIR' : ''}</span><span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span></div>
       <div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div>
         <a class="fv-btn sm" href="${rkOpgg(p.opgg)}" target="_blank" rel="noopener">OP.GG</a></div>
-      <div class="sb-price"><small>${L.leader == null ? (L.round === 2 ? 'Sin pujas: si nadie puja, va gratis al que más necesita' : 'Nadie ha pujado') : 'Puja más alta · ' + esc(st.caps[L.leader].nick)}</small><b>${sbMoney(L.price)}</b></div>
+      <div class="sb-price"><small>${L.leader == null ? (L.free ? 'Nadie lo ha querido: si nadie puja, va gratis al que más jugadores necesita' : 'Nadie ha pujado · si nadie puja, vuelve al final') : 'Puja más alta · ' + esc(st.caps[L.leader].nick)}</small><b>${sbMoney(L.price)}</b></div>
       ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}</span>`).join('')}</div>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>${ctrl}
       ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span><button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button></div>` : ''}</div>`;
@@ -1086,14 +1093,38 @@
     return `<div class="card"><h3>Jugadores en subasta</h3><div class="cap">${st.poolSize} jugadores al azar, de cualquier rol (el de torneo, o el de SoloQ si no juega torneo), en el orden en que salen. Cada uno se descubre cuando le toca.</div><div class="sb-board">` +
       st.pool.map((p, n) => { if (p.hidden) return `<div class="sb-card hid"><div class="no">#${n + 1}</div><div class="nm">?</div><div class="ps">Por descubrir</div></div>`;
         const now = st.lot && st.lot.i === p.i, s = p.sold;
-        return `<div class="sb-card ${now ? 'now' : ''} ${s ? 'sold' : ''} ${p.passed ? 'passed' : ''}"><div class="no">#${n + 1}</div><div class="nm">${sbIco(p.role)} ${esc(p.nick)}</div><div class="ps">${sbRank(p)}</div>
-          <div class="st">${now ? 'En subasta' : s ? `${esc(st.caps[s.cap].nick)} · ${s.price ? sbMoney(s.price) : 'gratis'}` : p.passed ? 'Sin pujas · vuelve a salir' : st.status === 'auction' ? 'Por salir' : 'No salió'}</div></div>`; }).join('') + `</div></div>`;
+        return `<div class="sb-card ${now ? 'now' : ''} ${s ? 'sold' : ''} ${!s && p.recycled ? 'passed' : ''}"><div class="no">#${n + 1}</div><div class="nm">${sbIco(p.role)} ${esc(p.nick)}</div><div class="ps">${sbRank(p)}</div>
+          <div class="st">${now ? 'En subasta' : s ? `${esc(st.caps[s.cap].nick)} · ${s.price ? sbMoney(s.price) : 'gratis'}` : p.recycled ? 'Sin pujas · vuelve al final' : st.status === 'auction' ? 'Por salir' : 'No salió'}</div></div>`; }).join('') + `</div></div>`;
+  }
+  // ---------- votación final: cada capitán ordena a los OTROS equipos de mejor a peor ----------
+  const sbLine = c => (c.lineup || []).slice(0, 5).map(p => p ? esc(p.nick) : '—').join(', ');
+  function sbVoteHtml(st){
+    const done = st.voted ? st.voted.filter(Boolean).length : 0, total = st.caps.length;
+    const prog = `<div class="sb-vprog">${st.caps.map((c, k) => `<span class="${st.voted && st.voted[k] ? 'ok' : ''}">${st.voted && st.voted[k] ? '✓' : '…'} ${esc(c.nick)}</span>`).join('')}</div>`;
+    if (st.me < 0) return `<div class="card sb-done"><h3>Votación final</h3><div class="fv-note">Los capitanes están ordenando los equipos (${done}/${total} votaron).</div>${prog}</div>`;
+    const others = st.caps.map((_, k) => k).filter(k => k !== st.me);
+    if (!SBC.vorder || SBC.vorder.length !== others.length || !SBC.vorder.every(k => others.includes(k))) SBC.vorder = (st.myVote && st.myVote.length === others.length) ? st.myVote.slice() : others.slice();
+    return `<div class="card sb-done"><h3>Votación final · ordena a los otros equipos</h3>
+      <div class="fv-note">Del mejor al peor, sin contar el tuyo. La tabla final sale de los votos de todos (el 1º de cada votación suma ${total - 1} puntos, el 2º ${total - 2}…). Los votos se ven al terminar.</div>
+      <div class="sb-vote">${SBC.vorder.map((k, n) => `<div class="sb-vrow"><b class="pos">${n + 1}º</b><div class="nf"><div class="nm">${esc(st.caps[k].nick)}</div><small>${sbLine(st.caps[k])}</small></div>
+        <button class="fv-btn sm" data-vup="${n}" ${n === 0 ? 'disabled' : ''} title="Subir">↑</button><button class="fv-btn sm" data-vdown="${n}" ${n === SBC.vorder.length - 1 ? 'disabled' : ''} title="Bajar">↓</button></div>`).join('')}</div>
+      <div class="fv-err">${esc(SBC.err)}</div>
+      <div class="sb-btns"><button class="fv-btn pri" id="sb-vote">${st.myVote ? 'Cambiar mi votación' : 'Enviar votación'}</button>${st.myVote ? '<span class="sb-conf ok" style="margin:0">✓ Ya votaste (puedes cambiarla hasta que voten todos)</span>' : ''}</div>
+      <div class="cap" style="margin-top:10px">Votaron ${done} de ${total}</div>${prog}</div>`;
+  }
+  function sbFinalHtml(st){
+    const f = st.final || [];
+    const votes = st.votes ? st.caps.map((c, k) => st.votes[k] ? `<div class="sb-log"><b>${esc(c.nick)}</b> votó: ${st.votes[k].map((j, n) => (n + 1) + 'º ' + esc(st.caps[j].nick)).join(' · ')}</div>` : '').join('') : '';
+    return `<div class="card sb-done"><h3>Tabla final · según las votaciones</h3>
+      <table class="lb-rk sb-final"><thead><tr><th class="n">#</th><th>Equipo</th><th class="n">Puntos</th><th class="n">Votos como 1º</th><th class="n">Gastó</th><th>Titulares</th></tr></thead><tbody>` +
+      f.map(r => { const c = st.caps[r.cap]; return `<tr class="${r.cap === st.me ? 'me' : ''}"><td class="n">${r.pos === 1 ? '🏆' : r.pos}</td><td><b>${esc(c.nick)}</b></td><td class="n">${r.pts}</td><td class="n">${r.firsts}</td><td class="n">${sbMoney(c.spent)}</td><td class="sb-fl">${sbLine(c)}</td></tr>`; }).join('') +
+      `</tbody></table>${votes ? `<div style="margin-top:12px">${votes}</div>` : ''}</div>`;
   }
   function sbRender(){
     const box = $('p-sb'), st = SBC.st;
     if (!st){
       box.innerHTML = `<div class="card" style="max-width:640px"><h3>Subasta</h3>
-        <div class="fv-note" style="margin-top:6px">Hasta 5 capitanes, con ${sbMoney(1000)} cada uno, compran 6 jugadores: 5 titulares y un suplente comodín (5 si no alcanzan los jugadores para tantos capitanes). Salen jugadores al azar, de cualquier rol, y cada uno se descubre cuando le toca. La puja es abierta: cualquiera sube cuando quiera y, cuando se acaba el tiempo sin nuevas pujas, se lo lleva el mejor postor. Quien crea la sala dirige: empieza, saca cada jugador y puede adjudicar antes. Al final cada capitán reparte a sus jugadores en los 5 roles (puede ponerlos fuera de su rol).</div>
+        <div class="fv-note" style="margin-top:6px">Hasta 5 capitanes (6 si los capitanes también salen a subasta), con ${sbMoney(1000)} cada uno, compran 6 jugadores: 5 titulares y un suplente comodín (5 si no alcanzan los jugadores para tantos capitanes). Salen jugadores al azar, de cualquier rol, y cada uno se descubre cuando le toca. La puja es abierta: cualquiera sube cuando quiera y, cuando se acaba el tiempo sin nuevas pujas, se lo lleva el mejor postor. Quien crea la sala dirige: empieza, saca cada jugador y puede adjudicar antes. Al final cada capitán reparte a sus jugadores en los 5 roles (puede ponerlos fuera de su rol).</div>
         <div class="fv-err">${esc(SBC.err)}</div><button class="fv-btn pri" id="sb-create" style="margin-top:12px">Crear subasta</button></div>`;
       const b = $('sb-create'); if (b) b.onclick = () => sbAct('create'); return;
     }
@@ -1102,12 +1133,13 @@
     const caps = `<div class="sb-capgrid n${st.caps.length}">${st.caps.map((_, k) => sbCapCard(st, k)).join('')}</div>`;
     let body = '';
     if (st.status === 'lobby') body = `${link}<h3 class="sb-h">Capitanes (${st.caps.length}/${st.maxCaps})</h3>${caps}
+      <label class="sb-opt">${st.isHost ? `<input type="checkbox" id="sb-capsin" ${st.capsInPool ? 'checked' : ''}>` : (st.capsInPool ? '✓' : '✗')} <span><b>Los capitanes también salen a subasta</b> · un capitán puede terminar jugando en el equipo de otro (nadie puja por sí mismo). Con esta opción la sala admite hasta 6 capitanes.</span></label>
       <div class="fv-err">${esc(SBC.err)}</div>
       <div class="sb-btns">${st.me < 0 && st.caps.length < st.maxCaps ? `<button class="fv-btn pri" id="sb-join">Unirme como capitán</button>` : ''}
       ${st.isHost ? `<button class="fv-btn pri" id="sb-start" ${st.caps.length >= 2 ? '' : 'disabled'}>Empezar subasta</button><span class="fv-note">Mínimo 2 capitanes.</span>` : st.me >= 0 ? `<span class="fv-note">${esc(st.hostNick)} empieza cuando estén todos.</span>` : ''}</div>`;
     else {
-      const head = st.status === 'assign' ? `<div class="card sb-done"><h3>Subasta terminada · armen sus equipos</h3><div class="fv-note">Cada capitán reparte a sus jugadores en los 5 roles${st.teamSize > 5 ? ' + suplente' : ''} y confirma. Cuando confirmen todos, quedan los equipos finales.</div></div>`
-        : st.status === 'done' ? `<div class="card sb-done"><h3>Equipos finales</h3><div class="fv-note">Todos los capitanes confirmaron su equipo.</div></div>` : '';
+      const head = st.status === 'assign' ? `<div class="card sb-done"><h3>Subasta terminada · armen sus equipos</h3><div class="fv-note">Cada capitán reparte a sus jugadores en los 5 roles${st.teamSize > 5 ? ' + suplente' : ''} y confirma. Cuando confirmen todos, viene la votación para ordenar los equipos.</div></div>`
+        : st.status === 'vote' ? sbVoteHtml(st) : st.status === 'done' ? sbFinalHtml(st) : '';
       body = `${head}${st.status === 'auction' ? sbLotHtml(st) : ''}${caps}${sbBoard(st)}
         ${st.log.length ? `<div class="card" style="margin-top:14px"><h3>Historial</h3>${st.log.map(l => `<div class="sb-log">${sbIco(l.p.role)}<b>${esc(l.p.nick)}</b> → ${l.cap == null ? 'sin pujas' : esc(st.caps[l.cap].nick) + ' · ' + (l.price ? sbMoney(l.price) : 'gratis')}<small>${esc(l.how || '')}</small></div>`).join('')}</div>` : ''}`;
     }
@@ -1117,6 +1149,7 @@
     on('sb-close', () => { if (confirm('¿Cerrar la subasta? Se borra la sala y el enlace deja de funcionar.')) sbAct('close'); });
     on('sb-join', () => sbAct('join')); on('sb-leave', () => sbAct('leave'));
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => sbAct('leave', { k: +b.dataset.kick }));
+    const ci = $('sb-capsin'); if (ci) ci.onchange = () => sbAct('host', { action: 'settings', capsInPool: ci.checked });
     on('sb-start', () => sbAct('host', { action: 'start' })); on('sb-next', () => sbAct('host', { action: 'next' }));
     on('sb-hammer', () => sbAct('host', { action: 'hammer' }));
     on('sb-reset', () => { if (confirm('¿Reiniciar? Se borran las pujas y los equipos, y vuelven a la sala de espera con los mismos capitanes (al empezar se sortean jugadores nuevos).')) sbAct('reset'); });
@@ -1132,6 +1165,9 @@
       for (const s of Object.keys(slots)) if (v !== '' && slots[s] === v && s !== sel.dataset.slot) slots[s] = prev;
       slots[sel.dataset.slot] = v; sbAct('assign', { slots }); });
     on('sb-confirm', () => sbAct('confirm')); on('sb-unconfirm', () => sbAct('confirm', { on: false }));
+    box.querySelectorAll('[data-vup],[data-vdown]').forEach(b => b.onclick = () => { const n = +(b.dataset.vup ?? b.dataset.vdown), m = b.dataset.vup != null ? n - 1 : n + 1, o = SBC.vorder;
+      [o[n], o[m]] = [o[m], o[n]]; sbRender(); });
+    on('sb-vote', () => sbAct('vote', { order: SBC.vorder }));
     sbClock();
   }
   function sbClock(){ document.querySelectorAll('#p-sb .sb-clock').forEach(el => { const s = Math.max(0, Math.ceil((+el.dataset.left - (Date.now() - +el.dataset.at)) / 1000)); el.textContent = s + ' s'; el.classList.toggle('low', s <= 5); }); }
