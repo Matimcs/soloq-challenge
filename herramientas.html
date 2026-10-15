@@ -951,7 +951,11 @@
         <div class="s">${st.pending.accepted} de ${st.pending.total} aceptaron</div>
         ${st.pending.iAccepted ? `<div class="ok">Aceptaste. Esperando a los demás…</div>` : `<div class="b"><button class="rk-acc" id="rk-acc">ACEPTAR</button><button class="rk-dec" id="rk-dec">Rechazar</button></div>`}
       </div></div>` : '';
-    return `${last}<div class="rk-top"><div class="rk-left">${left}</div><div><div class="card"><h3>Tabla de posiciones</h3><div class="cap">Ranking propio de la cola interna. No afecta tu SoloQ.</div>${board}</div>${open}${recent}</div></div>${pend}`;
+    // admins: dos overlays reportaron distinto
+    const conf = (st.conflicts || []).map(c => `<div class="rk-last l" style="display:block"><b>⚠ Revisar Sala ${c.id}</b> · el overlay de ${esc(c.reportedBy || '?')} dio ganador a <b>${c.winner === 'blue' ? 'Azul' : 'Rojo'}</b>, pero el de ${esc(c.by)} dice que ganó <b>${c.claims === 'blue' ? 'Azul' : 'Rojo'}</b>.
+        <div class="ps" style="margin:4px 0 8px">Azul: ${c.blue.map(esc).join(', ')} · Rojo: ${c.red.map(esc).join(', ')}</div>
+        <div class="rk-adm"><button class="fv-btn sm" data-conf="${c.id}|keep">Mantener (${c.winner === 'blue' ? 'Azul' : 'Rojo'})</button><button class="fv-btn sm" data-conf="${c.id}|flip">Invertir (gana ${c.winner === 'blue' ? 'Rojo' : 'Azul'})</button><button class="fv-btn sm" data-conf="${c.id}|void">Anular partida</button></div></div>`).join('');
+    return `${conf}${last}<div class="rk-top"><div class="rk-left">${left}</div><div><div class="card"><h3>Tabla de posiciones</h3><div class="cap">Ranking propio de la cola interna. No afecta tu SoloQ.</div>${board}</div>${open}${recent}</div></div>${pend}`;
   }
   // ---------- sala: equipos, pick y ban, partida y votación ----------
   function rkRoomHtml(){
@@ -1049,6 +1053,9 @@
     box.querySelectorAll('[data-res]').forEach(b => b.onclick = () => { const [id, w] = b.dataset.res.split('|');
       if (confirm(w === 'cancel' ? '¿Anular la partida? Nadie gana ni pierde PL.' : `¿Dar por ganador al equipo ${w === 'blue' ? 'Azul' : 'Rojo'}?`)) rkAct('admin/resolve', { matchId: +id, winner: w }).then(rkBoard); });
     box.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => rkAct('vote', { team: b.dataset.vote }));
+    box.querySelectorAll('[data-conf]').forEach(b => b.onclick = () => { const [id, action] = b.dataset.conf.split('|');
+      const msg = { keep: '¿Mantener el resultado?', flip: '¿Invertir el resultado? Se deshacen los PL y se recalculan con el otro ganador.', void: '¿Anular la partida? Se devuelven los PL de todos.' }[action];
+      if (confirm(msg)) rkAct('admin/conflict', { matchId: +id, action }).then(rkBoard); });
     box.querySelectorAll('[data-remake]').forEach(b => b.onclick = () => { const on = b.dataset.remake === '1';
       if (on && !confirm('¿Votar remake? Si 9 de los 10 votan, la partida se anula y nadie gana ni pierde PL.')) return; rkAct('remake', { on }); });
     box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.swap.split('|'); rkAct('swap', { with: +w, action }); });

@@ -1150,9 +1150,12 @@ app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
   const num = v => Number.isFinite(+v) ? Math.round(+v) : null;
   // partida ya usada: si otro overlay manda un ganador distinto, queda marcada para que la revise un admin
   const won = side => g.players.filter(p => p.win === true && p.teamId === side).length > 0 || (g.teams || []).some(t => t.teamId === side && t.win === true);
+  const u0 = await q1("SELECT id, nickname FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [ovNrk(riotid)]);
   try { const used = await q1("SELECT id, data FROM ranked_matches WHERE data->'game'->>'gameId' = $1", [gameId]);
     if (used){ const d = used.data, mine = (d.game.players || []).find(p => ovNrk(p.rid) === ovNrk(riotid));
-      if (mine && won(mine.teamId) !== (d.winner === mine.side) && !d.conflict){ d.conflict = { by: riotid, at: Date.now() }; await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [used.id, JSON.stringify(d)]); }
+      if (mine && won(mine.teamId) !== (d.winner === mine.side) && !d.conflict){
+        d.conflict = { by: (u0 && u0.nickname) || riotid, at: Date.now(), claims: won(mine.teamId) ? mine.side : (mine.side === 'blue' ? 'red' : 'blue') };
+        await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [used.id, JSON.stringify(d)]); }
       return res.json({ ok: true, ignored: 'ya registrada', matchId: used.id }); } } catch {}
   const u = await q1("SELECT id, nickname FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [ovNrk(riotid)]);
   const mid = u ? RK.byUser.get(u.id) : null, m = mid != null ? RK.matches.get(mid) : null;
@@ -2907,15 +2910,15 @@ async function rkResolve(m, winner, by){
   for (const t of m.teams){
     const won = t.side === winner, e = t.side === 'blue' ? eBlue : 1 - eBlue;
     for (const s of t.players){ const p = rkPlayer(s.uid);
-      const pf = m.assigned && m.assigned[s.uid];   // memoria de roles (lo que asignó el emparejamiento)
+      const pf = m.assigned && m.assigned[s.uid], lastOffBefore = !!p.lastOff;   // memoria de roles (lo que asignó el emparejamiento)
       if (pf){ if (pf === 'main') p.gMain = (p.gMain | 0) + 1; else if (pf === 'sec') p.gSec = (p.gSec | 0) + 1; else if (pf === 'fill') p.gFill = (p.gFill | 0) + 1; else p.gOff = (p.gOff | 0) + 1; p.lastOff = pf === 'auto'; }
       const gap = (p.mmr - p.lp) / 25;          // quien tiene más MMR que rango sube más rápido (y al revés)
       const delta = won ? Math.max(10, Math.min(32, Math.round(20 + gap + (0.5 - e) * 10)))
                         : -Math.max(10, Math.min(32, Math.round(20 - gap + (e - 0.5) * 10)));
-      const before = p.lp; p.lp = Math.max(0, p.lp + delta); p.mmr = p.mmr + 40 * ((won ? 1 : 0) - e);
+      const before = p.lp, mmrDelta = 40 * ((won ? 1 : 0) - e), strikesBefore = p.strikes; p.lp = Math.max(0, p.lp + delta); p.mmr = p.mmr + mmrDelta;
       if (won) p.wins++; else p.losses++;
       const v = m.votes[s.uid]; if (v){ if (v === winner) p.strikes = Math.max(0, p.strikes - 1); else p.strikes++; }
-      m.lpChanges[s.uid] = { delta: p.lp - before, lp: p.lp, voted: v || null, ok: v ? v === winner : null };
+      m.lpChanges[s.uid] = { delta: p.lp - before, lp: p.lp, voted: v || null, ok: v ? v === winner : null, mmr: mmrDelta, won, strikes: strikesBefore, pf: pf || null, lastOff: lastOffBefore };
       await rkSavePlayer(p);
       RK.last.set(s.uid, { matchId: m.id, won, delta: p.lp - before, before, after: p.lp, at: m.endedAt, by });
     }
@@ -3091,6 +3094,9 @@ app.get('/api/ranked/state', wrap(async (req, res) => {
     const mid = RK.byUser.get(uid), m = mid != null ? RK.matches.get(mid) : null;
     if (m) out.match = await rkMatchView(m, uid);
     out.last = RK.last.get(uid) || null;
+    if (u.admin){ try { out.conflicts = (await q("SELECT id, data FROM ranked_matches WHERE status='done' AND data->'conflict' IS NOT NULL AND data->'conflict'->>'reviewed' IS NULL ORDER BY id DESC LIMIT 10"))
+      .map(r => ({ id: r.id, winner: r.data.winner, reportedBy: r.data.game && r.data.game.reportedBy, by: r.data.conflict.by, claims: r.data.conflict.claims, endedAt: r.data.endedAt,
+        blue: r.data.teams[0].players.map(p => p.nick), red: r.data.teams[1].players.map(p => p.nick) })); } catch { out.conflicts = []; } }
     if (sup) out.sim = { as: uid < 0 ? uid : null, bots: RK_BOTS.map(b => ({ uid: b, nick: rkBotUser(b).nick, inQueue: RK.queue.has(b), inMatch: RK.byUser.has(b) })) };
   }
   res.json(out);
@@ -3315,6 +3321,24 @@ app.post('/api/ranked/vote', auth, rkImp, wrap(async (req, res) => {
   if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
   if (rkVoteWeight(rkPlayer(req.user.id).strikes) <= 0) return res.status(403).json({ error: 'Perdiste el derecho a voto por votar mal repetidas veces' });
   m.votes[req.user.id] = side; await rkCheckVotes(m); res.json({ ok: true });
+}));
+// Admin: conflicto entre dos overlays. "keep" mantiene el resultado; "flip" deshace PL/MMR/V-D/faltas/roles y lo
+// vuelve a calcular con el otro ganador; "void" lo deshace y anula la partida.
+app.post('/api/ranked/admin/conflict', auth, requireAdmin, wrap(async (req, res) => {
+  await rkInit(); const id = Number(req.body && req.body.matchId), act = req.body && req.body.action;
+  const row = await q1('SELECT id, data FROM ranked_matches WHERE id=$1', [id]);
+  if (!row || row.data.status !== 'done' || !row.data.conflict) return res.status(400).json({ error: 'Partida no encontrada o sin conflicto' });
+  const m = row.data; m.id = row.id;
+  if (act === 'keep'){ m.conflict.reviewed = 'keep'; await rkSaveMatch(m); return res.json({ ok: true }); }
+  if (act !== 'flip' && act !== 'void') return res.status(400).json({ error: 'Acción inválida' });
+  for (const [uid, c] of Object.entries(m.lpChanges || {})){ const p = rkPlayer(Number(uid)); if (!c || c.won == null) continue;
+    p.lp = Math.max(0, p.lp - c.delta); p.mmr -= (c.mmr || 0); if (c.won) p.wins = Math.max(0, p.wins - 1); else p.losses = Math.max(0, p.losses - 1);
+    if (c.strikes != null) p.strikes = c.strikes;
+    if (c.pf){ const k = c.pf === 'main' ? 'gMain' : c.pf === 'sec' ? 'gSec' : c.pf === 'fill' ? 'gFill' : 'gOff'; p[k] = Math.max(0, (p[k] | 0) - 1); p.lastOff = !!c.lastOff; }
+    await rkSavePlayer(p); }
+  m.lpChanges = {}; m.conflict.reviewed = act;
+  if (act === 'void'){ m.status = 'cancelled'; m.resolvedBy = 'admin'; await rkSaveMatch(m); return res.json({ ok: true }); }
+  await rkResolve(m, m.winner === 'blue' ? 'red' : 'blue', 'admin'); res.json({ ok: true });
 }));
 // Admin: resolver una partida abierta o en disputa, o anularla (sin cambios de PL).
 app.post('/api/ranked/admin/resolve', auth, requireAdmin, wrap(async (req, res) => {
