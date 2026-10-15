@@ -450,10 +450,12 @@
       <button class="tab" data-t="rk">RANKED</button>
       <button class="tab" data-t="sb">SUBASTA</button>
       <button class="tab" data-t="dle">SOLOQDLE</button>
+      <button class="tab" data-t="bs">BLUE SHELLS</button>
       <button class="tab" data-t="analisis">ANÁLISIS</button>
     </div>
 
     <div class="panel active" id="p-fv"><div class="loading">Cargando sala…</div></div>
+    <div class="panel" id="p-bs"><iframe id="bs-frame" title="Blue Shells" class="dle-frame" loading="lazy" allow="microphone; autoplay"></iframe></div>
     <div class="panel" id="p-dle"><iframe id="dle-frame" title="SoloQdle" class="dle-frame" loading="lazy"></iframe></div>
     <div class="panel" id="p-sb"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-rk"><div class="loading">Cargando Ranked…</div></div>
@@ -480,6 +482,8 @@
     if (t === 'fv') fvLoad(true);
     if (t === 'rk'){ rkLoad(true); rkBoard(); }
     if (t === 'dle'){ const f = $('dle-frame'); if (!f.src) f.src = 'soloqdle.html'; }
+    if (t === 'bs'){ const f = $('bs-frame'); if (!f.src) f.src = 'blueshell.html'; }
+    if (t === 'bs' && history.replaceState) history.replaceState(null, '', '#blueshells');
     if (t === 'sb'){ sbLoad(true); sbRankLoad().then(() => { if (!SBC.st || SBC.st.status === 'done') sbRender(); }); }
   }
   document.querySelectorAll('.tab').forEach(b => b.onclick = () => showTab(b.dataset.t));
@@ -1353,9 +1357,9 @@
   }
 
   // SoloQdle embebido: el marco toma el alto de su contenido
-  setInterval(() => { if (CUR_TAB !== 'dle') return; const f = $('dle-frame'); try { const h = f.contentDocument.documentElement.scrollHeight; if (h && Math.abs(f.offsetHeight - h) > 4) f.style.height = h + 'px'; } catch (e) {} }, 400);
+  setInterval(() => { if (CUR_TAB !== 'dle' && CUR_TAB !== 'bs') return; const f = $(CUR_TAB + '-frame'); try { const h = f.contentDocument.documentElement.scrollHeight; if (h && Math.abs(f.offsetHeight - h) > 4) f.style.height = h + 'px'; } catch (e) {} }, 400);
   const h0 = (location.hash || '').slice(1);
-  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'rk' || h0 === 'ranked') ? 'rk' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
+  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'rk' || h0 === 'ranked') ? 'rk' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'blueshells' || h0 === 'bs') ? 'bs' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
 </script>
 </body>
 </html>
