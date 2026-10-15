@@ -485,6 +485,45 @@ async function reportToBackend(riotid, solo, inGame){
   } catch (e) { dlog('report error: ' + (e && e.message)); }
 }
 
+// ---- Resultado de partidas PERSONALIZADAS → Ranked de la web ----
+// La API de Riot no entrega partidas personalizadas, pero el cliente del LoL sí las tiene en su historial local.
+// Al terminar una personalizada se leen el ganador y las estadísticas de los 10 (KDA, farm, oro, daño, visión,
+// nivel e ítems) y se mandan al servidor: si eras parte de una sala de Ranked, el resultado se aplica al tiro.
+const reportedGames = new Set(Array.isArray(settings.reportedGames) ? settings.reportedGames : []);
+const END_PHASES = new Set(['WaitingForStats', 'PreEndOfGame', 'EndOfGame']);
+function gameFromHistory(h){
+  const ids = {}; (h.participantIdentities || []).forEach(pi => { ids[pi.participantId] = pi.player || {}; });
+  const players = (h.participants || []).map(p => { const pl = ids[p.participantId] || {}, st = p.stats || {};
+    return { rid: pl.gameName ? `${pl.gameName}#${pl.tagLine}` : (pl.summonerName || ''), teamId: p.teamId, championId: p.championId, win: !!st.win,
+      kills: st.kills, deaths: st.deaths, assists: st.assists, cs: (st.totalMinionsKilled || 0) + (st.neutralMinionsKilled || 0), gold: st.goldEarned,
+      damage: st.totalDamageDealtToChampions, vision: st.visionScore, level: st.champLevel, items: [0, 1, 2, 3, 4, 5, 6].map(i => st['item' + i]) }; });
+  const teams = (h.teams || []).map(t => ({ teamId: t.teamId, win: t.win === 'Win' || t.win === true }));
+  return { gameId: h.gameId, creation: h.gameCreation, duration: h.gameDuration, teams, players, src: 'history' };
+}
+function gameFromEog(e){
+  const players = (e.teams || []).flatMap(t => (t.players || []).map(p => { const st = p.stats || {};
+    return { rid: p.riotIdGameName ? `${p.riotIdGameName}#${p.riotIdTagLine}` : (p.summonerName || ''), teamId: t.teamId, championId: p.championId, championName: p.championName,
+      win: !!t.isWinningTeam, kills: st.CHAMPIONS_KILLED, deaths: st.NUM_DEATHS, assists: st.ASSISTS, cs: (st.MINIONS_KILLED || 0) + (st.NEUTRAL_MINIONS_KILLED || 0),
+      gold: st.GOLD_EARNED, damage: st.TOTAL_DAMAGE_DEALT_TO_CHAMPIONS, vision: st.VISION_SCORE, level: st.LEVEL != null ? st.LEVEL : p.level, items: p.items }; }));
+  return { gameId: e.gameId, creation: null, duration: e.gameLength, teams: (e.teams || []).map(t => ({ teamId: t.teamId, win: !!t.isWinningTeam })), players, src: 'eog' };
+}
+async function reportCustomResult(creds, gameId, myRid){
+  dlog(`personalizada terminada: ${gameId} (${myRid}) → leyendo resultado`);
+  let eog = null, hist = null;
+  for (let i = 0; i < 24 && !hist; i++){   // el historial tarda unos segundos en aparecer (hasta ~2 min)
+    try { if (!eog){ const e = await lcu(creds, '/lol-end-of-game/v1/eog-stats-block'); if (e && !e.error && Array.isArray(e.teams) && String(e.gameId) === String(gameId)) eog = e; } } catch {}
+    try { const h = await lcu(creds, `/lol-match-history/v1/games/${gameId}`); if (h && !h.error && Array.isArray(h.participants) && h.participants.length) hist = h; } catch {}
+    if (!hist) await sleep(5000);
+  }
+  const game = hist ? gameFromHistory(hist) : eog ? gameFromEog(eog) : null;
+  if (!game){ dlog(`personalizada ${gameId}: no se pudo leer el resultado`); return; }
+  try {
+    const r = await fetch(`${BACKEND}/api/overlay/ranked-result`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ riotid: myRid, secret: CONFIG.reportSecret || undefined, game }) });
+    dlog(`personalizada ${gameId}: enviada (${game.src}) → HTTP ${r.status} ${(await r.text()).slice(0, 160)}`);
+  } catch (e) { dlog('ranked-result error: ' + (e && e.message)); }
+}
+
 async function poll(){
   const roster = loadRoster();
   const creds = getCreds();
@@ -529,6 +568,14 @@ async function poll(){
 
       lastInGame = inSoloQ;
       reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
+
+      // ¿Terminó una partida personalizada? → manda el resultado (una vez por partida)
+      const gd = gsession && gsession.gameData, gid = gd && gd.gameId;
+      const isCustom = !!(gd && !isPractice && (gd.isCustomGame || (gq && (gq.isCustom === true || /CUSTOM/i.test(gq.type || '') || gq.id === 0 || gq.id === -1 || gq.id === 3130))));
+      if (isCustom && gid && myRid && END_PHASES.has(phase) && !reportedGames.has(String(gid))){
+        reportedGames.add(String(gid)); settings.reportedGames = [...reportedGames].slice(-40); saveSettings();
+        reportCustomResult(creds, gid, myRid);
+      }
 
       // ¿Hay jugadores del torneo en tu partida? Se detecta con la Live Client Data API
       // (local, en 127.0.0.1:2999, SIN Riot key) cruzando los 10 con el roster. Aliado/rival

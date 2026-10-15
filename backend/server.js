@@ -1126,6 +1126,65 @@ app.post('/api/overlay/report', wrap(async (req,res) => {
   res.json({ ok:true });
 }));
 
+// ---- Resultado de Ranked enviado por el overlay ----
+// Al terminar una partida PERSONALIZADA, el overlay lee del cliente del LoL (historial local) el ganador y las
+// estadísticas de los 10, y las manda aquí. Si quien reporta está en una sala de Ranked en juego y los jugadores de
+// la partida coinciden con los de la sala, el resultado se aplica al tiro (se cancela la votación) y quedan
+// guardadas las estadísticas. La API de Riot no entrega partidas personalizadas, por eso se hace desde el overlay.
+let RK_CHAMP_KEYS = { at: 0, map: null };
+async function rkChampKeys(){   // id numérico de campeón → id de Data Dragon ("103" → "Ahri")
+  if (RK_CHAMP_KEYS.map && Date.now() - RK_CHAMP_KEYS.at < 12 * 3600 * 1000) return RK_CHAMP_KEYS.map;
+  try { const ver = (liveSnapshot().ddragonVersion) || '16.15.1';
+    const r = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/en_US/champion.json`);
+    if (r.ok){ const j = await r.json(), map = {}; Object.values(j.data).forEach(c => { map[String(c.key)] = c.id; }); RK_CHAMP_KEYS = { at: Date.now(), map }; } } catch {}
+  return RK_CHAMP_KEYS.map || {};
+}
+const ovNrk = r => String(r || '').toLowerCase().replace(/\s+/g, '');
+app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
+  const b = req.body || {}, g = b.game || {}, riotid = String(b.riotid || '').trim();
+  if (!/^.+#.+$/.test(riotid) || !Array.isArray(g.players) || !g.players.length || g.players.length > 12) return res.status(400).json({ error: 'datos inválidos' });
+  if (REPORT_SECRET && b.secret !== REPORT_SECRET) return res.status(403).json({ error: 'no autorizado' });
+  await rkInit();
+  const gameId = String(g.gameId || '').replace(/\D/g, '').slice(0, 20);
+  if (!gameId) return res.status(400).json({ error: 'falta gameId' });
+  const num = v => Number.isFinite(+v) ? Math.round(+v) : null;
+  // partida ya usada: si otro overlay manda un ganador distinto, queda marcada para que la revise un admin
+  const won = side => g.players.filter(p => p.win === true && p.teamId === side).length > 0 || (g.teams || []).some(t => t.teamId === side && t.win === true);
+  try { const used = await q1("SELECT id, data FROM ranked_matches WHERE data->'game'->>'gameId' = $1", [gameId]);
+    if (used){ const d = used.data, mine = (d.game.players || []).find(p => ovNrk(p.rid) === ovNrk(riotid));
+      if (mine && won(mine.teamId) !== (d.winner === mine.side) && !d.conflict){ d.conflict = { by: riotid, at: Date.now() }; await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [used.id, JSON.stringify(d)]); }
+      return res.json({ ok: true, ignored: 'ya registrada', matchId: used.id }); } } catch {}
+  const u = await q1("SELECT id, nickname FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [ovNrk(riotid)]);
+  const mid = u ? RK.byUser.get(u.id) : null, m = mid != null ? RK.matches.get(mid) : null;
+  if (!m || (m.status !== 'playing' && m.status !== 'dispute')) return res.json({ ok: true, ignored: 'sin sala de Ranked en juego' });
+  if ((num(g.duration) || 0) < 180) return res.json({ ok: true, ignored: 'partida demasiado corta' });
+  if (g.creation && +g.creation < (m.playingAt || m.createdAt) - 5 * 60000) return res.json({ ok: true, ignored: 'la partida es anterior a la sala' });
+  // cruzar los jugadores de la partida con los de la sala
+  const slotByRid = {}; m.teams.forEach(t => t.players.forEach(p => { slotByRid[ovNrk(p.rid)] = { uid: p.uid, side: t.side, nick: p.nick }; }));
+  const rep = g.players.map(p => ({ p, s: slotByRid[ovNrk(p.rid)] })).filter(x => x.s);
+  const sideTeam = {};
+  for (const side of ['blue', 'red']){
+    const ids = rep.filter(x => x.s.side === side).map(x => x.p.teamId), cnt = {}; ids.forEach(t => { cnt[t] = (cnt[t] || 0) + 1; });
+    const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+    sideTeam[side] = best ? Number(best[0]) : null;
+    if (!m.sim && (!best || best[1] < 4)) return res.status(400).json({ error: 'los jugadores de la partida no coinciden con los de la sala' });
+  }
+  if (m.sim){ const me = rep.find(x => ovNrk(x.p.rid) === ovNrk(riotid)); if (!me) return res.status(400).json({ error: 'no estás en la partida reportada' });
+    sideTeam[me.s.side] = me.p.teamId; sideTeam[me.s.side === 'blue' ? 'red' : 'blue'] = me.p.teamId === 100 ? 200 : 100; }
+  if (sideTeam.blue === sideTeam.red) return res.status(400).json({ error: 'los equipos de la partida no coinciden con los de la sala' });
+  const bw = won(sideTeam.blue), rw = won(sideTeam.red);
+  if (bw === rw) return res.status(400).json({ error: 'no se pudo saber quién ganó' });
+  const winner = bw ? 'blue' : 'red', keys = await rkChampKeys(), picks = m.draft.picks || {};
+  const players = rep.map(({ p, s: sl }) => { const champ = keys[String(p.championId)] || (p.championName ? String(p.championName).replace(/[^A-Za-z]/g, '') : null);
+    return { uid: sl.uid, nick: sl.nick, rid: p.rid, side: sl.side, teamId: p.teamId, champ, picked: picks[sl.uid] || null,
+      k: num(p.kills), d: num(p.deaths), a: num(p.assists), cs: num(p.cs), gold: num(p.gold), dmg: num(p.damage), vision: num(p.vision), level: num(p.level),
+      items: Array.isArray(p.items) ? p.items.map(num).filter(x => x).slice(0, 7) : [] }; });
+  m.game = { gameId, duration: num(g.duration), creation: num(g.creation), src: String(g.src || '').slice(0, 20), reportedBy: (u && u.nickname) || riotid, players,
+    offPick: players.filter(x => x.picked && x.champ && x.picked !== x.champ).map(x => x.nick) };   // jugaron otro campeón que el del draft
+  await rkResolve(m, winner, 'overlay');
+  res.json({ ok: true, applied: true, winner, matchId: m.id });
+}));
+
 // Mensajes (texto y/o voz) que el admin manda al overlay de un jugador.
 app.post('/api/admin/message', auth, requireAdmin, wrap(async (req,res) => {
   const uid = Number(req.body && req.body.userId);
@@ -2808,7 +2867,7 @@ async function rkAdvance(m){
     }
     if (d.phase === 'final'){
       if (Date.now() < d.deadline) break;
-      d.phase = 'done'; d.deadline = null; m.status = 'playing'; d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {};
+      d.phase = 'done'; d.deadline = null; m.status = 'playing'; m.playingAt = Date.now(); d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {};
       m.lobby = { name: 'SQC-' + String(Math.abs(m.id)).slice(-3).padStart(3, '0'), pass: String(1000 + fvRand(9000)) };
       changed = true; break;
     }
@@ -3266,6 +3325,10 @@ app.post('/api/ranked/admin/resolve', auth, requireAdmin, wrap(async (req, res) 
   if (m.status === 'draft') return res.status(400).json({ error: 'La partida aún está en el draft' });
   await rkResolve(m, w, 'admin'); res.json({ ok: true });
 }));
+function rkRecentP(d, p){
+  const st = d.game && (d.game.players || []).find(x => x.uid === p.uid);
+  return { nick: p.nick, champ: (st && st.champ) || (d.draft.picks || {})[p.uid] || null, ...(st ? { k: st.k, d: st.d, a: st.a, cs: st.cs, gold: st.gold, dmg: st.dmg, vision: st.vision } : {}) };
+}
 // Tabla de posiciones + salas abiertas (para admins) + últimas partidas.
 app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit(); const users = await rkUsers();
@@ -3275,7 +3338,8 @@ app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length } }));
   let recent = [];
   try { recent = (await q("SELECT id, data FROM ranked_matches WHERE status='done' ORDER BY ended_at DESC NULLS LAST LIMIT 10")).map(r => ({ id: r.id, winner: r.data.winner, endedAt: r.data.endedAt, by: r.data.resolvedBy,
-    blue: r.data.teams[0].players.map(p => ({ nick: p.nick, champ: (r.data.draft.picks || {})[p.uid] || null })), red: r.data.teams[1].players.map(p => ({ nick: p.nick, champ: (r.data.draft.picks || {})[p.uid] || null })) })); } catch {}
+    reportedBy: r.data.game ? r.data.game.reportedBy : null, duration: r.data.game ? r.data.game.duration : null, conflict: !!r.data.conflict,
+    blue: r.data.teams[0].players.map(p => rkRecentP(r.data, p)), red: r.data.teams[1].players.map(p => rkRecentP(r.data, p)) })); } catch {}
   res.json({ board, open, recent, queue: RK.queue.size });
 }));
 
