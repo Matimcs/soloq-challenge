@@ -3261,12 +3261,12 @@ function sbView(st, uid){
       nextMin: cluing && L.leader != null ? Math.max(L.price + SB_STEP, Math.ceil(L.price * (1 + (((st.settings && st.settings.cluePct) != null ? st.settings.cluePct : SB_CLUE_PCT)) / 100) / SB_STEP) * SB_STEP) : null,
       // pistas que ya salieron, en orden: 1) una partida suya, 2) su rol, 3) un campeón que jugó.
       // Cuál de los 5 era él (y el nombre) recién se sabe al cerrar su puja.
-      clues: L.stage ? { role: L.stage >= 2 ? P.role : null, roleSrc: L.stage >= 2 ? P.roleSrc : null, game: C ? C.game : null, champ: L.stage >= 3 && C ? C.champ : null,
+      clues: L.stage ? { role: L.stage >= 2 ? P.role : null, game: C ? C.game : null, champ: L.stage >= 3 && C ? C.champ : null,
         none: !C || (!C.game && !C.champ), idx: null } : null },
     // revelación tras cerrar (modo pistas): quién era, a quién fue y cuánto falta para el siguiente
     reveal: st.reveal && !L && st.pool[st.reveal.i] ? (() => { const R = st.pool[st.reveal.i], RC = R.clue, s = st.sold[st.reveal.i];
       return { p: pl(st.reveal.i), cap: s ? s.cap : null, price: s ? s.price : null, left: st.autoNextAt ? Math.max(0, st.autoNextAt - now) : 0,
-        clues: { role: R.role, roleSrc: R.roleSrc, game: RC ? RC.game : null, champ: RC ? RC.champ : null, none: !RC || (!RC.game && !RC.champ), idx: RC ? RC.idx : null,
+        clues: { role: R.role, game: RC ? RC.game : null, champ: RC ? RC.champ : null, none: !RC || (!RC.game && !RC.champ), idx: RC ? RC.idx : null,
           // la partida de la pista 1 en League of Graphs (LA2_123456 → /match/las/123456)
           lg: RC && RC.matchId ? 'https://www.leagueofgraphs.com/match/las/' + String(RC.matchId).replace(/^[A-Z0-9]+_/, '') : null } }; })() : null,
     player: L && !mystery ? pl(L.i) : null,

@@ -443,7 +443,7 @@
 
   <main class="wrap">
     <h1>Herramientas</h1>
-    <div class="sub">Organiza un 5v5 con equipos parejos, juega la clasificatoria interna y compara el rendimiento de los jugadores.</div>
+    <div class="sub">Organiza un 5v5 con equipos parejos, juega Ranked, subastas y SoloQdle, y compara el rendimiento de los jugadores.</div>
 
     <div class="tabs">
       <button class="tab active" data-t="fv">5V5</button>
@@ -1066,7 +1066,7 @@
   const SB_ICON = { TOP:'top', JUNGLE:'jg', MID:'mid', ADC:'adc', SUPPORT:'support' };
   const sbIco = r => SB_ICON[r] ? `<img class="sb-ico" src="overlay/assets/roles/${SB_ICON[r]}.webp" alt="${SB_ROLE[r]}" title="${SB_ROLE[r]}">` : `<span class="sb-ico sub" title="Suplente">S</span>`;
   const sbRank = p => p.tier ? `<img class="rk-dot" src="${rkEmb(p.tier)}" alt="">${rkRankTxt({ tier:p.tier, div:p.div })}${p.lp != null ? ' ' + p.lp + ' PL' : ''}` : 'Sin rango';
-  const sbRoleTxt = p => `${SB_ROLE[p.role]}${p.roleSrc === 'soloq' ? ' (SoloQ)' : ''}`;
+  const sbRoleTxt = p => SB_ROLE[p.role] || p.role;   // sin decir si viene de torneo o de SoloQ (delataría a los pocos que no juegan torneo)
   const sbUrl = code => location.origin + location.pathname + '?subasta=' + encodeURIComponent(code) + '#sb';
   const sbMoney = n => '$' + Number(n || 0).toLocaleString('es-CL');
   const sbPrice = p => p.price ? sbMoney(p.price) : 'gratis';
@@ -1176,7 +1176,7 @@
       ${g ? `<div class="sb-clue col"><div><span class="n">Pista 1</span><span>Una partida suya · ${g.win ? 'Victoria' : 'Derrota'} · ${g.durMin} min. ${cl.idx != null ? 'Era él:' : '¿Cuál de los 5 era?'}</span></div>
           <div class="qn-five">${g.players.map((x, i) => `<div class="qn-p ${cl.idx === i ? 'him' : ''}"><img src="${anChamp(x.champ)}" alt=""><b>${esc(fvChampName(x.champ))}</b><span>${x.k}/${x.d}/${x.a}</span><small>${x.cs} CS</small>${cl.idx === i ? '<i>era él</i>' : ''}</div>`).join('')}</div></div>`
         : `<div class="sb-clue"><span class="n">Pista 1</span><span>No tiene partidas guardadas.</span></div>`}
-      ${stage >= 2 ? `<div class="sb-clue"><span class="n">Pista 2</span><span>Rol${cl.roleSrc === 'soloq' ? ' (de SoloQ: no juega torneo)' : ' de torneo'}:</span> ${sbIco(cl.role)} <b>${SB_ROLE[cl.role] || cl.role}</b></div>` : ''}
+      ${stage >= 2 ? `<div class="sb-clue"><span class="n">Pista 2</span><span>Rol:</span> ${sbIco(cl.role)} <b>${SB_ROLE[cl.role] || cl.role}</b></div>` : ''}
       ${stage >= 3 ? (cl.champ ? `<div class="sb-clue"><span class="n">Pista 3</span><span>Un campeón que jugó alguna vez:</span> <img class="sb-cch" src="${anChamp(cl.champ)}" alt=""> <b>${esc(fvChampName(cl.champ))}</b></div>`
         : `<div class="sb-clue"><span class="n">Pista 3</span><span>Sin campeones guardados.</span></div>`) : ''}
     </div>`;
