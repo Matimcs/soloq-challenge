@@ -2870,7 +2870,7 @@ async function rkAdvance(m){
     }
     if (d.phase === 'final'){
       if (Date.now() < d.deadline) break;
-      d.phase = 'done'; d.deadline = null; m.status = 'playing'; m.playingAt = Date.now(); d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {};
+      d.phase = 'done'; d.deadline = null; m.status = 'playing'; m.playingAt = Date.now(); d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {}; d.trades = {};
       m.lobby = { name: 'SQC-' + String(Math.abs(m.id)).slice(-3).padStart(3, '0'), pass: String(1000 + fvRand(9000)) };
       changed = true; break;
     }
@@ -3061,12 +3061,14 @@ async function rkMatchView(m, uid){
         kick: ((m.kicks || {})[p.uid] || []).length, myKick: ((m.kicks || {})[p.uid] || []).includes(uid),
         canSwap: t === my && p.uid !== uid && rkSwapTypes(m, uid, p.uid).length > 0,
         hover: !d.picks[p.uid] && (t === my || (cur && cur.t === 'pick' && cur.u.includes(p.uid))) ? ((d.hover || {})[p.uid] || null) : null,
-        canRole: m.status === 'draft' && d.phase === 'prep' && t === my && p.uid !== uid })),
+        canRole: m.status === 'draft' && d.phase === 'prep' && t === my && p.uid !== uid,
+        canTrade: m.status === 'draft' && t === my && p.uid !== uid && !!d.picks[uid] && !!d.picks[p.uid] })),
       bans: t.players.slice().sort((x, y) => ord('ban', x.uid) - ord('ban', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, champ: d.bans[p.uid] || null, done: !!d.locked[p.uid] })) })),
     draft: { phase: d.phase, deadline: d.deadline, step: d.step, turn: cur ? cur.u : [], order: d.seq || [],
       myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: false, graceMs: RK_GRACE_MS, myHover: (d.hover || {})[uid] || null, myBanHover: (d.banHover || {})[uid] || null,
       roleOut: m.status === 'draft' && (d.roleSwaps || {})[uid] != null ? d.roleSwaps[uid] : null, roleIn: m.status === 'draft' ? Object.keys(d.roleSwaps || {}).map(Number).filter(a => d.roleSwaps[a] === uid) : [],
       myBanChanged: !!(d.banChanged || {})[uid], pickChgMs: RK_PICKCHG_MS,
+      tradeOut: m.status === 'draft' && (d.trades || {})[uid] != null ? d.trades[uid] : null, tradeIn: m.status === 'draft' ? Object.keys(d.trades || {}).map(Number).filter(a => d.trades[a] === uid) : [],
       side: { votes: (d.sideVotes || []).length, need: RK_SIDE_NEED, mine: (d.sideVotes || []).includes(uid), swapped: !!d.sideSwapped,
         open: m.status === 'draft' && d.phase === 'prep' && !d.sideSwapped, canVote: m.status === 'draft' && d.phase === 'prep' && !d.sideSwapped && m.teams[1].players.some(p => p.uid === uid) },
       myPickAt: (d.pickAt || {})[uid] || null, myPickChanged: !!(d.pickChanged || {})[uid],
@@ -3200,6 +3202,27 @@ app.post('/api/ranked/side', auth, rkImp, wrap(async (req, res) => {
   const v = new Set(d.sideVotes || []); if (req.body && req.body.on === false) v.delete(uid); else v.add(uid); d.sideVotes = [...v];
   if (v.size >= RK_SIDE_NEED) rkSwapSides(m);
   await rkSaveMatch(m); res.json({ ok: true, swapped: !!d.sideSwapped });
+}));
+// Intercambio de CAMPEONES con un compañero (como en el LoL): cuando los dos ya eligieron, uno lo pide y el otro
+// acepta. Se puede apenas ambos tienen campeón y durante la fase final de 30 s.
+app.post('/api/ranked/trade', auth, rkImp, wrap(async (req, res) => {
+  const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, other = Number(req.body && req.body.with), act = req.body && req.body.action;
+  if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
+  d.trades = d.trades || {};
+  if (act === 'cancel') delete d.trades[uid];
+  else if (act === 'decline'){ if (d.trades[other] === uid) delete d.trades[other]; }
+  else {
+    const t = rkTeamOf(m, uid);
+    if (other === uid || !t.players.some(p => p.uid === other)) return res.status(400).json({ error: 'Solo puedes cambiar campeón con alguien de tu equipo' });
+    if (!d.picks[uid] || !d.picks[other]) return res.status(400).json({ error: 'Los dos tienen que haber elegido campeón' });
+    if (act === 'accept'){
+      if (d.trades[other] !== uid) return res.status(400).json({ error: 'Esa solicitud ya no existe' });
+      [d.picks[uid], d.picks[other]] = [d.picks[other], d.picks[uid]];
+      [uid, other].forEach(u => { const sl = rkSlot(m, u); if (sl) sl.auto = false; if (d.pickReq) delete d.pickReq[u]; });
+      for (const k of Object.keys(d.trades)) if ([uid, other].includes(Number(k)) || [uid, other].includes(d.trades[k])) delete d.trades[k];
+    } else d.trades[uid] = other;
+  }
+  await rkSaveMatch(m); res.json({ ok: true });
 }));
 // Cambio de ROL con un compañero (se pide y el otro tiene que aceptar).
 app.post('/api/ranked/roleswap', auth, rkImp, wrap(async (req, res) => {

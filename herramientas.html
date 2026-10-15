@@ -314,17 +314,18 @@
   .rkx-pod.me, .rkx-tr.me{ box-shadow:inset 0 0 0 1px rgba(233,255,31,.5); }
   /* tabla */
   .rkx-tbl{ display:flex; flex-direction:column; }
-  .rkx-tr{ display:grid; grid-template-columns:34px minmax(0,1.6fr) minmax(0,1.3fr) minmax(0,1fr) 90px 70px; gap:10px; align-items:center; padding:9px 8px; border-top:1px solid var(--line); border-radius:10px; font-size:13px; }
+  .rkx-tr{ display:grid; grid-template-columns:28px minmax(110px,1.5fr) minmax(128px,1fr) minmax(110px,.9fr) 66px; gap:10px; align-items:center; padding:9px 8px; border-top:1px solid var(--line); border-radius:10px; font-size:13px; }
   a.rkx-tr:hover{ background:rgba(255,255,255,.03); }
   .rkx-tr.h{ border-top:none; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); padding-top:2px; }
   .rkx-tr .ps{ font-weight:800; color:var(--muted); text-align:center; font-variant-numeric:tabular-nums; }
-  .rkx-tr .pl{ display:flex; align-items:center; gap:6px; min-width:0; } .rkx-tr .pl b{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:2px; }
+  .rkx-tr .pl{ display:flex; align-items:center; gap:6px; min-width:0; overflow:hidden; } .rkx-tr .pl b{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:2px; min-width:40px; flex:0 1 auto; }
   .rkx-ri{ width:16px; height:16px; opacity:.75; flex:none; } .rkx-ri.fill{ font-size:12px; color:var(--muted); text-align:center; }
   .rkx-ci{ width:20px; height:20px; border-radius:5px; flex:none; }
-  .rkx-tr .rk{ display:flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap; } .rkx-tr .rk img{ width:26px; height:26px; object-fit:contain; } .rkx-tr .rk i{ font-style:normal; color:var(--muted); font-size:12px; }
-  .rkx-tr .wr{ display:grid; grid-template-columns:auto 1fr; gap:2px 8px; align-items:center; } .rkx-tr .wr small{ grid-column:1 / -1; font-size:11px; color:var(--muted-2); }
+  .rkx-tr .rkx-rank{ display:flex; align-items:center; gap:8px; min-width:0; } .rkx-tr .rkx-rank img{ width:30px; height:30px; object-fit:contain; flex:none; }
+  .rkx-tr .rkx-rank > span{ display:flex; flex-direction:column; min-width:0; } .rkx-tr .rkx-rank b{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .rkx-tr .rkx-rank i{ font-style:normal; color:var(--muted); font-size:11.5px; font-weight:600; }
+  .rkx-tr .wr{ display:grid; grid-template-columns:42px minmax(0,1fr); gap:2px 8px; align-items:center; min-width:0; } .rkx-tr .wr small{ grid-column:1 / -1; font-size:11px; color:var(--muted-2); }
   .rkx-wbar{ display:block; height:5px; border-radius:3px; background:rgba(251,113,133,.35); overflow:hidden; } .rkx-wbar i{ display:block; height:100%; background:var(--up); }
-  @media (max-width:640px){ .rkx-tr{ grid-template-columns:28px minmax(0,1.4fr) minmax(0,1.2fr) minmax(0,.9fr); } .rkx-tr .hm{ display:none; } }
+  @media (max-width:640px){ .rkx-tr{ grid-template-columns:26px minmax(90px,1.3fr) minmax(118px,1fr) minmax(90px,.9fr); } .rkx-tr .hm{ display:none; } }
   /* historial */
   .rkx-hist{ display:flex; flex-direction:column; gap:8px; }
   .rkx-g{ font-family:inherit; color:var(--text); text-align:left; cursor:pointer; display:grid; grid-template-columns:118px auto 1fr auto; gap:14px; align-items:center; padding:10px 14px 10px 12px;
@@ -1038,14 +1039,13 @@
         <b class="nk">${esc(b.nick)}</b><span class="rt">${rkRankTxt(b.rank)} · ${b.rank.lp} PL</span>
         <span class="wl"><b>${rkWr(b)}%</b> ${b.wins}V ${b.losses}D</span>${rkFormHtml(b.form)}</a>`).join('') + `</div>`;
     const rest = lb.board.slice(3);
-    const table = rest.length ? `<div class="rkx-tbl"><div class="rkx-tr h"><span>#</span><span>Jugador</span><span>Rango</span><span>Victorias</span><span class="hm">Racha</span><span class="hm" title="% de partidas en que el emparejamiento lo dejó fuera de sus roles">Fuera de rol</span></div>` +
+    const table = rest.length ? `<div class="rkx-tbl"><div class="rkx-tr h"><span>#</span><span>Jugador</span><span>Rango</span><span>Victorias</span><span class="hm">Racha</span></div>` +
       rest.map(b => `<a class="rkx-tr ${isMe(b) ? 'me' : ''}" href="${rkOpgg(b.rid)}" target="_blank" rel="noopener">
         <span class="ps">${b.pos}</span>
         <span class="pl"><b>${esc(b.nick)}</b>${rkRoleMini(b)}${(b.champs || []).map(c => `<img class="rkx-ci" src="${anChamp(c.c)}" alt="" title="${esc(rkChampName(c.c))} · ${c.n} ${c.n === 1 ? 'partida' : 'partidas'}">`).join('')}</span>
-        <span class="rk"><img src="${rkEmb(b.rank.tier)}" alt="">${rkRankTxt(b.rank)} <i>${b.rank.lp} PL</i></span>
+        <span class="rkx-rank"><img src="${rkEmb(b.rank.tier)}" alt=""><span><b>${rkRankTxt(b.rank)}</b><i>${b.rank.lp} PL</i></span></span>
         <span class="wr"><b>${rkWr(b)}%</b><i class="rkx-wbar"><i style="width:${rkWr(b)}%"></i></i><small>${b.wins}V ${b.losses}D</small></span>
-        <span class="hm">${rkFormHtml(b.form)}</span>
-        <span class="hm rkx-mut">${b.roles && b.roles.n ? Math.round(b.roles.off * 100) + '%' : '–'}</span></a>`).join('') + `</div>` : '';
+        <span class="hm">${rkFormHtml(b.form)}</span></a>`).join('') + `</div>` : '';
     return podium + table;
   }
   // ---------- historial (todas / mías) ----------

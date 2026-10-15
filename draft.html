@@ -308,6 +308,8 @@
           else {
             if (d.swapOut === p.uid) acts.push(`<button class="mini" data-swap="${p.uid}|cancel" title="Cancelar la solicitud">✕ Turno</button>`);
             else if (p.canSwap) acts.push(`<button class="mini" data-swap="${p.uid}|ask" title="Pedir intercambiar el orden de pick/ban con ${esc(p.nick)}">⇄ Turno</button>`);
+            if (d.tradeOut === p.uid) acts.push(`<button class="mini" data-trade="${p.uid}|cancel" title="Cancelar la solicitud">✕ Campeón</button>`);
+            else if (p.canTrade && !(d.tradeIn || []).includes(p.uid)) acts.push(`<button class="mini" data-trade="${p.uid}|ask" title="Pedir intercambiar campeones con ${esc(p.nick)}: tú te quedas con ${esc(cname(p.champ))}">⇄ Campeón</button>`);
             if (d.roleOut === p.uid) acts.push(`<button class="mini" data-role="${p.uid}|cancel" title="Cancelar la solicitud">✕ Rol</button>`);
             else if (p.canRole) acts.push(`<button class="mini" data-role="${p.uid}|ask" title="Pedir intercambiar rol con ${esc(p.nick)} (tú pasas a ${ROLE[p.role]})">⇄ Rol</button>`);
           }
@@ -332,6 +334,7 @@
   function bindSide(el){
     el.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.swap.split('|'); act('swap', { with: +w, action }); });
     el.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.role.split('|'); act('roleswap', { with: +w, action }); });
+    el.querySelectorAll('[data-trade]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.trade.split('|'); act('trade', { with: +w, action }); });
     el.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => { const [t, on, nick] = b.dataset.kick.split('|');
       if (on === '1' && !confirm(`¿Votar para expulsar a ${nick}? Si ${S.st.match.kickNeed} de los 10 votan, la partida se cancela y nadie pierde PL.`)) return;
       act('kick', { target: +t, on: on === '1' }); });
@@ -354,6 +357,9 @@
     const { m, d } = C, items = [];
     (d.roleIn || []).forEach(u => { const p = C.mine.players.find(x => x.uid === u);
       items.push(`<div class="rq hot"><span><b>${esc(C.nick(u))}</b> quiere cambiar de rol contigo: tú pasarías a <b>${ROLE[p.role]}</b> y él/ella a <b>${ROLE[C.myP.role]}</b>.</span><button class="mini ok" data-role="${u}|accept">Aceptar</button><button class="mini" data-role="${u}|decline">Rechazar</button></div>`); });
+    (d.tradeIn || []).forEach(u => { const p = C.mine.players.find(x => x.uid === u);
+      items.push(`<div class="rq hot"><span><b>${esc(C.nick(u))}</b> quiere intercambiar campeones: tú te quedarías con <b>${p && p.champ ? `<img src="${icon(p.champ)}" alt=""> ${esc(cname(p.champ))}` : '?'}</b> y él/ella con <b>${C.myP && C.myP.champ ? esc(cname(C.myP.champ)) : '?'}</b>.</span><button class="mini ok" data-trade="${u}|accept">Aceptar</button><button class="mini" data-trade="${u}|decline">Rechazar</button></div>`); });
+    if (d.tradeOut != null) items.push(`<div class="rq"><span>Pediste intercambiar campeones con <b>${esc(C.nick(d.tradeOut))}</b>. Esperando que acepte…</span><button class="mini" data-trade="${d.tradeOut}|cancel">Cancelar</button></div>`);
     (d.swapIn || []).forEach(u => items.push(`<div class="rq hot"><span><b>${esc(C.nick(u))}</b> quiere intercambiar su turno de pick/ban contigo.</span><button class="mini ok" data-swap="${u}|accept">Aceptar</button><button class="mini" data-swap="${u}|decline">Rechazar</button></div>`));
     if (d.roleOut != null) items.push(`<div class="rq"><span>Pediste cambiar de rol con <b>${esc(C.nick(d.roleOut))}</b>. Esperando que acepte…</span><button class="mini" data-role="${d.roleOut}|cancel">Cancelar</button></div>`);
     if (d.swapOut != null) items.push(`<div class="rq"><span>Pediste intercambiar turno con <b>${esc(C.nick(d.swapOut))}</b>. Esperando que acepte…</span><button class="mini" data-swap="${d.swapOut}|cancel">Cancelar</button></div>`);
@@ -379,6 +385,7 @@
       el.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.role.split('|'); act('roleswap', { with: +w, action }); });
       el.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.swap.split('|'); act('swap', { with: +w, action }); });
       el.querySelectorAll('[data-ban]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.ban.split('|'); act('banchange', { who: +w, action }); });
+      el.querySelectorAll('[data-trade]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.trade.split('|'); act('trade', { with: +w, action }); });
       el.querySelectorAll('[data-pk]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.pk.split('|'); act('pickchange', { who: +w, action }); });
     }
   }
