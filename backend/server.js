@@ -3691,7 +3691,7 @@ function startEmbeddedRunner(){
     // players.json viejo del repo durante los ~2-3 min del primer ciclo tras un redeploy.
     try { const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data) liveData = row.data; } catch {}
     await loadCache();   // restaura el historial ±LP/aegis persistido
-    let lastPersist = Date.now(), lastPlayersHash = '';
+    let lastPersist = Date.now(), lastPlayersHash = '', lastPlayersAt = 0;   // el ranking (liviano) se respalda tras el 1er ciclo y luego cada 20 min
     const PERSIST_MS = (Number(process.env.PERSIST_MIN) || 120) * 60 * 1000;   // cada cuánto persistir los blobs a Supabase (antes: cada ciclo; luego 30 min)
     const persistPlayers = async () => { const raw = JSON.stringify(liveData), h = hashOf(raw); if (h === lastPlayersHash) return;
       try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [raw]); lastPlayersHash = h; } catch {} };
@@ -3710,8 +3710,8 @@ function startEmbeddedRunner(){
         if (Date.now() - lastPersist >= PERSIST_MS){
           lastPersist = Date.now();
           await saveCache();
-          await persistPlayers();
-        }
+          await persistPlayers(); lastPlayersAt = Date.now();
+        } else if (Date.now() - lastPlayersAt >= 20 * 60 * 1000){ await persistPlayers(); lastPlayersAt = Date.now(); }   // así un reinicio no arranca con un ranking de horas atrás
         // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
         try {
           const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp) })).filter(x => x.rid && x.abs != null);
