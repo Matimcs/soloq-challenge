@@ -1343,7 +1343,7 @@ function streamEmbed(url){
 }
 function streamLabel(url){ try{ const u=new URL(url); const p=u.pathname.split('/').filter(Boolean); return p[p.length-1] || u.hostname.replace(/^www\./,''); }catch{ return url; } }
 let _streamSig = '', _streamOn = false;   // _streamOn: el visitante ya apretó ▶
-function fillHeroStream(list){
+function fillHeroStream(list, autoplay){
   const scr = document.getElementById('hero-stream-scr'); if(!scr) return;
   const who = document.getElementById('hero-stream-who'), views = document.getElementById('hero-stream-views');
   if(!list.length){ scr.innerHTML = '<div class="play">▶</div>'; if(who) who.textContent='Partidas en Stream'; if(views) views.textContent='— en vivo pronto —'; return; }
@@ -1352,6 +1352,7 @@ function fillHeroStream(list){
   // Una vez que lo activó, los cambios de stream (rotación) cargan directo.
   const play = () => { _streamOn = true; scr.innerHTML = `<iframe src="${escAttr(emb)}" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" scrolling="no" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`; };
   if (!emb) scr.innerHTML = `<a href="${escAttr(s.url)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:700;text-decoration:none">Ver transmisión ↗</a>`;
+  else if (autoplay) scr.innerHTML = `<iframe src="${escAttr(emb)}" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" scrolling="no" style="position:absolute;inset:0;width:100%;height:100%;border:0"></iframe>`;   // parte solo, sin sonido
   else if (_streamOn) play();
   else { scr.innerHTML = `<button class="st-cover" type="button" title="Ver el stream (parte sin sonido)"><span class="play">▶</span><span class="st-cl">${escAttr(s.label || streamLabel(s.url))}</span><span class="st-cs">Toca para ver · parte sin sonido</span></button>`;
     scr.querySelector('.st-cover').onclick = play; }
@@ -1369,7 +1370,7 @@ function fillLiveRotation(){
   const nb = document.getElementById('rot-next'); if (nb) nb.onclick = () => { _liveRot.i++; _liveRot.at = Date.now(); fillLiveRotation(); };
 }
 async function loadLiveStreamers(){
-  try{ const r = await fetch('/api/streams/live'); if(!r.ok) return; const list = await r.json();
+  try{ const r = await fetch('/api/streams/live'); if(!r.ok) return; const list = (await r.json()).filter(s => !s.priority);
     const sig = list.map(s => s.url).join('|'), had = _liveRot.list.map(s => s.url).join('|');
     if (sig !== had){ const cur = _liveRot.list[_liveRot.i % (_liveRot.list.length || 1)]; _liveRot.list = list;
       const keep = cur ? list.findIndex(s => s.url === cur.url) : -1; _liveRot.i = keep >= 0 ? keep : 0; _liveRot.at = Date.now(); fillLiveRotation(); }
@@ -1378,6 +1379,14 @@ async function loadLiveStreamers(){
 }
 async function loadStreams(){
   try{
+    // Caedrel en vivo: tiene prioridad sobre todo y parte reproduciéndose solo (sin sonido).
+    let pri = null; try { const lr = await fetch('/api/streams/live'); if (lr.ok) pri = (await lr.json()).find(s => s.priority) || null; } catch {}
+    if (pri){
+      if (_streamSig === 'pri|' + pri.url) return;
+      _streamSig = 'pri|' + pri.url; _liveRot = { list: [], i: 0, at: 0 };
+      return fillHeroStream([{ url: pri.url, label: `🔴 ${pri.nick} en vivo` }], true);
+    }
+    if (_streamSig.startsWith('pri|')) _streamSig = '';   // terminó: vuelve al stream normal / la rotación
     const r = await fetch('/api/streams'); if(!r.ok) return;
     const list = await r.json();
     if (!list.length){ _streamSig = 'rot'; return loadLiveStreamers(); }

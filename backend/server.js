@@ -593,6 +593,7 @@ app.get('/api/admin/player-tags', auth, requireAdmin, wrap(async (req,res) =>
 // Streamers etiquetados que están EN VIVO ahora (Twitch vía decapi.me, Kick vía su API pública). Cache 2 min.
 // El inicio rota entre ellos cuando el admin no puso ningún stream.
 const STREAM_LIVE = { at: 0, data: [] };
+const PRIORITY_STREAM = { nick: 'Caedrel', url: 'https://www.twitch.tv/caedrel' };
 async function streamIsLive(url){
   const m = String(url).match(/(twitch\.tv|kick\.com)\/([A-Za-z0-9_]+)/i); if (!m) return null;
   const host = m[1].toLowerCase(), ch = m[2];
@@ -616,6 +617,9 @@ app.get('/api/streams/live', wrap(async (req, res) => {
     const out = [];
     await Promise.all(rows.map(async r => { const live = await streamIsLive(r.stream_url); if (live) out.push({ riotid: r.riotid, nick: r.riotid.split('#')[0].replace(/^(kick|twitch)\s+/i, ''), url: r.stream_url, ...live }); }));
     STREAM_LIVE.data = out.sort((a, b) => (b.viewers || 0) - (a.viewers || 0));
+    // Caedrel: si está transmitiendo, va primero y el inicio lo muestra antes que cualquier otro stream.
+    const cae = await streamIsLive(PRIORITY_STREAM.url);
+    if (cae) STREAM_LIVE.data.unshift({ riotid: null, nick: PRIORITY_STREAM.nick, url: PRIORITY_STREAM.url, priority: true, ...cae });
   }
   res.json(STREAM_LIVE.data);
 }));
