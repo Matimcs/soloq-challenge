@@ -891,7 +891,7 @@
     catch (e) { RKC.err = e.message || 'No se pudo completar la acción'; }
     RKC.busy = false; await rkLoad(true);
   }
-  async function rkEnsureChamps(){ if (RKC.champs) return; try { const r = await fetch('/api/ranked/champs'); RKC.champs = r.ok ? await r.json() : []; } catch (e) { RKC.champs = []; } rkRender(); }
+  async function rkEnsureChamps(){ if (RKC.champs) return; try { const r = await fetch('/api/ranked/champs'); RKC.champs = (r.ok ? await r.json() : []).filter(c => /^[A-Za-z]+$/.test(c.id)); } catch (e) { RKC.champs = []; } rkRender(); }
   // ---------- vista sin partida: perfil, roles, cola y tabla ----------
   function rkProfile(me){
     const r = me.rank, g = me.wins + me.losses, apex = !r.div;
@@ -1015,6 +1015,15 @@
   function rkRender(){
     const box = $('p-rk'), st = RKC.st; if (!st) return;
     const grid = box.querySelector('.rk-grid'), keep = grid ? grid.scrollTop : 0, focused = document.activeElement && document.activeElement.id === 'rk-search';
+    // El pick y ban se juega en su propia página (draft.html), a pantalla completa: se abre sola una vez por sala.
+    if (st.match && st.me && st.match.status === 'draft'){
+      let seen = false; try { seen = sessionStorage.getItem('sqc_dr_open') === String(st.match.id); sessionStorage.setItem('sqc_dr_open', String(st.match.id)); } catch (e) {}
+      if (!seen && CUR_TAB === 'rk'){ location.href = 'draft.html'; return; }
+      box.innerHTML = rkSimBar() + `<div class="card" style="text-align:center;padding:30px 20px"><h3 style="justify-content:center">¡Tu partida está en el pick y ban!</h3><div class="fv-note" style="margin:6px 0 16px">El draft se juega en su propia pantalla.</div><a class="fv-btn pri" href="draft.html">Ir a la sala de draft →</a></div>`;
+      box.querySelectorAll('[data-as]').forEach(b => b.onclick = () => { RKC.as = +b.dataset.as || null; try { sessionStorage.setItem('sqc_rk_as', RKC.as || ''); } catch (e) {} rkLoad(true); });
+      box.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => { const [action, team] = b.dataset.sim.split(':'); rkAct('admin/sim', { action, team }); });
+      return;
+    }
     box.innerHTML = rkSimBar() + ((st.match && st.me) ? rkRoomHtml() : rkLobbyHtml());
     const g2 = box.querySelector('.rk-grid'); if (g2) g2.scrollTop = keep;
     const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
