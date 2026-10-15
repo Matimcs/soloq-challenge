@@ -1075,6 +1075,8 @@ function rowHTML(p, extraCls='', extraAttr=''){
     </tr>`;
 }
 
+// Cuentas de un equipo: solo la más alta de cada jugador (PLAYERS ya viene ordenado de mayor a menor).
+function bestPerOwner(list){ const seen = new Set(); return list.filter(p => { const k = ownerKey(p).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }); }
 // Puntaje de equipo: mejores 5 cuentas de jugadores DISTINTOS (LP absoluto sumado).
 function teamScores(){
   const byTeam = {}, seen = new Set();
@@ -1098,7 +1100,7 @@ function renderTeamRank(){
   if (!rows.length) return `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:34px">Aún no hay equipos con jugadores en el ranking.</td></tr>`;
   return rows.map((r,i)=>{
     const team = r.team, slug = teamSlug(team);
-    const all = PLAYERS.filter(p => teamsOf(p.rid).includes(team));   // todas las cuentas del equipo
+    const all = bestPerOwner(PLAYERS.filter(p => teamsOf(p.rid).includes(team)));   // la cuenta más alta de cada jugador del equipo
     const w = all.reduce((s,p)=>s+(p.w||0),0), l = all.reduce((s,p)=>s+(p.l||0),0);
     const wr = (w+l) ? Math.round(w/(w+l)*100) : 0;
     const avgAbs = r.top5.length ? r.top5.reduce((s,p)=>s+absLPf(p),0)/r.top5.length : 0;
@@ -1135,7 +1137,7 @@ function renderByTeams(){
   const groups = [...teamScores().map(r=>r.team), 'Sin equipo'];
   let html = '';
   for (const t of groups){
-    const members = t==='Sin equipo' ? PLAYERS.filter(p => !teamsOf(p.rid).length) : PLAYERS.filter(p => teamsOf(p.rid).includes(t));
+    const members = bestPerOwner(t==='Sin equipo' ? PLAYERS.filter(p => !teamsOf(p.rid).length) : PLAYERS.filter(p => teamsOf(p.rid).includes(t)));
     if (!members.length) continue;
     const tagHtml = t==='Sin equipo' ? '' : `<span class="team-tag ${teamSlug(t)}">${teamLabel(t)}</span> `;
     html += `<tr class="grp-hdr"><td colspan="9">${tagHtml}${t} <span class="grp-n">${members.length}</span></td></tr>` + members.map(rowHTML).join('');
