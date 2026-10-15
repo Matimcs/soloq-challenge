@@ -114,6 +114,16 @@
         ["UCN", "UTAL D"],
         ["PUCV", "UCH A"]
       ]
+    },
+    "5": {
+      "2-2": [
+        ["UMAYOR", "UTAL A"],
+        ["UCT A", "UTEM B"],
+        ["USM C", "UCN"],
+        ["UNAB C", "USM D"],
+        ["UDA", "UDEC"],
+        ["USACH", "UDP A"]
+      ]
     }
   }
 }
