@@ -204,15 +204,28 @@ function movePos24h(snaps, curPos, now){
   return ref.pos - curPos;   // subió = más arriba = pos menor = positivo
 }
 
-async function riot(url) {
+// Cada petición tiene tiempo límite (antes una sola respuesta colgada congelaba el ciclo entero y el ranking
+// dejaba de actualizarse). Con { soft: true } (datos secundarios, p.ej. el rango de un rival en vivo), si Riot
+// pide esperar por el límite de peticiones NO se espera: se devuelve null y el ciclo sigue.
+let LIMITED_UNTIL = 0;   // hasta cuándo estamos en el límite de peticiones (para las consultas "soft")
+async function riot(url, opts) {
+  opts = opts || {};
+  if (opts.soft && Date.now() < LIMITED_UNTIL) return null;
   REQ_COUNT++;
-  const res = await fetch(url, { headers: { 'X-Riot-Token': API_KEY } });
+  let res;
+  try { res = await fetch(url, { headers: { 'X-Riot-Token': API_KEY }, signal: AbortSignal.timeout(12000) }); }
+  catch (e) {
+    if ((opts.tries || 0) < 2){ await sleep(1000); return riot(url, { ...opts, tries: (opts.tries || 0) + 1 }); }
+    throw new Error(`sin respuesta de Riot (${e.name}) @ ${url}`);
+  }
   if (res.status === 404) return null;
   if (res.status === 429) {
     const retry = Number(res.headers.get('retry-after') || 2);
+    LIMITED_UNTIL = Date.now() + retry * 1000;
+    if (opts.soft){ console.warn(`  429 rate limit (secundario): se omite y sigue`); return null; }
     console.warn(`  429 rate limit, esperando ${retry}s...`);
     await sleep(retry * 1000);
-    return riot(url);
+    return riot(url, opts);
   }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} @ ${url}`);
   return res.json();
@@ -291,12 +304,12 @@ async function regionOf(puuid) {
   return reg;
 }
 
-async function getSoloEntry(puuid) {
+async function getSoloEntry(puuid, opts) {
   if (!puuid || puuid.length < 10) return null;   // participante anonimizado
   const plat = await regionOf(puuid);
-  let entries = await riot(`https://${plat}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`)
+  let entries = await riot(`https://${plat}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`, opts)
                   .catch(() => null);
-  if (!entries) {
+  if (!entries && !(opts && opts.soft)) {
     const summ = await riot(`https://${plat}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`);
     if (summ && summ.id)
       entries = await riot(`https://${plat}.api.riotgames.com/lol/league/v4/entries/by-summoner/${summ.id}`);
@@ -525,16 +538,24 @@ function rankText(entry) {
       const repEntry = rep && rep.entry && rep.entry.tier && Number.isFinite(rep.entry.wins) && Number.isFinite(rep.entry.losses)
         ? rep.entry : null;
 
+      // Cuentas inactivas (sin partidas hace 2+ días, p.ej. muchas smurfs): su rango no cambia y casi nunca están
+      // en partida → se ahorra pedirle a Riot en cada ciclo (el límite de peticiones alargaba mucho los ciclos).
+      const lastGame = (matchStore[puuid] && Array.isArray(matchStore[puuid].games) && matchStore[puuid].games[0] && matchStore[puuid].games[0].end) || 0;
+      const idle = Date.now() - lastGame > 2 * 24 * 3600 * 1000;
+      const cachedRank = rankStore[puuid];
+
       let entry;
       if (repEntry) { entry = repEntry; }                                  // rango GRATIS del overlay
+      else if (idle && cachedRank && Date.now() - cachedRank.at < 45 * 60 * 1000) { entry = cachedRank.entry; }   // inactiva: rango reciente en caché
       else { entry = await getSoloEntry(puuid); await sleep(110); }
 
       let raw;
       if (rep && rep.inGame === false) { raw = null; }                     // el overlay dice que NO está en partida
+      else if (idle && Math.random() < 0.67) { raw = null; }               // inactiva: se revisa ~1 de cada 3 ciclos
       else { raw = await getSpectator(puuid); await sleep(110); }
 
       rankCache.set(puuid, entry);
-      rankStore[puuid] = { entry, at: Date.now() };   // trackeado → siempre fresco
+      if (!(cachedRank && entry === cachedRank.entry && idle)) rankStore[puuid] = { entry, at: Date.now() };   // trackeado → fresco (si vino de la caché por inactiva, conserva su hora para refrescarlo a los 45 min)
       const [name] = rid.split('#');
       trackedByPuuid.set(puuid, { nm:name, rid });
 
@@ -581,9 +602,12 @@ function rankText(entry) {
       rankCache.set(puuid, cached.entry);
       return cached.entry;
     }
-    const e = await getSoloEntry(puuid); await sleep(110);          // fetch fresco
+    // rival: consulta "soft" (si estamos en el límite de peticiones, se usa el rango viejo o queda sin rango)
+    if (Date.now() < LIMITED_UNTIL){ const old = cached ? cached.entry : null; rankCache.set(puuid, old); return old; }
+    let e = null; try { e = await getSoloEntry(puuid, { soft: true }); } catch {} await sleep(110);
+    if (e == null && cached){ rankCache.set(puuid, cached.entry); return cached.entry; }
     rankCache.set(puuid, e);
-    rankStore[puuid] = { entry: e, at: Date.now() };
+    if (e != null || Date.now() >= LIMITED_UNTIL) rankStore[puuid] = { entry: e, at: Date.now() };
     return e;
   }
   async function buildParticipant(pt) {

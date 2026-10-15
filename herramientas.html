@@ -1346,7 +1346,7 @@
   async function sbRankLoad(){ try { const r = await fetch('/api/subasta/ranking', { cache:'no-store' }); if (r.ok) SB_RANK = await r.json(); } catch (e) {} }
   function sbRankHtml(){
     if (!SB_RANK) return '';
-    return `<div class="card" style="margin-top:14px;max-width:760px"><h3>Los más caros de la historia</h3><div class="cap">El precio más alto que se pagó por cada jugador en todas las subastas.</div>` +
+    return `<div class="card" style="margin-top:14px;max-width:760px"><h3>Los más caros de la historia</h3><div class="cap">El precio más alto que se pagó por cada jugador en todas las subastas (${SB_RANK.length} jugadores).</div>` +
       (SB_RANK.length ? `<table class="lb-rk"><thead><tr><th class="n">#</th><th>Jugador</th><th class="n">Récord</th><th>Lo pagó</th><th class="n">Veces comprado</th><th class="n">Promedio</th></tr></thead><tbody>` +
         SB_RANK.map((r, k) => `<tr><td class="n">${k === 0 ? '👑' : k + 1}</td><td><b>${esc(r.nick || r.rid)}</b></td><td class="n"><b class="sb-gold">${sbMoney(r.top)}</b></td><td>${esc(r.buyer || '')}</td><td class="n">${r.n}</td><td class="n">${sbMoney(r.avg)}</td></tr>`).join('') + `</tbody></table>`
         : `<div class="fv-note">Todavía no hay ventas guardadas.</div>`) + `</div>`;

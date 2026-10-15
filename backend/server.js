@@ -1383,8 +1383,11 @@ app.get('/players.json', (req,res) => { res.setHeader('Cache-Control', 'public, 
 app.get('/api/live', wrap(async (req,res) => {
   res.set('Cache-Control', 'private, no-store');
   if (!(await reqOrg(req))) return res.status(403).json({ error:'Solo para jugadores de la organización' });
-  res.json({ liveGames: (liveData && liveData.liveGames) || [], encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt,
-    inGame: ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })) });
+  // Si el snapshot tiene más de 10 min (el tracker se atrasó), sus partidas "en vivo" probablemente ya terminaron:
+  // no se muestran, para no dejar tarjetas fantasma con cronómetros de 80+ minutos.
+  const age = liveData && liveData.updatedAt ? Date.now() - new Date(liveData.updatedAt).getTime() : Infinity, stale = age > 10 * 60 * 1000;
+  res.json({ liveGames: stale ? [] : ((liveData && liveData.liveGames) || []), encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt, stale,
+    inGame: stale ? [] : ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })) });
 }));
 app.get('/players.js',   (req,res) => { res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(publicSnap()) + ';\n'); });
 
@@ -3156,7 +3159,7 @@ app.get('/api/subasta/ranking', wrap(async (req, res) => {
   let rows = [];
   try { rows = await q(`SELECT lower(riotid) k, (array_agg(riotid ORDER BY sold_at DESC))[1] rid, (array_agg(nick ORDER BY sold_at DESC))[1] nick,
       max(price)::int top, round(avg(price))::int avg, count(*)::int n, (array_agg(buyer ORDER BY price DESC, sold_at DESC))[1] buyer
-    FROM auction_sales GROUP BY 1 ORDER BY top DESC, avg DESC LIMIT 25`); } catch {}
+    FROM auction_sales GROUP BY 1 ORDER BY top DESC, avg DESC LIMIT 1000`); } catch {}   // todos los jugadores que se han vendido
   res.json(rows.map(({ k, ...r }) => r));
 }));
 // Saca el siguiente jugador de la fila (lo decide el anfitrión).
@@ -3672,9 +3675,14 @@ function startEmbeddedRunner(){
         lastSaved[id] = h; } catch {}
     }
   };
+  // Un ciclo del tracker nunca puede durar más de RUN_MAX_MS: antes, si quedaba colgado, el ranking (y las
+  // partidas en vivo) se congelaban hasta el próximo reinicio.
+  const RUN_MAX_MS = (Number(process.env.RUN_MAX_MIN) || 15) * 60 * 1000;
   const runOnce = () => new Promise(res => {
     const p = spawn(process.execPath, [path.join(ROOT, 'fetch-data.js')], { cwd: ROOT, env: process.env, stdio: 'inherit' });
-    p.on('exit', () => res()); p.on('error', () => res());
+    const kill = setTimeout(() => { console.warn('⚠ ciclo del tracker excedió ' + (RUN_MAX_MS / 60000) + ' min: se corta'); try { p.kill('SIGKILL'); } catch {} }, RUN_MAX_MS);
+    const done = () => { clearTimeout(kill); res(); };
+    p.on('exit', done); p.on('error', done);
   });
 
   console.log(`▶ Runner embebido activo — actualiza el ranking cada ${INTERVAL / 1000}s`);
