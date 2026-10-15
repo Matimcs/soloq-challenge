@@ -3076,7 +3076,7 @@ app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
 const SB_ROLES = ['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT'], SB_SLOTS = [...SB_ROLES, 'SUB'];
 const SB_BUDGET = 1000, SB_STEP = 10, SB_MAX_CAPS = 5, SB_MAX_CAPS_IN = 6, SB_TEAM = 6;   // hasta 6 capitanes si ellos también salen a subasta
 const sbMaxCaps = st => st.settings && st.settings.capsInPool ? SB_MAX_CAPS_IN : SB_MAX_CAPS;
-const SB_OPEN_MS = 20000, SB_BID_MS = 10000, SB_TTL = 3 * 3600 * 1000;
+const SB_OPEN_MS = 20000, SB_BID_MS = 15000, SB_FINAL_MS = 10000, SB_TTL = 3 * 3600 * 1000;
 // Margen tras la cuenta regresiva: una puja enviada justo al final que llega tarde por la conexión igual vale.
 const SB_GRACE_MS = 1500;
 // Modo pistas: cuánto dura cada pista por defecto (el anfitrión lo ajusta y puede adelantarla) y recargo (%) por defecto
@@ -3218,7 +3218,7 @@ function sbClueNext(st){
   const L = st.lot; if (!L || !L.stage || L.stage >= 4) return false;
   L.stage++; const now = Date.now();
   L.carry = L.leader != null ? L.price : null; L.firstOfStage = L.carry != null;
-  if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_OPEN_MS; } else L.stageEnd = now + sbClueMs(st);
+  if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_FINAL_MS; }   // puja final (modo pistas): parte con 10 s else L.stageEnd = now + sbClueMs(st);
   return true;
 }
 function sbTick(st){
