@@ -2809,9 +2809,6 @@ async function rkAdvance(m){
     if (d.phase === 'final'){
       if (Date.now() < d.deadline) break;
       d.phase = 'done'; d.deadline = null; m.status = 'playing'; d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {};
-      if (!m.sim && m.assigned) for (const [u, pf] of Object.entries(m.assigned)){ const p = rkPlayer(Number(u)); if (p.uid < 0) continue;
-        if (pf === 'main') p.gMain = (p.gMain | 0) + 1; else if (pf === 'sec') p.gSec = (p.gSec | 0) + 1; else if (pf === 'fill') p.gFill = (p.gFill | 0) + 1; else p.gOff = (p.gOff | 0) + 1;
-        p.lastOff = pf === 'auto'; await rkSavePlayer(p); }
       m.lobby = { name: 'SQC-' + String(Math.abs(m.id)).slice(-3).padStart(3, '0'), pass: String(1000 + fvRand(9000)) };
       changed = true; break;
     }
@@ -2851,6 +2848,8 @@ async function rkResolve(m, winner, by){
   for (const t of m.teams){
     const won = t.side === winner, e = t.side === 'blue' ? eBlue : 1 - eBlue;
     for (const s of t.players){ const p = rkPlayer(s.uid);
+      const pf = m.assigned && m.assigned[s.uid];   // memoria de roles (lo que asignó el emparejamiento)
+      if (pf){ if (pf === 'main') p.gMain = (p.gMain | 0) + 1; else if (pf === 'sec') p.gSec = (p.gSec | 0) + 1; else if (pf === 'fill') p.gFill = (p.gFill | 0) + 1; else p.gOff = (p.gOff | 0) + 1; p.lastOff = pf === 'auto'; }
       const gap = (p.mmr - p.lp) / 25;          // quien tiene más MMR que rango sube más rápido (y al revés)
       const delta = won ? Math.max(10, Math.min(32, Math.round(20 + gap + (0.5 - e) * 10)))
                         : -Math.max(10, Math.min(32, Math.round(20 - gap + (e - 0.5) * 10)));
