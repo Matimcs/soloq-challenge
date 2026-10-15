@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
+<script src="auth-fetch.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SoloQ Challenge — Herramientas</title>
@@ -543,7 +544,9 @@
   const anSub = p => p.isAvg ? `${p.games} jugadores` : p.rid + (AN.mode === 'merge' && p.accts.length > 1 ? ` +${p.accts.length - 1} cuenta${p.accts.length > 2 ? 's' : ''}` : '');
   async function loadAnalysis(){
     const box = $('p-analisis');
-    try { const r = await fetch(`/api/analysis?n=${AN.n}&mode=${AN.mode}`); if (!r.ok) throw new Error('HTTP ' + r.status); AN.data = await r.json(); }
+    try { const r = await fetch(`/api/analysis?n=${AN.n}&mode=${AN.mode}`);
+      if (r.status === 403){ $('p-analisis').innerHTML = '<div class="card" style="max-width:560px"><h3>Análisis</h3><div class="fv-note" style="margin-top:6px">🔒 El análisis de jugadores es solo para la organización. Inicia sesión con tu cuenta de la org.</div></div>'; return; }
+      if (!r.ok) throw new Error('HTTP ' + r.status); AN.data = await r.json(); }
     catch (e) { box.innerHTML = `<div class="loading">No se pudo cargar el análisis.</div>`; return; }
     const ps = AN.data.players || [];
     if (!ps.length){ box.innerHTML = `<div class="loading">Aún no hay partidas guardadas.</div>`; return; }

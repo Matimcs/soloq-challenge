@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
+<script src="auth-fetch.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SoloQ Challenge — Estadísticas</title>
@@ -575,8 +576,10 @@
     return `<div class="encc">${rivals?'<span class="tag rival">⚔ Enfrentados</span>':'<span class="tag ally">🤝 Mismo equipo</span>'}
       ${body}<span class="date">${fdate(e.end)}</span></div>`;
   }
+  const ORG_LOCK = '<div class="empty" style="padding:28px 12px">🔒 Solo para jugadores de la organización. Inicia sesión con tu cuenta de la org para verlo.</div>';
   function renderCoinc(){
     const c = DATA.coincidencias;
+    if (!c){ $('p-coinc').innerHTML = ORG_LOCK; return; }
     const verd = (c.verdugos||[]).map((v,i) => `<div class="rowl">
       <div class="rk ${i<3?('t'+(i+1)):''}">${i+1}</div>
       <div class="meta"><div class="nm">${esc(v.nm)}${eloTag(v.high)}</div><div class="games">${v.duels} duelos · ${v.wr}% ganados</div></div>
@@ -626,6 +629,7 @@
       <div class="val" style="color:${metric==='w'?'var(--up)':'var(--down)'}">${big}<span style="font-size:10px;color:var(--muted);font-weight:700"> ${metric==='w'?'V':'D'}</span></div></div>`;
   }
   function renderRivales(){
+    if (DATA.orgOnly && !DATA.contrincantes){ $('p-rivales').innerHTML = ORG_LOCK; return; }
     const c = DATA.contrincantes || {};
     const best  = (c.best ||[]).map((o,i)=>rivalRow(o,i,'w')).join('');
     const worst = (c.worst||[]).map((o,i)=>rivalRow(o,i,'l')).join('');

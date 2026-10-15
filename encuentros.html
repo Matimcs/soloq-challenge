@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
+<script src="auth-fetch.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SoloQ Challenge — Encuentros</title>
@@ -203,7 +204,9 @@
   // en la DB, con equipo y resultado reales) → detecta aliados Y rivales, no solo dúos.
   // Se pinta primero el snapshot cacheado para no ver vacío, y luego se refresca del API.
   async function loadEnc(){
-    try { const r = await fetch('/api/encounters', { cache:'no-store' }); if (!r.ok) return;
+    try { const r = await fetch('/api/encounters', { cache:'no-store' });
+      if (r.status === 403){ const box = document.querySelector('main') || document.body; box.insertAdjacentHTML('beforeend', '<div style="margin:30px auto;max-width:560px;text-align:center;padding:22px;border:1px dashed rgba(255,255,255,.18);border-radius:14px;color:#aab">🔒 <b style="color:#fff">Encuentros es solo para jugadores de la organización.</b><br>Inicia sesión con tu cuenta de la org para ver las partidas compartidas.</div>'); return; }
+      if (!r.ok) return;
       const d = await r.json(); render({ encounters: d.encounters || [], ddragonVersion: DDV }); } catch {}
   }
   render(window.SQC_DATA || null);

@@ -28,6 +28,20 @@ async function init(){
       is_admin      BOOLEAN DEFAULT false,
       created_at    TIMESTAMPTZ DEFAULT now()
     );
+    -- Cuentas EXTERNAS (fuera de la organización): pueden entrar al sitio, pero no ven los datos sensibles
+    -- (análisis, smurfs, live games, encuentros, historiales). Tabla aparte a propósito: así nunca entran al
+    -- ranking ni al tracker, que leen la tabla users.
+    CREATE TABLE IF NOT EXISTS ext_users (
+      id            SERIAL PRIMARY KEY,
+      email         TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      riotid        TEXT NOT NULL,
+      nickname      TEXT NOT NULL,
+      realname      TEXT,
+      university    TEXT,
+      avatar        TEXT,
+      created_at    TIMESTAMPTZ DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS shells (
       id         SERIAL PRIMARY KEY,
       owner_id   INTEGER NOT NULL,

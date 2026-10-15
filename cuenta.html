@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head>
+<script src="auth-fetch.js"></script>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>SoloQ Challenge — Cuenta</title>
@@ -39,6 +40,7 @@
   input::placeholder{ color:var(--muted-2); }
   .hint{ font-size:11px; color:var(--muted-2); margin-top:4px; }
 
+  .note{ font-size:12.5px; line-height:1.5; color:var(--muted); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; margin-bottom:6px; } .note a{ color:var(--accent); font-weight:700; }
   .avatar-row{ display:flex; align-items:center; gap:14px; }
   .avatar-prev{ width:56px; height:56px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line-2); object-fit:cover; display:grid; place-items:center; color:var(--muted-2); font-size:11px; }
   .file-btn{ font-family:var(--font); cursor:pointer; background:rgba(255,255,255,.06); border:1px solid var(--line-2); color:var(--text); font-size:12px; font-weight:600; padding:9px 14px; border-radius:9px; }
@@ -61,13 +63,15 @@
     <div class="head">
       <div class="brand"><img src="overlay/assets/logo.png" alt="SoloQ Challenge" style="height:38px;width:auto;display:block;flex-shrink:0"><b>SoloQ<span>Challenge</span></b></div>
       <div class="tabs">
-        <button class="tab active" data-mode="signup">Registrarse</button>
+        <button class="tab active" data-mode="signup">Organización</button>
+        <button class="tab" data-mode="ext">Externos</button>
         <button class="tab" data-mode="login">Iniciar sesión</button>
       </div>
     </div>
 
     <!-- ================= REGISTRO ================= -->
     <form id="form-signup">
+      <div class="note">Registro de <b>jugadores de la organización</b> (UChile). Ya está cerrado: solo pueden registrarse quienes <b>ya están inscritos</b> en un equipo (usa el mismo Riot ID con que te inscribieron) o quienes se suman a <b>Los 420</b> (cupos limitados). ¿No eres de la organización? <a href="#" class="switch" data-mode="ext">Regístrate como externo</a>.</div>
       <div class="sec">Cuenta</div>
       <div class="row">
         <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" required placeholder="tu@correo.com"></div>
@@ -113,8 +117,8 @@
       <div class="field"><label>¿En qué slot usas el Flash/Destello? <span class="req">*</span></label>
         <select name="flashSlot" required><option value="">—</option><option value="1">1er slot (tecla D)</option><option value="2">2do slot (tecla F)</option></select></div>
       <div class="field"><label>Equipo de la U</label>
-        <select name="team"><option value="">No pertenezco a ninguno</option><option>Exilium</option><option>Tide</option><option>Zenith</option><option>Hundred Blossom</option></select>
-        <div class="hint">Si eres de un equipo del challenge, selecciónalo. Si no, deja "ninguno".</div></div>
+        <select name="team"><option value="">Ya estoy inscrito (sin equipo que elegir)</option><option>Exilium</option><option>Tide</option><option>Zenith</option><option>Hundred Blossom</option><option value="Los 420">Los 420 (cupos limitados)</option></select>
+        <div class="hint">Elige tu equipo. Los 420 tiene un máximo de 6 jugadores; el resto de los equipos solo acepta a quienes ya estaban inscritos.</div></div>
       <datalist id="champlist"></datalist>
 
       <label class="check"><input type="checkbox" id="consent" required>
@@ -123,6 +127,35 @@
       <button type="submit" class="submit">Crear cuenta</button>
       <div class="alt">¿Ya tienes cuenta? <a href="#" class="switch" data-mode="login">Inicia sesión</a></div>
       <div class="msg" id="msg-signup"></div>
+    </form>
+
+    <!-- ================= REGISTRO DE EXTERNOS ================= -->
+    <form id="form-ext" style="display:none">
+      <div class="note">Para quienes <b>no son de la organización</b>. Con tu cuenta podrás ver el ranking, torneos, estadísticas generales y más; algunas secciones (análisis de jugadores, live games, encuentros e historiales) son solo para la organización.</div>
+      <div class="sec">Cuenta</div>
+      <div class="row">
+        <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" required placeholder="tu@correo.com"></div>
+        <div class="field"><label>Nick de LoL <span class="req">*</span></label><input name="riotid" required placeholder="Nombre#TAG" autocomplete="off"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Contraseña <span class="req">*</span></label><input type="password" name="password" required minlength="6"></div>
+        <div class="field"><label>Confirmar contraseña <span class="req">*</span></label><input type="password" name="password2" required minlength="6"></div>
+      </div>
+      <div class="sec">Sobre ti</div>
+      <div class="field"><label>Universidad <span class="req">*</span></label>
+        <input name="university" id="ext-uni" list="unilist" placeholder="Siglas o nombre completo, ej: USACH o Universidad de Santiago" autocomplete="off">
+        <datalist id="unilist"></datalist>
+        <label class="check" style="margin-top:8px"><input type="checkbox" id="ext-nouni"> No soy de ninguna universidad</label></div>
+      <div class="field"><label>Nombre <span style="color:var(--muted-2);font-weight:600">(opcional)</span></label><input name="realname" placeholder="Juan Pérez"></div>
+      <div class="field"><label>Imagen <span style="color:var(--muted-2);font-weight:600">(opcional)</span></label>
+        <div class="avatar-row">
+          <img class="avatar-prev" id="ext-prev" alt="" src="" style="display:none"><span id="ext-ph" class="avatar-prev" style="display:grid">IMG</span>
+          <input type="file" id="ext-input" accept="image/*" style="display:none">
+          <button type="button" class="file-btn" id="ext-btn">Adjuntar imagen</button>
+        </div></div>
+      <button type="submit" class="submit">Crear cuenta de externo</button>
+      <div class="alt">¿Ya tienes cuenta? <a href="#" class="switch" data-mode="login">Inicia sesión</a></div>
+      <div class="msg" id="msg-ext"></div>
     </form>
 
     <!-- ================= LOGIN ================= -->
@@ -159,6 +192,7 @@
   function setMode(mode){
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
     $('form-signup').style.display = mode === 'signup' ? '' : 'none';
+    $('form-ext').style.display    = mode === 'ext'    ? '' : 'none';
     $('form-login').style.display  = mode === 'login'  ? '' : 'none';
   }
   document.querySelectorAll('.tab, .switch').forEach(el => el.addEventListener('click', e => { e.preventDefault(); setMode(el.dataset.mode); }));
@@ -223,6 +257,32 @@
       setTimeout(() => { window.location.href = 'blueshell.html'; }, 600);
     } catch (err) { msg.className = 'msg err'; msg.textContent = err.message; }
   });
+  // ---- Registro de externos ----
+  const UNIS = ['Universidad de Chile (UCH)', 'Pontificia Universidad Católica de Chile (UC)', 'Universidad de Santiago de Chile (USACH)', 'Universidad Técnica Federico Santa María (USM)',
+    'Universidad Diego Portales (UDP)', 'Universidad Adolfo Ibáñez (UAI)', 'Universidad Andrés Bello (UNAB)', 'Duoc UC', 'Universidad del Desarrollo (UDD)', 'Universidad Mayor (UMAYOR)',
+    'Universidad Tecnológica Metropolitana (UTEM)', 'Universidad de Concepción (UDEC)', 'Universidad de Talca (UTAL)', 'Universidad Católica del Norte (UCN)', 'Universidad Católica de Temuco (UCT)',
+    'Universidad Católica Silva Henríquez (UCSH)', 'Pontificia Universidad Católica de Valparaíso (PUCV)', 'Universidad de Atacama (UDA)', 'Universidad de Valparaíso (UV)',
+    'Universidad de La Frontera (UFRO)', 'Universidad Austral de Chile (UACh)', 'Universidad del Bío-Bío (UBB)', 'Universidad Santo Tomás (UST)', 'INACAP', 'Universidad Autónoma de Chile (UA)', 'Universidad de los Andes (UANDES)'];
+  $('unilist').innerHTML = UNIS.map(u => `<option value="${u}">`).join('');
+  $('ext-nouni').addEventListener('change', e => { $('ext-uni').disabled = e.target.checked; if (e.target.checked) $('ext-uni').value = ''; });
+  let extAvatar = null;
+  $('ext-btn').addEventListener('click', () => $('ext-input').click());
+  $('ext-input').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return;
+    resizeAvatar(f, data => { extAvatar = data; $('ext-prev').src = data; $('ext-prev').style.display = 'block'; $('ext-ph').style.display = 'none'; }); });
+  $('form-ext').addEventListener('submit', async e => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target).entries()), msg = $('msg-ext');
+    if (d.password !== d.password2){ msg.className = 'msg err'; msg.textContent = 'Las contraseñas no coinciden.'; return; }
+    if (!/^.+#.+$/.test(d.riotid || '')){ msg.className = 'msg err'; msg.textContent = 'Tu nick de LoL debe tener formato Nombre#TAG.'; return; }
+    const uni = $('ext-nouni').checked ? 'Sin universidad' : (d.university || '').trim();
+    if (!uni){ msg.className = 'msg err'; msg.textContent = 'Indica tu universidad o marca que no eres de ninguna.'; return; }
+    try {
+      const res = await SQC.api('/register-external', { method:'POST', body:{ email:d.email, password:d.password, riotid:d.riotid.trim(), university:uni, realname:(d.realname || '').trim() || null, avatar:extAvatar } });
+      SQC.setToken(res.token);
+      msg.className = 'msg ok'; msg.textContent = `¡Cuenta creada, ${res.user.nickname}! Redirigiendo…`;
+      setTimeout(() => { window.location.href = 'index.html'; }, 600);
+    } catch (err) { msg.className = 'msg err'; msg.textContent = err.message; }
+  });
   $('form-login').addEventListener('submit', async e => {
     e.preventDefault();
     const d = Object.fromEntries(new FormData(e.target).entries()); const msg = $('msg-login');
@@ -230,7 +290,7 @@
       const res = await SQC.api('/login', { method:'POST', body:{ email:d.email, password:d.password } });
       SQC.setToken(res.token);
       msg.className = 'msg ok'; msg.textContent = `¡Hola de nuevo, ${res.user.nickname}! Redirigiendo…`;
-      setTimeout(() => { window.location.href = 'blueshell.html'; }, 400);
+      setTimeout(() => { window.location.href = res.user.external ? 'index.html' : 'blueshell.html'; }, 400);
     } catch (err) { msg.className = 'msg err'; msg.textContent = err.message; }
   });
 </script>
