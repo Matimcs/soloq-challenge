@@ -2673,6 +2673,9 @@ async function rkInit(){
   try { for (const r of await q('SELECT * FROM ranked_players')) RK.players.set(r.user_id, { uid: r.user_id, role1: r.role1, role2: r.role2, mmr: +r.mmr, lp: +r.lp, wins: r.wins | 0, losses: r.losses | 0, strikes: r.strikes | 0,
     gMain: r.g_main | 0, gSec: r.g_sec | 0, gOff: r.g_off | 0, gFill: r.g_fill | 0, lastOff: !!r.last_off }); } catch {}
   try { for (const r of await q("SELECT id, data FROM ranked_matches WHERE status IN ('draft','playing','dispute')")){ const m = r.data; m.id = r.id; RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
+  try { await q("DELETE FROM tool_state WHERE id LIKE 'rksim:%' AND updated_at < now() - interval '3 hours'");
+    for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'rksim:%'")){ const m = r.data; if (!m || m.id == null || rkUids(m).some(u => RK.byUser.has(u))) continue;
+      RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
 }
 const rkUids = m => m.teams.flatMap(t => t.players.map(p => p.uid));
 function rkPlayer(uid){
@@ -2687,7 +2690,12 @@ async function rkSavePlayer(p){
     [p.uid, p.role1, p.role2, p.mmr, Math.round(p.lp), p.wins, p.losses, p.strikes, p.gMain | 0, p.gSec | 0, p.gOff | 0, p.gFill | 0, !!p.lastOff]); } catch {}
 }
 async function rkSaveMatch(m){
-  if (m.sim){ if (m.id == null) m.id = -Date.now(); return; }   // sala de prueba: no se guarda
+  // Sala de prueba: no va a ranked_matches (ni a la tabla), pero se respalda en tool_state para que un reinicio del
+  // servidor (un deploy) no la borre a mitad del draft. Se borra al terminar o anularse.
+  if (m.sim){ if (m.id == null) m.id = -Date.now();
+    try { if (m.status === 'done' || m.status === 'cancelled') await q('DELETE FROM tool_state WHERE id=$1', ['rksim:' + m.id]);
+          else await q("INSERT INTO tool_state (id, data, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()", ['rksim:' + m.id, JSON.stringify(m)]); } catch {}
+    return; }
   try {
     if (m.id == null){ const r = await q1('INSERT INTO ranked_matches (status, data) VALUES ($1, $2::jsonb) RETURNING id', [m.status, JSON.stringify(m)]); m.id = r ? r.id : -Date.now(); }
     await q('UPDATE ranked_matches SET status=$2, data=$3::jsonb, ended_at=$4 WHERE id=$1', [m.id, m.status, JSON.stringify(m), m.endedAt ? new Date(m.endedAt) : null]);
@@ -2766,6 +2774,24 @@ async function rkCreateMatch(uids){
   RK.matches.set(m.id, m); uids.forEach(u => { RK.byUser.set(u, m.id); RK.queue.delete(u); });
   return m;
 }
+// Cambio de lado: en la preparación, el equipo rojo (el de menos elo) puede votar para jugar en azul; con 4 de 5
+// votos los equipos intercambian lados. Cada jugador toma el turno equivalente del otro lado (el 1° en banear del
+// rojo pasa a ser el 1° del azul, etc.).
+const RK_SIDE_NEED = 4;
+function rkSwapSides(m){
+  const d = m.draft, [blue, red] = m.teams, side = u => blue.players.some(p => p.uid === u) ? 'blue' : 'red';
+  const order = s => d.seq.filter(x => x.t === 'ban').flatMap(x => x.u).filter(u => side(u) === s);
+  const bo = order('blue'), ro = order('red'), mate = {};
+  bo.forEach((u, i) => { mate[u] = ro[i]; mate[ro[i]] = u; });
+  d.seq.forEach(x => { x.u = x.u.map(u => mate[u] != null ? mate[u] : u); });
+  red.side = 'blue'; blue.side = 'red'; m.teams = [red, blue];
+  d.sideSwapped = true; d.sideVotes = [];
+}
+// Borra las selecciones (sin fijar) de campeones que ya fueron baneados o elegidos.
+function rkPurgeHovers(d){
+  const taken = new Set([...Object.values(d.bans || {}).filter(Boolean), ...Object.values(d.picks || {})]);
+  for (const k of ['hover', 'banHover']) for (const u of Object.keys(d[k] || {})) if (taken.has(d[k][u])) delete d[k][u];
+}
 const rkTeamOf = (m, uid) => m.teams.find(t => t.players.some(p => p.uid === uid));
 const rkSlot = (m, uid) => { for (const t of m.teams){ const p = t.players.find(x => x.uid === uid); if (p) return p; } return null; };
 // Avanza el draft cuando el turno terminó o se acabó el tiempo. Quien no banea a tiempo pierde su ban; a quien
@@ -2805,7 +2831,7 @@ async function rkAdvance(m){
         if (!opts.length) opts = (pool[role] || []).filter(c => !taken.has(c)); if (!opts.length) opts = valid.filter(c => !taken.has(c));
         d.picks[u] = opts[fvRand(opts.length)]; rkSlot(m, u).auto = true; }
     }
-    d.step++; changed = true;
+    d.step++; changed = true; rkPurgeHovers(d);
     if (d.step >= d.seq.length){ d.phase = 'final'; d.deadline = Date.now() + RK_FINAL_MS; }
     else { d.phase = d.seq[d.step].t; d.deadline = Date.now() + (d.phase === 'ban' ? RK_BAN_MS : RK_PICK_MS); }
   }
@@ -2819,6 +2845,7 @@ async function rkResolve(m, winner, by){
   if (m.sim){   // sala de prueba: se muestra el resultado, pero no se mueven PL, MMR ni faltas de nadie
     for (const t of m.teams) for (const s of t.players){ const won = t.side === winner, lp = rkPlayer(s.uid).lp;
       RK.last.set(s.uid, { matchId: m.id, won, delta: won ? 20 : -20, before: lp, after: lp, at: m.endedAt, by, sim: true }); }
+    try { await q('DELETE FROM tool_state WHERE id=$1', ['rksim:' + m.id]); } catch {}
     RK.matches.delete(m.id); rkUids(m).forEach(u => RK.byUser.delete(u)); return;
   }
   for (const t of m.teams){
@@ -2932,6 +2959,15 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
         if (d.phase === 'ban'){ if (!d.locked[u]){ const o = valid.filter(c => !taken.has(c)); d.bans[u] = o[fvRand(o.length)] || null; d.locked[u] = true; } }
         else if (!d.picks[u]){ let o = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!o.length) o = valid.filter(c => !taken.has(c)); d.picks[u] = o[fvRand(o.length)]; } }
       await rkAdvance(m); }
+  } else if (act === 'side'){
+    for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'draft' || m.draft.phase !== 'prep' || m.draft.sideSwapped) continue; const d = m.draft;
+      const v = new Set(d.sideVotes || []), lim = m.teams[1].players.some(p => p.uid > 0 && !v.has(p.uid)) ? RK_SIDE_NEED - 1 : RK_SIDE_NEED;   // si hay un humano en rojo, el último voto es suyo
+      m.teams[1].players.forEach(p => { if (p.uid < 0 && v.size < lim) v.add(p.uid); }); d.sideVotes = [...v];
+      if (v.size >= RK_SIDE_NEED) rkSwapSides(m); await rkSaveMatch(m); }
+  } else if (act === 'remake'){
+    for (const m of [...RK.matches.values()]){ if (!m.sim || (m.status !== 'playing' && m.status !== 'dispute')) continue;
+      const lim = rkUids(m).some(u => u > 0 && !(m.remake || []).includes(u)) ? RK_REMAKE_NEED - 1 : RK_REMAKE_NEED;   // el último voto es del humano
+      for (const u of rkUids(m)) if (u < 0 && (m.remake || []).length < lim && RK.matches.has(m.id)) await rkRemakeVote(m, u, true); }
   } else if (act === 'vote'){
     const side = req.body.team; if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
     for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'playing') continue;
@@ -2963,13 +2999,15 @@ async function rkMatchView(m, uid){
         champ: d.picks[p.uid] || null, auto: !!p.auto, banned: !!d.locked[p.uid],
         kick: ((m.kicks || {})[p.uid] || []).length, myKick: ((m.kicks || {})[p.uid] || []).includes(uid),
         canSwap: t === my && p.uid !== uid && rkSwapTypes(m, uid, p.uid).length > 0,
-        hover: t === my && !d.picks[p.uid] ? ((d.hover || {})[p.uid] || null) : null,
+        hover: !d.picks[p.uid] && (t === my || (cur && cur.t === 'pick' && cur.u.includes(p.uid))) ? ((d.hover || {})[p.uid] || null) : null,
         canRole: m.status === 'draft' && d.phase === 'prep' && t === my && p.uid !== uid })),
       bans: t.players.slice().sort((x, y) => ord('ban', x.uid) - ord('ban', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, champ: d.bans[p.uid] || null, done: !!d.locked[p.uid] })) })),
     draft: { phase: d.phase, deadline: d.deadline, step: d.step, turn: cur ? cur.u : [], order: d.seq || [],
       myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: false, graceMs: RK_GRACE_MS, myHover: (d.hover || {})[uid] || null, myBanHover: (d.banHover || {})[uid] || null,
       roleOut: m.status === 'draft' && (d.roleSwaps || {})[uid] != null ? d.roleSwaps[uid] : null, roleIn: m.status === 'draft' ? Object.keys(d.roleSwaps || {}).map(Number).filter(a => d.roleSwaps[a] === uid) : [],
       myBanChanged: !!(d.banChanged || {})[uid], pickChgMs: RK_PICKCHG_MS,
+      side: { votes: (d.sideVotes || []).length, need: RK_SIDE_NEED, mine: (d.sideVotes || []).includes(uid), swapped: !!d.sideSwapped,
+        open: m.status === 'draft' && d.phase === 'prep' && !d.sideSwapped, canVote: m.status === 'draft' && d.phase === 'prep' && !d.sideSwapped && m.teams[1].players.some(p => p.uid === uid) },
       myPickAt: (d.pickAt || {})[uid] || null, myPickChanged: !!(d.pickChanged || {})[uid],
       pickReqs: m.status === 'draft' ? Object.entries(d.pickReq || {}).map(([a, to]) => { a = Number(a); const t = rkTeamOf(m, a);
         return { uid: a, nick: (rkSlot(m, a) || {}).nick, side: t.side, from: d.picks[a] || null, to, mine: a === uid, rival: !!my && t !== my }; }) : [],
@@ -2978,6 +3016,7 @@ async function rkMatchView(m, uid){
       swapOut: m.status === 'draft' && sw[uid] != null ? sw[uid] : null, swapIn: m.status === 'draft' ? Object.keys(sw).map(Number).filter(a => sw[a] === uid) : [] },
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length, mine: m.votes[uid] || null,
       weight: w(uid), need: rkUids(m).reduce((s, u) => s + w(u), 0) / 2 },
+    remake: { votes: (m.remake || []).length, need: RK_REMAKE_NEED, mine: (m.remake || []).includes(uid) },
     lpChange: m.lpChanges[uid] || null };
 }
 app.get('/api/ranked/state', wrap(async (req, res) => {
@@ -3061,7 +3100,7 @@ app.post('/api/ranked/ban', auth, rkImp, wrap(async (req, res) => {
   const champ = (req.body && req.body.champ) || null;
   if (champ && !(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Campeón inválido' });
   if (champ && (Object.values(d.bans).includes(champ) || Object.values(d.picks).includes(champ))) return res.status(400).json({ error: 'Ese campeón ya fue baneado o elegido' });
-  d.bans[uid] = champ; d.locked[uid] = true; await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
+  d.bans[uid] = champ; d.locked[uid] = true; rkPurgeHovers(d); await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
 }));
 app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
@@ -3072,7 +3111,7 @@ app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
   if (!(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Campeón inválido' });
   if (Object.values(d.bans).includes(champ)) return res.status(400).json({ error: 'Ese campeón está baneado' });
   if (Object.values(d.picks).includes(champ)) return res.status(400).json({ error: 'Ese campeón ya fue elegido' });
-  d.picks[uid] = champ; d.pickAt = d.pickAt || {}; d.pickAt[uid] = Date.now(); await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
+  d.picks[uid] = champ; d.pickAt = d.pickAt || {}; d.pickAt[uid] = Date.now(); rkPurgeHovers(d); await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
 }));
 // Campeón seleccionado (sin fijar). Si se acaba el tiempo, se fija ese. En tu turno de ban es el ban; si no, tu pick
 // (se puede dejar elegido antes de que llegue tu turno, como en el LoL). Solo lo ve tu equipo.
@@ -3081,12 +3120,22 @@ app.post('/api/ranked/hover', auth, rkImp, wrap(async (req, res) => {
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   const champ = (req.body && req.body.champ) || null;
   if (champ && !(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Campeón inválido' });
+  if (champ && (Object.values(d.bans).includes(champ) || Object.values(d.picks).includes(champ))) return res.status(400).json({ error: 'Ese campeón ya fue baneado o elegido' });
   d.hover = d.hover || {}; d.banHover = d.banHover || {};
   const cur = d.seq[d.step];
   if (!cur) return res.json({ ok: true });
   if (d.phase !== 'prep' && cur.t === 'ban' && cur.u.includes(uid) && !d.locked[uid]) d.banHover[uid] = champ;
   else if (!d.picks[uid]) d.hover[uid] = champ;
   res.json({ ok: true });
+}));
+app.post('/api/ranked/side', auth, rkImp, wrap(async (req, res) => {
+  const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
+  if (m.status !== 'draft' || d.phase !== 'prep') return res.status(400).json({ error: 'El cambio de lado solo se vota en la preparación' });
+  if (d.sideSwapped) return res.status(400).json({ error: 'Los equipos ya cambiaron de lado' });
+  if (!m.teams[1].players.some(p => p.uid === uid)) return res.status(400).json({ error: 'Solo vota el equipo rojo (el de menos elo)' });
+  const v = new Set(d.sideVotes || []); if (req.body && req.body.on === false) v.delete(uid); else v.add(uid); d.sideVotes = [...v];
+  if (v.size >= RK_SIDE_NEED) rkSwapSides(m);
+  await rkSaveMatch(m); res.json({ ok: true, swapped: !!d.sideSwapped });
 }));
 // Cambio de ROL con un compañero (se pide y el otro tiene que aceptar).
 app.post('/api/ranked/roleswap', auth, rkImp, wrap(async (req, res) => {
@@ -3122,7 +3171,7 @@ app.post('/api/ranked/banchange', auth, rkImp, wrap(async (req, res) => {
     if (act === 'accept'){
       const to = d.banReq[who];
       if (to && (Object.values(d.bans).includes(to) || Object.values(d.picks).includes(to))){ delete d.banReq[who]; await rkSaveMatch(m); return res.status(400).json({ error: 'Ese campeón ya fue baneado o elegido: la solicitud se anuló' }); }
-      d.bans[who] = to; d.locked[who] = true; d.banChanged[who] = true;
+      d.bans[who] = to; d.locked[who] = true; d.banChanged[who] = true; rkPurgeHovers(d);
     }
     delete d.banReq[who];
   } else {
@@ -3152,7 +3201,7 @@ app.post('/api/ranked/pickchange', auth, rkImp, wrap(async (req, res) => {
     if (act === 'accept'){
       const to = d.pickReq[who];
       if (Object.values(d.bans).includes(to) || Object.values(d.picks).includes(to)){ delete d.pickReq[who]; await rkSaveMatch(m); return res.status(400).json({ error: 'Ese campeón ya fue baneado o elegido: la solicitud se anuló' }); }
-      d.picks[who] = to; d.pickChanged[who] = true; const sl = rkSlot(m, who); if (sl) sl.auto = false;
+      d.picks[who] = to; d.pickChanged[who] = true; const sl = rkSlot(m, who); if (sl) sl.auto = false; rkPurgeHovers(d);
     }
     delete d.pickReq[who];
   } else {
@@ -3189,6 +3238,18 @@ app.post('/api/ranked/kick', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const uid = req.user.id, target = Number(req.body && req.body.target);
   if (target === uid || !rkUids(m).includes(target)) return res.status(400).json({ error: 'Jugador inválido' });
   res.json({ ok: true, cancelled: await rkKickVote(m, uid, target, req.body.on) });
+}));
+// Remake: si la partida no se va a jugar, con 9 de 10 votos se anula (nadie gana ni pierde PL).
+const RK_REMAKE_NEED = 9;
+async function rkRemakeVote(m, uid, on){
+  const v = new Set(m.remake || []); if (on === false) v.delete(uid); else v.add(uid); m.remake = [...v];
+  if (v.size >= RK_REMAKE_NEED){ await rkCancel(m, 'remake'); return true; }
+  await rkSaveMatch(m); return false;
+}
+app.post('/api/ranked/remake', auth, rkImp, wrap(async (req, res) => {
+  const m = await rkMine(req, res); if (!m) return;
+  if (m.status !== 'playing' && m.status !== 'dispute') return res.status(400).json({ error: 'El remake se vota cuando la partida ya está armada' });
+  res.json({ ok: true, cancelled: await rkRemakeVote(m, req.user.id, req.body && req.body.on) });
 }));
 app.post('/api/ranked/vote', auth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const side = req.body && req.body.team;

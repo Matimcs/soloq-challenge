@@ -916,7 +916,7 @@
     return `<div class="rk-sim"><div class="h"><b>MODO PRUEBA</b><span>Solo tú ves esto. Las salas con bots no se guardan ni cambian PL.</span></div>
       <div class="r"><span>Jugar como</span><button class="${sim.as ? '' : 'on'}" data-as="">Yo</button>` +
         sim.bots.map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}" title="${b.inMatch ? 'En sala' : b.inQueue ? 'En cola' : 'Fuera de la cola'}">${esc(b.nick)}${b.inMatch ? ' ●' : b.inQueue ? ' ○' : ''}</button>`).join('') + `</div>
-      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft" title="Durante la preparación, la termina">Bots banean / eligen</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="kick" title="Los bots se suman a la expulsión que ya tenga algún voto">Bots apoyan expulsión</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
+      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft" title="Durante la preparación, la termina">Bots banean / eligen</button><button data-sim="remake">Bots votan remake</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="kick" title="Los bots se suman a la expulsión que ya tenga algún voto">Bots apoyan expulsión</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
   }
   function rkLobbyHtml(){
     const st = RKC.st, me = st.me, inQ = !!st.queue.inQueue;
@@ -934,7 +934,7 @@
       </div>`;
     // aviso del último resultado (una vez)
     let last = '';
-    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = st.last.cancelled ? `<div class="rk-last"><span><b>Partida anulada</b>${st.last.kicked ? (st.last.wasMe ? ' · fuiste expulsado por votación' : ' · ' + esc(st.last.kicked) + ' fue expulsado por votación') : ''} · nadie ganó ni perdió PL</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>` : `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
+    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = st.last.cancelled ? `<div class="rk-last"><span><b>${st.last.by === 'remake' ? 'Remake' : 'Partida anulada'}</b>${st.last.kicked ? (st.last.wasMe ? ' · fuiste expulsado por votación' : ' · ' + esc(st.last.kicked) + ' fue expulsado por votación') : ''} · nadie ganó ni perdió PL</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>` : `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
     const lb = RKC.lb;
     const board = !lb ? `<div class="loading" style="padding:24px 0">Cargando tabla…</div>` : !lb.board.length ? `<div class="fv-note">Aún no se ha jugado ninguna clasificatoria. Todos parten en Diamante IV con 0 PL.</div>`
       : `<table class="lb-rk"><thead><tr><th class="n">#</th><th>Jugador</th><th>Rango</th><th class="n">PL</th><th class="n">V</th><th class="n">D</th><th class="n">% vict.</th><th class="n" title="% de partidas en que el emparejamiento lo dejó fuera de su rol principal y secundario">Fuera de rol</th></tr></thead><tbody>` +
@@ -1007,6 +1007,7 @@
           : v.weight <= 0 ? `<div class="rk-warn">No puedes votar: perdiste el derecho por votar mal varias veces.</div>`
           : `<div class="rk-vote"><button class="rk-vb blue ${v.mine === 'blue' ? 'on' : ''}" data-vote="blue">Ganó Azul<b>${v.blue}</b></button><button class="rk-vb red ${v.mine === 'red' ? 'on' : ''}" data-vote="red">Ganó Rojo<b>${v.red}</b></button></div>
              <div class="fv-note">Se cierra cuando un equipo junta la mayoría de los votos. Si queda empatado decide un admin. Votar un resultado falso te resta peso en votaciones futuras${v.weight < 1 ? ' (hoy tu voto vale la mitad)' : ''}.</div>`}
+        <div class="rk-adm" style="margin-top:12px"><button class="fv-btn sm ${m.remake && m.remake.mine ? 'pri' : ''}" data-remake="${m.remake && m.remake.mine ? 0 : 1}" title="Si la partida no se va a jugar: con ${m.remake ? m.remake.need : 9} de 10 votos se anula y nadie gana ni pierde PL">${m.remake && m.remake.mine ? 'Quitar voto de remake' : 'Remake (no se jugará)'}</button><span class="ps">Votos de remake: ${m.remake ? m.remake.votes : 0}/${m.remake ? m.remake.need : 9}</span></div>
         ${me.admin ? `<div class="rk-adm" style="margin-top:12px"><span class="ps">Admin:</span><button class="fv-btn sm" data-res="${m.id}|blue">Ganó Azul</button><button class="fv-btn sm" data-res="${m.id}|red">Ganó Rojo</button><button class="fv-btn sm" data-res="${m.id}|cancel">Anular partida</button></div>` : ''}
       </div>`;
     }
@@ -1044,6 +1045,8 @@
     box.querySelectorAll('[data-res]').forEach(b => b.onclick = () => { const [id, w] = b.dataset.res.split('|');
       if (confirm(w === 'cancel' ? '¿Anular la partida? Nadie gana ni pierde PL.' : `¿Dar por ganador al equipo ${w === 'blue' ? 'Azul' : 'Rojo'}?`)) rkAct('admin/resolve', { matchId: +id, winner: w }).then(rkBoard); });
     box.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => rkAct('vote', { team: b.dataset.vote }));
+    box.querySelectorAll('[data-remake]').forEach(b => b.onclick = () => { const on = b.dataset.remake === '1';
+      if (on && !confirm('¿Votar remake? Si 9 de los 10 votan, la partida se anula y nadie gana ni pierde PL.')) return; rkAct('remake', { on }); });
     box.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.swap.split('|'); rkAct('swap', { with: +w, action }); });
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => { const [t, on, nick] = b.dataset.kick.split('|');
       if (on === '1' && !confirm(`¿Votar para expulsar a ${nick}? Si ${RKC.st.match.kickNeed} de los 10 votan, la partida se cancela y nadie pierde PL.`)) return;

@@ -255,6 +255,8 @@
     const st = S.st;
     renderSim();
     if (!st.me){ cover('Inicia sesión', 'Necesitas una sesión para entrar a la sala de draft.', 'cuenta.html', 'Iniciar sesión'); return; }
+    if (!st.match && S.hadMatch){ const l = st.last; cover('La sala se cerró', l && l.cancelled ? 'La partida se anuló' + (l.kicked ? ' (' + esc(l.kicked) + ' fue expulsado por votación)' : '') + '. Nadie gana ni pierde PL.' : 'La sala ya no existe.', 'herramientas.html#rk', 'Volver a Ranked'); return; }
+    if (st.match) S.hadMatch = true;
     if (!st.match){ cover('No estás en un draft', 'Busca partida en Ranked y, cuando se junten 10 y todos acepten, la sala se abre aquí.', 'herramientas.html#rk', 'Ir a Ranked'); return; }
     const C = ctx(), { m, d } = C;
     if (m.status !== 'draft'){
@@ -277,7 +279,7 @@
     if (!sim){ el.innerHTML = ''; return; }
     const html = `<b>PRUEBA</b><span>Jugar como</span><button class="${sim.as ? '' : 'on'}" data-as="">Yo</button>` +
       sim.bots.filter(b => b.inMatch).map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}">${esc(b.nick)}</button>`).join('') +
-      `<span style="margin-left:8px">Atajos</span><button data-sim="draft">Bots banean / eligen</button><button data-sim="clear">Limpiar prueba</button>`;
+      `<span style="margin-left:8px">Atajos</span><button data-sim="side">Bots rojos votan lado</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="clear">Limpiar prueba</button>`;
     if (once('sim', html, el)){
       el.querySelectorAll('[data-as]').forEach(b => b.onclick = () => { S.as = +b.dataset.as || null; S.sel = null; S.chg = null; S.err = ''; S.sigs = {}; try { sessionStorage.setItem('sqc_rk_as', S.as || ''); } catch (e) {} load(); });
       el.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => act('admin/sim', { action: b.dataset.sim }));
@@ -367,8 +369,13 @@
       else if (r.mine) items.push(`<div class="rq"><span>Pediste cambiar tu campeón a ${ch(r.to)}. Lo tiene que aceptar alguien del equipo rival…</span><button class="mini" data-pk="0|cancel">Cancelar</button></div>`);
       else items.push(`<div class="rq"><span><b>${esc(r.nick)}</b> pidió cambiar su campeón a ${ch(r.to)}. Esperando al equipo rival…</span></div>`);
     });
+    const sd = d.side || {};
+    if (sd.canVote) items.unshift(`<div class="rq hot"><span>Tu equipo tiene menos elo: pueden pedir jugar en <b style="color:var(--blue)">Blue Side</b>. Votos ${sd.votes}/${sd.need}</span><button class="mini ${sd.mine ? '' : 'ok'}" data-side="${sd.mine ? 0 : 1}">${sd.mine ? 'Quitar mi voto' : 'Cambiar a Blue Side'}</button></div>`);
+    else if (sd.open && sd.votes) items.unshift(`<div class="rq"><span>El equipo rojo está votando para cambiar a Blue Side (${sd.votes}/${sd.need}).</span></div>`);
+    if (sd.swapped && d.phase === 'prep') items.unshift(`<div class="rq"><span>Los equipos cambiaron de lado por votación del equipo con menos elo.</span></div>`);
     const el = $('reqs');
     if (once('reqs', items.join(''), el)){
+      el.querySelectorAll('[data-side]').forEach(b => b.onclick = () => act('side', { on: b.dataset.side === '1' }));
       el.querySelectorAll('[data-role]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.role.split('|'); act('roleswap', { with: +w, action }); });
       el.querySelectorAll('[data-swap]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.swap.split('|'); act('swap', { with: +w, action }); });
       el.querySelectorAll('[data-ban]').forEach(b => b.onclick = () => { const [w, action] = b.dataset.ban.split('|'); act('banchange', { who: +w, action }); });
