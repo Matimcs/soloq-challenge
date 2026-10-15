@@ -914,7 +914,7 @@
     return `<div class="rk-sim"><div class="h"><b>MODO PRUEBA</b><span>Solo tú ves esto. Las salas con bots no se guardan ni cambian PL.</span></div>
       <div class="r"><span>Jugar como</span><button class="${sim.as ? '' : 'on'}" data-as="">Yo</button>` +
         sim.bots.map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}" title="${b.inMatch ? 'En sala' : b.inQueue ? 'En cola' : 'Fuera de la cola'}">${esc(b.nick)}${b.inMatch ? ' ●' : b.inQueue ? ' ○' : ''}</button>`).join('') + `</div>
-      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="kick" title="Los bots se suman a la expulsión que ya tenga algún voto">Bots apoyan expulsión</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
+      <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft" title="Durante la preparación, la termina">Bots banean / eligen</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="kick" title="Los bots se suman a la expulsión que ya tenga algún voto">Bots apoyan expulsión</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
   }
   function rkLobbyHtml(){
     const st = RKC.st, me = st.me, inQ = !!st.queue.inQueue;

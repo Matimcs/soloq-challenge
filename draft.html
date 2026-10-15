@@ -341,7 +341,7 @@
       once('bans-' + t.side, html, $('bans-' + t.side));
     }
     const total = m.teams.reduce((s, t) => s + t.bans.filter(b => b.done).length, 0);
-    once('bmid', `${d.phase === 'ban' ? 'Fase de bans' : d.phase === 'final' ? 'Fase final' : 'Fase de picks'} · ${total}/10 bans`, $('bmid'));
+    once('bmid', d.phase === 'prep' ? 'Preparación · pide cambios de rol o de turno con tu equipo' : `${d.phase === 'ban' ? 'Fase de bans' : d.phase === 'final' ? 'Fase final' : 'Fase de picks'} · ${total}/10 bans`, $('bmid'));
   }
   function renderReqs(C){
     const { m, d } = C, items = [];
@@ -411,10 +411,10 @@
     else {
       const waiting = d.turn.map(C.nick).join(' y ');
       const pre = C.myP && !C.myP.champ ? (S.sel ? `Preseleccionado: ${sel} (si se te acaba el tiempo, se fija este)` : 'Puedes dejar tu campeón preseleccionado') : C.myP && C.myP.champ ? `Ya elegiste: <b>${esc(cname(C.myP.champ))}</b>` : '';
-      html = `<div class="sn">${pre || (waiting ? 'Turno de ' + esc(waiting) : 'Fase final')}</div>` +
+      html = `<div class="sn">${d.phase === 'prep' ? 'Preparación: ponte de acuerdo con tu equipo (⇄ Rol / ⇄ Turno). ' + (pre || '') : pre || (waiting ? 'Turno de ' + esc(waiting) : 'Fase final')}</div>` +
         (C.canAskPick ? `<button class="ghostbtn" data-a="pickmode" title="Hasta 30 s después de fijar puedes pedir otro campeón (una vez). Se aplica solo si alguien del equipo rival acepta.">Cambiar mi campeón (<span class="pkc"></span>)</button>` : '') +
         (C.canAskBan ? `<button class="ghostbtn" data-a="banmode" title="Durante el turno del rival puedes pedir cambiar tu ban (una vez). Se aplica solo si alguien del equipo rival acepta.">Cambiar mi ban</button>` : '') +
-        (d.phase === 'final' ? '' : `<button class="lock" disabled>${d.phase === 'ban' ? 'BANEAR' : 'FIJAR'}</button>`);
+        (d.phase === 'final' || d.phase === 'prep' ? '' : `<button class="lock" disabled>${d.phase === 'ban' ? 'BANEAR' : 'FIJAR'}</button>`);
     }
     const el = $('actbar');
     if (once('act', html, el)) el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
@@ -433,9 +433,9 @@
   function clock(){
     const st = S.st; if (!st || !st.match || st.match.status !== 'draft') return;
     const C = ctx(), { d } = C, left = Math.max(0, d.deadline - now()), secs = Math.ceil(left / 1000), frac = Math.min(1, left / TURN_MS);
-    const ph = $('ph'); ph.className = 'ph ' + (C.curSide || ''); ph.textContent = d.phase === 'final' ? 'Fase final' : `${d.phase === 'ban' ? 'Ban' : 'Pick'} · Equipo ${sideName(C.curSide)}`;
+    const ph = $('ph'); ph.className = 'ph ' + (C.curSide || ''); ph.textContent = d.phase === 'prep' ? 'Preparación' : d.phase === 'final' ? 'Fase final' : `${d.phase === 'ban' ? 'Ban' : 'Pick'} · Equipo ${sideName(C.curSide)}`;
     const num = $('num'); num.textContent = secs; num.classList.toggle('low', secs <= 5);
-    $('who').textContent = d.phase === 'final' ? 'Últimos cambios antes de cerrar el draft' : (C.canBan || C.canPick) ? '¡Es tu turno!' : d.turn.map(C.nick).join(' y ');
+    $('who').textContent = d.phase === 'prep' ? 'Pónganse de acuerdo: solo ahora se pueden cambiar roles' : d.phase === 'final' ? 'Últimos cambios antes de cerrar el draft' : (C.canBan || C.canPick) ? '¡Es tu turno!' : d.turn.map(C.nick).join(' y ');
     document.querySelectorAll('.pkc').forEach(el => { el.textContent = Math.max(0, Math.ceil(C.pickLeft / 1000)) + ' s'; });
     const l = $('tb-l'), r = $('tb-r');
     l.querySelector('i').style.width = (C.curSide === 'blue' ? frac * 100 : 100) + '%'; l.classList.toggle('idle', C.curSide !== 'blue');

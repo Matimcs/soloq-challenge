@@ -2654,6 +2654,8 @@ const RK_GRACE_MS = 3000;
 // Cambio de campeón: se puede pedir hasta 30 s después de fijarlo (lo acepta el rival). Por eso, tras el último pick
 // hay una fase final de 30 s antes de cerrar el draft.
 const RK_PICKCHG_MS = 30000, RK_FINAL_MS = 30000;
+// Preparación: 30 s al inicio para ponerse de acuerdo. Solo en esa fase se pueden cambiar los roles.
+const RK_PREP_MS = 30000;
 const RK = { ready: false, players: new Map(), queue: new Map(), pending: new Map(), matches: new Map(), byUser: new Map(), last: new Map(), pseq: 1 };
 const RK_TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND'], RK_DIVS = ['IV', 'III', 'II', 'I'];
 // Rango visible a partir de los puntos absolutos: 400 por liga (4 divisiones de 100) hasta Diamante I;
@@ -2742,7 +2744,7 @@ async function rkCreateMatch(uids){
   const seq = [B(bb[0]), B(rb[0]), B(bb[1]), B(rb[1]), B(bb[2]), B(rb[2]), K(bo[0]), K(ro[0], ro[1]), K(bo[1], bo[2]), K(ro[2]),
                B(bb[3]), B(rb[3]), B(bb[4]), B(rb[4]), K(ro[3]), K(bo[3], bo[4]), K(ro[4])];
   const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red],
-    draft: { phase: 'ban', deadline: Date.now() + RK_BAN_MS, bans: {}, locked: {}, step: 0, picks: {}, seq, swaps: {}, hover: {}, banHover: {}, roleSwaps: {}, banReq: {}, banChanged: {} }, kicks: {},
+    draft: { phase: 'prep', deadline: Date.now() + RK_PREP_MS, bans: {}, locked: {}, step: 0, picks: {}, seq, swaps: {}, hover: {}, banHover: {}, roleSwaps: {}, banReq: {}, banChanged: {} }, kicks: {},
     lobby: null, votes: {}, winner: null, resolvedBy: null, lpChanges: {} };
   await rkSaveMatch(m);
   RK.matches.set(m.id, m); uids.forEach(u => { RK.byUser.set(u, m.id); RK.queue.delete(u); });
@@ -2757,6 +2759,11 @@ async function rkAdvance(m){
   if (m.status !== 'draft') return false;
   if (!d.seq){ await rkCancel(m, 'formato antiguo'); return true; }
   while (m.status === 'draft'){
+    if (d.phase === 'prep'){
+      if (Date.now() < d.deadline) break;
+      d.phase = d.seq[d.step].t; d.deadline = Date.now() + (d.phase === 'ban' ? RK_BAN_MS : RK_PICK_MS); d.roleSwaps = {};
+      changed = true; continue;
+    }
     if (d.phase === 'final'){
       if (Date.now() < d.deadline) break;
       d.phase = 'done'; d.deadline = null; m.status = 'playing'; d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {};
@@ -2769,12 +2776,14 @@ async function rkAdvance(m){
     const takenNow = () => new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
     if (st.t === 'ban') st.u.forEach(u => { if (!d.locked[u]){ const h = (d.banHover || {})[u]; d.locked[u] = true; d.bans[u] = h && !takenNow().has(h) ? h : null; } });
     else {
-      const pool = await fvChampPool(), valid = (await rkChamps()).map(c => c.id);
+      const pool = await fvChampPool(), valid = (await rkChamps()).map(c => c.id), byRole = await rkChampRoles();
       for (const u of st.u){ if (d.picks[u]) continue;
         const taken = takenNow(), h = (d.hover || {})[u];
         d.pickAt = d.pickAt || {}; d.pickAt[u] = Date.now();
         if (h && !taken.has(h)){ d.picks[u] = h; continue; }
-        let opts = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!opts.length) opts = valid.filter(c => !taken.has(c));
+        const role = rkSlot(m, u).role;
+        let opts = byRole.filter(c => c.roles.includes(role) && !taken.has(c.id)).map(c => c.id);
+        if (!opts.length) opts = (pool[role] || []).filter(c => !taken.has(c)); if (!opts.length) opts = valid.filter(c => !taken.has(c));
         d.picks[u] = opts[fvRand(opts.length)]; rkSlot(m, u).auto = true; }
     }
     d.step++; changed = true;
@@ -2819,12 +2828,14 @@ async function rkCancel(m, by, kicked){
 // todavía por delante; un turno en curso o ya jugado no se toca (así nadie banea dos veces ni se queda sin elegir).
 function rkSwapTypes(m, a, b){
   const d = m.draft; if (m.status !== 'draft' || !d.seq) return [];
-  const pend = (u, t) => d.seq.some((x, i) => i > d.step && x.t === t && x.u.includes(u));
+  const from = d.phase === 'prep' ? d.step : d.step + 1;
+  const pend = (u, t) => d.seq.some((x, i) => i >= from && x.t === t && x.u.includes(u));
   return ['ban', 'pick'].filter(t => pend(a, t) && pend(b, t));
 }
 function rkDoSwap(m, a, b){
   const d = m.draft, types = rkSwapTypes(m, a, b);
-  d.seq.forEach((x, i) => { if (i > d.step && types.includes(x.t)) x.u = x.u.map(u => u === a ? b : u === b ? a : u); });
+  const from = d.phase === 'prep' ? d.step : d.step + 1;
+  d.seq.forEach((x, i) => { if (i >= from && types.includes(x.t)) x.u = x.u.map(u => u === a ? b : u === b ? a : u); });
   return types;
 }
 // Expulsión por votación: si 9 de los 10 marcan al mismo jugador (troleo, o jugar algo distinto a lo elegido),
@@ -2897,6 +2908,7 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
     for (const m of [...RK.matches.values()]){ if (!m.sim || m.status !== 'draft') continue; const d = m.draft;
       // actúan solo los bots a los que les toca en el turno actual
       if (!d.seq[d.step]) continue;
+      if (d.phase === 'prep'){ d.deadline = Date.now(); await rkAdvance(m); continue; }
       for (const u of d.seq[d.step].u){ if (u >= 0) continue; const taken = new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
         if (d.phase === 'ban'){ if (!d.locked[u]){ const o = valid.filter(c => !taken.has(c)); d.bans[u] = o[fvRand(o.length)] || null; d.locked[u] = true; } }
         else if (!d.picks[u]){ let o = (pool[rkSlot(m, u).role] || []).filter(c => !taken.has(c)); if (!o.length) o = valid.filter(c => !taken.has(c)); d.picks[u] = o[fvRand(o.length)]; } }
@@ -2920,7 +2932,7 @@ app.post('/api/ranked/admin/sim', auth, wrap(async (req, res) => {
 }));
 // Lo que ve cada jugador de su sala.
 async function rkMatchView(m, uid){
-  const d = m.draft, my = rkTeamOf(m, uid), cur = m.status === 'draft' && d.seq ? d.seq[d.step] : null, sw = d.swaps || {};
+  const d = m.draft, my = rkTeamOf(m, uid), cur = m.status === 'draft' && d.seq && d.phase !== 'prep' ? d.seq[d.step] : null, sw = d.swaps || {};
   // posición de cada jugador en el orden de bans / de picks (para mostrarlos en ese orden)
   const flat = { ban: [], pick: [] }; (d.seq || []).forEach(x => flat[x.t].push(...x.u));
   const ord = (t, u) => { const i = flat[t].indexOf(u); return i < 0 ? 99 : i; };
@@ -2933,7 +2945,7 @@ async function rkMatchView(m, uid){
         kick: ((m.kicks || {})[p.uid] || []).length, myKick: ((m.kicks || {})[p.uid] || []).includes(uid),
         canSwap: t === my && p.uid !== uid && rkSwapTypes(m, uid, p.uid).length > 0,
         hover: t === my && !d.picks[p.uid] ? ((d.hover || {})[p.uid] || null) : null,
-        canRole: m.status === 'draft' && t === my && p.uid !== uid })),
+        canRole: m.status === 'draft' && d.phase === 'prep' && t === my && p.uid !== uid })),
       bans: t.players.slice().sort((x, y) => ord('ban', x.uid) - ord('ban', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, champ: d.bans[p.uid] || null, done: !!d.locked[p.uid] })) })),
     draft: { phase: d.phase, deadline: d.deadline, step: d.step, turn: cur ? cur.u : [], order: d.seq || [],
       myBanLocked: !!d.locked[uid], myBan: d.bans[uid] || null, bansHidden: false, graceMs: RK_GRACE_MS, myHover: (d.hover || {})[uid] || null, myBanHover: (d.banHover || {})[uid] || null,
@@ -2977,10 +2989,23 @@ async function rkPositions(){
       if (Object.keys(map).length){ RK_POS.map = map; RK_POS.at = Date.now(); } } } catch {}
   return RK_POS.map || {};
 }
-app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=3600');
-  // roles: líneas habituales de cada campeón (lista general de posiciones + lo que se juega en las partidas guardadas)
-  const pos = await rkPositions(); let pool = {}; try { pool = await fvChampPool(); } catch {}
-  res.json((await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => (pos[c.id.toLowerCase()] || []).includes(r) || (pool[r] || []).includes(c.id)) }))); }));
+// Campeones recomendados por línea (lista del admin). En Top y Jungla la lista parte en Gragas / Jarvan IV: para los
+// anteriores se usan las posiciones habituales (fuente abierta de Meraki).
+const RK_ROLE_LIST = {
+  TOP: 'Gragas Gwen Heimerdinger Illaoi Irelia Jax Jayce KSante Kayle Kennen Kled Malphite Mordekaiser Nasus Olaf Ornn Pantheon Renekton Riven Rumble Sett Shen Singed Sion TahmKench Teemo Trundle Tryndamere Urgot Vayne Volibear Yasuo Yone Yorick Zaahen',
+  JUNGLE: 'JarvanIV Jax Karthus Kayn Khazix Kindred LeeSin Lillia Locke MasterYi Naafiri Nasus Nidalee Nocturne Nunu Pantheon Qiyana Quinn Rammus RekSai Rengar Sejuani Shaco Shyvana Skarner Sylas Talon Udyr Vi Viego Warwick MonkeyKing XinZhao Zac Zed',
+  MIDDLE: 'Ahri Akali Akshan Anivia Annie AurelionSol Aurora Azir Cassiopeia Diana Ekko Fizz Galio Hwei Irelia Kassadin Katarina Leblanc Lissandra Locke Lux Malzahar Mel Naafiri Orianna Qiyana Ryze Sylas Syndra Taliyah Talon TwistedFate Veigar Vex Viktor Vladimir Xerath Yasuo Yone Zed Zoe',
+  BOTTOM: 'Aphelios Ashe Caitlyn Corki Draven Ezreal Jhin Jinx Kaisa Kalista KogMaw Lucian Mel MissFortune Nilah Samira Senna Seraphine Sivir Smolder Syndra Tristana Twitch Varus Vayne Veigar Viktor Xayah Xerath Yasuo Yunara Zeri Ziggs',
+  UTILITY: 'Alistar Bard Blitzcrank Brand Braum Camille Janna Karma Leona Lulu Lux Maokai Mel Milio Morgana Nami Nautilus Neeko Pantheon Poppy Pyke Rakan Rell Renata Senna Seraphine Sona Soraka Swain TahmKench Taric Thresh Velkoz Xerath Yuumi Zilean Zyra',
+};
+const RK_ROLE_SET = Object.fromEntries(Object.entries(RK_ROLE_LIST).map(([r, l]) => [r, new Set(l.split(' '))]));
+const RK_ROLE_CUT = { TOP: 'Gragas', JUNGLE: 'Jarvan IV' };   // antes de este nombre, la lista del admin no llega
+async function rkChampRoles(){
+  const pos = await rkPositions();
+  return (await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => RK_ROLE_SET[r].has(c.id) ||
+    (RK_ROLE_CUT[r] && c.name.localeCompare(RK_ROLE_CUT[r], 'es') < 0 && (pos[c.id.toLowerCase()] || []).includes(r))) }));
+}
+app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(await rkChampRoles()); }));
 app.post('/api/ranked/roles', auth, rkImp, wrap(async (req, res) => {
   await rkInit(); const ok = v => RK_ROLES.includes(v) || v === 'FILL', r1 = String((req.body && req.body.role1) || ''), r2 = String((req.body && req.body.role2) || '');
   if (!ok(r1) || !ok(r2)) return res.status(400).json({ error: 'Elige rol principal y secundario' });
@@ -3044,7 +3069,7 @@ app.post('/api/ranked/hover', auth, rkImp, wrap(async (req, res) => {
   d.hover = d.hover || {}; d.banHover = d.banHover || {};
   const cur = d.seq[d.step];
   if (!cur) return res.json({ ok: true });
-  if (cur.t === 'ban' && cur.u.includes(uid) && !d.locked[uid]) d.banHover[uid] = champ;
+  if (d.phase !== 'prep' && cur.t === 'ban' && cur.u.includes(uid) && !d.locked[uid]) d.banHover[uid] = champ;
   else if (!d.picks[uid]) d.hover[uid] = champ;
   res.json({ ok: true });
 }));
@@ -3058,6 +3083,7 @@ app.post('/api/ranked/roleswap', auth, rkImp, wrap(async (req, res) => {
   else {
     const t = rkTeamOf(m, uid);
     if (other === uid || !t.players.some(p => p.uid === other)) return res.status(400).json({ error: 'Solo puedes cambiar de rol con alguien de tu equipo' });
+    if (d.phase !== 'prep') return res.status(400).json({ error: 'Los roles solo se pueden cambiar en la fase de preparación' });
     if (act === 'accept'){
       if (d.roleSwaps[other] !== uid) return res.status(400).json({ error: 'Esa solicitud ya no existe' });
       const a = rkSlot(m, uid), b = rkSlot(m, other); [a.role, b.role] = [b.role, a.role];
