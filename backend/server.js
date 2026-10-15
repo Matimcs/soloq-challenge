@@ -147,7 +147,13 @@ async function reqIsAdmin(req){
 }
 // Organización = jugadores con cuenta en users (todos los registrados hasta hoy + los que se inscriban por
 // las vías permitidas). Las cuentas externas (ext_users) y los visitantes sin sesión NO son org: no ven lo sensible.
-async function reqOrg(req){ return !!(await optionalUid(req)); }
+const _orgCache = new Map();
+async function reqOrg(req){
+  const uid = await optionalUid(req); if (!uid) return false;
+  const c = _orgCache.get(uid); if (c && Date.now() - c.at < 300000) return c.v;
+  let v = false; try { v = !!(await q1('SELECT 1 FROM users WHERE id=$1', [uid])); } catch {}
+  _orgCache.set(uid, { at: Date.now(), v }); return v;
+}
 // Rutas solo para la org (análisis, encuentros, partidas guardadas). Nunca en la caché compartida de Cloudflare.
 async function orgOnly(req, res, next){
   if (await reqOrg(req)){ res.set('CDN-Cache-Control', 'no-store'); return next(); }
@@ -179,8 +185,18 @@ async function orgInscribed(rids){
     for (const t of (d.teams || [])) if (/^UCH /i.test(t.name || '')) for (const p of (t.players || [])) have.add(nr(p.rid || p.riotId)); } catch {}
   return [...want].some(r => have.has(r));
 }
+// Límite simple de intentos por IP (login / registro), en memoria. Detrás de Cloudflare la IP real viene en CF-Connecting-IP.
+const _hits = new Map();
+function tooMany(req, kind, max, windowMs){
+  const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+  const k = kind + '|' + ip, now = Date.now(), arr = (_hits.get(k) || []).filter(t => now - t < windowMs);
+  arr.push(now); _hits.set(k, arr);
+  if (_hits.size > 5000) for (const [kk, v] of _hits) if (!v.length || now - v[v.length - 1] > windowMs) _hits.delete(kk);
+  return arr.length > max;
+}
 // ================= AUTH =================
 app.post('/api/register', wrap(async (req,res) => {
+  if (tooMany(req, 'register', 8, 60 * 60000)) return res.status(429).json({ error:'Demasiados registros desde tu conexión. Intenta más tarde.' });
   const b = req.body || {};
   for (const f of ['email','password','nickname','realname','riotid','discord','pos1','pos2','avatar','champ1','champ2','champ3'])
     if (!b[f]) return res.status(400).json({ error:`Falta el campo: ${f}` });
@@ -232,15 +248,17 @@ app.post('/api/register', wrap(async (req,res) => {
 
 app.post('/api/login', wrap(async (req,res) => {
   const { email, password } = req.body || {};
-  const u = email && await q1('SELECT * FROM users WHERE email=$1', [email]);
+  if (tooMany(req, 'login', 15, 10 * 60000)) return res.status(429).json({ error:'Demasiados intentos. Espera unos minutos.' });
+  const u = email && await q1('SELECT * FROM users WHERE lower(email)=lower($1)', [email]);
   if (u && await bcrypt.compare(password||'', u.password_hash)) return res.json({ token: sign(u), user: publicUser(u) });
-  const x = !u && email && await q1('SELECT * FROM ext_users WHERE email=$1', [email]);
+  const x = !u && email && await q1('SELECT * FROM ext_users WHERE lower(email)=lower($1)', [email]);
   if (x && await bcrypt.compare(password||'', x.password_hash)) return res.json({ token: signExt(x), user: publicExt(x) });
   res.status(401).json({ error:'Email o contraseña incorrectos' });
 }));
 // Registro de EXTERNOS (fuera de la organización): Riot ID obligatorio; universidad (o "sin universidad"),
 // nombre e imagen opcionales. No entran al ranking ni ven lo sensible.
 app.post('/api/register-external', wrap(async (req,res) => {
+  if (tooMany(req, 'register', 8, 60 * 60000)) return res.status(429).json({ error:'Demasiados registros desde tu conexión. Intenta más tarde.' });
   const b = req.body || {};
   const email = String(b.email || '').trim().toLowerCase(), riotid = String(b.riotid || '').trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error:'Email inválido' });
@@ -324,7 +342,7 @@ app.get('/api/avatars', wrap(async (req,res) => {
 // Los de afuera no reciben las filas de smurfs (qué cuenta es de quién); la org recibe todo, sin caché compartida.
 async function avatarsFor(req, all){
   if (await reqOrg(req)){ req.res.set('Cache-Control', 'private, no-store'); return all; }
-  return all.filter(a => a.label === 'Main');
+  return all.filter(a => a.label === 'Main').map(({ champ1, champ2, champ3, flashSlot, ...a }) => a);
 }
 
 // Equipo por cuenta (Exilium/Tide/Zenith) para la etiqueta del ranking. Público.
@@ -814,7 +832,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     w: lp ? lp.w : (stats?stats.wins:0), l: lp ? lp.l : (stats?stats.losses:0),
     form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
   };
-  if (!(await reqOrg(req))){ if (profile.label && /smurf/i.test(profile.label)) profile.label = null;
+  if (!(await reqOrg(req))){ if (profile.label && /smurf/i.test(profile.label)) profile.label = null; profile.champs = []; profile.flashSlot = null;
     return res.json({ profile, history: [], stats: null, duels: null, blueshells: null, orgOnly: true, ddragonVersion: liveData && liveData.ddragonVersion }); }
   res.set('Cache-Control', 'private, no-store');
   res.json({ profile, history, stats, duels, blueshells, ddragonVersion: liveData && liveData.ddragonVersion });
@@ -1357,14 +1375,18 @@ app.get('/api/nav-counts', wrap(async (req,res) => {
 // SIN caché, así el primer render nunca sale con un snapshot viejo (evita cronómetros de live
 // games inflados al abrir). Cargar players.js fresco 1 vez por página es despreciable.
 // Snapshot público SIN live games ni encuentros (dicen quién juega ahora, con qué y con quién): eso va en /api/live, solo org.
-const publicSnap = () => liveData ? { ...liveData, liveGames: [], encounters: [], orgOnly: true } : null;
-app.get('/players.json', (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'public, max-age=20'); res.json(publicSnap()); });
+const publicSnap = () => {
+  let d = liveData; if (!d){ try { d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { d = { players: [] }; } }
+  return { ...d, liveGames: [], encounters: [], orgOnly: true, players: (d.players || []).map(p => ({ ...p, inGame: false, game: null })) };
+};
+app.get('/players.json', (req,res) => { res.setHeader('Cache-Control', 'public, max-age=20'); res.json(publicSnap()); });
 app.get('/api/live', wrap(async (req,res) => {
   res.set('Cache-Control', 'private, no-store');
   if (!(await reqOrg(req))) return res.status(403).json({ error:'Solo para jugadores de la organización' });
-  res.json({ liveGames: (liveData && liveData.liveGames) || [], encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt });
+  res.json({ liveGames: (liveData && liveData.liveGames) || [], encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt,
+    inGame: ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })) });
 }));
-app.get('/players.js',   (req,res,next) => { if (!liveData) return next(); res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(publicSnap()) + ';\n'); });
+app.get('/players.js',   (req,res) => { res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(publicSnap()) + ';\n'); });
 
 // ================= DROP DIARIO =================
 // Reto que lanza la organización; el primero que lo cumpla se lleva la Blue Shell.
@@ -1861,9 +1883,13 @@ app.get('/api/encounters', orgOnly, wrap(async (req, res) => {
 
 // ---- EQUIPOS: métricas de sinergia (jugando JUNTOS), no promedios que ya se ven en el leaderboard ----
 const TEAMSTATS_CACHE = { at: 0, data: null };
+async function teamStatsFor(req, data){
+  if (await reqOrg(req)){ req.res.set('Cache-Control', 'private, no-store'); return data; }
+  return { ...data, teams: (data.teams || []).map(t => ({ ...t, bestDuo: null })) };
+}
 app.get('/api/team-stats', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
-  if (TEAMSTATS_CACHE.data && Date.now() - TEAMSTATS_CACHE.at < 300000) return res.json(TEAMSTATS_CACHE.data);
+  if (TEAMSTATS_CACHE.data && Date.now() - TEAMSTATS_CACHE.at < 300000) return res.json(await teamStatsFor(req, TEAMSTATS_CACHE.data));
   const rid2puuid = await ridPuuidMap();
   const acctOf = rid => rid2puuid[rid] || rid;
   // Dueño por cuenta (main + smurfs) + nick.
@@ -1917,16 +1943,20 @@ app.get('/api/team-stats', wrap(async (req, res) => {
   }).sort((a,b) => (b.juntosGames?b.juntosWR:-1) - (a.juntosGames?a.juntosWR:-1) || b.juntosGames - a.juntosGames);
   TEAMSTATS_CACHE.data = { teams };
   TEAMSTATS_CACHE.at = Date.now();
-  res.json(TEAMSTATS_CACHE.data);
+  res.json(await teamStatsFor(req, TEAMSTATS_CACHE.data));
 }));
 
 // ---- MENCIONES: premios graciosos (roasts + vicio + pool + dúos) ----
 const MENC_CACHE = { at: 0, data: null };
+async function mencFor(req, data){
+  if (await reqOrg(req)){ req.res.set('Cache-Control', 'private, no-store'); return data; }
+  return { ...data, menciones: (data.menciones || []).filter(m => !/d[uú]o|pareja/i.test(m.title || '')) };   // premios de dúos: solo org
+}
 const CL_FMT = new Intl.DateTimeFormat('en-CA', { timeZone:'America/Santiago', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', hour12:false });
 function chileHD(ts){ const o = {}; for (const x of CL_FMT.formatToParts(new Date(Number(ts)||0))) o[x.type] = x.value; return { d: `${o.year}-${o.month}-${o.day}`, h: (+o.hour) % 24 }; }
 app.get('/api/menciones', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
-  if (MENC_CACHE.data && Date.now() - MENC_CACHE.at < 300000) return res.json(MENC_CACHE.data);
+  if (MENC_CACHE.data && Date.now() - MENC_CACHE.at < 300000) return res.json(await mencFor(req, MENC_CACHE.data));
   const rid2puuid = await ridPuuidMap();
   const acctOf = rid => rid2puuid[rid] || rid;
   const uNick = {}, puuidOwner = {};
@@ -2031,7 +2061,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
     rank(owners.filter(o=>(aegisByOwner[o]||0)>0), o=>aegisByOwner[o]||0, o=>({ nm:nick(o), value:(aegisByOwner[o])+' aegis', detail:'' }), 1));
   MENC_CACHE.data = { menciones: M };
   MENC_CACHE.at = Date.now();
-  res.json(MENC_CACHE.data);
+  res.json(await mencFor(req, MENC_CACHE.data));
 }));
 
 // ---- SOLOQDLE: adivina el jugador del torneo por sus últimas partidas (diario, compartible) ----
@@ -3528,6 +3558,15 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 
 // ---- Sitio estático ----
+const PUBLIC_FILES = new Set(['api.js', 'auth-fetch.js', 'nav.css', 'roulette.js', 'torneo-data.js', 'uleague-data.json']);
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  let p = req.path; try { p = decodeURIComponent(p); } catch { return res.status(400).end(); }
+  if (p.startsWith('/api/') || p === '/ping' || p === '/' || p === '/players.json' || p === '/players.js') return next();
+  if (/^\/[^/]+\.(html|webp|png|jpe?g|gif|svg|ico|pdf)$/i.test(p) || PUBLIC_FILES.has(p.slice(1))) return next();
+  if (/^\/overlay\/assets\/[^]+\.(webp|png|jpe?g|gif|svg|ico|mp3|ogg|wav|webm|mp4|woff2?|ttf)$/i.test(p) && !p.includes('..')) return next();
+  res.status(404).send('No encontrado');
+});
 app.use(express.static(ROOT, {
   setHeaders(res, filePath){
     // players.json/js cacheables ~20s: Cloudflare sirve la mayoría de los polls desde el

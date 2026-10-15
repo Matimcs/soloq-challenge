@@ -2035,6 +2035,9 @@ if (location.protocol.startsWith('http')){
       if (r.status === 403 || r.status === 401){ LIVE_LOCKED = true; renderLive(); return; }
       if (!r.ok) return; const d = await r.json(); LIVE_LOCKED = false;
       LIVE_GAMES = d.liveGames || []; if (DATA) DATA.encounters = d.encounters || [];
+      // "● EN PARTIDA" del ranking: el snapshot público ya no lo trae; la org lo recibe aquí
+      const ig = new Set((d.inGame || []).map(x => (x.rid || '').toLowerCase())); let ch = false;
+      PLAYERS.forEach(p => { const v = ig.has((p.rid || '').toLowerCase()); if (!!p.inGame !== v){ p.inGame = v; ch = true; } }); if (ch) render();
       renderLive(); if (window.SQC && SQC.navBadges) SQC.navBadges({ liveGames: LIVE_GAMES, encounters: d.encounters || [] });
     } catch (e) {}
   };
