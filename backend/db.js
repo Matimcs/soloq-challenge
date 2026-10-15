@@ -346,6 +346,13 @@ async function init(){
       strikes    INTEGER NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    -- Memoria de roles asignados por el emparejamiento (para repartirlos de forma justa):
+    -- principal / secundario / fuera de rol / "relleno" (si pidió FILL); last_off = la última vez quedó fuera de rol.
+    ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS g_main  INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS g_sec   INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS g_off   INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS g_fill  INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS last_off BOOLEAN NOT NULL DEFAULT false;
     -- Ranked: cada sala con sus equipos, draft, votos y resultado (JSON).
     CREATE TABLE IF NOT EXISTS ranked_matches (
       id         SERIAL PRIMARY KEY,

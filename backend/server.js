@@ -2670,20 +2670,21 @@ function rkRank(abs){
 const rkVoteWeight = strikes => strikes >= 4 ? 0 : strikes >= 2 ? 0.5 : 1;
 async function rkInit(){
   if (RK.ready) return; RK.ready = true;
-  try { for (const r of await q('SELECT * FROM ranked_players')) RK.players.set(r.user_id, { uid: r.user_id, role1: r.role1, role2: r.role2, mmr: +r.mmr, lp: +r.lp, wins: r.wins | 0, losses: r.losses | 0, strikes: r.strikes | 0 }); } catch {}
+  try { for (const r of await q('SELECT * FROM ranked_players')) RK.players.set(r.user_id, { uid: r.user_id, role1: r.role1, role2: r.role2, mmr: +r.mmr, lp: +r.lp, wins: r.wins | 0, losses: r.losses | 0, strikes: r.strikes | 0,
+    gMain: r.g_main | 0, gSec: r.g_sec | 0, gOff: r.g_off | 0, gFill: r.g_fill | 0, lastOff: !!r.last_off }); } catch {}
   try { for (const r of await q("SELECT id, data FROM ranked_matches WHERE status IN ('draft','playing','dispute')")){ const m = r.data; m.id = r.id; RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
 }
 const rkUids = m => m.teams.flatMap(t => t.players.map(p => p.uid));
 function rkPlayer(uid){
   let p = RK.players.get(uid);
-  if (!p){ p = { uid, role1: null, role2: null, mmr: RK_START, lp: RK_START, wins: 0, losses: 0, strikes: 0 }; RK.players.set(uid, p); }
+  if (!p){ p = { uid, role1: null, role2: null, mmr: RK_START, lp: RK_START, wins: 0, losses: 0, strikes: 0, gMain: 0, gSec: 0, gOff: 0, gFill: 0, lastOff: false }; RK.players.set(uid, p); }
   return p;
 }
 async function rkSavePlayer(p){
   if (p.uid < 0) return;                       // jugadores ficticios del modo prueba: solo en memoria
-  try { await q(`INSERT INTO ranked_players (user_id, role1, role2, mmr, lp, wins, losses, strikes, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
-    ON CONFLICT (user_id) DO UPDATE SET role1=$2, role2=$3, mmr=$4, lp=$5, wins=$6, losses=$7, strikes=$8, updated_at=now()`,
-    [p.uid, p.role1, p.role2, p.mmr, Math.round(p.lp), p.wins, p.losses, p.strikes]); } catch {}
+  try { await q(`INSERT INTO ranked_players (user_id, role1, role2, mmr, lp, wins, losses, strikes, g_main, g_sec, g_off, g_fill, last_off, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
+    ON CONFLICT (user_id) DO UPDATE SET role1=$2, role2=$3, mmr=$4, lp=$5, wins=$6, losses=$7, strikes=$8, g_main=$9, g_sec=$10, g_off=$11, g_fill=$12, last_off=$13, updated_at=now()`,
+    [p.uid, p.role1, p.role2, p.mmr, Math.round(p.lp), p.wins, p.losses, p.strikes, p.gMain | 0, p.gSec | 0, p.gOff | 0, p.gFill | 0, !!p.lastOff]); } catch {}
 }
 async function rkSaveMatch(m){
   if (m.sim){ if (m.id == null) m.id = -Date.now(); return; }   // sala de prueba: no se guarda
@@ -2715,13 +2716,24 @@ async function rkChamps(){
 // Preferencia de un jugador por un rol: 1 = principal, 0.6 = secundario, 0.5 = "relleno", 0 = fuera de lo que pidió.
 const rkPref = (p, role) => p.role1 === role ? 1 : p.role2 === role ? 0.6 : (p.role1 === 'FILL' || p.role2 === 'FILL') ? 0.5 : 0;
 const rkPrefName = v => v >= 1 ? 'main' : v >= 0.6 ? 'sec' : v >= 0.5 ? 'fill' : 'auto';
+// Reparto justo de roles: cada jugador tiene memoria de qué le tocó (principal / secundario / fuera de rol).
+// Quien ha quedado seguido en su secundario o fuera de rol pesa más al repartir, así que el sistema prefiere
+// darle su rol a él y mandar a otro (que suele tener suerte) al secundario o a rellenar. Quien quedó fuera de rol
+// en su última partida tiene protección extra (como el "autofill protection" del LoL).
+// Las tasas se suavizan (se suman 3 partidas "neutras") para que una sola partida no cambie todo.
+function rkFillStats(p){
+  const n = (p.gMain | 0) + (p.gSec | 0) + (p.gOff | 0) + (p.gFill | 0), d = n + 3;
+  return { n, main: n ? (p.gMain | 0) / n : 0, sec: n ? (p.gSec | 0) / n : 0, off: n ? (p.gOff | 0) / n : 0, fill: n ? (p.gFill | 0) / n : 0,
+    weight: 1 + 2.5 * ((p.gOff | 0) / d) + 1 * ((p.gSec | 0) / d) + (p.lastOff ? 1.5 : 0) };
+}
 // Arma la sala: entre las 126 formas de repartir 10 jugadores y todas las asignaciones de roles, elige la
-// que mejor combina "cada uno en lo que pidió" con equipos de MMR parejo (un rol bien asignado vale 60 MMR).
+// que mejor combina "cada uno en lo que pidió" (ponderado por su prioridad de arriba) con equipos de MMR parejo
+// (un rol bien asignado vale 60 MMR).
 async function rkCreateMatch(uids){
   const users = await rkUsers();
-  const P = uids.map(uid => { const p = rkPlayer(uid), u = users.get(uid) || { nick: 'Jugador ' + uid, rid: '' }; return { uid, nick: u.nick, rid: u.rid, mmr: p.mmr, lp: p.lp, role1: p.role1, role2: p.role2 }; });
+  const P = uids.map(uid => { const p = rkPlayer(uid), u = users.get(uid) || { nick: 'Jugador ' + uid, rid: '' }; return { uid, nick: u.nick, rid: u.rid, mmr: p.mmr, lp: p.lp, role1: p.role1, role2: p.role2, w: rkFillStats(p).weight }; });
   const perms = []; (function pm(a, r){ if (!r.length){ perms.push(a); return; } r.forEach((x, i) => pm(a.concat(x), r.filter((_, j) => j !== i))); })([], RK_ROLES);
-  const bestPerm = team => { let bs = -1, opts = []; for (const pr of perms){ const sc = team.reduce((s, i, k) => s + rkPref(P[i], pr[k]), 0); if (sc > bs + 1e-9){ bs = sc; opts = [pr]; } else if (Math.abs(sc - bs) < 1e-9) opts.push(pr); } return { sc: bs, pr: opts[fvRand(opts.length)] }; };
+  const bestPerm = team => { let bs = -Infinity, opts = []; for (const pr of perms){ const sc = team.reduce((s, i, k) => s - (1 - rkPref(P[i], pr[k])) * P[i].w, 0); if (sc > bs + 1e-9){ bs = sc; opts = [pr]; } else if (Math.abs(sc - bs) < 1e-9) opts.push(pr); } return { sc: bs, pr: opts[fvRand(opts.length)] }; };
   let best = null, bestScore = -Infinity;
   (function rec(start, pick){
     if (pick.length === 5){ const B = [...Array(10).keys()].filter(i => !pick.includes(i));
@@ -2743,7 +2755,8 @@ async function rkCreateMatch(uids){
   const B = u => ({ t: 'ban', u: [u] }), K = (...u) => ({ t: 'pick', u });
   const seq = [B(bb[0]), B(rb[0]), B(bb[1]), B(rb[1]), B(bb[2]), B(rb[2]), K(bo[0]), K(ro[0], ro[1]), K(bo[1], bo[2]), K(ro[2]),
                B(bb[3]), B(rb[3]), B(bb[4]), B(rb[4]), K(ro[3]), K(bo[3], bo[4]), K(ro[4])];
-  const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red],
+  const assigned = {}; [blue, red].forEach(t => t.players.forEach(p => { assigned[p.uid] = p.pref; }));
+  const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red], assigned,
     draft: { phase: 'prep', deadline: Date.now() + RK_PREP_MS, bans: {}, locked: {}, step: 0, picks: {}, seq, swaps: {}, hover: {}, banHover: {}, roleSwaps: {}, banReq: {}, banChanged: {} }, kicks: {},
     lobby: null, votes: {}, winner: null, resolvedBy: null, lpChanges: {} };
   await rkSaveMatch(m);
@@ -2767,6 +2780,9 @@ async function rkAdvance(m){
     if (d.phase === 'final'){
       if (Date.now() < d.deadline) break;
       d.phase = 'done'; d.deadline = null; m.status = 'playing'; d.banReq = {}; d.roleSwaps = {}; d.swaps = {}; d.pickReq = {};
+      if (!m.sim && m.assigned) for (const [u, pf] of Object.entries(m.assigned)){ const p = rkPlayer(Number(u)); if (p.uid < 0) continue;
+        if (pf === 'main') p.gMain = (p.gMain | 0) + 1; else if (pf === 'sec') p.gSec = (p.gSec | 0) + 1; else if (pf === 'fill') p.gFill = (p.gFill | 0) + 1; else p.gOff = (p.gOff | 0) + 1;
+        p.lastOff = pf === 'auto'; await rkSavePlayer(p); }
       m.lobby = { name: 'SQC-' + String(Math.abs(m.id)).slice(-3).padStart(3, '0'), pass: String(1000 + fvRand(9000)) };
       changed = true; break;
     }
@@ -2968,7 +2984,7 @@ app.get('/api/ranked/state', wrap(async (req, res) => {
   const out = { now: Date.now(), size: RK_SIZE, queue: { count: RK.queue.size }, me: null, pending: null, match: null, last: null };
   if (uid){
     const users = await rkUsers(), u = users.get(uid) || { nick: '', rid: '', admin: false }, p = rkPlayer(uid);
-    out.me = { uid, nick: u.nick, rid: u.rid, admin: u.admin, role1: p.role1, role2: p.role2, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, strikes: p.strikes, voteWeight: rkVoteWeight(p.strikes) };
+    out.me = { uid, nick: u.nick, rid: u.rid, admin: u.admin, role1: p.role1, role2: p.role2, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, strikes: p.strikes, voteWeight: rkVoteWeight(p.strikes), roles: rkFillStats(p), lastOff: !!p.lastOff };
     const e = RK.queue.get(uid); out.queue.inQueue = !!e; out.queue.since = e ? e.since : null;
     const pd = [...RK.pending.values()].find(x => x.players.includes(uid));
     if (pd) out.pending = { id: pd.id, deadline: pd.deadline, accepted: pd.accepted.size, total: RK_SIZE, iAccepted: pd.accepted.has(uid) };
@@ -2989,21 +3005,17 @@ async function rkPositions(){
       if (Object.keys(map).length){ RK_POS.map = map; RK_POS.at = Date.now(); } } } catch {}
   return RK_POS.map || {};
 }
-// Campeones recomendados por línea (lista del admin). En Top y Jungla la lista parte en Gragas / Jarvan IV: para los
-// anteriores se usan las posiciones habituales (fuente abierta de Meraki).
+// Campeones recomendados por línea (lista del admin).
 const RK_ROLE_LIST = {
-  TOP: 'Gragas Gwen Heimerdinger Illaoi Irelia Jax Jayce KSante Kayle Kennen Kled Malphite Mordekaiser Nasus Olaf Ornn Pantheon Renekton Riven Rumble Sett Shen Singed Sion TahmKench Teemo Trundle Tryndamere Urgot Vayne Volibear Yasuo Yone Yorick Zaahen',
-  JUNGLE: 'JarvanIV Jax Karthus Kayn Khazix Kindred LeeSin Lillia Locke MasterYi Naafiri Nasus Nidalee Nocturne Nunu Pantheon Qiyana Quinn Rammus RekSai Rengar Sejuani Shaco Shyvana Skarner Sylas Talon Udyr Vi Viego Warwick MonkeyKing XinZhao Zac Zed',
+  TOP: 'Aatrox Akali Ambessa Camille Chogath Darius DrMundo Fiora Gangplank Garen Gnar Gragas Gwen Heimerdinger Illaoi Irelia Jax Jayce KSante Kayle Kennen Kled Malphite Mordekaiser Nasus Olaf Ornn Pantheon Renekton Riven Rumble Sett Shen Singed Sion TahmKench Teemo Trundle Tryndamere Urgot Vayne Volibear Yasuo Yone Yorick Zaahen',
+  JUNGLE: 'Amumu Belveth Briar Diana Ekko Elise Evelynn Fiddlesticks Graves Hecarim Ivern JarvanIV Jax Karthus Kayn Khazix Kindred LeeSin Lillia Locke MasterYi Naafiri Nasus Nidalee Nocturne Nunu Pantheon Qiyana Quinn Rammus RekSai Rengar Sejuani Shaco Shyvana Skarner Sylas Talon Udyr Vi Viego Warwick MonkeyKing XinZhao Zac Zed',
   MIDDLE: 'Ahri Akali Akshan Anivia Annie AurelionSol Aurora Azir Cassiopeia Diana Ekko Fizz Galio Hwei Irelia Kassadin Katarina Leblanc Lissandra Locke Lux Malzahar Mel Naafiri Orianna Qiyana Ryze Sylas Syndra Taliyah Talon TwistedFate Veigar Vex Viktor Vladimir Xerath Yasuo Yone Zed Zoe',
   BOTTOM: 'Aphelios Ashe Caitlyn Corki Draven Ezreal Jhin Jinx Kaisa Kalista KogMaw Lucian Mel MissFortune Nilah Samira Senna Seraphine Sivir Smolder Syndra Tristana Twitch Varus Vayne Veigar Viktor Xayah Xerath Yasuo Yunara Zeri Ziggs',
   UTILITY: 'Alistar Bard Blitzcrank Brand Braum Camille Janna Karma Leona Lulu Lux Maokai Mel Milio Morgana Nami Nautilus Neeko Pantheon Poppy Pyke Rakan Rell Renata Senna Seraphine Sona Soraka Swain TahmKench Taric Thresh Velkoz Xerath Yuumi Zilean Zyra',
 };
 const RK_ROLE_SET = Object.fromEntries(Object.entries(RK_ROLE_LIST).map(([r, l]) => [r, new Set(l.split(' '))]));
-const RK_ROLE_CUT = { TOP: 'Gragas', JUNGLE: 'Jarvan IV' };   // antes de este nombre, la lista del admin no llega
 async function rkChampRoles(){
-  const pos = await rkPositions();
-  return (await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => RK_ROLE_SET[r].has(c.id) ||
-    (RK_ROLE_CUT[r] && c.name.localeCompare(RK_ROLE_CUT[r], 'es') < 0 && (pos[c.id.toLowerCase()] || []).includes(r))) }));
+  return (await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => RK_ROLE_SET[r].has(c.id)) }));
 }
 app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(await rkChampRoles()); }));
 app.post('/api/ranked/roles', auth, rkImp, wrap(async (req, res) => {
@@ -3195,7 +3207,7 @@ app.post('/api/ranked/admin/resolve', auth, requireAdmin, wrap(async (req, res) 
 app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit(); const users = await rkUsers();
   const board = [...RK.players.values()].filter(p => p.uid > 0 && p.wins + p.losses > 0).sort((a, b) => b.lp - a.lp || b.wins - a.wins)
-    .map((p, i) => { const u = users.get(p.uid) || { nick: '?', rid: '' }; return { pos: i + 1, nick: u.nick, rid: u.rid, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, role1: p.role1, role2: p.role2 }; });
+    .map((p, i) => { const u = users.get(p.uid) || { nick: '?', rid: '' }; const f = rkFillStats(p); return { pos: i + 1, nick: u.nick, rid: u.rid, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, role1: p.role1, role2: p.role2, roles: { n: f.n, main: f.main, sec: f.sec, off: f.off, fill: f.fill } }; });
   const open = [...RK.matches.values()].map(m => ({ id: m.id, sim: !!m.sim, status: m.status, createdAt: m.createdAt, blue: m.teams[0].players.map(p => p.nick), red: m.teams[1].players.map(p => p.nick),
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length } }));
   let recent = [];

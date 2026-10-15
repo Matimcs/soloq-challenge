@@ -98,17 +98,19 @@
   .rq .ok{ background:var(--accent); color:#000; border-color:var(--accent); }
   .err{ font-size:12.5px; color:var(--red); min-height:0; }
   .err:empty{ display:none; }
-  .filt{ display:flex; gap:8px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:6px; }
-  .rf{ display:flex; gap:2px; }
+  .filt{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:6px; }
+  .rf{ display:flex; gap:2px; flex-wrap:wrap; }
   .rf button{ display:flex; align-items:center; gap:5px; background:none; border:0; color:var(--muted); font-size:12.5px; font-weight:600; padding:6px 9px; border-radius:7px; cursor:pointer; }
   .rf button img{ width:15px; height:15px; opacity:.7; }
   .rf button:hover{ color:#fff; }
   .rf button.on{ background:rgba(255,255,255,.1); color:#fff; }
   .rf button.on img{ opacity:1; }
-  .filt input{ flex:1; min-width:0; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; padding:7px 10px; outline:none; }
+  .filt input{ flex:1; min-width:140px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; color:var(--text); font-family:inherit; font-size:13px; padding:7px 10px; outline:none; }
   .filt input:focus{ border-color:var(--line-2); }
   .grid{ flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(66px,1fr)); gap:8px 6px; align-content:start; padding:4px 2px; scrollbar-width:thin; }
-  .cc{ background:none; border:0; padding:0; cursor:pointer; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
+  .cc{ position:relative; background:none; border:0; padding:0; cursor:pointer; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
+  .cc.fav::after{ content:'★'; position:absolute; top:-3px; right:calc(50% - 36px); font-size:13px; color:var(--gold); text-shadow:0 0 3px #000, 0 0 2px #000; }
+  .rf button.favb{ color:var(--gold); }
   .cc img{ width:100%; max-width:64px; aspect-ratio:1; border-radius:6px; border:2px solid transparent; display:block; transition:transform .1s; }
   .cc:hover img{ transform:scale(1.05); }
   .cc span{ font-size:11px; font-weight:600; max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -200,6 +202,9 @@
   const TURN_MS = 30000;
   const S = { st:null, off:0, champs:null, ver:'16.15.1', sel:null, role:'ALL', q:'', chg:null, err:'', busy:false, as:null, sigs:{}, built:false, leaving:false };
   try { S.as = +sessionStorage.getItem('sqc_rk_as') || null; } catch (e) {}
+  // Favoritos (clic derecho sobre un campeón): se guardan en este navegador.
+  S.favs = new Set(); try { S.favs = new Set(JSON.parse(localStorage.getItem('sqc_dr_favs') || '[]')); } catch (e) {}
+  const saveFavs = () => { try { localStorage.setItem('sqc_dr_favs', JSON.stringify([...S.favs])); } catch (e) {} };
   const now = () => Date.now() + S.off;
   const cid = c => ({ FiddleSticks:'Fiddlesticks' })[c] || c;
   const icon = c => `https://ddragon.leagueoflegends.com/cdn/${S.ver}/img/champion/${cid(c)}.png`;
@@ -374,7 +379,7 @@
   // se re-dibujó en ese instante (lo que podía dejarte con el campeón de al lado).
   function build(){
     S.built = true;
-    $('rf').innerHTML = ['ALL','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY'].map(r => `<button data-rf="${r}" class="${S.role === r ? 'on' : ''}">${r === 'ALL' ? 'Todos' : `<img src="overlay/assets/roles/${RICO[r]}.webp" alt="">${ROLE[r]}`}</button>`).join('');
+    $('rf').innerHTML = ['ALL','TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY','FAV'].map(r => `<button data-rf="${r}" class="${S.role === r ? 'on' : ''} ${r === 'FAV' ? 'favb' : ''}" ${r === 'FAV' ? 'title="Tus favoritos (clic derecho sobre un campeón para marcarlo)"' : ''}>${r === 'ALL' ? 'Todos' : r === 'FAV' ? '★ Favoritos' : `<img src="overlay/assets/roles/${RICO[r]}.webp" alt="">${ROLE[r]}`}</button>`).join('');
     $('rf').querySelectorAll('button').forEach(b => b.onclick = () => { S.role = b.dataset.rf; S.q = ''; $('q').value = ''; $('rf').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); filter(); });
     $('q').oninput = () => { S.q = $('q').value; filter(); };
     $('q').onkeydown = e => { if (e.key === 'Enter'){ const v = [...$('grid').querySelectorAll('.cc:not(.hid):not(.off)')]; if (v.length === 1) choose(v[0].dataset.c); } };
@@ -385,13 +390,17 @@
   function drawGrid(){
     const g = $('grid');
     if (!S.champs){ g.innerHTML = `<div style="grid-column:1/-1;color:var(--muted);font-size:13px;padding:20px;text-align:center">Cargando campeones…</div>`; return; }
-    g.innerHTML = S.champs.map(c => `<button class="cc" data-c="${esc(c.id)}" data-r="${(c.roles || []).join(',')}" data-n="${esc(c.name.toLowerCase())}" title="${esc(c.name)}"><img src="${icon(c.id)}" alt="" loading="lazy"><span>${esc(c.name)}</span></button>`).join('');
-    g.querySelectorAll('.cc').forEach(b => b.onclick = () => { if (!b.classList.contains('off')) choose(b.dataset.c); });
+    g.innerHTML = S.champs.map(c => `<button class="cc ${S.favs.has(c.id) ? 'fav' : ''}" data-c="${esc(c.id)}" data-r="${(c.roles || []).join(',')}" data-n="${esc(c.name.toLowerCase())}" title="${esc(c.name)} · clic derecho: favorito"><img src="${icon(c.id)}" alt="" loading="lazy"><span>${esc(c.name)}</span></button>`).join('');
+    g.querySelectorAll('.cc').forEach(b => {
+      b.onclick = () => { if (!b.classList.contains('off')) choose(b.dataset.c); };
+      b.oncontextmenu = e => { e.preventDefault(); const c = b.dataset.c; if (S.favs.has(c)) S.favs.delete(c); else S.favs.add(c); saveFavs(); b.classList.toggle('fav', S.favs.has(c)); if (S.role === 'FAV') filter(); };
+    });
     filter(); if (S.st && S.st.match) renderGrid(ctx());
   }
   function filter(){
     const q = S.q.trim().toLowerCase();
-    $('grid').querySelectorAll('.cc').forEach(b => b.classList.toggle('hid', q ? !(b.dataset.n.includes(q) || b.dataset.c.toLowerCase().includes(q)) : (S.role !== 'ALL' && !b.dataset.r.split(',').includes(S.role))));
+    $('grid').querySelectorAll('.cc').forEach(b => b.classList.toggle('hid', q ? !(b.dataset.n.includes(q) || b.dataset.c.toLowerCase().includes(q))
+      : S.role === 'FAV' ? !S.favs.has(b.dataset.c) : (S.role !== 'ALL' && !b.dataset.r.split(',').includes(S.role))));
   }
   function choose(c){
     S.sel = c; const C = ctx();
