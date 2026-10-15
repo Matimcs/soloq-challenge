@@ -2745,7 +2745,10 @@ async function rkCreateMatch(uids){
   const mk = (idx, pr, side) => ({ side, avgMmr: Math.round(idx.reduce((s, i) => s + P[i].mmr, 0) / 5),
     players: idx.map((i, k) => ({ uid: P[i].uid, nick: P[i].nick, rid: P[i].rid, role: pr[k], pref: rkPrefName(rkPref(P[i], pr[k])), mmr: P[i].mmr, lp: P[i].lp }))
       .sort((x, y) => RK_ROLES.indexOf(x.role) - RK_ROLES.indexOf(y.role)) });
-  const flip = fvRand(2) === 1;
+  // El equipo con menos elo (rango promedio; si empatan, MMR) va al lado rojo. Empate total: al azar.
+  const avg = (idx, k) => idx.reduce((s, i) => s + P[i][k], 0) / idx.length;
+  const dLp = avg(best.A, 'lp') - avg(best.B, 'lp'), dMmr = avg(best.A, 'mmr') - avg(best.B, 'mmr');
+  const flip = dLp !== 0 ? dLp < 0 : dMmr !== 0 ? dMmr < 0 : fvRand(2) === 1;   // flip = A va a rojo
   const blue = mk(flip ? best.B : best.A, flip ? best.pb : best.pa, 'blue'), red = mk(flip ? best.A : best.B, flip ? best.pa : best.pb, 'red');
   // Draft por turnos, como en torneo (azul = equipo de la izquierda). El orden dentro de cada equipo es al azar
   // y vale para banear y para elegir; dos compañeros pueden intercambiar sus turnos (ver /api/ranked/swap).
