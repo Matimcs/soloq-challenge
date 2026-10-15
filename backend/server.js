@@ -177,7 +177,7 @@ const requireAdmin = (req,res,next) => req.user.is_admin ? next() : res.status(4
 const ORG_420 = 'Los 420', ORG_420_MAX = 6;
 // ¿Alguno de estos Riot ID ya estaba inscrito (rosters de equipos, roster manual, smurfs vinculadas o uLeague)?
 async function orgInscribed(rids){
-  const nr = r => String(r || '').trim().toLowerCase().replace(/\s*#\s*/g, '#');
+  const nr = r => String(r || '').toLowerCase().replace(/\s+/g, '');
   const want = new Set(rids.map(nr).filter(r => /#/.test(r))); if (!want.size) return false;
   const have = new Set();
   try { for (const r of await q('SELECT riotid FROM team_members UNION SELECT riotid FROM roster UNION SELECT smurf_riotid FROM smurf_links UNION SELECT main_riotid FROM smurf_links')) have.add(nr(r.riotid)); } catch {}
@@ -382,22 +382,23 @@ async function buildRosters(){
   const users  = await q("SELECT id, riotid, nickname FROM users");
   const smurfs = await q('SELECT user_id, riotid FROM smurfs');
   const links  = await q('SELECT smurf_riotid, main_riotid FROM smurf_links');
-  const userByRid  = {}; users.forEach(u => { userByRid[u.riotid.toLowerCase()] = u; });
+  const nrk = r => String(r || '').toLowerCase().replace(/\s+/g, '');   // "k1sseshugs #xoxo" == "k1sseshugs#xoxo"
+  const userByRid  = {}; users.forEach(u => { userByRid[nrk(u.riotid)] = u; });
   const userById   = {}; users.forEach(u => { userById[u.id] = u; });
   const smurfsByUser = {}; smurfs.forEach(s => { (smurfsByUser[s.user_id] = smurfsByUser[s.user_id] || []).push(s.riotid); });
   // Mapa smurf→main. Primero las smurfs REGISTRADAS (tabla smurfs, colgadas de un usuario),
   // luego los vínculos manuales de jugadores no registrados (smurf_links).
   const mainOf = {}, linkSmurfs = {};
-  smurfs.forEach(s => { const m = userById[s.user_id]; if (m) mainOf[s.riotid.toLowerCase()] = m.riotid; });
-  links.forEach(l => { mainOf[l.smurf_riotid.toLowerCase()] = l.main_riotid;
+  smurfs.forEach(s => { const m = userById[s.user_id]; if (m) mainOf[nrk(s.riotid)] = m.riotid; });
+  links.forEach(l => { mainOf[nrk(l.smurf_riotid)] = l.main_riotid;
     (linkSmurfs[l.main_riotid.toLowerCase()] = linkSmurfs[l.main_riotid.toLowerCase()] || []).push(l.smurf_riotid); });
-  const canon = rid => mainOf[(rid || '').toLowerCase()] || rid;   // resuelve una smurf a su main
+  const canon = rid => { const m = mainOf[nrk(rid)]; if (m) return m; const u = userByRid[nrk(rid)]; return u ? u.riotid : rid; };   // smurf → main; variante con espacios → la del usuario
 
   // Todas las cuentas de un jugador (main + smurfs registradas + smurfs vinculadas a mano).
   const accountsOf = mainRid => {
     const set = new Map(); const add = r => { if (r) set.set(r.toLowerCase(), r); };
     add(mainRid);
-    const u = userByRid[mainRid.toLowerCase()]; if (u) (smurfsByUser[u.id] || []).forEach(add);
+    const u = userByRid[nrk(mainRid)]; if (u) (smurfsByUser[u.id] || []).forEach(add);
     (linkSmurfs[mainRid.toLowerCase()] || []).forEach(add);
     return [...set.values()];
   };
@@ -413,7 +414,7 @@ async function buildRosters(){
   tm.forEach(row => {
     if (!out[row.team]) return;
     const mainRid = canon(row.riotid);           // si esta fila es una smurf vinculada, la absorbe la main
-    const key = mainRid.toLowerCase();
+    const key = nrk(mainRid);
     const isMainRow = row.riotid.toLowerCase() === key;
     let e = out[row.team].get(key);
     if (!e){
@@ -3087,7 +3088,7 @@ const sbClueMs = st => (st.settings && st.settings.clueSecs ? st.settings.clueSe
 let SB_ROOMS = null;
 async function sbRooms(){
   if (!SB_ROOMS){ SB_ROOMS = {};
-    try { for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'sub:%'")) if (r.data && r.data.code) { r.data.caps = (r.data.caps || []).filter(Boolean); SB_ROOMS[r.data.code] = r.data; } } catch {}
+    try { for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'sub:%'")) if (r.data && r.data.code) { r.data.caps = (r.data.caps || []).filter(Boolean); r.data.starting = false; SB_ROOMS[r.data.code] = r.data; } } catch {}
     // salas que venían de antes del historial: se importan sus ventas (no duplica gracias al UNIQUE)
     const imp = []; for (const st of Object.values(SB_ROOMS)) for (const i of Object.keys(st.sold || {})) imp.push(sbRecord(st, Number(i)));
     await Promise.all(imp); }
@@ -3107,16 +3108,17 @@ async function sbRoom(req, res){
 }
 // Candidatos: los jugadores de los rosters (con su rol de torneo) + las cuentas principales del ranking
 // (con su rol de SoloQ). Sin smurfs y sin los capitanes de esta subasta. Uno por jugador.
+const nrSb = r => String(r || '').toLowerCase().replace(/\s+/g, '');   // Riot no distingue espacios ni mayúsculas
 const SB_SOLO_ROLE = { Top: 'TOP', Jungla: 'JUNGLE', Medio: 'MID', ADC: 'ADC', Support: 'SUPPORT' };
 async function sbCandidates(exclude){
   const seen = new Set(), out = [];
   const smurf = new Set();
-  try { for (const r of await q('SELECT lower(riotid) r FROM smurfs')) smurf.add(r.r); } catch {}
-  try { for (const r of await q('SELECT lower(smurf_riotid) r FROM smurf_links')) smurf.add(r.r); } catch {}
+  try { for (const r of await q('SELECT riotid r FROM smurfs')) smurf.add(nrSb(r.r)); } catch {}
+  try { for (const r of await q('SELECT smurf_riotid r FROM smurf_links')) smurf.add(nrSb(r.r)); } catch {}
   const skip = k => !k || seen.has(k) || exclude.has(k) || smurf.has(k);
   const R = await buildRosters();
   for (const [team, list] of Object.entries(R)) for (const p of list){
-    const k = (p.riotid || '').toLowerCase(), b = (p.bestRiotid || '').toLowerCase();
+    const k = nrSb(p.riotid), b = nrSb(p.bestRiotid);
     if (!p.role || skip(k) || exclude.has(b)) continue; seen.add(k); if (b) seen.add(b);
     out.push({ rid: p.riotid, nick: p.nickname || p.riotid.split('#')[0], role: p.role, roleSrc: 'torneo', team, tier: p.tier, div: p.div, lp: p.lp, opgg: p.bestRiotid || p.riotid });
   }
@@ -3126,7 +3128,7 @@ async function sbCandidates(exclude){
   try { for (const r of await q('SELECT lower(u.riotid) main, s.riotid smurf FROM smurfs s JOIN users u ON u.id = s.user_id')) (smurfsOf[r.main] = smurfsOf[r.main] || []).push(r.smurf); } catch {}
   try { for (const r of await q('SELECT lower(main_riotid) main, smurf_riotid smurf FROM smurf_links')) (smurfsOf[r.main] = smurfsOf[r.main] || []).push(r.smurf); } catch {}
   for (const p of snap){
-    const k = (p.rid || '').toLowerCase(), role = SB_SOLO_ROLE[p.role];
+    const k = nrSb(p.rid), role = SB_SOLO_ROLE[p.role];
     if (!role || skip(k)) continue; seen.add(k);
     let best = p; for (const r of (smurfsOf[k] || [])){ const x = byRid[r.toLowerCase()]; if (x && (absLPof(x.tier, x.div, x.lp) || -1) > (absLPof(best.tier, best.div, best.lp) || -1)) best = x; }
     out.push({ rid: p.rid, nick: p.nm || p.rid.split('#')[0], role, roleSrc: 'soloq', team: '', tier: best.tier, div: best.div, lp: best.lp, opgg: best.rid });
@@ -3219,7 +3221,8 @@ function sbClueNext(st){
   const L = st.lot; if (!L || !L.stage || L.stage >= 4) return false;
   L.stage++; const now = Date.now();
   L.carry = L.leader != null ? L.price : null; L.firstOfStage = L.carry != null;
-  if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_FINAL_MS; }   // puja final (modo pistas): parte con 10 s else L.stageEnd = now + sbClueMs(st);
+  // puja final (modo pistas): parte con 10 s; si no, la siguiente pista dura lo configurado
+  if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_FINAL_MS; } else L.stageEnd = now + sbClueMs(st);
   return true;
 }
 function sbTick(st){
@@ -3240,7 +3243,7 @@ function sbView(st, uid){
   const C = L && st.pool[L.i].clue, P = L && st.pool[L.i];
   return { code: st.code, status: st.status, v: st.v, now, expiresAt: st.expiresAt, budget: SB_BUDGET, step: SB_STEP, maxCaps: sbMaxCaps(st),
     teamSize: st.teamSize || SB_TEAM, poolSize: st.pool.length, roles: SB_ROLES, slots: SB_SLOTS, queueLeft: (st.queue || []).length,
-    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick, capsInPool: !!(st.settings && st.settings.capsInPool), clues: !!(st.settings && st.settings.clues), censor: !!(st.settings && st.settings.censor), clueSecs: sbClueMs(st) / 1000, cluePct: (st.settings && st.settings.cluePct != null) ? st.settings.cluePct : SB_CLUE_PCT,
+    me, isHost: uid != null && uid === st.host, hostNick: (st.caps[0] || {}).nick, starting: !!st.starting, capsInPool: !!(st.settings && st.settings.capsInPool), clues: !!(st.settings && st.settings.clues), censor: !!(st.settings && st.settings.censor), clueSecs: sbClueMs(st) / 1000, cluePct: (st.settings && st.settings.cluePct != null) ? st.settings.cluePct : SB_CLUE_PCT,
     caps: st.caps.map((c, k) => ({ nick: c.nick, rid: c.rid, host: c.uid === st.host, left: SB_BUDGET - c.spent, spent: c.spent,
       bought: sbBought(st, k).map(i => censor && k !== me ? { hidden: true } : pl(i)), need: st.status === 'lobby' ? null : sbNeed(st, k),
       lineup: st.assign ? SB_SLOTS.map(s => st.assign[k][s] != null ? pl(st.assign[k][s]) : null) : null,
@@ -3284,14 +3287,15 @@ app.post('/api/subasta/create', auth, wrap(async (req, res) => {
 }));
 app.post('/api/subasta/join', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
+  const cap = await sbCapOf(req.user.id);   // primero la consulta; después revisar y agregar sin esperas de por medio
   if (st.caps.some(c => c.uid === req.user.id)) return res.json(sbView(st, req.user.id));
-  if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
+  if (st.status !== 'lobby' || st.starting) return res.status(400).json({ error: 'La subasta ya empezó' });
   if (st.caps.length >= sbMaxCaps(st)) return res.status(400).json({ error: `La sala ya tiene ${sbMaxCaps(st)} capitanes` });
-  st.caps.push(await sbCapOf(req.user.id)); await sbSave(st); res.json(sbView(st, req.user.id));
+  st.caps.push(cap); await sbSave(st); res.json(sbView(st, req.user.id));
 }));
 app.post('/api/subasta/leave', auth, wrap(async (req, res) => {
   const st = await sbRoom(req, res); if (!st) return;
-  if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
+  if (st.status !== 'lobby' || st.starting) return res.status(400).json({ error: 'La subasta ya empezó' });
   const k = req.body && req.body.k != null ? Number(req.body.k) : -1, target = st.caps[k] ? st.caps[k].uid : req.user.id;
   if (target !== req.user.id && req.user.id !== st.host) return res.status(403).json({ error: 'Solo el anfitrión puede sacar a otro' });
   if (target === st.host) return res.status(400).json({ error: 'El anfitrión no puede salir: cierra la subasta' });
@@ -3303,20 +3307,25 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
   if (req.user.id !== st.host) return res.status(403).json({ error: 'Solo el anfitrión dirige la subasta' });
   const act = req.body && req.body.action;
   if (act === 'start'){
-    if (st.status !== 'lobby') return res.status(400).json({ error: 'La subasta ya empezó' });
+    if (st.status !== 'lobby' || st.starting) return res.status(400).json({ error: 'La subasta ya empezó' });
     if (st.caps.length < 2) return res.status(400).json({ error: 'Se necesitan al menos 2 capitanes' });
+    // Mientras se arma (puede tardar unos segundos con el modo pistas) nadie puede unirse ni salir: antes un capitán
+    // que entraba en ese momento quedaba en una subasta calculada para un capitán menos (equipos de 6 que no daban).
+    st.starting = true;
+    try {
     const capsInPool = !!(st.settings && st.settings.capsInPool);
     const cands = await sbCandidates(capsInPool ? new Set() : new Set(st.caps.map(c => (c.rid || '').toLowerCase()).filter(Boolean)));
     const team = Math.min(st.caps.length >= SB_MAX_CAPS_IN ? 5 : SB_TEAM, Math.floor(cands.length / st.caps.length));   // con 6 capitanes: sin suplente
-    if (team < 5) return res.status(400).json({ error: `No alcanzan los jugadores: hay ${cands.length} para ${st.caps.length} capitanes (se necesitan ${st.caps.length * 5})` });
+    if (team < 5){ st.starting = false; return res.status(400).json({ error: `No alcanzan los jugadores: hay ${cands.length} para ${st.caps.length} capitanes (se necesitan ${st.caps.length * 5})` }); }
     sbFresh(st); st.teamSize = team;
     st.pool = fvShuffle(cands).slice(0, Math.min(cands.length, team * st.caps.length + 3)); st.order = st.pool.map((_, i) => i); st.queue = st.order.slice();
     if (st.settings && st.settings.clues){ const res = await clueResolver();
       // las pistas salen SOLO de la cuenta más alta del jugador (opgg = su mejor cuenta según el ranking)
       for (const p of st.pool){ try { p.clue = await clueGame(res.one(p.opgg || p.rid)); } catch { p.clue = null; } } }
     st.caps.forEach(c => { c.spent = 0; }); st.status = 'auction'; st.startedAt = Date.now(); sbNext(st);
+    } finally { st.starting = false; }
   } else if (act === 'settings'){
-    if (st.status !== 'lobby') return res.status(400).json({ error: 'Las opciones se cambian antes de empezar' });
+    if (st.status !== 'lobby' || st.starting) return res.status(400).json({ error: 'Las opciones se cambian antes de empezar' });
     st.settings = st.settings || {};
     if (req.body && req.body.capsInPool !== undefined){ const on = !!req.body.capsInPool;
       if (!on && st.caps.length > SB_MAX_CAPS) return res.status(400).json({ error: `Hay ${st.caps.length} capitanes: sin esta opción el máximo es ${SB_MAX_CAPS}` });
