@@ -269,6 +269,97 @@
   .rk-st{ display:inline-flex; align-items:center; gap:4px; margin:2px 8px 2px 0; white-space:nowrap; } .rk-st img{ width:18px; height:18px; border-radius:4px; } .rk-st b{ color:var(--text); font-weight:700; } .rk-st i{ font-style:normal; color:var(--muted-2); font-size:11px; }
   .rk-rec{ display:block; } .rk-rec div{ color:var(--muted); } .rk-rec div.w{ color:var(--text); } .rk-rec div.w b{ color:var(--up); } .rk-rec small{ color:var(--muted-2); font-size:11px; }
   .rk-adm{ display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  /* ---- Ranked rediseñado ---- */
+  .rkx-grid{ display:grid; grid-template-columns:minmax(300px,360px) 1fr; gap:16px; align-items:start; }
+  @media (max-width:900px){ .rkx-grid{ grid-template-columns:1fr; } }
+  .rkx-hero{ position:relative; overflow:hidden; text-align:center; border-radius:18px; padding:22px 20px 18px; margin-bottom:14px; border:1px solid var(--line);
+    background:radial-gradient(120% 70% at 50% -10%, color-mix(in srgb, var(--tc) 28%, transparent), transparent 70%), linear-gradient(180deg, var(--panel-2), var(--panel)); }
+  .rkx-hero::after{ content:''; position:absolute; inset:0; pointer-events:none; border-radius:18px; box-shadow:inset 0 1px 0 rgba(255,255,255,.06); }
+  .rkx-emb img{ width:128px; height:128px; object-fit:contain; filter:drop-shadow(0 8px 26px color-mix(in srgb, var(--tc) 45%, transparent)); }
+  .rkx-rname{ font-size:24px; font-weight:800; letter-spacing:-.01em; margin-top:2px; }
+  .rkx-lp{ font-size:13px; color:var(--muted); font-weight:600; } .rkx-lp b{ color:var(--text); font-size:15px; }
+  .rkx-bar{ height:7px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden; margin:10px auto 0; max-width:240px; }
+  .rkx-bar i{ display:block; height:100%; border-radius:4px; background:linear-gradient(90deg, color-mix(in srgb, var(--tc) 60%, #fff), var(--tc)); }
+  .rkx-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:16px; }
+  .rkx-stats div{ background:rgba(255,255,255,.035); border:1px solid var(--line); border-radius:12px; padding:9px 4px; display:flex; flex-direction:column; gap:2px; }
+  .rkx-stats b{ font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; } .rkx-stats span{ font-size:10.5px; color:var(--muted-2); font-weight:700; letter-spacing:.03em; }
+  .rkx-hero .up, .rkx-main .up, .rkx-det .up{ color:var(--up); } .rkx-hero .down, .rkx-main .down, .rkx-det .down{ color:var(--down); }
+  .rkx-form{ display:flex; gap:4px; justify-content:center; margin-top:12px; }
+  .rkx-form i{ width:20px; height:20px; border-radius:6px; display:grid; place-items:center; font-style:normal; font-size:10px; font-weight:800; }
+  .rkx-form i.w{ background:rgba(52,211,153,.16); color:var(--up); } .rkx-form i.l{ background:rgba(251,113,133,.14); color:var(--down); }
+  .rkx-form.sm{ display:inline-flex; margin:0; gap:3px; } .rkx-form.sm i{ width:7px; height:16px; border-radius:3px; } .rkx-form.sm i.w{ background:var(--up); } .rkx-form.sm i.l{ background:var(--down); opacity:.85; }
+  .rkx-roles{ margin-top:14px; text-align:left; }
+  .rkx-rbar{ display:flex; height:6px; border-radius:3px; overflow:hidden; background:rgba(255,255,255,.07); }
+  .rkx-rbar i, .rkx-rleg i{ display:block; } .rkx-rbar .m, .rkx-rleg .m{ background:var(--up); } .rkx-rbar .s, .rkx-rleg .s{ background:#7dd3fc; } .rkx-rbar .f, .rkx-rleg .f{ background:#a78bfa; } .rkx-rbar .o, .rkx-rleg .o{ background:var(--down); }
+  .rkx-rleg{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:7px; font-size:11px; color:var(--muted); font-weight:600; } .rkx-rleg span{ display:inline-flex; align-items:center; gap:5px; } .rkx-rleg i{ width:8px; height:8px; border-radius:2px; }
+  .rkx-note{ font-size:12px; font-weight:600; margin-top:10px; }
+  .rkx-q{ margin-top:10px; text-align:center; font-size:12px; color:var(--muted); } .rkx-q b{ color:var(--text); }
+  .rkx-qbar{ height:4px; border-radius:2px; background:rgba(255,255,255,.07); overflow:hidden; margin-bottom:6px; } .rkx-qbar i{ display:block; height:100%; background:var(--accent); transition:width .4s; }
+  .rkx-main{ padding-top:10px; }
+  .rkx-tabs{ display:flex; gap:4px; background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:12px; padding:4px; margin-bottom:12px; width:max-content; max-width:100%; flex-wrap:wrap; }
+  .rkx-tabs button{ font-family:inherit; cursor:pointer; background:none; border:0; color:var(--muted); font-size:13px; font-weight:700; padding:8px 14px; border-radius:9px; }
+  .rkx-tabs button:hover{ color:var(--text); } .rkx-tabs button.on{ background:var(--accent); color:#0b0b0b; }
+  .rkx-empty{ text-align:center; padding:36px 10px; display:flex; flex-direction:column; gap:4px; } .rkx-empty b{ font-size:15px; } .rkx-empty span{ color:var(--muted); font-size:13px; }
+  .rkx-mut{ color:var(--muted-2); }
+  /* podio */
+  .rkx-podium{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; align-items:end; margin-bottom:14px; }
+  .rkx-pod{ position:relative; display:flex; flex-direction:column; align-items:center; gap:3px; text-align:center; padding:16px 8px 12px; border-radius:16px; border:1px solid var(--line);
+    background:radial-gradient(100% 60% at 50% 0%, color-mix(in srgb, var(--tc) 20%, transparent), transparent 75%), var(--panel-2); transition:transform .15s, border-color .15s; }
+  .rkx-pod:hover{ transform:translateY(-2px); border-color:var(--line-2); }
+  .rkx-pod.p1{ padding-top:24px; border-color:rgba(255,210,74,.5); box-shadow:0 0 34px rgba(255,210,74,.08); }
+  .rkx-pod img{ width:64px; height:64px; object-fit:contain; } .rkx-pod.p1 img{ width:84px; height:84px; }
+  .rkx-pod .nk{ font-size:15px; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .rkx-pod .rt{ font-size:11.5px; color:var(--muted); font-weight:600; }
+  .rkx-pod .wl{ font-size:11.5px; color:var(--muted-2); font-weight:600; margin-bottom:4px; } .rkx-pod .wl b{ color:var(--text); }
+  .rkx-pos{ position:absolute; top:8px; left:10px; font-size:13px; font-weight:800; color:var(--muted-2); } .rkx-pod.p1 .rkx-pos{ color:var(--gold); } .rkx-pod.p2 .rkx-pos{ color:#d7dde3; } .rkx-pod.p3 .rkx-pos{ color:#e0a878; }
+  .rkx-pod.me, .rkx-tr.me{ box-shadow:inset 0 0 0 1px rgba(233,255,31,.5); }
+  /* tabla */
+  .rkx-tbl{ display:flex; flex-direction:column; }
+  .rkx-tr{ display:grid; grid-template-columns:34px minmax(0,1.6fr) minmax(0,1.3fr) minmax(0,1fr) 90px 70px; gap:10px; align-items:center; padding:9px 8px; border-top:1px solid var(--line); border-radius:10px; font-size:13px; }
+  a.rkx-tr:hover{ background:rgba(255,255,255,.03); }
+  .rkx-tr.h{ border-top:none; font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); padding-top:2px; }
+  .rkx-tr .ps{ font-weight:800; color:var(--muted); text-align:center; font-variant-numeric:tabular-nums; }
+  .rkx-tr .pl{ display:flex; align-items:center; gap:6px; min-width:0; } .rkx-tr .pl b{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-right:2px; }
+  .rkx-ri{ width:16px; height:16px; opacity:.75; flex:none; } .rkx-ri.fill{ font-size:12px; color:var(--muted); text-align:center; }
+  .rkx-ci{ width:20px; height:20px; border-radius:5px; flex:none; }
+  .rkx-tr .rk{ display:flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap; } .rkx-tr .rk img{ width:26px; height:26px; object-fit:contain; } .rkx-tr .rk i{ font-style:normal; color:var(--muted); font-size:12px; }
+  .rkx-tr .wr{ display:grid; grid-template-columns:auto 1fr; gap:2px 8px; align-items:center; } .rkx-tr .wr small{ grid-column:1 / -1; font-size:11px; color:var(--muted-2); }
+  .rkx-wbar{ display:block; height:5px; border-radius:3px; background:rgba(251,113,133,.35); overflow:hidden; } .rkx-wbar i{ display:block; height:100%; background:var(--up); }
+  @media (max-width:640px){ .rkx-tr{ grid-template-columns:28px minmax(0,1.4fr) minmax(0,1.2fr) minmax(0,.9fr); } .rkx-tr .hm{ display:none; } }
+  /* historial */
+  .rkx-hist{ display:flex; flex-direction:column; gap:8px; }
+  .rkx-g{ font-family:inherit; color:var(--text); text-align:left; cursor:pointer; display:grid; grid-template-columns:118px auto 1fr auto; gap:14px; align-items:center; padding:10px 14px 10px 12px;
+    border-radius:12px; background:var(--panel-2); border:1px solid var(--line); border-left:4px solid var(--line-2); transition:border-color .15s, background .15s; }
+  .rkx-g:hover{ background:rgba(255,255,255,.045); border-color:var(--line-2); }
+  .rkx-g.w{ border-left-color:var(--up); background:linear-gradient(90deg, rgba(52,211,153,.07), var(--panel-2) 40%); } .rkx-g.l{ border-left-color:var(--down); background:linear-gradient(90deg, rgba(251,113,133,.07), var(--panel-2) 40%); }
+  .rkx-g .rs{ display:flex; flex-direction:column; gap:1px; } .rkx-g .rs b{ font-size:13.5px; } .rkx-g.w .rs b{ color:var(--up); } .rkx-g.l .rs b{ color:var(--down); }
+  .rkx-g .rs b.blue, .rkx-det b.blue{ color:#5aa2ff; } .rkx-g .rs b.red, .rkx-det b.red{ color:#ff6b6b; }
+  .rkx-g .rs i{ font-style:normal; font-size:12px; font-weight:800; } .rkx-g.w .rs i{ color:var(--up); } .rkx-g.l .rs i{ color:var(--down); }
+  .rkx-g small{ font-size:11px; color:var(--muted-2); font-weight:600; }
+  .rkx-g .mc{ display:flex; align-items:center; gap:8px; } .rkx-g .mc img, .rkx-g .mc > i{ width:40px; height:40px; border-radius:10px; background:var(--panel); display:block; }
+  .rkx-g .mc span{ display:flex; flex-direction:column; } .rkx-g .mc b{ font-size:13px; }
+  .rkx-g .tm{ display:flex; align-items:center; gap:8px; justify-content:center; flex-wrap:wrap; } .rkx-g .tm em{ font-style:normal; font-size:11px; color:var(--muted-2); font-weight:800; }
+  .rkx-side{ display:flex; gap:3px; padding:3px; border-radius:9px; } .rkx-side.win{ background:rgba(233,255,31,.08); box-shadow:inset 0 0 0 1px rgba(233,255,31,.3); }
+  .rkx-side img, .rkx-side i{ width:26px; height:26px; border-radius:6px; background:var(--panel); display:block; } .rkx-side:not(.win) img{ opacity:.6; }
+  .rkx-g .mt{ display:flex; flex-direction:column; align-items:flex-end; gap:1px; } .rkx-g .mt b{ font-size:13px; font-variant-numeric:tabular-nums; }
+  @media (max-width:760px){ .rkx-g{ grid-template-columns:1fr auto; } .rkx-g .tm{ grid-column:1 / -1; justify-content:flex-start; order:5; } }
+  /* detalle de partida */
+  .rkx-det{ position:fixed; inset:0; z-index:95; background:rgba(0,0,0,.75); display:grid; place-items:center; padding:16px; overflow-y:auto; }
+  .rkx-dbox{ width:min(1040px,100%); background:var(--panel); border:1px solid var(--line-2); border-radius:18px; padding:18px; box-shadow:0 20px 80px rgba(0,0,0,.6); max-height:calc(100vh - 32px); overflow-y:auto; }
+  .rkx-dhead{ display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; } .rkx-dhead > div{ display:flex; flex-direction:column; gap:3px; }
+  .rkx-dhead b{ font-size:18px; } .rkx-dhead span{ font-size:13px; color:var(--muted); } .rkx-dhead span b{ font-size:13px; } .rkx-dhead small{ font-size:12px; color:var(--muted-2); }
+  .rkx-dteam{ border:1px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:12px; }
+  .rkx-dteam.blue{ border-top:3px solid #3d8bff; } .rkx-dteam.red{ border-top:3px solid #ff4d5e; } .rkx-dteam.won{ background:rgba(52,211,153,.03); }
+  .rkx-dth{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 12px; background:rgba(255,255,255,.03); font-size:13px; } .rkx-dth b{ font-size:14px; } .rkx-dth .up, .rkx-dth .down{ font-weight:800; }
+  .rkx-dth .bans{ display:flex; gap:4px; margin-left:auto; } .rkx-dth .bans img, .rkx-dth .bans i{ width:24px; height:24px; border-radius:5px; filter:grayscale(1) brightness(.7); background:var(--panel-2); display:block; }
+  .rkx-dp{ display:grid; grid-template-columns:44px minmax(0,1.6fr) 80px 64px 56px minmax(80px,1fr) 52px 170px 92px; gap:10px; align-items:center; padding:8px 12px; border-top:1px solid var(--line); font-size:13px; }
+  .rkx-dp .ch{ position:relative; } .rkx-dp .ch img, .rkx-dp .ch > i{ width:40px; height:40px; border-radius:10px; display:block; background:var(--panel-2); }
+  .rkx-dp .ch em{ position:absolute; right:-4px; bottom:-4px; font-style:normal; font-size:10px; font-weight:800; background:#000; border:1px solid var(--line-2); border-radius:6px; padding:0 4px; }
+  .rkx-dp .who{ display:flex; flex-direction:column; min-width:0; } .rkx-dp .who b{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .rkx-dp .who a:hover b{ text-decoration:underline; }
+  .rkx-dp .who small{ font-size:11px; color:var(--muted-2); display:flex; align-items:center; gap:4px; flex-wrap:wrap; } .rkx-dp .who .rk-rico{ width:14px; height:14px; }
+  .rkx-dp .kda, .rkx-dp .num, .rkx-dp .dmg, .rkx-dp .lp{ display:flex; flex-direction:column; gap:2px; } .rkx-dp small{ font-size:10.5px; color:var(--muted-2); font-weight:600; }
+  .rkx-dp .its{ display:flex; gap:2px; } .rkx-dp .it{ width:22px; height:22px; border-radius:4px; }
+  .rkx-dp .lp{ align-items:flex-end; font-weight:800; } .rkx-dp .lp small{ display:flex; align-items:center; gap:3px; } .rkx-dp .lp small img{ width:16px; height:16px; }
+  @media (max-width:860px){ .rkx-dp{ grid-template-columns:44px minmax(0,1fr) 72px 56px 80px; } .rkx-dp .hm{ display:none; } }
   /* partida encontrada */
   .rk-modal{ position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.72); display:grid; place-items:center; padding:16px; }
   .rk-modal.low{ place-items:end center; padding-bottom:8vh; }
@@ -864,7 +955,8 @@
   setInterval(() => { if (CUR_TAB === 'fv' && !document.hidden) fvLoad(false); }, 3000);
 
   // ================= RANKED: cola interna con ranking propio =================
-  const RKC = { st:null, off:0, sig:'', champs:null, sel:null, q:'', role:null, as:null, lb:null, err:'', tick:0, busy:false };
+  const RKC = { st:null, off:0, sig:'', champs:null, sel:null, q:'', role:null, as:null, lb:null, err:'', tick:0, busy:false, view:'board', hist:{}, lastId:null };
+  try { RKC.view = localStorage.getItem('sqc_rk_view') || 'board'; } catch (e) {}
   const RK_ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Relleno' };
   const RK_ICON = { TOP:'top', JUNGLE:'jg', MIDDLE:'mid', BOTTOM:'adc', UTILITY:'support' };
   const RK_TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Retador' };
@@ -881,6 +973,7 @@
   const rkChampName = id => { const c = (RKC.champs || []).find(x => x.id === id); return c ? c.name : fvChampName(id); };
   async function rkLoad(force){
     try { const st = await SQC.api('/ranked/state' + (RKC.as ? '?as=' + RKC.as : '')); RKC.off = st.now - Date.now(); RKC.st = st;
+      const lid = st.last ? st.last.matchId : null; if (lid !== RKC.lastId){ if (RKC.lastId !== null) { RKC.hist = {}; rkBoard(); } RKC.lastId = lid; }
       const sig = JSON.stringify({ ...st, now: 0 }) + '|' + (rkLogged() ? 1 : 0);
       if (force || sig !== RKC.sig){ RKC.sig = sig; rkRender(); } }
     catch (e) { if (!RKC.st) $('p-rk').innerHTML = `<div class="loading">No se pudo cargar Ranked.</div>`; }
@@ -894,18 +987,29 @@
   }
   async function rkEnsureChamps(){ if (RKC.champs) return; try { const r = await fetch('/api/ranked/champs'); RKC.champs = (r.ok ? await r.json() : []).filter(c => /^[A-Za-z]+$/.test(c.id)); } catch (e) { RKC.champs = []; } rkRender(); }
   // ---------- vista sin partida: perfil, roles, cola y tabla ----------
+  // ---------- perfil (tarjeta grande con el emblema, PL, estadísticas, racha y roles) ----------
   function rkProfile(me){
-    const r = me.rank, g = me.wins + me.losses, apex = !r.div;
-    return `<div class="card rk-me">
-        <img class="rk-emblem" src="${rkEmb(r.tier)}" alt="${rkRankTxt(r)}">
-        <div style="flex:1;min-width:0"><div class="rk-rname">${rkRankTxt(r)}</div>
-          <div class="rk-lp">${r.lp} PL${apex ? '' : ' / 100'}</div>
-          ${apex ? '' : `<div class="rk-bar"><i style="width:${Math.max(0, Math.min(100, r.lp))}%;background:${RK_COL[r.tier]}"></i></div>`}
-          <div class="rk-wl">${g ? `${me.wins}V ${me.losses}D · ${Math.round(me.wins / g * 100)}% de victorias` : 'Aún sin partidas clasificatorias'}</div>
-          ${me.roles && me.roles.n ? `<div class="rk-wl" title="Lo que te ha asignado el emparejamiento. Si te toca seguido tu secundario o fuera de rol, tienes prioridad para tu rol principal.">Roles: principal ${Math.round(me.roles.main * 100)}% · secundario ${Math.round(me.roles.sec * 100)}% · fuera de rol ${Math.round(me.roles.off * 100)}%${me.roles.fill ? ' · relleno ' + Math.round(me.roles.fill * 100) + '%' : ''} (${me.roles.n})</div>` : ''}
-          ${me.lastOff ? `<div class="rk-wl" style="color:var(--up)">Quedaste fuera de rol en tu última partida: tienes prioridad para tu rol en la próxima.</div>` : ''}
-          ${me.voteWeight < 1 ? `<div class="rk-warn">${me.voteWeight === 0 ? 'Perdiste el derecho a voto por votar mal el resultado varias veces.' : 'Tu voto de resultado vale la mitad por haber votado mal antes.'} Vota bien para recuperarlo.</div>` : ''}
-        </div></div>`;
+    const r = me.rank, g = me.wins + me.losses, apex = !r.div, col = RK_COL[r.tier] || '#7dd3fc';
+    const mine = RKC.lb && RKC.lb.board.find(b => b.uid === me.uid), form = (mine && mine.form) || [];
+    const streak = (() => { if (!form.length) return null; let n = 0; for (const x of form){ if (x === form[0]) n++; else break; } return { w: form[0] === 1, n }; })();
+    const ro = me.roles || { n: 0 };
+    return `<div class="rkx-hero" style="--tc:${col}">
+        <div class="rkx-emb"><img src="${rkEmb(r.tier)}" alt="${rkRankTxt(r)}"></div>
+        <div class="rkx-rname">${rkRankTxt(r)}</div>
+        <div class="rkx-lp"><b>${r.lp}</b> PL${apex ? '' : ' / 100'}</div>
+        ${apex ? '' : `<div class="rkx-bar"><i style="width:${Math.max(2, Math.min(100, r.lp))}%"></i></div>`}
+        <div class="rkx-stats">
+          <div><b>${g}</b><span>Partidas</span></div>
+          <div><b class="${g && me.wins / g >= .5 ? 'up' : g ? 'down' : ''}">${g ? Math.round(me.wins / g * 100) + '%' : '–'}</b><span>${me.wins}V ${me.losses}D</span></div>
+          <div><b class="${streak ? (streak.w ? 'up' : 'down') : ''}">${streak ? (streak.w ? '+' : '-') + streak.n : '–'}</b><span>Racha</span></div>
+        </div>
+        ${form.length ? `<div class="rkx-form" title="Últimas partidas (la más reciente a la izquierda)">${form.map(x => `<i class="${x ? 'w' : 'l'}">${x ? 'V' : 'D'}</i>`).join('')}</div>` : ''}
+        ${ro.n ? `<div class="rkx-roles" title="Lo que te ha asignado el emparejamiento. Si te toca seguido tu secundario o fuera de rol, tienes prioridad para tu rol principal.">
+            <div class="rkx-rbar"><i class="m" style="width:${ro.main * 100}%"></i><i class="s" style="width:${ro.sec * 100}%"></i><i class="f" style="width:${ro.fill * 100}%"></i><i class="o" style="width:${ro.off * 100}%"></i></div>
+            <div class="rkx-rleg"><span><i class="m"></i>Principal ${Math.round(ro.main * 100)}%</span><span><i class="s"></i>Secundario ${Math.round(ro.sec * 100)}%</span>${ro.fill ? `<span><i class="f"></i>Relleno ${Math.round(ro.fill * 100)}%</span>` : ''}<span><i class="o"></i>Fuera de rol ${Math.round(ro.off * 100)}%</span></div></div>` : ''}
+        ${me.lastOff ? `<div class="rkx-note up">Quedaste fuera de rol en tu última partida: tienes prioridad para tu rol en la próxima.</div>` : ''}
+        ${me.voteWeight < 1 ? `<div class="rk-warn">${me.voteWeight === 0 ? 'Perdiste el derecho a voto por votar mal el resultado varias veces.' : 'Tu voto de resultado vale la mitad por haber votado mal antes.'} Vota bien para recuperarlo.</div>` : ''}
+      </div>`;
   }
   function rkRolePick(which, cur){
     return `<div class="rk-roles" data-which="${which}">` + ['TOP','JUNGLE','MIDDLE','BOTTOM','UTILITY','FILL'].map(r =>
@@ -919,33 +1023,116 @@
         sim.bots.map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}" title="${b.inMatch ? 'En sala' : b.inQueue ? 'En cola' : 'Fuera de la cola'}">${esc(b.nick)}${b.inMatch ? ' ●' : b.inQueue ? ' ○' : ''}</button>`).join('') + `</div>
       <div class="r"><span>Atajos</span><button data-sim="fill">Meter los 9 bots a la cola</button><button data-sim="accept">Bots aceptan</button><button data-sim="draft" title="Durante la preparación, la termina">Bots banean / eligen</button><button data-sim="remake">Bots votan remake</button><button data-sim="vote:blue">Bots votan Azul</button><button data-sim="vote:red">Bots votan Rojo</button><button data-sim="kick" title="Los bots se suman a la expulsión que ya tenga algún voto">Bots apoyan expulsión</button><button data-sim="clear">Limpiar prueba</button></div></div>`;
   }
+  // ---------- tabla de posiciones (podio + tabla) ----------
+  const rkWr = b => b.wins + b.losses ? Math.round(b.wins / (b.wins + b.losses) * 100) : 0;
+  const rkFormHtml = f => f && f.length ? `<span class="rkx-form sm">${f.slice(0, 8).map(x => `<i class="${x ? 'w' : 'l'}"></i>`).join('')}</span>` : '<span class="rkx-mut">–</span>';
+  const rkRoleMini = b => [b.role1, b.role2].filter((r, i, a) => r && a.indexOf(r) === i).map(r => RK_ICON[r] ? `<img class="rkx-ri" src="overlay/assets/roles/${RK_ICON[r]}.webp" alt="" title="${RK_ROLE[r]}">` : `<span class="rkx-ri fill" title="Relleno">✦</span>`).join('');
+  function rkBoardHtml(me){
+    const lb = RKC.lb;
+    if (!lb) return `<div class="loading" style="padding:30px 0">Cargando tabla…</div>`;
+    if (!lb.board.length) return `<div class="rkx-empty"><b>Aún no se juega ninguna partida.</b><span>Todos parten en Diamante IV con 0 PL.</span></div>`;
+    const isMe = b => me && b.uid === me.uid;
+    const pod = lb.board.slice(0, 3), order = [pod[1], pod[0], pod[2]].filter(Boolean);
+    const podium = `<div class="rkx-podium">` + order.map(b => `<a class="rkx-pod p${b.pos} ${isMe(b) ? 'me' : ''}" href="${rkOpgg(b.rid)}" target="_blank" rel="noopener" style="--tc:${RK_COL[b.rank.tier] || '#7dd3fc'}">
+        <span class="rkx-pos">${b.pos}</span><img src="${rkEmb(b.rank.tier)}" alt="">
+        <b class="nk">${esc(b.nick)}</b><span class="rt">${rkRankTxt(b.rank)} · ${b.rank.lp} PL</span>
+        <span class="wl"><b>${rkWr(b)}%</b> ${b.wins}V ${b.losses}D</span>${rkFormHtml(b.form)}</a>`).join('') + `</div>`;
+    const rest = lb.board.slice(3);
+    const table = rest.length ? `<div class="rkx-tbl"><div class="rkx-tr h"><span>#</span><span>Jugador</span><span>Rango</span><span>Victorias</span><span class="hm">Racha</span><span class="hm" title="% de partidas en que el emparejamiento lo dejó fuera de sus roles">Fuera de rol</span></div>` +
+      rest.map(b => `<a class="rkx-tr ${isMe(b) ? 'me' : ''}" href="${rkOpgg(b.rid)}" target="_blank" rel="noopener">
+        <span class="ps">${b.pos}</span>
+        <span class="pl"><b>${esc(b.nick)}</b>${rkRoleMini(b)}${(b.champs || []).map(c => `<img class="rkx-ci" src="${anChamp(c.c)}" alt="" title="${esc(rkChampName(c.c))} · ${c.n} ${c.n === 1 ? 'partida' : 'partidas'}">`).join('')}</span>
+        <span class="rk"><img src="${rkEmb(b.rank.tier)}" alt="">${rkRankTxt(b.rank)} <i>${b.rank.lp} PL</i></span>
+        <span class="wr"><b>${rkWr(b)}%</b><i class="rkx-wbar"><i style="width:${rkWr(b)}%"></i></i><small>${b.wins}V ${b.losses}D</small></span>
+        <span class="hm">${rkFormHtml(b.form)}</span>
+        <span class="hm rkx-mut">${b.roles && b.roles.n ? Math.round(b.roles.off * 100) + '%' : '–'}</span></a>`).join('') + `</div>` : '';
+    return podium + table;
+  }
+  // ---------- historial (todas / mías) ----------
+  const rkDur = s => s ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : null;
+  const rkKda = p => p.k != null ? `${p.k}/${p.d}/${p.a}` : '';
+  async function rkHistLoad(kind, more){
+    const H = RKC.hist[kind] || (RKC.hist[kind] = { items: [], page: -1, more: true, loading: false });
+    if (H.loading || (more && !H.more)) return; H.loading = true; H.err = '';
+    try { const page = more ? H.page + 1 : 0, r = await SQC.api('/ranked/history?page=' + page + (kind === 'mine' ? '&mine=1' : ''));
+      H.items = more ? H.items.concat(r.items) : r.items; H.page = page; H.more = r.more; H.total = r.total; }
+    catch (e) { H.err = e.message || 'No se pudo cargar el historial'; }
+    H.loading = false; if (RKC.st && !RKC.st.match) rkRender();
+  }
+  function rkHistHtml(kind){
+    const H = RKC.hist[kind];
+    if (!H || (H.loading && !H.items.length)){ if (!H) rkHistLoad(kind); return `<div class="loading" style="padding:30px 0">Cargando partidas…</div>`; }
+    if (H.err) return `<div class="fv-note">${esc(H.err)}</div>`;
+    if (!H.items.length) return `<div class="rkx-empty"><b>${kind === 'mine' ? 'Todavía no juegas ninguna partida.' : 'Todavía no se juega ninguna partida.'}</b><span>Busca partida y aparecerán aquí.</span></div>`;
+    const icons = (ps, win) => `<span class="rkx-side ${win ? 'win' : ''}">${ps.map(p => p.champ ? `<img src="${anChamp(p.champ)}" alt="" title="${esc(p.nick)} · ${esc(rkChampName(p.champ))}${p.k != null ? ' · ' + rkKda(p) : ''}">` : `<i title="${esc(p.nick)}"></i>`).join('')}</span>`;
+    return `<div class="rkx-hist">` + H.items.map(m => {
+      const me = kind === 'mine' && m.me, res = me ? (me.won ? 'w' : 'l') : '';
+      return `<button class="rkx-g ${res}" data-gid="${m.id}">
+        <span class="rs">${me ? `<b>${me.won ? 'Victoria' : 'Derrota'}</b>${me.delta != null ? `<i>${me.delta > 0 ? '+' : ''}${me.delta} PL</i>` : ''}` : `<b class="${m.winner}">Ganó ${m.winner === 'blue' ? 'Azul' : 'Rojo'}</b>`}<small>${fdate(m.endedAt)}</small></span>
+        ${me ? `<span class="mc">${me.champ ? `<img src="${anChamp(me.champ)}" alt="">` : '<i></i>'}<span><b>${me.champ ? esc(rkChampName(me.champ)) : '—'}</b><small>${me.k != null ? rkKda(me) + ' · ' : ''}${RK_ROLE[me.role] || ''}</small></span></span>` : ''}
+        <span class="tm">${icons(m.blue, m.winner === 'blue')}<em>vs</em>${icons(m.red, m.winner === 'red')}</span>
+        <span class="mt">${m.duration ? `<b>${rkDur(m.duration)}</b>` : ''}<small>${m.by === 'overlay' ? '📡 overlay' : m.by === 'admin' ? 'admin' : 'votación'}${m.conflict ? ' · ⚠' : ''}</small></span>
+      </button>`; }).join('') + `</div>` +
+      (H.more ? `<div style="text-align:center;margin-top:12px"><button class="fv-btn" data-more="${kind}">${H.loading ? 'Cargando…' : 'Ver más partidas'}</button></div>` : '');
+  }
+  // ---------- detalle de una partida (ventana encima de todo) ----------
+  async function rkOpenMatch(id){
+    let box = document.getElementById('rk-det');
+    if (!box){ box = document.createElement('div'); box.id = 'rk-det'; box.className = 'rkx-det'; document.body.appendChild(box);
+      box.addEventListener('click', e => { if (e.target === box || e.target.closest('[data-close]')) box.style.display = 'none'; });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape') box.style.display = 'none'; }); }
+    box.style.display = ''; box.innerHTML = `<div class="rkx-dbox"><div class="loading" style="padding:40px 0">Cargando partida…</div></div>`;
+    let d; try { d = await SQC.api('/ranked/match/' + id); } catch (e) { box.innerHTML = `<div class="rkx-dbox"><div class="fv-note">${esc(e.message)}</div><button class="fv-btn" data-close>Cerrar</button></div>`; return; }
+    const item = i => `<img class="it" src="https://ddragon.leagueoflegends.com/cdn/${anDDV}/img/item/${i}.png" alt="" loading="lazy">`;
+    const fmtK = v => v == null ? '–' : v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v);
+    const maxDmg = Math.max(1, ...d.teams.flatMap(t => t.players.map(p => p.dmg || 0)));
+    const team = t => `<div class="rkx-dteam ${t.side} ${t.won ? 'won' : ''}">
+        <div class="rkx-dth"><b>${t.side === 'blue' ? 'Equipo Azul' : 'Equipo Rojo'}</b><span class="${t.won ? 'up' : 'down'}">${t.won ? 'Victoria' : 'Derrota'}</span>
+          ${d.stats ? `<span class="rkx-mut">${t.players.reduce((s, p) => s + (p.k || 0), 0)} / ${t.players.reduce((s, p) => s + (p.d || 0), 0)} / ${t.players.reduce((s, p) => s + (p.a || 0), 0)}</span>` : ''}
+          <span class="bans">${t.bans.map(b => b.champ ? `<img src="${anChamp(b.champ)}" alt="" title="Ban de ${esc(b.nick)}: ${esc(rkChampName(b.champ))}">` : `<i title="${esc(b.nick)}: sin ban"></i>`).join('')}</span>
+          <a class="fv-btn sm" href="${rkMulti(t.players.map(p => p.rid))}" target="_blank" rel="noopener">OP.GG</a></div>` +
+        t.players.map(p => `<div class="rkx-dp">
+          <span class="ch">${p.champ ? `<img src="${anChamp(p.champ)}" alt="">` : '<i></i>'}${p.level ? `<em>${p.level}</em>` : ''}</span>
+          <span class="who"><a href="${rkOpgg(p.rid)}" target="_blank" rel="noopener"><b>${esc(p.nick)}</b></a><small>${rkRoleIco(p.role)} ${RK_ROLE[p.role] || ''}${p.champ ? ' · ' + esc(rkChampName(p.champ)) : ''}${p.picked && p.champ && p.picked !== p.champ ? ` <span class="down" title="En el draft eligió ${esc(rkChampName(p.picked))}">(draft: ${esc(rkChampName(p.picked))})</span>` : ''}</small></span>
+          ${d.stats ? `<span class="kda"><b>${rkKda(p)}</b><small>${p.d ? ((p.k + p.a) / p.d).toFixed(2) : 'Perfecto'} KDA</small></span>
+          <span class="num"><b>${p.cs ?? '–'}</b><small>${p.cs != null && d.duration ? (p.cs / (d.duration / 60)).toFixed(1) + '/min' : 'CS'}</small></span>
+          <span class="num hm"><b>${fmtK(p.gold)}</b><small>oro</small></span>
+          <span class="dmg hm"><b>${fmtK(p.dmg)}</b><i class="rkx-wbar"><i style="width:${Math.round((p.dmg || 0) / maxDmg * 100)}%"></i></i></span>
+          <span class="num hm"><b>${p.vision ?? '–'}</b><small>visión</small></span>
+          <span class="its hm">${(p.items || []).map(item).join('')}</span>` : ''}
+          <span class="lp ${p.delta > 0 ? 'up' : p.delta < 0 ? 'down' : ''}">${p.delta != null ? (p.delta > 0 ? '+' : '') + p.delta + ' PL' : ''}${p.rank ? `<small><img src="${rkEmb(p.rank.tier)}" alt="">${rkRankTxt(p.rank)}</small>` : ''}</span>
+        </div>`).join('') + `</div>`;
+    box.innerHTML = `<div class="rkx-dbox">
+        <div class="rkx-dhead"><div><b>Sala ${d.id}</b><span>${fdate(d.endedAt)}${d.duration ? ' · ' + rkDur(d.duration) : ''} · ganó <b class="${d.winner}">${d.winner === 'blue' ? 'Azul' : 'Rojo'}</b></span>
+          <small>${d.by === 'overlay' ? `📡 Resultado y estadísticas enviados por el overlay de ${esc(d.reportedBy || '?')}` : d.by === 'admin' ? 'Resultado definido por un admin' : `Resultado por votación (${d.votes.blue}–${d.votes.red})`}${d.conflict && !d.conflict.reviewed ? ' · <span class="down">⚠ otro overlay reportó distinto</span>' : ''}</small></div>
+          <button class="fv-x" data-close title="Cerrar">✕</button></div>
+        ${d.stats ? '' : `<div class="fv-note" style="margin-bottom:10px">Sin estadísticas: nadie de la sala tenía el overlay abierto, así que solo se guardaron los campeones del draft y el resultado.</div>`}
+        ${d.teams.map(team).join('')}
+      </div>`;
+  }
+  // ---------- vista principal sin partida ----------
   function rkLobbyHtml(){
     const st = RKC.st, me = st.me, inQ = !!st.queue.inQueue;
     let left = '';
-    if (!me) left = `<div class="card"><h3>Clasificatoria interna</h3><div class="fv-note" style="margin-top:4px">Cola 5v5 entre jugadores del challenge, con su propio ranking. Elige tus roles, busca partida y, cuando se junten 10, se arma la sala con el pick y ban.</div>
-        <div style="margin-top:14px"><a class="fv-btn pri" href="cuenta.html">Inicia sesión para jugar</a></div></div>`;
+    if (!me) left = `<div class="rkx-hero" style="--tc:#e9ff1f"><div class="rkx-emb"><img src="${rkEmb('DIAMOND')}" alt=""></div><div class="rkx-rname">Clasificatoria interna</div>
+        <div class="fv-note" style="margin:8px 0 14px">Cola 5v5 entre jugadores del challenge, con su propio ranking. Elige tus roles, busca partida y, cuando se junten 10, se arma la sala con el pick y ban.</div>
+        <a class="fv-btn pri" href="cuenta.html">Inicia sesión para jugar</a></div>`;
     else left = rkProfile(me) + `<div class="card rk-qcard ${inQ ? 'searching' : ''}">
-        <h3>Clasificatoria · 5v5</h3>
+        <h3>Buscar partida · 5v5</h3>
         <div class="rk-lbl">Rol principal</div>${rkRolePick('1', me.role1)}
         <div class="rk-lbl">Rol secundario</div>${rkRolePick('2', me.role2)}
         <div class="fv-err">${esc(RKC.err)}</div>
         ${inQ ? `<button class="rk-find on" id="rk-cancel"><span>BUSCANDO PARTIDA</span><b class="rk-clock" data-since="${st.queue.since}">0:00</b><small>Cancelar</small></button>`
               : `<button class="rk-find" id="rk-find" ${me.role1 && me.role2 ? '' : 'disabled'}><span>BUSCAR PARTIDA</span>${me.role1 && me.role2 ? '' : '<small>Elige tus dos roles</small>'}</button>`}
-        <div class="rk-qinfo"><b>${st.queue.count}</b> de ${st.size} en cola${inQ ? ' · puedes dejar esta pestaña abierta' : ''}</div>
+        <div class="rkx-q"><div class="rkx-qbar"><i style="width:${Math.min(100, st.queue.count / st.size * 100)}%"></i></div><span><b>${st.queue.count}</b> de ${st.size} en cola${inQ ? ' · puedes dejar esta pestaña abierta' : ''}</span></div>
       </div>`;
     // aviso del último resultado (una vez)
     let last = '';
-    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = st.last.cancelled ? `<div class="rk-last"><span><b>${st.last.by === 'remake' ? 'Remake' : 'Partida anulada'}</b>${st.last.kicked ? (st.last.wasMe ? ' · fuiste expulsado por votación' : ' · ' + esc(st.last.kicked) + ' fue expulsado por votación') : ''} · nadie ganó ni perdió PL</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>` : `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : st.last.by === 'overlay' ? ' · resultado enviado por el overlay' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
+    try { if (st.last && localStorage.getItem('sqc_rk_seen') !== String(st.last.matchId)) last = st.last.cancelled ? `<div class="rk-last"><span><b>${st.last.by === 'remake' ? 'Remake' : 'Partida anulada'}</b>${st.last.kicked ? (st.last.wasMe ? ' · fuiste expulsado por votación' : ' · ' + esc(st.last.kicked) + ' fue expulsado por votación') : ''} · nadie ganó ni perdió PL</span><button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>` : `<div class="rk-last ${st.last.won ? 'w' : 'l'}"><span><b>${st.last.won ? 'Victoria' : 'Derrota'}</b> · ${st.last.delta > 0 ? '+' : ''}${st.last.delta} PL${st.last.by === 'admin' ? ' · resultado definido por un admin' : st.last.by === 'overlay' ? ' · resultado enviado por el overlay' : ''}${st.last.sim ? ' · partida de prueba: tus PL no cambiaron' : ''}</span>${st.last.sim ? '' : `<button class="fv-btn sm" data-gid="${st.last.matchId}">Ver partida</button>`}<button class="fv-x" id="rk-seen" title="Cerrar">✕</button></div>`; } catch (e) {}
     const lb = RKC.lb;
-    const board = !lb ? `<div class="loading" style="padding:24px 0">Cargando tabla…</div>` : !lb.board.length ? `<div class="fv-note">Aún no se ha jugado ninguna clasificatoria. Todos parten en Diamante IV con 0 PL.</div>`
-      : `<table class="lb-rk"><thead><tr><th class="n">#</th><th>Jugador</th><th>Rango</th><th class="n">PL</th><th class="n">V</th><th class="n">D</th><th class="n">% vict.</th><th class="n" title="% de partidas en que el emparejamiento lo dejó fuera de su rol principal y secundario">Fuera de rol</th></tr></thead><tbody>` +
-        lb.board.map(b => `<tr class="${me && b.nick === me.nick ? 'me' : ''}"><td class="n">${b.pos}</td><td><a href="${rkOpgg(b.rid)}" target="_blank" rel="noopener">${esc(b.nick)}</a></td><td>${rkDot(b.rank)}${rkRankTxt(b.rank)}</td><td class="n">${b.rank.lp}</td><td class="n">${b.wins}</td><td class="n">${b.losses}</td><td class="n">${Math.round(b.wins / (b.wins + b.losses) * 100)}%</td><td class="n" title="${b.roles && b.roles.n ? `Principal ${Math.round(b.roles.main * 100)}% · secundario ${Math.round(b.roles.sec * 100)}% · fuera de rol ${Math.round(b.roles.off * 100)}%` : 'Sin datos'}">${b.roles && b.roles.n ? Math.round(b.roles.off * 100) + '%' : '–'}</td></tr>`).join('') + `</tbody></table>`;
     const open = lb && lb.open.length ? `<div class="card" style="margin-top:14px"><h3>Salas abiertas</h3>` + lb.open.map(o => `<div class="rk-open"><div><b>Sala ${o.id}</b>${o.sim ? ' (prueba)' : ''} · ${({ draft:'en pick y ban', playing:'en juego', dispute:'votación empatada' })[o.status] || o.status} · votos ${o.votes.blue}-${o.votes.red}
           <div class="ps">Azul: ${o.blue.map(esc).join(', ')}<br>Rojo: ${o.red.map(esc).join(', ')}</div></div>
           ${me && me.admin && o.status !== 'draft' ? `<div class="rk-adm"><button class="fv-btn sm" data-res="${o.id}|blue">Ganó Azul</button><button class="fv-btn sm" data-res="${o.id}|red">Ganó Rojo</button><button class="fv-btn sm" data-res="${o.id}|cancel">Anular</button></div>` : ''}</div>`).join('') + `</div>` : '';
-    // con estadísticas si el resultado lo mandó el overlay (campeón, K/D/A y farm de cada uno)
-    const rkRecP = p => p.k != null ? `<span class="rk-st">${p.champ ? `<img src="${anChamp(p.champ)}" alt="" title="${esc(rkChampName(p.champ))}">` : ''}${esc(p.nick)} <b>${p.k}/${p.d}/${p.a}</b> <i>${p.cs} CS</i></span>` : esc(p.nick);
-    const recent = lb && lb.recent.length ? `<div class="card" style="margin-top:14px"><h3>Últimas partidas</h3>` + lb.recent.map(m => `<div class="rk-rec"><div class="${m.winner === 'blue' ? 'w' : ''}"><b>Azul</b> ${m.blue.map(rkRecP).join(m.blue.some(p => p.k != null) ? ' ' : ', ')}</div><div class="${m.winner === 'red' ? 'w' : ''}"><b>Rojo</b> ${m.red.map(rkRecP).join(m.red.some(p => p.k != null) ? ' ' : ', ')}</div><small>Ganó ${m.winner === 'blue' ? 'Azul' : 'Rojo'} · ${fdate(m.endedAt)}${m.by === 'overlay' ? ` · resultado del overlay de ${esc(m.reportedBy || '?')}${m.duration ? ' · ' + Math.floor(m.duration / 60) + ' min' : ''}` : m.by === 'admin' ? ' · definido por un admin' : ''}${m.conflict ? ' · <span style="color:var(--down)">otro overlay reportó distinto: revisar</span>' : ''}</small></div>`).join('') + `</div>` : '';
     const pend = st.pending ? `<div class="rk-modal ${st.sim ? 'low' : ''}"><div class="rk-found">
         <div class="t">¡PARTIDA ENCONTRADA!</div><div class="c rk-count" data-deadline="${st.pending.deadline}">30</div>
         <div class="s">${st.pending.accepted} de ${st.pending.total} aceptaron</div>
@@ -954,8 +1141,12 @@
     // admins: dos overlays reportaron distinto
     const conf = (st.conflicts || []).map(c => `<div class="rk-last l" style="display:block"><b>⚠ Revisar Sala ${c.id}</b> · el overlay de ${esc(c.reportedBy || '?')} dio ganador a <b>${c.winner === 'blue' ? 'Azul' : 'Rojo'}</b>, pero el de ${esc(c.by)} dice que ganó <b>${c.claims === 'blue' ? 'Azul' : 'Rojo'}</b>.
         <div class="ps" style="margin:4px 0 8px">Azul: ${c.blue.map(esc).join(', ')} · Rojo: ${c.red.map(esc).join(', ')}</div>
-        <div class="rk-adm"><button class="fv-btn sm" data-conf="${c.id}|keep">Mantener (${c.winner === 'blue' ? 'Azul' : 'Rojo'})</button><button class="fv-btn sm" data-conf="${c.id}|flip">Invertir (gana ${c.winner === 'blue' ? 'Rojo' : 'Azul'})</button><button class="fv-btn sm" data-conf="${c.id}|void">Anular partida</button></div></div>`).join('');
-    return `${conf}${last}<div class="rk-top"><div class="rk-left">${left}</div><div><div class="card"><h3>Tabla de posiciones</h3><div class="cap">Ranking propio de la cola interna. No afecta tu SoloQ.</div>${board}</div>${open}${recent}</div></div>${pend}`;
+        <div class="rk-adm"><button class="fv-btn sm" data-gid="${c.id}">Ver partida</button><button class="fv-btn sm" data-conf="${c.id}|keep">Mantener (${c.winner === 'blue' ? 'Azul' : 'Rojo'})</button><button class="fv-btn sm" data-conf="${c.id}|flip">Invertir (gana ${c.winner === 'blue' ? 'Rojo' : 'Azul'})</button><button class="fv-btn sm" data-conf="${c.id}|void">Anular partida</button></div></div>`).join('');
+    const v = RKC.view === 'mine' && !me ? 'board' : RKC.view;
+    const tabs = `<div class="rkx-tabs">${[['board', 'Tabla de posiciones'], ['all', 'Historial'], ...(me ? [['mine', 'Mis partidas']] : [])].map(([k, t]) => `<button class="${v === k ? 'on' : ''}" data-rkv="${k}">${t}</button>`).join('')}</div>`;
+    const body = v === 'board' ? rkBoardHtml(me) : rkHistHtml(v);
+    const sub = v === 'board' ? 'Ranking propio de la cola interna. No afecta tu SoloQ.' : v === 'all' ? 'Todas las partidas de la cola interna. Toca una para ver el detalle.' : 'Tus partidas. Toca una para ver el detalle.';
+    return `${conf}${last}<div class="rkx-grid"><div class="rk-left">${left}</div><div><div class="card rkx-main">${tabs}<div class="cap" style="margin:-2px 0 12px">${sub}</div>${body}</div>${open}</div></div>${pend}`;
   }
   // ---------- sala: equipos, pick y ban, partida y votación ----------
   function rkRoomHtml(){
@@ -1053,6 +1244,9 @@
     box.querySelectorAll('[data-res]').forEach(b => b.onclick = () => { const [id, w] = b.dataset.res.split('|');
       if (confirm(w === 'cancel' ? '¿Anular la partida? Nadie gana ni pierde PL.' : `¿Dar por ganador al equipo ${w === 'blue' ? 'Azul' : 'Rojo'}?`)) rkAct('admin/resolve', { matchId: +id, winner: w }).then(rkBoard); });
     box.querySelectorAll('[data-vote]').forEach(b => b.onclick = () => rkAct('vote', { team: b.dataset.vote }));
+    box.querySelectorAll('[data-rkv]').forEach(b => b.onclick = () => { RKC.view = b.dataset.rkv; try { localStorage.setItem('sqc_rk_view', RKC.view); } catch (e) {} if (RKC.view !== 'board') rkHistLoad(RKC.view); rkRender(); });
+    box.querySelectorAll('[data-gid]').forEach(b => b.onclick = () => rkOpenMatch(+b.dataset.gid));
+    box.querySelectorAll('[data-more]').forEach(b => b.onclick = () => rkHistLoad(b.dataset.more, true));
     box.querySelectorAll('[data-conf]').forEach(b => b.onclick = () => { const [id, action] = b.dataset.conf.split('|');
       const msg = { keep: '¿Mantener el resultado?', flip: '¿Invertir el resultado? Se deshacen los PL y se recalculan con el otro ganador.', void: '¿Anular la partida? Se devuelven los PL de todos.' }[action];
       if (confirm(msg)) rkAct('admin/conflict', { matchId: +id, action }).then(rkBoard); });
