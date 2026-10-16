@@ -1033,7 +1033,7 @@
   function rkBoardHtml(me){
     const lb = RKC.lb;
     if (!lb) return `<div class="loading" style="padding:30px 0">Cargando tabla…</div>`;
-    if (!lb.board.length) return `<div class="rkx-empty"><b>Aún no se juega ninguna partida.</b><span>Todos parten en Diamante IV con 0 PL.</span></div>`;
+    if (!lb.board.length) return `<div class="rkx-empty"><b>Aún no se juega ninguna partida.</b><span>Todos parten en Maestro con 0 PL.</span></div>`;
     const isMe = b => me && b.uid === me.uid;
     const pod = lb.board.slice(0, 3), order = [pod[1], pod[0], pod[2]].filter(Boolean);
     const podium = `<div class="rkx-podium">` + order.map(b => `<a class="rkx-pod p${b.pos} ${isMe(b) ? 'me' : ''}" href="${rkOpgg(b.rid)}" target="_blank" rel="noopener" style="--tc:${RK_COL[b.rank.tier] || '#7dd3fc'}">

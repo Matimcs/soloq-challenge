@@ -2712,9 +2712,9 @@ app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
 // (como en el LoL); después se arma la sala con equipos parejos por MMR, se hace el pick/ban igual
 // por turnos como en torneo (cada jugador banea uno; bans y picks en dos fases) y al terminar los jugadores votan quién ganó.
 // Ranking como el del LoL: Hierro→Diamante con 4 divisiones de 100 PL, y Maestro+ con PL abiertos.
-// Todos parten en Diamante IV con 0 PL. El estado vive en memoria y se respalda en la DB.
+// Todos parten en Maestro con 0 PL. El estado vive en memoria y se respalda en la DB.
 const RK_ROLES = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
-const RK_START = 2400;                         // Diamante IV, 0 PL (en puntos absolutos de liga)
+const RK_START = 2800;                         // Maestro, 0 PL (en puntos absolutos de liga)
 const RK_SIZE = 10;
 const RK_READY_MS = 30000, RK_BAN_MS = 30000, RK_PICK_MS = 30000;
 // Gracia: el reloj que se ve llega a 0, pero el turno se cierra unos segundos despues (como en el LoL),
@@ -2748,6 +2748,16 @@ async function rkInitLoad(){
   try { for (const r of await q('SELECT * FROM ranked_players')) RK.players.set(r.user_id, { uid: r.user_id, role1: r.role1, role2: r.role2, mmr: +r.mmr, lp: +r.lp, wins: r.wins | 0, losses: r.losses | 0, strikes: r.strikes | 0,
     gMain: r.g_main | 0, gSec: r.g_sec | 0, gOff: r.g_off | 0, gFill: r.g_fill | 0, lastOff: !!r.last_off }); } catch {}
   if (RK_LOCAL){ console.log('Ranked en modo local (RK_LOCAL=1): no se cargan salas reales ni la cola'); return; }
+  // Migración (una sola vez): antes se partía en Diamante IV (2400); ahora en Maestro (2800). A quienes ya jugaron se
+  // les suman los 400 PL (y 400 de MMR), así conservan lo que ganaron o perdieron; también el rango guardado en cada partida.
+  try { if (!(await q1("SELECT 1 FROM tool_state WHERE id='rk:mig:master'"))){
+    await q("INSERT INTO tool_state (id, data, updated_at) VALUES ('rk:mig:master', '{}'::jsonb, now()) ON CONFLICT (id) DO NOTHING");
+    for (const p of RK.players.values()){ if (p.uid < 0) continue; p.lp += 400; p.mmr += 400; await rkSavePlayer(p); }
+    for (const r of await q('SELECT id, data FROM ranked_matches')){ const d = r.data; let ch = false;
+      for (const c of Object.values(d.lpChanges || {})) if (c && c.lp != null){ c.lp += 400; ch = true; }
+      for (const t of d.teams || []){ if (t.avgMmr != null){ t.avgMmr += 400; ch = true; } for (const p of t.players || []){ if (p.lp != null) p.lp += 400; if (p.mmr != null) p.mmr += 400; } }
+      if (ch) await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [r.id, JSON.stringify(d)]); }
+    console.log('Ranked: migración a Maestro aplicada (+400 PL a ' + [...RK.players.values()].filter(p => p.uid > 0).length + ' jugadores)'); } } catch (e) { console.error('migración Maestro:', e.message); }
   try { for (const r of await q("SELECT id, data FROM ranked_matches WHERE status IN ('draft','playing','dispute')")){ const m = r.data; m.id = r.id; RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
   try { const r = await q1("SELECT data FROM tool_state WHERE id='rk:queue' AND updated_at > now() - interval '3 hours'");
     for (const e of (r && Array.isArray(r.data) ? r.data : [])) if (e && Number.isFinite(e.uid) && !RK.byUser.has(e.uid)) RK.queue.set(e.uid, { uid: e.uid, since: e.since || Date.now() });
