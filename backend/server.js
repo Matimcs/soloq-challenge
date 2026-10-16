@@ -2981,7 +2981,22 @@ function rkDoSwap(m, a, b){
   const d = m.draft, types = rkSwapTypes(m, a, b);
   const from = d.phase === 'prep' ? d.step : d.step + 1;
   d.seq.forEach((x, i) => { if (i >= from && types.includes(x.t)) x.u = x.u.map(u => u === a ? b : u === b ? a : u); });
+  rkSyncBans(m);
   return types;
+}
+// El orden de bans sigue al orden de picks: tras un cambio de turno, los bans que faltan (los que aún no empiezan) se
+// reparten entre quienes todavía no banean, en el orden en que eligen. Así el ban no queda pegado al orden inicial.
+function rkSyncBans(m){
+  const d = m.draft; if (!d.seq) return;
+  const from = d.phase === 'prep' ? d.step : d.step + 1, cur = d.phase === 'prep' ? null : d.seq[d.step];
+  for (const t of m.teams){
+    const mine = new Set(t.players.map(p => p.uid));
+    const pickOrder = d.seq.filter(x => x.t === 'pick').flatMap(x => x.u).filter(u => mine.has(u));
+    const busy = new Set(cur && cur.t === 'ban' ? cur.u : []);   // quien está baneando ahora conserva su turno
+    const free = pickOrder.filter(u => !d.locked[u] && !busy.has(u));
+    const slots = d.seq.map((x, i) => i).filter(i => i >= from && d.seq[i].t === 'ban' && mine.has(d.seq[i].u[0]));
+    slots.forEach((i, k) => { if (free[k] != null) d.seq[i].u = [free[k]]; });
+  }
 }
 // Expulsión por votación: si 9 de los 10 marcan al mismo jugador (troleo, o jugar algo distinto a lo elegido),
 // la partida se cancela sin cambios de PL.
