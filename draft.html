@@ -137,7 +137,9 @@
   .bs.now.red{ border-color:var(--red); box-shadow:0 0 12px rgba(255,77,94,.5); }
   .bs.hov img{ filter:grayscale(.3) brightness(.6); }
   .bs .bn{ position:absolute; bottom:1px; left:0; right:0; text-align:center; font-size:8.5px; font-weight:700; color:#fff; text-shadow:0 1px 2px #000; white-space:nowrap; overflow:hidden; }
-  .bmid{ text-align:center; font-size:12px; color:var(--muted); }
+  .bmid{ text-align:center; font-size:12px; color:var(--muted); display:flex; justify-content:center; align-items:center; gap:10px; }
+  .sfx-btn{ background:rgba(255,255,255,.06); border:1px solid var(--line-2); color:var(--text); border-radius:7px; font-size:12px; padding:3px 9px; cursor:pointer; font-family:inherit; }
+  .sfx-btn.off{ color:var(--muted-2); }
 
   /* fin del draft / sin sala */
   .cover{ position:fixed; inset:0; background:rgba(8,9,12,.88); display:grid; place-items:center; z-index:10; text-align:center; padding:20px; }
@@ -186,12 +188,13 @@
   </div>
   <div class="bans">
     <div class="brow blue" id="bans-blue"></div>
-    <div class="bmid" id="bmid"></div>
+    <div class="bmid"><span id="bmid"></span><button class="sfx-btn" id="sfx-btn" type="button"></button></div>
     <div class="brow red" id="bans-red"></div>
   </div>
 </div>
 <div class="cover" id="cover" style="display:none"></div>
 
+<script src="sfx.js"></script>
 <script src="api.js"></script>
 <script>
   const $ = id => document.getElementById(id);
@@ -250,6 +253,25 @@
     return { st, m, d, me, mine, myP, curSide, canBan, canPick, taken, myReq, canAskBan, myPickReq, pickLeft, canAskPick, nick };
   }
 
+  // ---------- sonidos: comparan el estado nuevo con el anterior ----------
+  function sounds(st){
+    const m = st.match; if (!m || !st.me){ S.snd = null; return; }
+    const d = m.draft, C = m.status === 'draft' ? ctx() : null;
+    const cur = { id: m.id, status: m.status, phase: d.phase, my: !!(C && (C.canBan || C.canPick)),
+      picks: m.teams.reduce((s, t) => s + t.players.filter(p => p.champ).length, 0),
+      bans: m.teams.reduce((s, t) => s + t.bans.filter(b => b.champ).length, 0),
+      reqs: (d.roleIn || []).length + (d.swapIn || []).length + (d.tradeIn || []).length + (d.banReqs || []).filter(r => r.rival).length + (d.pickReqs || []).filter(r => r.rival).length + (d.side && d.side.canVote && d.side.votes ? 1 : 0) };
+    const p = S.snd; S.snd = cur; if (!p || p.id !== cur.id) return;
+    if (cur.status !== 'draft'){ if (p.status === 'draft') SFX.done(); return; }
+    const hit = cur.picks > p.picks || cur.bans > p.bans;
+    if (cur.picks > p.picks) SFX.lock(); else if (cur.bans > p.bans) SFX.ban();
+    if (cur.my && !p.my) setTimeout(() => SFX.turn(), hit ? 380 : 0);
+    else if (cur.phase !== p.phase) setTimeout(() => SFX.phase(), hit ? 380 : 0);
+    if (cur.reqs > p.reqs) SFX.notify();
+  }
+  function sfxBtn(){ const b = $('sfx-btn'); if (!b) return; b.textContent = SFX.muted ? '🔇 Sonidos' : '🔊 Sonidos'; b.classList.toggle('off', SFX.muted); b.title = SFX.muted ? 'Activar sonidos' : 'Silenciar sonidos'; }
+  sfxBtn(); $('sfx-btn').onclick = () => { SFX.toggle(); sfxBtn(); };
+
   // ---------- render ----------
   function render(){
     const st = S.st;
@@ -258,6 +280,7 @@
     if (!st.match && S.hadMatch){ const l = st.last; cover('La sala se cerró', l && l.cancelled ? 'La partida se anuló' + (l.kicked ? ' (' + esc(l.kicked) + ' fue expulsado por votación)' : '') + '. Nadie gana ni pierde PL.' : 'La sala ya no existe.', 'herramientas.html#rk', 'Volver a Ranked'); return; }
     if (st.match) S.hadMatch = true;
     if (!st.match){ cover('No estás en un draft', 'Busca partida en Ranked y, cuando se junten 10 y todos acepten, la sala se abre aquí.', 'herramientas.html#rk', 'Ir a Ranked'); return; }
+    sounds(st);
     const C = ctx(), { m, d } = C;
     if (m.status !== 'draft'){
       cover('¡Draft terminado!', 'Ya están los equipos y los campeones. Vuelve a Ranked para ver los datos de la sala personalizada y votar el resultado al terminar.', 'herramientas.html#rk', 'Ir a la partida');
@@ -275,14 +298,20 @@
   function once(key, html, el){ if (S.sigs[key] === html) return false; S.sigs[key] = html; el.innerHTML = html; return true; }
 
   function renderSim(){
-    const sim = S.st && S.st.sim, el = $('sim');
-    if (!sim){ el.innerHTML = ''; return; }
+    const sim = S.st && S.st.sim, el = $('sim'), me = S.st && S.st.me, m = S.st && S.st.match;
+    if (!sim){
+      // admins (sin modo prueba): botón para anular la sala
+      const html = me && me.admin && m ? `<b style="color:var(--red)">ADMIN</b><span>Sala ${m.id}</span><button data-cancel="${m.id}" style="border-color:var(--red);color:var(--red)">Anular sala</button>` : '';
+      if (once('sim', html, el)) el.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { if (confirm('¿Anular la sala? Se cancela para los 10 y nadie gana ni pierde PL.')) act('admin/resolve', { matchId: +b.dataset.cancel, winner: 'cancel' }); });
+      return;
+    }
     const html = `<b>PRUEBA</b><span>Jugar como</span><button class="${sim.as ? '' : 'on'}" data-as="">Yo</button>` +
       sim.bots.filter(b => b.inMatch).map(b => `<button class="${sim.as === b.uid ? 'on' : ''}" data-as="${b.uid}">${esc(b.nick)}</button>`).join('') +
-      `<span style="margin-left:8px">Atajos</span><button data-sim="side">Bots rojos votan lado</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="clear">Limpiar prueba</button>`;
+      `<span style="margin-left:8px">Atajos</span><button data-sim="side">Bots rojos votan lado</button><button data-sim="draft">Bots banean / eligen</button><button data-sim="clear">Limpiar prueba</button>${m && !m.sim ? `<button data-cancel="${m.id}" style="border-color:var(--red);color:var(--red)">Anular sala</button>` : ''}`;
     if (once('sim', html, el)){
-      el.querySelectorAll('[data-as]').forEach(b => b.onclick = () => { S.as = +b.dataset.as || null; S.sel = null; S.chg = null; S.err = ''; S.sigs = {}; try { sessionStorage.setItem('sqc_rk_as', S.as || ''); } catch (e) {} load(); });
+      el.querySelectorAll('[data-as]').forEach(b => b.onclick = () => { S.as = +b.dataset.as || null; S.sel = null; S.chg = null; S.err = ''; S.sigs = {}; S.snd = null; try { sessionStorage.setItem('sqc_rk_as', S.as || ''); } catch (e) {} load(); });
       el.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => act('admin/sim', { action: b.dataset.sim }));
+      el.querySelectorAll('[data-cancel]').forEach(b => b.onclick = () => { if (confirm('¿Anular la sala? Se cancela para los 10 y nadie gana ni pierde PL.')) act('admin/resolve', { matchId: +b.dataset.cancel, winner: 'cancel' }); });
     }
   }
   function renderTeams(C){
@@ -417,7 +446,7 @@
       : S.role === 'FAV' ? !S.favs.has(b.dataset.c) : (S.role !== 'ALL' && !b.dataset.r.split(',').includes(S.role))));
   }
   function choose(c){
-    S.sel = c; const C = ctx();
+    S.sel = c; const C = ctx(); SFX.select();
     if (!S.chg && (C.canBan || (C.myP && !C.myP.champ))) sendHover(c);
     renderGrid(C); renderAct(C);
   }
@@ -458,6 +487,8 @@
     const C = ctx(), { d } = C, left = Math.max(0, d.deadline - now()), secs = Math.ceil(left / 1000), frac = Math.min(1, left / TURN_MS);
     const ph = $('ph'); ph.className = 'ph ' + (C.curSide || ''); ph.textContent = d.phase === 'prep' ? 'Preparación' : d.phase === 'final' ? 'Fase final' : `${d.phase === 'ban' ? 'Ban' : 'Pick'} · Equipo ${sideName(C.curSide)}`;
     const num = $('num'); num.textContent = secs; num.classList.toggle('low', secs <= 5);
+    if ((C.canBan || C.canPick) && secs <= 5 && secs > 0 && secs !== S.lastSec){ if (secs <= 3) SFX.tickLast(); else SFX.tick(); }
+    S.lastSec = secs;
     $('who').textContent = d.phase === 'prep' ? 'Pónganse de acuerdo: solo ahora se pueden cambiar roles' : d.phase === 'final' ? 'Últimos cambios antes de cerrar el draft' : (C.canBan || C.canPick) ? '¡Es tu turno!' : d.turn.map(C.nick).join(' y ');
     document.querySelectorAll('.pkc').forEach(el => { el.textContent = Math.max(0, Math.ceil(C.pickLeft / 1000)) + ' s'; });
     const l = $('tb-l'), r = $('tb-r');

@@ -2737,16 +2737,32 @@ function rkRank(abs){
 }
 // Peso del voto: quien vota mal seguido pesa menos y, si insiste, pierde el voto.
 const rkVoteWeight = strikes => strikes >= 4 ? 0 : strikes >= 2 ? 0.5 : 1;
-async function rkInit(){
-  if (RK.ready) return; RK.ready = true;
+// Carga inicial (una sola vez; quien llegue mientras carga espera la misma promesa, así nadie ve la cola vacía al arrancar).
+function rkInit(){ if (!RK.initP) RK.initP = rkInitLoad(); return RK.initP; }
+async function rkInitLoad(){
+  RK.ready = true;
   try { for (const r of await q('SELECT * FROM ranked_players')) RK.players.set(r.user_id, { uid: r.user_id, role1: r.role1, role2: r.role2, mmr: +r.mmr, lp: +r.lp, wins: r.wins | 0, losses: r.losses | 0, strikes: r.strikes | 0,
     gMain: r.g_main | 0, gSec: r.g_sec | 0, gOff: r.g_off | 0, gFill: r.g_fill | 0, lastOff: !!r.last_off }); } catch {}
+  if (RK_LOCAL){ console.log('Ranked en modo local (RK_LOCAL=1): no se cargan salas reales ni la cola'); return; }
   try { for (const r of await q("SELECT id, data FROM ranked_matches WHERE status IN ('draft','playing','dispute')")){ const m = r.data; m.id = r.id; RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
+  try { const r = await q1("SELECT data FROM tool_state WHERE id='rk:queue' AND updated_at > now() - interval '3 hours'");
+    for (const e of (r && Array.isArray(r.data) ? r.data : [])) if (e && Number.isFinite(e.uid) && !RK.byUser.has(e.uid)) RK.queue.set(e.uid, { uid: e.uid, since: e.since || Date.now() });
+    _rkQueueSig = [...RK.queue.values()].map(e => e.uid + ':' + e.since).sort().join(','); } catch {}
   try { await q("DELETE FROM tool_state WHERE id LIKE 'rksim:%' AND updated_at < now() - interval '3 hours'");
     for (const r of await q("SELECT data FROM tool_state WHERE id LIKE 'rksim:%'")){ const m = r.data; if (!m || m.id == null || rkUids(m).some(u => RK.byUser.has(u))) continue;
       RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
+  for (const u of [...RK.queue.keys()]) if (RK.byUser.has(u)) RK.queue.delete(u);   // quien ya está en una sala no sigue en cola
 }
 const rkUids = m => m.teams.flatMap(t => t.players.map(p => p.uid));
+// La cola se respalda en tool_state cada vez que cambia y se recupera al arrancar: así un deploy/reinicio del
+// servidor no saca a nadie de la cola (antes había que volver a buscar partida después de cada commit).
+let _rkQueueSig = null;
+function rkSaveQueue(){
+  if (RK_LOCAL) return;
+  const list = [...RK.queue.values()].map(e => ({ uid: e.uid, since: e.since })), sig = list.map(e => e.uid + ':' + e.since).sort().join(',');
+  if (sig === _rkQueueSig) return; _rkQueueSig = sig;
+  q("INSERT INTO tool_state (id, data, updated_at) VALUES ('rk:queue', $1::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [JSON.stringify(list)]).catch(() => {});
+}
 function rkPlayer(uid){
   let p = RK.players.get(uid);
   if (!p){ p = { uid, role1: null, role2: null, mmr: RK_START, lp: RK_START, wins: 0, losses: 0, strikes: 0, gMain: 0, gSec: 0, gOff: 0, gFill: 0, lastOff: false }; RK.players.set(uid, p); }
@@ -2754,6 +2770,7 @@ function rkPlayer(uid){
 }
 async function rkSavePlayer(p){
   if (p.uid < 0) return;                       // jugadores ficticios del modo prueba: solo en memoria
+  if (RK_LOCAL) return;                        // pruebas locales: no tocar los perfiles reales
   try { await q(`INSERT INTO ranked_players (user_id, role1, role2, mmr, lp, wins, losses, strikes, g_main, g_sec, g_off, g_fill, last_off, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,now())
     ON CONFLICT (user_id) DO UPDATE SET role1=$2, role2=$3, mmr=$4, lp=$5, wins=$6, losses=$7, strikes=$8, g_main=$9, g_sec=$10, g_off=$11, g_fill=$12, last_off=$13, updated_at=now()`,
     [p.uid, p.role1, p.role2, p.mmr, Math.round(p.lp), p.wins, p.losses, p.strikes, p.gMain | 0, p.gSec | 0, p.gOff | 0, p.gFill | 0, !!p.lastOff]); } catch {}
@@ -2761,6 +2778,8 @@ async function rkSavePlayer(p){
 async function rkSaveMatch(m){
   // Sala de prueba: no va a ranked_matches (ni a la tabla), pero se respalda en tool_state para que un reinicio del
   // servidor (un deploy) no la borre a mitad del draft. Se borra al terminar o anularse.
+  if (m.sim && RK_LOCAL){ if (m.id == null) m.id = -Date.now(); return; }
+  if (!m.sim && RK_LOCAL){ if (m.id == null) m.id = -Date.now(); return; }   // modo local: nada a la base
   if (m.sim){ if (m.id == null) m.id = -Date.now();
     try { if (m.status === 'done' || m.status === 'cancelled') await q('DELETE FROM tool_state WHERE id=$1', ['rksim:' + m.id]);
           else await q("INSERT INTO tool_state (id, data, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()", ['rksim:' + m.id, JSON.stringify(m)]); } catch {}
@@ -2973,7 +2992,8 @@ async function rkCheckVotes(m){
 // Latido: aceptar partida, emparejar y avanzar drafts.
 let _rkTicking = false;
 async function rkTick(){
-  if (_rkTicking) return; _rkTicking = true;
+  if (RK.stopped) return;
+  if (_rkTicking){ await rkInit(); return; } _rkTicking = true;
   try {
     await rkInit(); const now = Date.now();
     for (const pd of [...RK.pending.values()]){
@@ -2992,10 +3012,21 @@ async function rkTick(){
     const free = [...RK.queue.values()].filter(e => !busy.has(e.uid) && !RK.byUser.has(e.uid)).sort((a, b) => a.since - b.since);
     if (free.length >= RK_SIZE){ const id = RK.pseq++; RK.pending.set(id, { id, players: free.slice(0, RK_SIZE).map(e => e.uid), accepted: new Set(), declined: new Set(), deadline: now + RK_READY_MS }); }
     for (const m of [...RK.matches.values()]) await rkAdvance(m);
+    rkSaveQueue();
   } catch (e) { console.error('rkTick:', e.message); }
   finally { _rkTicking = false; }
 }
-setInterval(() => { rkTick(); }, 1000);
+// Un solo proceso a cargo de las salas. Si dos servidores avanzan el mismo draft a la vez (en un deploy Render tiene
+// un rato el viejo y el nuevo funcionando; o una prueba local apuntando a esta base), cada uno lleva su copia y pasan
+// cosas como turnos saltados. Por eso:
+//  · RK_LOCAL=1 (pruebas locales): no carga ni guarda las salas reales ni la cola, solo salas de prueba en memoria.
+//  · El servidor recién arrancado no toca las salas hasta recibir la primera consulta de Ranked (o sea, cuando ya le
+//    llega el tráfico) y recién ahí las carga de la base, con lo último que dejó el anterior.
+//  · Al recibir SIGTERM (el deploy lo reemplaza), deja de avanzar salas.
+const RK_LOCAL = process.env.RK_LOCAL === '1';
+app.use('/api/ranked', (req, res, next) => { RK.armed = true; next(); });
+process.on('SIGTERM', () => { RK.stopped = true; });
+setInterval(() => { if (RK.armed && !RK.stopped) rkTick(); }, 1000);
 // ---- Modo prueba (solo el superadmin): 9 jugadores ficticios (ids negativos) que el superadmin maneja como
 // si fuera cada uno, para probar cola, aceptar, draft y votación sin juntar a 10 personas. Una sala con
 // algún ficticio queda marcada como `sim`: no se guarda en la base ni cambia PL, MMR o faltas.
@@ -3958,7 +3989,7 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 
 // ---- Sitio estático ----
-const PUBLIC_FILES = new Set(['api.js', 'auth-fetch.js', 'nav.css', 'roulette.js', 'torneo-data.js', 'uleague-data.json']);
+const PUBLIC_FILES = new Set(['api.js', 'auth-fetch.js', 'sfx.js', 'nav.css', 'roulette.js', 'torneo-data.js', 'uleague-data.json']);
 app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   let p = req.path; try { p = decodeURIComponent(p); } catch { return res.status(400).end(); }

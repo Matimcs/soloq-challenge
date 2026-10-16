@@ -556,6 +556,7 @@
   </main>
 
 <script src="players.js"></script>
+<script src="sfx.js"></script>
 <script src="api.js"></script>
 <script>
   const $ = id => document.getElementById(id);
@@ -974,7 +975,8 @@
   const rkChampName = id => { const c = (RKC.champs || []).find(x => x.id === id); return c ? c.name : fvChampName(id); };
   async function rkLoad(force){
     try { const st = await SQC.api('/ranked/state' + (RKC.as ? '?as=' + RKC.as : '')); RKC.off = st.now - Date.now(); RKC.st = st;
-      const lid = st.last ? st.last.matchId : null; if (lid !== RKC.lastId){ if (RKC.lastId !== null) { RKC.hist = {}; rkBoard(); } RKC.lastId = lid; }
+      const lid = st.last ? st.last.matchId : null; if (lid !== RKC.lastId){ if (RKC.lastId !== null) { RKC.hist = {}; rkBoard(); if (st.last && !st.last.cancelled) (st.last.won ? SFX.win : SFX.lose)(); } RKC.lastId = lid; }
+      const pid = st.pending ? st.pending.id : null; if (pid && pid !== RKC.pendId && !st.pending.iAccepted) SFX.found(); RKC.pendId = pid;
       const sig = JSON.stringify({ ...st, now: 0 }) + '|' + (rkLogged() ? 1 : 0);
       if (force || sig !== RKC.sig){ RKC.sig = sig; rkRender(); } }
     catch (e) { if (!RKC.st) $('p-rk').innerHTML = `<div class="loading">No se pudo cargar Ranked.</div>`; }
@@ -1118,7 +1120,7 @@
         <div class="fv-note" style="margin:8px 0 14px">Cola 5v5 entre jugadores del challenge, con su propio ranking. Elige tus roles, busca partida y, cuando se junten 10, se arma la sala con el pick y ban.</div>
         <a class="fv-btn pri" href="cuenta.html">Inicia sesión para jugar</a></div>`;
     else left = rkProfile(me) + `<div class="card rk-qcard ${inQ ? 'searching' : ''}">
-        <h3>Buscar partida · 5v5</h3>
+        <h3 style="display:flex;justify-content:space-between;align-items:center">Buscar partida · 5v5 <button class="fv-btn sm" data-sfx title="${SFX.muted ? 'Activar sonidos' : 'Silenciar sonidos'}">${SFX.muted ? '🔇' : '🔊'}</button></h3>
         <div class="rk-lbl">Rol principal</div>${rkRolePick('1', me.role1)}
         <div class="rk-lbl">Rol secundario</div>${rkRolePick('2', me.role2)}
         <div class="fv-err">${esc(RKC.err)}</div>
@@ -1132,7 +1134,7 @@
     const lb = RKC.lb;
     const open = lb && lb.open.length ? `<div class="card" style="margin-top:14px"><h3>Salas abiertas</h3>` + lb.open.map(o => `<div class="rk-open"><div><b>Sala ${o.id}</b>${o.sim ? ' (prueba)' : ''} · ${({ draft:'en pick y ban', playing:'en juego', dispute:'votación empatada' })[o.status] || o.status} · votos ${o.votes.blue}-${o.votes.red}
           <div class="ps">Azul: ${o.blue.map(esc).join(', ')}<br>Rojo: ${o.red.map(esc).join(', ')}</div></div>
-          ${me && me.admin && o.status !== 'draft' ? `<div class="rk-adm"><button class="fv-btn sm" data-res="${o.id}|blue">Ganó Azul</button><button class="fv-btn sm" data-res="${o.id}|red">Ganó Rojo</button><button class="fv-btn sm" data-res="${o.id}|cancel">Anular</button></div>` : ''}</div>`).join('') + `</div>` : '';
+          ${me && me.admin ? `<div class="rk-adm">${o.status !== 'draft' ? `<button class="fv-btn sm" data-res="${o.id}|blue">Ganó Azul</button><button class="fv-btn sm" data-res="${o.id}|red">Ganó Rojo</button>` : ''}<button class="fv-btn sm" data-res="${o.id}|cancel">Anular</button></div>` : ''}</div>`).join('') + `</div>` : '';
     const pend = st.pending ? `<div class="rk-modal ${st.sim ? 'low' : ''}"><div class="rk-found">
         <div class="t">¡PARTIDA ENCONTRADA!</div><div class="c rk-count" data-deadline="${st.pending.deadline}">30</div>
         <div class="s">${st.pending.accepted} de ${st.pending.total} aceptaron</div>
@@ -1238,8 +1240,9 @@
     box.querySelectorAll('[data-as]').forEach(b => b.onclick = () => { RKC.as = +b.dataset.as || null; RKC.sel = null; RKC.role = null; RKC.q = ''; RKC.err = '';
       try { sessionStorage.setItem('sqc_rk_as', RKC.as || ''); } catch (e) {} rkLoad(true); });
     box.querySelectorAll('[data-sim]').forEach(b => b.onclick = () => { const [action, team] = b.dataset.sim.split(':'); rkAct('admin/sim', { action, team }); });
-    on('rk-find', () => rkAct('queue')); on('rk-cancel', () => rkAct('dequeue'));
-    on('rk-acc', () => rkAct('accept', { accept: true })); on('rk-dec', () => rkAct('accept', { accept: false }));
+    on('rk-find', () => { SFX.queue(); rkAct('queue'); }); on('rk-cancel', () => { SFX.cancel(); rkAct('dequeue'); });
+    on('rk-acc', () => { SFX.accept(); rkAct('accept', { accept: true }); }); on('rk-dec', () => { SFX.cancel(); rkAct('accept', { accept: false }); });
+    box.querySelectorAll('[data-sfx]').forEach(b => b.onclick = () => { SFX.toggle(); rkRender(); });
     on('rk-seen', () => { try { localStorage.setItem('sqc_rk_seen', String(RKC.st.last.matchId)); } catch (e) {} rkRender(); });
     box.querySelectorAll('[data-res]').forEach(b => b.onclick = () => { const [id, w] = b.dataset.res.split('|');
       if (confirm(w === 'cancel' ? '¿Anular la partida? Nadie gana ni pierde PL.' : `¿Dar por ganador al equipo ${w === 'blue' ? 'Azul' : 'Rojo'}?`)) rkAct('admin/resolve', { matchId: +id, winner: w }).then(rkBoard); });

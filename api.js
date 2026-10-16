@@ -27,6 +27,7 @@ window.SQC = (function(){
   function paintNav(user){
     const g = id => document.getElementById(id);
     const acc = g('nav-account'), logout = g('logout');
+    document.documentElement.classList.toggle('sqc-logged', !!user);   // publicidad y demás cosas solo con sesión
     if (user){
       // Blue Shells y Tickets ocultos por ahora (se re-activan quitando este comentario):
       // ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
