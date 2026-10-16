@@ -2884,7 +2884,18 @@ const rkTeamOf = (m, uid) => m.teams.find(t => t.players.some(p => p.uid === uid
 const rkSlot = (m, uid) => { for (const t of m.teams){ const p = t.players.find(x => x.uid === uid); if (p) return p; } return null; };
 // Avanza el draft cuando el turno terminó o se acabó el tiempo. Quien no banea a tiempo pierde su ban; a quien
 // no elige se le asigna un campeón al azar jugable en su rol (para no cancelar la sala por un despistado).
-async function rkAdvance(m){
+// Las revisiones de una misma sala van en fila (una termina antes de que empiece la otra). Antes corrían en paralelo
+// (la del latido de cada segundo y la de quien acababa de fijar campeón) y, como el paso de picks espera la lista de
+// campeones, las dos avanzaban un turno: se saltaba el siguiente entero (p.ej. los 2 picks del rojo).
+const RK_ADV = new Map();
+function rkAdvance(m){
+  const prev = RK_ADV.get(m.id) || Promise.resolve();
+  const run = prev.catch(() => {}).then(() => rkAdvanceOnce(m));
+  RK_ADV.set(m.id, run);
+  run.finally(() => { if (RK_ADV.get(m.id) === run) RK_ADV.delete(m.id); }).catch(() => {});
+  return run;
+}
+async function rkAdvanceOnce(m){
   const d = m.draft; let changed = false;
   if (m.status !== 'draft') return false;
   if (!d.seq){ await rkCancel(m, 'formato antiguo'); return true; }
@@ -2905,8 +2916,9 @@ async function rkAdvance(m){
     // se acabo el tiempo: se fija lo que tenia seleccionado (si sigue libre); si no, ban vacio / campeon al azar
     const takenNow = () => new Set([...Object.values(d.bans).filter(Boolean), ...Object.values(d.picks)]);
     if (st.t === 'ban') st.u.forEach(u => { if (!d.locked[u]){ const h = (d.banHover || {})[u]; d.locked[u] = true; d.bans[u] = h && !takenNow().has(h) ? h : null; } });
-    else {
-      const pool = await fvChampPool(), valid = (await rkChamps()).map(c => c.id), byRole = await rkChampRoles();
+    else if (st.u.some(u => !d.picks[u])){   // solo si falta alguien (si ya eligieron todos, no hay nada que esperar)
+      const at = d.step, pool = await fvChampPool(), valid = (await rkChamps()).map(c => c.id), byRole = await rkChampRoles();
+      if (d.step !== at || m.status !== 'draft') continue;   // por si algo cambió mientras se esperaba
       for (const u of st.u){ if (d.picks[u]) continue;
         const taken = takenNow(), h = (d.hover || {})[u];
         d.pickAt = d.pickAt || {}; d.pickAt[u] = Date.now();
