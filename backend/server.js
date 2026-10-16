@@ -1597,11 +1597,18 @@ app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
 app.post('/api/admin/reset-password', auth, requireAdmin, wrap(async (req,res) => {
   const riotid = ((req.body && req.body.riotid) || '').trim();
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
-  const u = await q1('SELECT id, email FROM users WHERE riotid=$1', [riotid]);
+  // sin importar mayúsculas ni espacios ("Henry Miller #379" == "henrymiller#379")
+  const u = await q1("SELECT id, email, nickname FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = lower(regexp_replace($1, '[[:space:]]', '', 'g'))", [riotid]);
   if (!u) return res.status(400).json({ error:'Ese jugador no tiene cuenta registrada' });
   const temp = Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6);
   await q('UPDATE users SET password_hash=$1 WHERE id=$2', [await bcrypt.hash(temp, 10), u.id]);
-  res.json({ ok:true, email: u.email, password: temp });
+  for (const k of [..._hits.keys()]) if (k.startsWith('login|')) _hits.delete(k);   // y que pueda entrar al tiro
+  res.json({ ok:true, email: u.email, nickname: u.nickname, password: temp });
+}));
+// Liberar los bloqueos por intentos fallidos de inicio de sesión (son por conexión/IP, no por cuenta).
+app.post('/api/admin/login-unlock', auth, requireAdmin, wrap(async (req,res) => {
+  let n = 0; for (const k of [..._hits.keys()]) if (k.startsWith('login|')){ _hits.delete(k); n++; }
+  res.json({ ok:true, cleared: n });
 }));
 
 // Eliminar un jugador del ranking POR COMPLETO: borra su perfil registrado (y datos

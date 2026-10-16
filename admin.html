@@ -239,6 +239,18 @@
           <button class="btn btn-ghost" id="msg-clear" style="display:none">Descartar audio</button>
         </div>
       </div>
+
+      <!-- Cuentas: contraseña y bloqueos -->
+      <div class="box">
+        <h2>Cuentas</h2>
+        <div class="sub" style="margin:-6px 0 12px">Si un jugador olvidó su contraseña, genera una temporal y pásasela (después la cambia en su perfil). Si quedó bloqueado por intentar muchas veces, libera los bloqueos.</div>
+        <div class="drop-row">
+          <input id="acc-rid" placeholder="Riot ID (ej: k1sseshugs#xoxo)" autocomplete="off">
+          <button class="btn btn-accent" id="acc-reset">Resetear contraseña</button>
+          <button class="btn btn-ghost" id="acc-unlock">Liberar bloqueos de inicio de sesión</button>
+        </div>
+        <div id="acc-out" class="sub" style="margin-top:10px"></div>
+      </div>
     </section>
 
     <!-- ===== STREAMS Y TICKETS ===== -->
@@ -587,6 +599,22 @@
 
     renderConfirm(); renderDrop(); renderRoster(); renderRosters(); renderLinks(); renderTags(); renderStreams(); renderVer(); renderTk(); renderParts(); renderPen(); loadMsgUsers(); renderOverlay();
     setInterval(renderOverlay, 60000);   // refresca el uso del overlay cada minuto
+  })();
+
+  // ---- Cuentas: resetear contraseña / liberar bloqueos ----
+  (function(){
+    const out = document.getElementById('acc-out'), esc2 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    document.getElementById('acc-reset').onclick = async () => {
+      const riotid = document.getElementById('acc-rid').value.trim(); if (!riotid) return toast('Escribe el Riot ID');
+      if (!confirm('¿Resetear la contraseña de ' + riotid + '? La actual deja de funcionar.')) return;
+      try { const r = await SQC.api('/admin/reset-password', { method:'POST', body:{ riotid } });
+        out.innerHTML = 'Contraseña temporal de <b>' + esc2(r.nickname || riotid) + '</b> (' + esc2(r.email) + '): <b style="font-size:16px;color:var(--accent,#e9ff1f);user-select:all">' + esc2(r.password) + '</b> · pásasela y que la cambie en su perfil.'; }
+      catch(e){ toast(e.message); }
+    };
+    document.getElementById('acc-unlock').onclick = async () => {
+      try { const r = await SQC.api('/admin/login-unlock', { method:'POST' }); out.textContent = r.cleared ? 'Listo: se liberaron ' + r.cleared + ' bloqueo(s). Ya pueden volver a intentar.' : 'No había nadie bloqueado.'; }
+      catch(e){ toast(e.message); }
+    };
   })();
 </script>
 </body>
