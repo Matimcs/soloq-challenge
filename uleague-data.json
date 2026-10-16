@@ -1,3359 +1,3400 @@
 {
- "tournament": "uLeague",
- "edition": "Clausura 2026",
- "game": "League of Legends",
- "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
- "updatedAt": "2026-10-13T03:31:17.562Z",
- "startDate": "2026-10-03",
- "phases": [
-  {
-   "key": "suiza",
-   "name": "Fase Suiza",
-   "dates": "3 – 15 oct",
-   "format": "Sistema suizo · 5 rondas · R1-2 Bo1, R3-5 Bo3",
-   "detail": "Ganas 3 → clasificas al Top 16 · Pierdes 3 → eliminado"
-  },
-  {
-   "key": "octavos",
-   "name": "Octavos de final",
-   "dates": "por confirmar",
-   "format": "Bo3 · eliminación directa",
-   "detail": "16 clasificados, sorteo por récord suizo (3-0 / 3-1 / 3-2)"
-  },
-  {
-   "key": "cuartos",
-   "name": "Cuartos de final",
-   "dates": "20 – 22 oct",
-   "format": "Bo3 · online",
-   "detail": ""
-  },
-  {
-   "key": "semis",
-   "name": "Semifinales",
-   "dates": "24 – 25 oct",
-   "format": "Bo3 · online",
-   "detail": ""
-  },
-  {
-   "key": "final",
-   "name": "Final (presencial)",
-   "dates": "por confirmar",
-   "format": "Bo3 · presencial en Santiago",
-   "detail": "Incluye definición por el 3er lugar"
+  "tournament": "uLeague",
+  "edition": "Clausura 2026",
+  "game": "League of Legends",
+  "source": "https://docs.google.com/spreadsheets/d/1HNYVHOWYPP6RrxG-yJQcjhkKZtWWJccq",
+  "updatedAt": "2026-10-13T03:31:17.562Z",
+  "startDate": "2026-10-03",
+  "phases": [
+    {
+      "key": "suiza",
+      "name": "Fase Suiza",
+      "dates": "3 – 15 oct",
+      "format": "Sistema suizo · 5 rondas · R1-2 Bo1, R3-5 Bo3",
+      "detail": "Ganas 3 → clasificas al Top 16 · Pierdes 3 → eliminado"
+    },
+    {
+      "key": "octavos",
+      "name": "Octavos de final",
+      "dates": "17 – 19 oct",
+      "format": "Bo3 · eliminación directa",
+      "detail": "16 clasificados, sorteo por récord suizo (3-0 / 3-1 / 3-2)"
+    },
+    {
+      "key": "cuartos",
+      "name": "Cuartos de final",
+      "dates": "20 – 22 oct",
+      "format": "Bo3 · online",
+      "detail": ""
+    },
+    {
+      "key": "semis",
+      "name": "Semifinales",
+      "dates": "24 – 25 oct",
+      "format": "Bo3 · online",
+      "detail": ""
+    },
+    {
+      "key": "final",
+      "name": "Final (presencial)",
+      "dates": "14 nov",
+      "format": "Bo3 · presencial en Movistar Game Club",
+      "detail": "3er lugar: 26 – 30 oct (Bo3)"
+    }
+  ],
+  "ours": [
+    "UCH A",
+    "UCH B",
+    "UCH C",
+    "UCH D"
+  ],
+  "teams": [
+    {
+      "name": "UNAB A",
+      "canon": "UNAB A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "1Žeus Tactico#최고신",
+          "nm": "1Žeus Tactico",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 75,
+            "w": 25,
+            "l": 9,
+            "abs": 2375
+          }
+        },
+        {
+          "rid": "kaii#adc",
+          "nm": "kaii",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1246,
+            "w": 474,
+            "l": 445,
+            "abs": 4046
+          }
+        },
+        {
+          "rid": "Ronin#33s",
+          "nm": "Ronin",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 75,
+            "w": 44,
+            "l": 38,
+            "abs": 2775
+          }
+        },
+        {
+          "rid": "KEKW 2023#LAS",
+          "nm": "KEKW 2023",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 582,
+            "w": 156,
+            "l": 137,
+            "abs": 3382
+          }
+        },
+        {
+          "rid": "Chivoo#Lupeeh",
+          "nm": "Chivoo",
+          "rank": null
+        }
+      ]
+    },
+    {
+      "name": "UNAB B",
+      "canon": "UNAB B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "MD PASHEN#MDE",
+          "nm": "MD PASHEN",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1058,
+            "w": 287,
+            "l": 186,
+            "abs": 3858
+          }
+        },
+        {
+          "rid": "pablobk#LAS",
+          "nm": "pablobk",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 11,
+            "w": 47,
+            "l": 34,
+            "abs": 2811
+          }
+        },
+        {
+          "rid": "Cyanuro#Evlyn",
+          "nm": "Cyanuro",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 43,
+            "w": 253,
+            "l": 261,
+            "abs": 2843
+          }
+        },
+        {
+          "rid": "always deafen#LAS1",
+          "nm": "always deafen",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 92,
+            "w": 150,
+            "l": 138,
+            "abs": 2892
+          }
+        },
+        {
+          "rid": "Jechua20#2021",
+          "nm": "Jechua20",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 77,
+            "w": 92,
+            "l": 110,
+            "abs": 2877
+          }
+        },
+        {
+          "rid": "DK DestroyLonely#ALILY",
+          "nm": "DK DestroyLonely",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 257,
+            "w": 419,
+            "l": 418,
+            "abs": 3057
+          }
+        },
+        {
+          "rid": "XIVBlackbas#black",
+          "nm": "XIVBlackbas",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 75,
+            "w": 343,
+            "l": 327,
+            "abs": 2775
+          }
+        }
+      ]
+    },
+    {
+      "name": "UNAB C",
+      "canon": "UNAB C",
+      "ours": false,
+      "players": [
+        {
+          "rid": "GTCJR#Nicky",
+          "nm": "GTCJR",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 83,
+            "w": 128,
+            "l": 109,
+            "abs": 2883
+          }
+        },
+        {
+          "rid": "God Peo#ATRIX",
+          "nm": "God Peo",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 35,
+            "w": 169,
+            "l": 131,
+            "abs": 2835
+          }
+        },
+        {
+          "rid": "Chickblo12#LAS",
+          "nm": "Chickblo12",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 472,
+            "w": 481,
+            "l": 506,
+            "abs": 3272
+          }
+        },
+        {
+          "rid": "yellowclaw#melou",
+          "nm": "yellowclaw",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 462,
+            "w": 127,
+            "l": 110,
+            "abs": 3262
+          }
+        },
+        {
+          "rid": "Jinllo#Mango",
+          "nm": "Jinllo",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 47,
+            "w": 92,
+            "l": 84,
+            "abs": 2247
+          }
+        },
+        {
+          "rid": "InsertName#Pog",
+          "nm": "InsertName",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 29,
+            "w": 98,
+            "l": 84,
+            "abs": 2529
+          }
+        }
+      ]
+    },
+    {
+      "name": "UDA",
+      "canon": "UDA",
+      "ours": false,
+      "players": [
+        {
+          "rid": "DeadSky#LAS",
+          "nm": "DeadSky",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 66,
+            "w": 19,
+            "l": 21,
+            "abs": 2566
+          }
+        },
+        {
+          "rid": "Shoyo Yoshida#LAS",
+          "nm": "Shoyo Yoshida",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 193,
+            "w": 52,
+            "l": 42,
+            "abs": 2993
+          }
+        },
+        {
+          "rid": "rush P90 manito#LAS",
+          "nm": "rush P90 manito",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 1,
+            "w": 14,
+            "l": 22,
+            "abs": 2201
+          }
+        },
+        {
+          "rid": "Popet0n#LAS",
+          "nm": "Popet0n",
+          "rank": null
+        },
+        {
+          "rid": "Føxsen#666",
+          "nm": "Føxsen",
+          "rank": {
+            "tier": "BRONZE",
+            "div": "II",
+            "lp": 0,
+            "w": 3,
+            "l": 7,
+            "abs": 600
+          }
+        },
+        {
+          "rid": "Kursinho#GOD",
+          "nm": "Kursinho",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "I",
+            "lp": 64,
+            "w": 22,
+            "l": 29,
+            "abs": 1964
+          }
+        },
+        {
+          "rid": "nicolas0lavarria#LAS",
+          "nm": "nicolas0lavarria",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 20,
+            "w": 132,
+            "l": 107,
+            "abs": 2820
+          }
+        },
+        {
+          "rid": "Gekarmoh#TUSK",
+          "nm": "Gekarmoh",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 72,
+            "w": 15,
+            "l": 17,
+            "abs": 2472
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCH A",
+      "canon": "UCH A",
+      "ours": true,
+      "players": [
+        {
+          "rid": "Che copete#LoL",
+          "nm": "Che copete",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 136,
+            "w": 336,
+            "l": 328,
+            "abs": 2936
+          }
+        },
+        {
+          "rid": "Krok#DEUS",
+          "nm": "Krok",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 786,
+            "w": 797,
+            "l": 785,
+            "abs": 3586
+          }
+        },
+        {
+          "rid": "k1sseshugs#xoxo",
+          "nm": "k1sseshugs",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 40,
+            "w": 475,
+            "l": 442,
+            "abs": 2740
+          }
+        },
+        {
+          "rid": "Nadie#UCH",
+          "nm": "Nadie",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 63,
+            "w": 129,
+            "l": 118,
+            "abs": 2863
+          }
+        },
+        {
+          "rid": "Yoyobox#1899",
+          "nm": "Yoyobox",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 51,
+            "w": 404,
+            "l": 394,
+            "abs": 2851
+          }
+        },
+        {
+          "rid": "Muspe#777",
+          "nm": "Muspe",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1195,
+            "w": 574,
+            "l": 564,
+            "abs": 3995
+          }
+        },
+        {
+          "rid": "Miss All Sünday#WE0NA",
+          "nm": "Miss All Sünday",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 103,
+            "w": 244,
+            "l": 228,
+            "abs": 2903
+          }
+        },
+        {
+          "rid": "insano3000#unvio",
+          "nm": "insano3000",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 75,
+            "w": 263,
+            "l": 258,
+            "abs": 2775
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCH B",
+      "canon": "UCH B",
+      "ours": true,
+      "players": [
+        {
+          "rid": "Dekai#LAS",
+          "nm": "Dekai",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 91,
+            "w": 36,
+            "l": 39,
+            "abs": 2691
+          }
+        },
+        {
+          "rid": "Minitas Hunter#zzz",
+          "nm": "Minitas Hunter",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 75,
+            "w": 186,
+            "l": 173,
+            "abs": 2775
+          }
+        },
+        {
+          "rid": "Tathamet#LAS",
+          "nm": "Tathamet",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 85,
+            "w": 20,
+            "l": 17,
+            "abs": 2585
+          }
+        },
+        {
+          "rid": "Sunless#0410",
+          "nm": "Sunless",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 967,
+            "w": 133,
+            "l": 113,
+            "abs": 3767
+          }
+        },
+        {
+          "rid": "Lacosabuena#LAS",
+          "nm": "Lacosabuena",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 143,
+            "w": 132,
+            "l": 130,
+            "abs": 2943
+          }
+        },
+        {
+          "rid": "DeSean#Elba",
+          "nm": "DeSean",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 80,
+            "w": 16,
+            "l": 13,
+            "abs": 2580
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCH C",
+      "canon": "UCH C",
+      "ours": true,
+      "players": [
+        {
+          "rid": "Kriida#7777",
+          "nm": "Kriida",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 353,
+            "w": 292,
+            "l": 284,
+            "abs": 3153
+          }
+        },
+        {
+          "rid": "HudsonHornet#gueon",
+          "nm": "HudsonHornet",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 242,
+            "w": 354,
+            "l": 324,
+            "abs": 3042
+          }
+        },
+        {
+          "rid": "Petu#99999",
+          "nm": "Petu",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 707,
+            "w": 320,
+            "l": 295,
+            "abs": 3507
+          }
+        },
+        {
+          "rid": "vishh#LAS",
+          "nm": "vishh",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 236,
+            "w": 393,
+            "l": 366,
+            "abs": 3036
+          }
+        },
+        {
+          "rid": "Maio#BARD",
+          "nm": "Maio",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 63,
+            "w": 428,
+            "l": 414,
+            "abs": 2663
+          }
+        },
+        {
+          "rid": "Manuel#vlaki",
+          "nm": "Manuel",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 758,
+            "w": 307,
+            "l": 277,
+            "abs": 3558
+          }
+        },
+        {
+          "rid": "Jotaaaa#MLJS",
+          "nm": "Jotaaaa",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "III",
+            "lp": 26,
+            "w": 612,
+            "l": 596,
+            "abs": 2126
+          }
+        },
+        {
+          "rid": "carloco69#LAS",
+          "nm": "carloco69",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 581,
+            "w": 465,
+            "l": 445,
+            "abs": 3381
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCH D",
+      "canon": "UCH D",
+      "ours": true,
+      "players": [
+        {
+          "rid": "Plüs#SICK",
+          "nm": "Plüs",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 685,
+            "w": 189,
+            "l": 153,
+            "abs": 3485
+          }
+        },
+        {
+          "rid": "SionAntisionista#SAS",
+          "nm": "SionAntisionista",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 653,
+            "w": 317,
+            "l": 306,
+            "abs": 3453
+          }
+        },
+        {
+          "rid": "kıwı#wıkı",
+          "nm": "kıwı",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 32,
+            "w": 252,
+            "l": 243,
+            "abs": 2732
+          }
+        },
+        {
+          "rid": "matotomatoxd#LAS",
+          "nm": "matotomatoxd",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 40,
+            "w": 374,
+            "l": 373,
+            "abs": 2840
+          }
+        },
+        {
+          "rid": "Yutsero#LAS",
+          "nm": "Yutsero",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 75,
+            "w": 444,
+            "l": 457,
+            "abs": 2875
+          }
+        },
+        {
+          "rid": "Pumajuego#LAS",
+          "nm": "Pumajuego",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 12,
+            "w": 400,
+            "l": 389,
+            "abs": 2812
+          }
+        },
+        {
+          "rid": "henrymiller#379",
+          "nm": "henrymiller",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 74,
+            "w": 108,
+            "l": 91,
+            "abs": 2374
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCT A",
+      "canon": "UCT A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "UCT Argonavth#LAS1",
+          "nm": "UCT Argonavth",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1354,
+            "w": 328,
+            "l": 317,
+            "abs": 4154
+          }
+        },
+        {
+          "rid": "UCT Eritro#666",
+          "nm": "UCT Eritro",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1432,
+            "w": 184,
+            "l": 127,
+            "abs": 4232
+          }
+        },
+        {
+          "rid": "UCT Das#PAPS",
+          "nm": "UCT Das",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 153,
+            "w": 193,
+            "l": 199,
+            "abs": 2953
+          }
+        },
+        {
+          "rid": "UCT soguzx#zzx",
+          "nm": "UCT soguzx",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 85,
+            "w": 196,
+            "l": 176,
+            "abs": 2885
+          }
+        },
+        {
+          "rid": "UCT Beusfy#00000",
+          "nm": "UCT Beusfy",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 558,
+            "w": 129,
+            "l": 113,
+            "abs": 3358
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCT B",
+      "canon": "UCT B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Vishete#LAS",
+          "nm": "Vishete",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 99,
+            "w": 81,
+            "l": 66,
+            "abs": 2799
+          }
+        },
+        {
+          "rid": "AleK#cueca",
+          "nm": "AleK",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 91,
+            "w": 116,
+            "l": 121,
+            "abs": 2491
+          }
+        },
+        {
+          "rid": "Jungla Holandés#1412",
+          "nm": "Jungla Holandés",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 37,
+            "w": 166,
+            "l": 154,
+            "abs": 2437
+          }
+        },
+        {
+          "rid": "SC JeanPolnareff#JOJO",
+          "nm": "SC JeanPolnareff",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 75,
+            "w": 73,
+            "l": 61,
+            "abs": 2375
+          }
+        },
+        {
+          "rid": "alvarorex777OMG#papoi",
+          "nm": "alvarorex777OMG",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 8,
+            "w": 26,
+            "l": 29,
+            "abs": 2408
+          }
+        },
+        {
+          "rid": "Duki#UwU",
+          "nm": "Duki",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 23,
+            "w": 100,
+            "l": 91,
+            "abs": 2723
+          }
+        }
+      ]
+    },
+    {
+      "name": "UDD",
+      "canon": "UDD",
+      "ours": false,
+      "players": [
+        {
+          "rid": "getFrosted#151",
+          "nm": "getFrosted",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 771,
+            "w": 422,
+            "l": 393,
+            "abs": 3571
+          }
+        },
+        {
+          "rid": "michaelolise11#vamp",
+          "nm": "michaelolise11",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 525,
+            "w": 238,
+            "l": 215,
+            "abs": 3325
+          }
+        },
+        {
+          "rid": "Cherry#Aqua",
+          "nm": "Cherry",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 63,
+            "w": 263,
+            "l": 253,
+            "abs": 2863
+          }
+        },
+        {
+          "rid": "maxigod#6767",
+          "nm": "maxigod",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 20,
+            "w": 85,
+            "l": 49,
+            "abs": 2820
+          }
+        },
+        {
+          "rid": "Kiefer#LASS",
+          "nm": "Kiefer",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 2558,
+            "w": 224,
+            "l": 107,
+            "abs": 5358
+          }
+        },
+        {
+          "rid": "Jeff Bezos#LAS",
+          "nm": "Jeff Bezos",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 0,
+            "w": 109,
+            "l": 106,
+            "abs": 2800
+          }
+        }
+      ]
+    },
+    {
+      "name": "PUCV",
+      "canon": "PUCV",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Dakotah#T1WIN",
+          "nm": "Dakotah",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 79,
+            "w": 156,
+            "l": 140,
+            "abs": 2279
+          }
+        },
+        {
+          "rid": "n1llzinho#WASD",
+          "nm": "n1llzinho",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "III",
+            "lp": 84,
+            "w": 208,
+            "l": 195,
+            "abs": 2184
+          }
+        },
+        {
+          "rid": "Ðeepwokeη#Ys0",
+          "nm": "Ðeepwokeη",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "I",
+            "lp": 67,
+            "w": 86,
+            "l": 85,
+            "abs": 1967
+          }
+        },
+        {
+          "rid": "ChunRavel#NMCL",
+          "nm": "ChunRavel",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 23,
+            "w": 383,
+            "l": 377,
+            "abs": 2323
+          }
+        },
+        {
+          "rid": "Pequeño Capibara#hola",
+          "nm": "Pequeño Capibara",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 95,
+            "w": 264,
+            "l": 245,
+            "abs": 2495
+          }
+        },
+        {
+          "rid": "cachorrâo#sech",
+          "nm": "cachorrâo",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 73,
+            "w": 28,
+            "l": 16,
+            "abs": 2573
+          }
+        },
+        {
+          "rid": "DucktorMonty#baker",
+          "nm": "DucktorMonty",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "IV",
+            "lp": 18,
+            "w": 79,
+            "l": 71,
+            "abs": 2018
+          }
+        }
+      ]
+    },
+    {
+      "name": "USACH",
+      "canon": "USACH",
+      "ours": false,
+      "players": [
+        {
+          "rid": "3nder#ezzz",
+          "nm": "3nder",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 254,
+            "w": 476,
+            "l": 468,
+            "abs": 3054
+          }
+        },
+        {
+          "rid": "Rey Kimera#Never",
+          "nm": "Rey Kimera",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 395,
+            "w": 183,
+            "l": 159,
+            "abs": 3195
+          }
+        },
+        {
+          "rid": "exte#las",
+          "nm": "exte",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 562,
+            "w": 206,
+            "l": 195,
+            "abs": 3362
+          }
+        },
+        {
+          "rid": "fernanelcrack#4444",
+          "nm": "fernanelcrack",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 617,
+            "w": 141,
+            "l": 108,
+            "abs": 3417
+          }
+        },
+        {
+          "rid": "Đean#WILD",
+          "nm": "Đean",
+          "rank": null
+        },
+        {
+          "rid": "Xander#017",
+          "nm": "Xander",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1054,
+            "w": 196,
+            "l": 166,
+            "abs": 3854
+          }
+        },
+        {
+          "rid": "Costo hundido#TTTTT",
+          "nm": "Costo hundido",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 166,
+            "w": 405,
+            "l": 396,
+            "abs": 2966
+          }
+        },
+        {
+          "rid": "Diegors#0000",
+          "nm": "Diegors",
+          "rank": {
+            "tier": "GOLD",
+            "div": "I",
+            "lp": 33,
+            "w": 94,
+            "l": 87,
+            "abs": 1533
+          }
+        }
+      ]
+    },
+    {
+      "name": "USM A",
+      "canon": "USM A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Pichito#LAS1",
+          "nm": "Pichito",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1627,
+            "w": 221,
+            "l": 190,
+            "abs": 4427
+          }
+        },
+        {
+          "rid": "Stargazer7#LAS",
+          "nm": "Stargazer7",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1473,
+            "w": 446,
+            "l": 420,
+            "abs": 4273
+          }
+        },
+        {
+          "rid": "Lukes#nvm",
+          "nm": "Lukes",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1192,
+            "w": 152,
+            "l": 128,
+            "abs": 3992
+          }
+        },
+        {
+          "rid": "Tynek#Kiss",
+          "nm": "Tynek",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 12,
+            "w": 123,
+            "l": 115,
+            "abs": 2812
+          }
+        },
+        {
+          "rid": "Dangeflow#Sebax",
+          "nm": "Dangeflow",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 818,
+            "w": 386,
+            "l": 368,
+            "abs": 3618
+          }
+        },
+        {
+          "rid": "Hebi#frost",
+          "nm": "Hebi",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 360,
+            "w": 153,
+            "l": 142,
+            "abs": 3160
+          }
+        },
+        {
+          "rid": "Chocolo#MSc",
+          "nm": "Chocolo",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 558,
+            "w": 355,
+            "l": 355,
+            "abs": 3358
+          }
+        }
+      ]
+    },
+    {
+      "name": "USM B",
+      "canon": "USM B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "373#Ruby",
+          "nm": "373",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1411,
+            "w": 368,
+            "l": 351,
+            "abs": 4211
+          }
+        },
+        {
+          "rid": "lynko#005",
+          "nm": "lynko",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 0,
+            "w": 524,
+            "l": 559,
+            "abs": 2800
+          }
+        },
+        {
+          "rid": "Skadoonish#LAS1",
+          "nm": "Skadoonish",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 520,
+            "w": 263,
+            "l": 263,
+            "abs": 3320
+          }
+        },
+        {
+          "rid": "Οldest Dream#orv",
+          "nm": "Οldest Dream",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 521,
+            "w": 428,
+            "l": 397,
+            "abs": 3321
+          }
+        },
+        {
+          "rid": "Sant1n #kata",
+          "nm": "Sant1n ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 698,
+            "w": 393,
+            "l": 333,
+            "abs": 3498
+          }
+        },
+        {
+          "rid": "Peter pyker #milo",
+          "nm": "Peter pyker ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 162,
+            "w": 188,
+            "l": 176,
+            "abs": 2962
+          }
+        },
+        {
+          "rid": "esclavo de karin#monki",
+          "nm": "esclavo de karin",
+          "rank": null
+        },
+        {
+          "rid": "shutdownxzoe#LAS",
+          "nm": "shutdownxzoe",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 0,
+            "w": 127,
+            "l": 120,
+            "abs": 2800
+          }
+        }
+      ]
+    },
+    {
+      "name": "USM C",
+      "canon": "USM C",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Kripistobal #USM",
+          "nm": "Kripistobal ",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 99,
+            "w": 449,
+            "l": 431,
+            "abs": 2599
+          }
+        },
+        {
+          "rid": "Nachomater#CTLG",
+          "nm": "Nachomater",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 58,
+            "w": 261,
+            "l": 246,
+            "abs": 2558
+          }
+        },
+        {
+          "rid": "King mesura#kyuvst",
+          "nm": "King mesura",
+          "rank": null
+        },
+        {
+          "rid": "moonlight#16180",
+          "nm": "moonlight",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 405,
+            "w": 230,
+            "l": 192,
+            "abs": 3205
+          }
+        },
+        {
+          "rid": "Manjar Con Pann#LAS",
+          "nm": "Manjar Con Pann",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 0,
+            "w": 146,
+            "l": 143,
+            "abs": 2800
+          }
+        },
+        {
+          "rid": "Gravis#RYO",
+          "nm": "Gravis",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 35,
+            "w": 145,
+            "l": 158,
+            "abs": 2735
+          }
+        },
+        {
+          "rid": "Skelia#Homan",
+          "nm": "Skelia",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 74,
+            "w": 139,
+            "l": 155,
+            "abs": 2274
+          }
+        }
+      ]
+    },
+    {
+      "name": "USM D",
+      "canon": "USM D",
+      "ours": false,
+      "players": [
+        {
+          "rid": "UN1CORN1oCOsm1cO",
+          "nm": "UN1CORN1oCOsm1cO",
+          "rank": null
+        },
+        {
+          "rid": "Tapia4#LAS",
+          "nm": "Tapia4",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 354,
+            "w": 252,
+            "l": 221,
+            "abs": 3154
+          }
+        },
+        {
+          "rid": "Brechaqueo#las",
+          "nm": "Brechaqueo",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 79,
+            "w": 46,
+            "l": 55,
+            "abs": 2479
+          }
+        },
+        {
+          "rid": "PanConLimón #ALO",
+          "nm": "PanConLimón ",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 8,
+            "w": 334,
+            "l": 341,
+            "abs": 2608
+          }
+        },
+        {
+          "rid": "lunanova #las",
+          "nm": "lunanova ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 42,
+            "w": 471,
+            "l": 449,
+            "abs": 2842
+          }
+        },
+        {
+          "rid": "mtrix #las1",
+          "nm": "mtrix ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 92,
+            "w": 145,
+            "l": 127,
+            "abs": 2892
+          }
+        },
+        {
+          "rid": "soo ho #LAS",
+          "nm": "soo ho ",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "III",
+            "lp": 82,
+            "w": 58,
+            "l": 58,
+            "abs": 1782
+          }
+        },
+        {
+          "rid": "Josecontildenlae#JTA",
+          "nm": "Josecontildenlae",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 97,
+            "w": 84,
+            "l": 79,
+            "abs": 2297
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCSH",
+      "canon": "UCSH",
+      "ours": false,
+      "players": [
+        {
+          "rid": "ˇ ˆ ˇ ˇ#unu",
+          "nm": "ˇ ˆ ˇ ˇ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 70,
+            "w": 70,
+            "l": 75,
+            "abs": 2870
+          }
+        },
+        {
+          "rid": "GG No Tengo JG#3516",
+          "nm": "GG No Tengo JG",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "IV",
+            "lp": 0,
+            "w": 89,
+            "l": 96,
+            "abs": 2000
+          }
+        },
+        {
+          "rid": "Pucho#gosu",
+          "nm": "Pucho",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 167,
+            "w": 221,
+            "l": 223,
+            "abs": 2967
+          }
+        },
+        {
+          "rid": "Sejoy0#8677",
+          "nm": "Sejoy0",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 186,
+            "w": 157,
+            "l": 151,
+            "abs": 2986
+          }
+        },
+        {
+          "rid": "Kaniewest#MBDTF",
+          "nm": "Kaniewest",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 155,
+            "w": 573,
+            "l": 551,
+            "abs": 2955
+          }
+        },
+        {
+          "rid": "Harry Kayn#9999",
+          "nm": "Harry Kayn",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 27,
+            "w": 400,
+            "l": 384,
+            "abs": 2427
+          }
+        },
+        {
+          "rid": "Zoro220#LAS",
+          "nm": "Zoro220",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 43,
+            "w": 47,
+            "l": 43,
+            "abs": 2243
+          }
+        },
+        {
+          "rid": "N N #172",
+          "nm": "N N ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 195,
+            "w": 181,
+            "l": 156,
+            "abs": 2995
+          }
+        }
+      ]
+    },
+    {
+      "name": "DUOC UC",
+      "canon": "DUOC",
+      "ours": false,
+      "players": [
+        {
+          "rid": "MarceSato#T T",
+          "nm": "MarceSato",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1270,
+            "w": 490,
+            "l": 468,
+            "abs": 4070
+          }
+        },
+        {
+          "rid": "Francesco FIUUU#LAS",
+          "nm": "Francesco FIUUU",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 195,
+            "w": 121,
+            "l": 87,
+            "abs": 2995
+          }
+        },
+        {
+          "rid": "cow#bored",
+          "nm": "cow",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1351,
+            "w": 274,
+            "l": 226,
+            "abs": 4151
+          }
+        },
+        {
+          "rid": "Kindless #0804",
+          "nm": "Kindless ",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 75,
+            "w": 157,
+            "l": 114,
+            "abs": 2775
+          }
+        },
+        {
+          "rid": "Jisoo#y11",
+          "nm": "Jisoo",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 525,
+            "w": 98,
+            "l": 80,
+            "abs": 3325
+          }
+        },
+        {
+          "rid": "P u n c h#Pain",
+          "nm": "P u n c h",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1309,
+            "w": 297,
+            "l": 250,
+            "abs": 4109
+          }
+        },
+        {
+          "rid": "keria 1 completo #las",
+          "nm": "keria 1 completo ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 748,
+            "w": 288,
+            "l": 292,
+            "abs": 3548
+          }
+        }
+      ]
+    },
+    {
+      "name": "UMAYOR",
+      "canon": "UMAYOR",
+      "ours": false,
+      "players": [
+        {
+          "rid": "KarmaYikes#9722",
+          "nm": "KarmaYikes",
+          "rank": {
+            "tier": "IRON",
+            "div": "III",
+            "lp": 88,
+            "w": 70,
+            "l": 96,
+            "abs": 188
+          }
+        },
+        {
+          "rid": "Laval#LAS",
+          "nm": "Laval",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 536,
+            "w": 394,
+            "l": 379,
+            "abs": 3336
+          }
+        },
+        {
+          "rid": "José José#gmhrd",
+          "nm": "José José",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 20,
+            "w": 123,
+            "l": 122,
+            "abs": 2320
+          }
+        },
+        {
+          "rid": "Dargus#mvp",
+          "nm": "Dargus",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 30,
+            "w": 48,
+            "l": 47,
+            "abs": 2430
+          }
+        },
+        {
+          "rid": "King Geedorah#DOOOM",
+          "nm": "King Geedorah",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 164,
+            "w": 260,
+            "l": 252,
+            "abs": 2964
+          }
+        },
+        {
+          "rid": "GIVP#gera",
+          "nm": "GIVP",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 101,
+            "w": 251,
+            "l": 236,
+            "abs": 2901
+          }
+        },
+        {
+          "rid": "VICHOHACK#LAS",
+          "nm": "VICHOHACK",
+          "rank": {
+            "tier": "GOLD",
+            "div": "II",
+            "lp": 84,
+            "w": 60,
+            "l": 57,
+            "abs": 1484
+          }
+        }
+      ]
+    },
+    {
+      "name": "UTEM A",
+      "canon": "UTEM A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Flipy #Loop",
+          "nm": "Flipy ",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "IV",
+            "lp": 82,
+            "w": 128,
+            "l": 126,
+            "abs": 1682
+          }
+        },
+        {
+          "rid": "Creampy#XDD",
+          "nm": "Creampy",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 13,
+            "w": 324,
+            "l": 309,
+            "abs": 2813
+          }
+        },
+        {
+          "rid": "Cero#9189",
+          "nm": "Cero",
+          "rank": {
+            "tier": "SILVER",
+            "div": "III",
+            "lp": 37,
+            "w": 70,
+            "l": 79,
+            "abs": 937
+          }
+        },
+        {
+          "rid": "sech987#LAS",
+          "nm": "sech987",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "II",
+            "lp": 8,
+            "w": 107,
+            "l": 108,
+            "abs": 1808
+          }
+        },
+        {
+          "rid": "IElCocosLOK1",
+          "nm": "IElCocosLOK1",
+          "rank": null
+        },
+        {
+          "rid": "el sin rodillas#5573",
+          "nm": "el sin rodillas",
+          "rank": {
+            "tier": "BRONZE",
+            "div": "I",
+            "lp": 3,
+            "w": 22,
+            "l": 20,
+            "abs": 703
+          }
+        },
+        {
+          "rid": "Ogg#aaa",
+          "nm": "Ogg",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "IV",
+            "lp": 54,
+            "w": 46,
+            "l": 49,
+            "abs": 1654
+          }
+        },
+        {
+          "rid": "merluzini #135BP",
+          "nm": "merluzini ",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "I",
+            "lp": 50,
+            "w": 56,
+            "l": 70,
+            "abs": 1950
+          }
+        }
+      ]
+    },
+    {
+      "name": "UTEM B",
+      "canon": "UTEM B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "mon laferte fan #salvi",
+          "nm": "mon laferte fan ",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 92,
+            "w": 166,
+            "l": 134,
+            "abs": 2592
+          }
+        },
+        {
+          "rid": "Hustl333r#Preda",
+          "nm": "Hustl333r",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 290,
+            "w": 151,
+            "l": 145,
+            "abs": 3090
+          }
+        },
+        {
+          "rid": "Gridmi#viktr",
+          "nm": "Gridmi",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1238,
+            "w": 310,
+            "l": 270,
+            "abs": 4038
+          }
+        },
+        {
+          "rid": "Rico#TEA",
+          "nm": "Rico",
+          "rank": {
+            "tier": "GOLD",
+            "div": "I",
+            "lp": 16,
+            "w": 61,
+            "l": 62,
+            "abs": 1516
+          }
+        },
+        {
+          "rid": "donatello #MID17",
+          "nm": "donatello ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 318,
+            "w": 292,
+            "l": 280,
+            "abs": 3118
+          }
+        },
+        {
+          "rid": "shelao#SSS",
+          "nm": "shelao",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 61,
+            "w": 109,
+            "l": 98,
+            "abs": 2361
+          }
+        }
+      ]
+    },
+    {
+      "name": "UDP A",
+      "canon": "UDP A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "NEEDB12#LAS1",
+          "nm": "NEEDB12",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 28,
+            "w": 521,
+            "l": 532,
+            "abs": 2828
+          }
+        },
+        {
+          "rid": "Ñandú#snsc",
+          "nm": "Ñandú",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 35,
+            "w": 118,
+            "l": 71,
+            "abs": 2835
+          }
+        },
+        {
+          "rid": "Fax flm#LAS",
+          "nm": "Fax flm",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 864,
+            "w": 318,
+            "l": 293,
+            "abs": 3664
+          }
+        },
+        {
+          "rid": "Koelliu#111",
+          "nm": "Koelliu",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1091,
+            "w": 541,
+            "l": 527,
+            "abs": 3891
+          }
+        },
+        {
+          "rid": "Moma#420",
+          "nm": "Moma",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 336,
+            "w": 197,
+            "l": 185,
+            "abs": 3136
+          }
+        },
+        {
+          "rid": "noon#030",
+          "nm": "noon",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 857,
+            "w": 245,
+            "l": 227,
+            "abs": 3657
+          }
+        }
+      ]
+    },
+    {
+      "name": "UDP B",
+      "canon": "UDP B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Multiwaifus#ADO",
+          "nm": "Multiwaifus",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 402,
+            "w": 491,
+            "l": 485,
+            "abs": 3202
+          }
+        },
+        {
+          "rid": "Lolnes#LAS",
+          "nm": "Lolnes",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 156,
+            "w": 221,
+            "l": 224,
+            "abs": 2956
+          }
+        },
+        {
+          "rid": "Moruga#jg777",
+          "nm": "Moruga",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 395,
+            "w": 290,
+            "l": 281,
+            "abs": 3195
+          }
+        },
+        {
+          "rid": "Nibbamin#LACRA",
+          "nm": "Nibbamin",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 991,
+            "w": 341,
+            "l": 318,
+            "abs": 3791
+          }
+        },
+        {
+          "rid": "Bedless#Sashi",
+          "nm": "Bedless",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1334,
+            "w": 150,
+            "l": 116,
+            "abs": 4134
+          }
+        },
+        {
+          "rid": "Benjitapro2010#DAT",
+          "nm": "Benjitapro2010",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1118,
+            "w": 223,
+            "l": 202,
+            "abs": 3918
+          }
+        },
+        {
+          "rid": "hikeN#hkn",
+          "nm": "hikeN",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 634,
+            "w": 218,
+            "l": 185,
+            "abs": 3434
+          }
+        }
+      ]
+    },
+    {
+      "name": "UTAL A",
+      "canon": "UTAL A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Brazil1anGod#BRA",
+          "nm": "Brazil1anGod",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 321,
+            "w": 217,
+            "l": 205,
+            "abs": 3121
+          }
+        },
+        {
+          "rid": "Posséidon#nnnnn",
+          "nm": "Posséidon",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 70,
+            "w": 239,
+            "l": 224,
+            "abs": 2670
+          }
+        },
+        {
+          "rid": "yungvfx#666",
+          "nm": "yungvfx",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 676,
+            "w": 320,
+            "l": 287,
+            "abs": 3476
+          }
+        },
+        {
+          "rid": "LLEFLIGHT CHOA #CHOA",
+          "nm": "LLEFLIGHT CHOA ",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 38,
+            "w": 73,
+            "l": 84,
+            "abs": 2638
+          }
+        },
+        {
+          "rid": "B castro G#castr",
+          "nm": "B castro G",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 238,
+            "w": 155,
+            "l": 135,
+            "abs": 3038
+          }
+        },
+        {
+          "rid": "Alee#31426",
+          "nm": "Alee",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "IV",
+            "lp": 73,
+            "w": 180,
+            "l": 167,
+            "abs": 2473
+          }
+        }
+      ]
+    },
+    {
+      "name": "UTAL B",
+      "canon": "UTAL B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Insomnia#eve",
+          "nm": "Insomnia",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 87,
+            "w": 269,
+            "l": 279,
+            "abs": 2687
+          }
+        },
+        {
+          "rid": "LUCARIOH#LAS",
+          "nm": "LUCARIOH",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 42,
+            "w": 209,
+            "l": 183,
+            "abs": 2542
+          }
+        },
+        {
+          "rid": "Escr0Tit0#CLP",
+          "nm": "Escr0Tit0",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 62,
+            "w": 197,
+            "l": 177,
+            "abs": 2662
+          }
+        },
+        {
+          "rid": "Barlon#meeps",
+          "nm": "Barlon",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 75,
+            "w": 92,
+            "l": 79,
+            "abs": 2675
+          }
+        },
+        {
+          "rid": "Duho#ftit",
+          "nm": "Duho",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 59,
+            "w": 45,
+            "l": 42,
+            "abs": 2759
+          }
+        },
+        {
+          "rid": "Rchay Erome#Richi",
+          "nm": "Rchay Erome",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 98,
+            "w": 173,
+            "l": 151,
+            "abs": 2298
+          }
+        },
+        {
+          "rid": "6 lukas justas#kuroh",
+          "nm": "6 lukas justas",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 75,
+            "w": 155,
+            "l": 144,
+            "abs": 2675
+          }
+        }
+      ]
+    },
+    {
+      "name": "UTAL C",
+      "canon": "UTAL C",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Reybeys #krkas",
+          "nm": "Reybeys ",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "IV",
+            "lp": 74,
+            "w": 27,
+            "l": 26,
+            "abs": 2074
+          }
+        },
+        {
+          "rid": "Green2030#LAS",
+          "nm": "Green2030",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 45,
+            "w": 160,
+            "l": 143,
+            "abs": 2345
+          }
+        },
+        {
+          "rid": "Ninja Precoz #Zen",
+          "nm": "Ninja Precoz ",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "III",
+            "lp": 58,
+            "w": 111,
+            "l": 95,
+            "abs": 2158
+          }
+        },
+        {
+          "rid": "Gatitomancer#FAKER",
+          "nm": "Gatitomancer",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 37,
+            "w": 63,
+            "l": 63,
+            "abs": 2537
+          }
+        },
+        {
+          "rid": "Yose#1983",
+          "nm": "Yose",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "III",
+            "lp": 91,
+            "w": 200,
+            "l": 189,
+            "abs": 2591
+          }
+        },
+        {
+          "rid": "Sexmund Freud#FREUD",
+          "nm": "Sexmund Freud",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 22,
+            "w": 45,
+            "l": 43,
+            "abs": 2822
+          }
+        },
+        {
+          "rid": "Dodoria2#las",
+          "nm": "Dodoria2",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 79,
+            "w": 39,
+            "l": 47,
+            "abs": 2679
+          }
+        }
+      ]
+    },
+    {
+      "name": "UTAL D",
+      "canon": "UTAL D",
+      "ours": false,
+      "players": [
+        {
+          "rid": "majalejeman#las",
+          "nm": "majalejeman",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "II",
+            "lp": 50,
+            "w": 185,
+            "l": 186,
+            "abs": 1850
+          }
+        },
+        {
+          "rid": "elsrgatito#las",
+          "nm": "elsrgatito",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "III",
+            "lp": 18,
+            "w": 83,
+            "l": 73,
+            "abs": 1718
+          }
+        },
+        {
+          "rid": "eternallamb#las",
+          "nm": "eternallamb",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "IV",
+            "lp": 69,
+            "w": 65,
+            "l": 72,
+            "abs": 1669
+          }
+        },
+        {
+          "rid": "matikuri#las",
+          "nm": "matikuri",
+          "rank": {
+            "tier": "PLATINUM",
+            "div": "IV",
+            "lp": 18,
+            "w": 51,
+            "l": 42,
+            "abs": 1618
+          }
+        },
+        {
+          "rid": "Kurosãki Ichigo #Enf",
+          "nm": "Kurosãki Ichigo ",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "III",
+            "lp": 17,
+            "w": 91,
+            "l": 88,
+            "abs": 2117
+          }
+        },
+        {
+          "rid": "panconquezo318#lpg",
+          "nm": "panconquezo318",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "III",
+            "lp": 69,
+            "w": 94,
+            "l": 74,
+            "abs": 2169
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC A",
+      "canon": "UC A",
+      "ours": false,
+      "players": [
+        {
+          "rid": "UC Xiao#1313",
+          "nm": "UC Xiao",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "I",
+            "lp": 75,
+            "w": 9,
+            "l": 8,
+            "abs": 2375
+          }
+        },
+        {
+          "rid": "chovski#LAS",
+          "nm": "chovski",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1818,
+            "w": 253,
+            "l": 212,
+            "abs": 4618
+          }
+        },
+        {
+          "rid": "Cuish#AURA",
+          "nm": "Cuish",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 968,
+            "w": 436,
+            "l": 431,
+            "abs": 3768
+          }
+        },
+        {
+          "rid": "dEHuMAnizEd#susu",
+          "nm": "dEHuMAnizEd",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 846,
+            "w": 171,
+            "l": 128,
+            "abs": 3646
+          }
+        },
+        {
+          "rid": "Heza#perry",
+          "nm": "Heza",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1192,
+            "w": 308,
+            "l": 263,
+            "abs": 3992
+          }
+        },
+        {
+          "rid": "Tillerman#LAS",
+          "nm": "Tillerman",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1201,
+            "w": 408,
+            "l": 400,
+            "abs": 4001
+          }
+        },
+        {
+          "rid": "UC alexkidd#TKL",
+          "nm": "UC alexkidd",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 499,
+            "w": 230,
+            "l": 211,
+            "abs": 3299
+          }
+        },
+        {
+          "rid": "UC neøn#6253",
+          "nm": "UC neøn",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 362,
+            "w": 201,
+            "l": 206,
+            "abs": 3162
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC B",
+      "canon": "UC B",
+      "ours": false,
+      "players": [
+        {
+          "rid": "UC Rash #UCR",
+          "nm": "UC Rash ",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 425,
+            "w": 358,
+            "l": 360,
+            "abs": 3225
+          }
+        },
+        {
+          "rid": "mijoyy#top",
+          "nm": "mijoyy",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 551,
+            "w": 160,
+            "l": 129,
+            "abs": 3351
+          }
+        },
+        {
+          "rid": "Demerzel#1999",
+          "nm": "Demerzel",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 39,
+            "w": 509,
+            "l": 519,
+            "abs": 2739
+          }
+        },
+        {
+          "rid": "Jøseabaran#LAS",
+          "nm": "Jøseabaran",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 306,
+            "w": 117,
+            "l": 107,
+            "abs": 3106
+          }
+        },
+        {
+          "rid": "despair#enso",
+          "nm": "despair",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 166,
+            "w": 318,
+            "l": 299,
+            "abs": 2966
+          }
+        },
+        {
+          "rid": "Cookie#M505",
+          "nm": "Cookie",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 408,
+            "w": 177,
+            "l": 168,
+            "abs": 3208
+          }
+        },
+        {
+          "rid": "mitsu #rinri",
+          "nm": "mitsu ",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 63,
+            "w": 273,
+            "l": 277,
+            "abs": 2663
+          }
+        },
+        {
+          "rid": "JUDINI#cafe",
+          "nm": "JUDINI",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 582,
+            "w": 731,
+            "l": 700,
+            "abs": 3382
+          }
+        }
+      ]
+    },
+    {
+      "name": "UCN",
+      "canon": "UCN",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Winteroh#pupu",
+          "nm": "Winteroh",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "I",
+            "lp": 29,
+            "w": 47,
+            "l": 34,
+            "abs": 2729
+          }
+        },
+        {
+          "rid": "Benlox44#LAS",
+          "nm": "Benlox44",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 387,
+            "w": 187,
+            "l": 175,
+            "abs": 3187
+          }
+        },
+        {
+          "rid": "hide on papoi#PAPOI",
+          "nm": "hide on papoi",
+          "rank": {
+            "tier": "EMERALD",
+            "div": "II",
+            "lp": 78,
+            "w": 146,
+            "l": 144,
+            "abs": 2278
+          }
+        },
+        {
+          "rid": "fragnight#LAS",
+          "nm": "fragnight",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 75,
+            "w": 56,
+            "l": 57,
+            "abs": 2675
+          }
+        },
+        {
+          "rid": "DatCursed#LAS",
+          "nm": "DatCursed",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 366,
+            "w": 327,
+            "l": 320,
+            "abs": 3166
+          }
+        },
+        {
+          "rid": "Kasane Teto#xdlol",
+          "nm": "Kasane Teto",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 249,
+            "w": 164,
+            "l": 174,
+            "abs": 3049
+          }
+        }
+      ]
+    },
+    {
+      "name": "UDEC",
+      "canon": "UDEC",
+      "ours": false,
+      "players": [
+        {
+          "rid": "Tank#PSQ",
+          "nm": "Tank",
+          "rank": {
+            "tier": "DIAMOND",
+            "div": "II",
+            "lp": 55,
+            "w": 293,
+            "l": 272,
+            "abs": 2655
+          }
+        },
+        {
+          "rid": "xXporotosXx#LAS",
+          "nm": "xXporotosXx",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 692,
+            "w": 380,
+            "l": 358,
+            "abs": 3492
+          }
+        },
+        {
+          "rid": "Pollococoman#POIO",
+          "nm": "Pollococoman",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 550,
+            "w": 310,
+            "l": 293,
+            "abs": 3350
+          }
+        },
+        {
+          "rid": "wonder#lass1",
+          "nm": "wonder",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 1113,
+            "w": 231,
+            "l": 171,
+            "abs": 3913
+          }
+        },
+        {
+          "rid": "Fiurius#LAS",
+          "nm": "Fiurius",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 57,
+            "w": 296,
+            "l": 309,
+            "abs": 2857
+          }
+        },
+        {
+          "rid": "Almohada#LOFI",
+          "nm": "Almohada",
+          "rank": {
+            "tier": "CHALLENGER",
+            "div": "",
+            "lp": 1399,
+            "w": 229,
+            "l": 174,
+            "abs": 4199
+          }
+        },
+        {
+          "rid": "Shirou Ogami#1111",
+          "nm": "Shirou Ogami",
+          "rank": {
+            "tier": "GRANDMASTER",
+            "div": "",
+            "lp": 977,
+            "w": 241,
+            "l": 224,
+            "abs": 3777
+          }
+        },
+        {
+          "rid": "alliez#las",
+          "nm": "alliez",
+          "rank": {
+            "tier": "MASTER",
+            "div": "",
+            "lp": 8,
+            "w": 50,
+            "l": 22,
+            "abs": 2808
+          }
+        }
+      ]
+    }
+  ],
+  "swiss": [
+    {
+      "n": 1,
+      "bo": "BO1",
+      "buckets": [
+        {
+          "record": "0-0",
+          "matches": [
+            {
+              "a": "USM D",
+              "b": "UCT A",
+              "w": "UCT A",
+              "sc": 0
+            },
+            {
+              "a": "UTAL B",
+              "b": "UC A",
+              "w": "UC A",
+              "sc": 0
+            },
+            {
+              "a": "UTEM B",
+              "b": "UDD",
+              "w": "UDD",
+              "sc": 0
+            },
+            {
+              "a": "UTEM A",
+              "b": "UMAYOR",
+              "w": "UMAYOR",
+              "sc": 0
+            },
+            {
+              "a": "UCH D",
+              "b": "UTAL D",
+              "w": "UCH D",
+              "sc": 0
+            },
+            {
+              "a": "DUOC",
+              "b": "USM B",
+              "w": "DUOC",
+              "sc": 0
+            },
+            {
+              "a": "UDP B",
+              "b": "UTAL A",
+              "w": "UDP B",
+              "sc": 0
+            },
+            {
+              "a": "UCH B",
+              "b": "UDEC",
+              "w": "UCH B",
+              "sc": 0
+            },
+            {
+              "a": "UTAL C",
+              "b": "UCH C",
+              "w": "UCH C",
+              "sc": 0
+            },
+            {
+              "a": "UCT B",
+              "b": "UDP A",
+              "w": "UDP A",
+              "sc": 0
+            },
+            {
+              "a": "UCSH",
+              "b": "USACH",
+              "w": "USACH",
+              "sc": 0
+            },
+            {
+              "a": "USM A",
+              "b": "UNAB C",
+              "w": "USM A",
+              "sc": 0
+            },
+            {
+              "a": "PUCV",
+              "b": "UNAB B",
+              "w": "UNAB B",
+              "sc": 0
+            },
+            {
+              "a": "UDA",
+              "b": "UCN",
+              "w": "UDA",
+              "sc": 0
+            },
+            {
+              "a": "UCH A",
+              "b": "UNAB A",
+              "w": "UNAB A",
+              "sc": 0
+            },
+            {
+              "a": "USM C",
+              "b": "UC B",
+              "w": "UC B",
+              "sc": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "bo": "BO1",
+      "buckets": [
+        {
+          "record": "1-0",
+          "matches": [
+            {
+              "a": "UDA",
+              "b": "UNAB B",
+              "w": "UDA",
+              "sc": 0
+            },
+            {
+              "a": "UC B",
+              "b": "UMAYOR",
+              "w": "UC B",
+              "sc": 0
+            },
+            {
+              "a": "DUOC",
+              "b": "UDP A",
+              "w": "DUOC",
+              "sc": 0
+            },
+            {
+              "a": "UNAB A",
+              "b": "UCT A",
+              "w": "UNAB A",
+              "sc": 0
+            },
+            {
+              "a": "UDP B",
+              "b": "UCH B",
+              "w": "UDP B",
+              "sc": 0
+            },
+            {
+              "a": "UCH C",
+              "b": "UC A",
+              "w": "UC A",
+              "sc": 0
+            },
+            {
+              "a": "UDD",
+              "b": "USACH",
+              "w": "USACH",
+              "sc": 0
+            },
+            {
+              "a": "USM A",
+              "b": "UCH D",
+              "w": "USM A",
+              "sc": 0
+            }
+          ]
+        },
+        {
+          "record": "0-1",
+          "matches": [
+            {
+              "a": "UTEM A",
+              "b": "UTAL D",
+              "w": "UTEM A",
+              "sc": 0
+            },
+            {
+              "a": "USM D",
+              "b": "UCSH",
+              "w": "UCSH",
+              "sc": 0
+            },
+            {
+              "a": "UTAL C",
+              "b": "UDEC",
+              "w": "UDEC",
+              "sc": 0
+            },
+            {
+              "a": "UCN",
+              "b": "UNAB C",
+              "w": "UNAB C",
+              "sc": 0
+            },
+            {
+              "a": "USM B",
+              "b": "UCH A",
+              "w": "USM B",
+              "sc": 0
+            },
+            {
+              "a": "UTEM B",
+              "b": "UTAL A",
+              "w": "UTAL A",
+              "sc": 0
+            },
+            {
+              "a": "UCT B",
+              "b": "USM C",
+              "w": "USM C",
+              "sc": 0
+            },
+            {
+              "a": "PUCV",
+              "b": "UTAL B",
+              "w": "UTAL B",
+              "sc": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "bo": "BO3",
+      "buckets": [
+        {
+          "record": "2-0",
+          "matches": [
+            {
+              "a": "UC B",
+              "b": "UDP B",
+              "w": "UDP B",
+              "sc": 0
+            },
+            {
+              "a": "USM A",
+              "b": "USACH",
+              "w": "USM A",
+              "sc": 0
+            },
+            {
+              "a": "UC A",
+              "b": "UDA",
+              "w": "UC A",
+              "sc": 1
+            },
+            {
+              "a": "UNAB A",
+              "b": "DUOC",
+              "w": "UNAB A",
+              "sc": 0
+            }
+          ]
+        },
+        {
+          "record": "1-1",
+          "matches": [
+            {
+              "a": "UTAL B",
+              "b": "UMAYOR",
+              "w": "UMAYOR",
+              "sc": 1
+            },
+            {
+              "a": "UCH B",
+              "b": "UTEM A",
+              "w": "UCH B",
+              "sc": 0
+            },
+            {
+              "a": "UCH C",
+              "b": "UCT A",
+              "w": "UCT A",
+              "sc": 1
+            },
+            {
+              "a": "USM C",
+              "b": "UCH D",
+              "w": "USM C",
+              "sc": 0
+            },
+            {
+              "a": "USM B",
+              "b": "UDEC",
+              "w": "USM B",
+              "sc": 0
+            },
+            {
+              "a": "UNAB C",
+              "b": "UTAL A",
+              "w": "UNAB C",
+              "sc": 0
+            },
+            {
+              "a": "UDD",
+              "b": "UDP A",
+              "w": "UDD",
+              "sc": 1
+            },
+            {
+              "a": "UNAB B",
+              "b": "UCSH",
+              "w": "UNAB B",
+              "sc": 1
+            }
+          ]
+        },
+        {
+          "record": "0-2",
+          "matches": [
+            {
+              "a": "UCT B",
+              "b": "UTEM B",
+              "w": "UTEM B",
+              "sc": 0
+            },
+            {
+              "a": "UTAL C",
+              "b": "USM D",
+              "w": "USM D",
+              "sc": 0
+            },
+            {
+              "a": "UCN",
+              "b": "UTAL D",
+              "w": "UCN",
+              "sc": 0
+            },
+            {
+              "a": "PUCV",
+              "b": "UCH A",
+              "w": "UCH A",
+              "sc": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "bo": "BO3",
+      "buckets": [
+        {
+          "record": "2-1",
+          "matches": [
+            {
+              "a": "USM B",
+              "b": "UMAYOR",
+              "w": "USM B",
+              "sc": 1
+            },
+            {
+              "a": "UC B",
+              "b": "UCT A",
+              "w": "UC B",
+              "sc": 0
+            },
+            {
+              "a": "USM C",
+              "b": "UNAB B",
+              "w": "UNAB B",
+              "sc": 0
+            },
+            {
+              "a": "DUOC",
+              "b": "UNAB C",
+              "w": "DUOC",
+              "sc": 0
+            },
+            {
+              "a": "UDD",
+              "b": "UDA",
+              "w": "UDD",
+              "sc": 0
+            },
+            {
+              "a": "USACH",
+              "b": "UCH B",
+              "w": "UCH B",
+              "sc": 0
+            }
+          ]
+        },
+        {
+          "record": "1-2",
+          "matches": [
+            {
+              "a": "UCSH",
+              "b": "UTEM B",
+              "w": "UTEM B",
+              "sc": 0
+            },
+            {
+              "a": "UCH A",
+              "b": "UTAL A",
+              "w": "UTAL A",
+              "sc": 1
+            },
+            {
+              "a": "UDEC",
+              "b": "UCH D",
+              "w": "UDEC",
+              "sc": 0
+            },
+            {
+              "a": "UCN",
+              "b": "UCH C",
+              "w": "UCN",
+              "sc": 0
+            },
+            {
+              "a": "USM D",
+              "b": "UTEM A",
+              "w": "USM D",
+              "sc": 0
+            },
+            {
+              "a": "UDP A",
+              "b": "UTAL B",
+              "w": "UDP A",
+              "sc": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "bo": "BO3",
+      "buckets": [
+        {
+          "record": "2-2",
+          "matches": [
+            {
+              "a": "UMAYOR",
+              "b": "UTAL A"
+            },
+            {
+              "a": "UCT A",
+              "b": "UTEM B"
+            },
+            {
+              "a": "USM C",
+              "b": "UCN"
+            },
+            {
+              "a": "UNAB C",
+              "b": "USM D"
+            },
+            {
+              "a": "UDA",
+              "b": "UDEC"
+            },
+            {
+              "a": "USACH",
+              "b": "UDP A"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "bracket": {
+    "octavos": [
+      {
+        "a": "UNAB A",
+        "b": "UMAYOR"
+      },
+      {
+        "a": "UCH B",
+        "b": "UDD"
+      },
+      {
+        "a": "USM A",
+        "b": "UCN"
+      },
+      {
+        "a": "UC B",
+        "bFrom": {
+          "round": 5,
+          "a": "UNAB C",
+          "b": "USM D"
+        }
+      },
+      {
+        "a": "USM B",
+        "b": "UCT A"
+      },
+      {
+        "a": "UC A",
+        "b": "UDP A"
+      },
+      {
+        "a": "DUOC UC",
+        "b": "UNAB B"
+      },
+      {
+        "a": "UDP B",
+        "b": "UDA"
+      }
+    ],
+    "dates": {
+      "octavos": "Sáb 17 – Lun 19 oct",
+      "cuartos": "Mar 20 – Jue 22 oct",
+      "semis": "Sáb 24 – Dom 25 oct",
+      "final": "Sáb 14 nov · Movistar Game Club",
+      "tercer": "Lun 26 – Vie 30 oct"
+    }
   }
- ],
- "ours": [
-  "UCH A",
-  "UCH B",
-  "UCH C",
-  "UCH D"
- ],
- "teams": [
-  {
-   "name": "UNAB A",
-   "canon": "UNAB A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "1Žeus Tactico#최고신",
-     "nm": "1Žeus Tactico",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 75,
-      "w": 25,
-      "l": 9,
-      "abs": 2375
-     }
-    },
-    {
-     "rid": "kaii#adc",
-     "nm": "kaii",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1246,
-      "w": 474,
-      "l": 445,
-      "abs": 4046
-     }
-    },
-    {
-     "rid": "Ronin#33s",
-     "nm": "Ronin",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 75,
-      "w": 44,
-      "l": 38,
-      "abs": 2775
-     }
-    },
-    {
-     "rid": "KEKW 2023#LAS",
-     "nm": "KEKW 2023",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 582,
-      "w": 156,
-      "l": 137,
-      "abs": 3382
-     }
-    },
-    {
-     "rid": "Chivoo#Lupeeh",
-     "nm": "Chivoo",
-     "rank": null
-    }
-   ]
-  },
-  {
-   "name": "UNAB B",
-   "canon": "UNAB B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "MD PASHEN#MDE",
-     "nm": "MD PASHEN",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1058,
-      "w": 287,
-      "l": 186,
-      "abs": 3858
-     }
-    },
-    {
-     "rid": "pablobk#LAS",
-     "nm": "pablobk",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 11,
-      "w": 47,
-      "l": 34,
-      "abs": 2811
-     }
-    },
-    {
-     "rid": "Cyanuro#Evlyn",
-     "nm": "Cyanuro",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 43,
-      "w": 253,
-      "l": 261,
-      "abs": 2843
-     }
-    },
-    {
-     "rid": "always deafen#LAS1",
-     "nm": "always deafen",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 92,
-      "w": 150,
-      "l": 138,
-      "abs": 2892
-     }
-    },
-    {
-     "rid": "Jechua20#2021",
-     "nm": "Jechua20",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 77,
-      "w": 92,
-      "l": 110,
-      "abs": 2877
-     }
-    },
-    {
-     "rid": "DK DestroyLonely#ALILY",
-     "nm": "DK DestroyLonely",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 257,
-      "w": 419,
-      "l": 418,
-      "abs": 3057
-     }
-    },
-    {
-     "rid": "XIVBlackbas#black",
-     "nm": "XIVBlackbas",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 75,
-      "w": 343,
-      "l": 327,
-      "abs": 2775
-     }
-    }
-   ]
-  },
-  {
-   "name": "UNAB C",
-   "canon": "UNAB C",
-   "ours": false,
-   "players": [
-    {
-     "rid": "GTCJR#Nicky",
-     "nm": "GTCJR",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 83,
-      "w": 128,
-      "l": 109,
-      "abs": 2883
-     }
-    },
-    {
-     "rid": "God Peo#ATRIX",
-     "nm": "God Peo",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 35,
-      "w": 169,
-      "l": 131,
-      "abs": 2835
-     }
-    },
-    {
-     "rid": "Chickblo12#LAS",
-     "nm": "Chickblo12",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 472,
-      "w": 481,
-      "l": 506,
-      "abs": 3272
-     }
-    },
-    {
-     "rid": "yellowclaw#melou",
-     "nm": "yellowclaw",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 462,
-      "w": 127,
-      "l": 110,
-      "abs": 3262
-     }
-    },
-    {
-     "rid": "Jinllo#Mango",
-     "nm": "Jinllo",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 47,
-      "w": 92,
-      "l": 84,
-      "abs": 2247
-     }
-    },
-    {
-     "rid": "InsertName#Pog",
-     "nm": "InsertName",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 29,
-      "w": 98,
-      "l": 84,
-      "abs": 2529
-     }
-    }
-   ]
-  },
-  {
-   "name": "UDA",
-   "canon": "UDA",
-   "ours": false,
-   "players": [
-    {
-     "rid": "DeadSky#LAS",
-     "nm": "DeadSky",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 66,
-      "w": 19,
-      "l": 21,
-      "abs": 2566
-     }
-    },
-    {
-     "rid": "Shoyo Yoshida#LAS",
-     "nm": "Shoyo Yoshida",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 193,
-      "w": 52,
-      "l": 42,
-      "abs": 2993
-     }
-    },
-    {
-     "rid": "rush P90 manito#LAS",
-     "nm": "rush P90 manito",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 1,
-      "w": 14,
-      "l": 22,
-      "abs": 2201
-     }
-    },
-    {
-     "rid": "Popet0n#LAS",
-     "nm": "Popet0n",
-     "rank": null
-    },
-    {
-     "rid": "Føxsen#666",
-     "nm": "Føxsen",
-     "rank": {
-      "tier": "BRONZE",
-      "div": "II",
-      "lp": 0,
-      "w": 3,
-      "l": 7,
-      "abs": 600
-     }
-    },
-    {
-     "rid": "Kursinho#GOD",
-     "nm": "Kursinho",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "I",
-      "lp": 64,
-      "w": 22,
-      "l": 29,
-      "abs": 1964
-     }
-    },
-    {
-     "rid": "nicolas0lavarria#LAS",
-     "nm": "nicolas0lavarria",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 20,
-      "w": 132,
-      "l": 107,
-      "abs": 2820
-     }
-    },
-    {
-     "rid": "Gekarmoh#TUSK",
-     "nm": "Gekarmoh",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 72,
-      "w": 15,
-      "l": 17,
-      "abs": 2472
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCH A",
-   "canon": "UCH A",
-   "ours": true,
-   "players": [
-    {
-     "rid": "Che copete#LoL",
-     "nm": "Che copete",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 136,
-      "w": 336,
-      "l": 328,
-      "abs": 2936
-     }
-    },
-    {
-     "rid": "Krok#DEUS",
-     "nm": "Krok",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 786,
-      "w": 797,
-      "l": 785,
-      "abs": 3586
-     }
-    },
-    {
-     "rid": "k1sseshugs#xoxo",
-     "nm": "k1sseshugs",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 40,
-      "w": 475,
-      "l": 442,
-      "abs": 2740
-     }
-    },
-    {
-     "rid": "Nadie#UCH",
-     "nm": "Nadie",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 63,
-      "w": 129,
-      "l": 118,
-      "abs": 2863
-     }
-    },
-    {
-     "rid": "Yoyobox#1899",
-     "nm": "Yoyobox",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 51,
-      "w": 404,
-      "l": 394,
-      "abs": 2851
-     }
-    },
-    {
-     "rid": "Muspe#777",
-     "nm": "Muspe",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1195,
-      "w": 574,
-      "l": 564,
-      "abs": 3995
-     }
-    },
-    {
-     "rid": "Miss All Sünday#WE0NA",
-     "nm": "Miss All Sünday",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 103,
-      "w": 244,
-      "l": 228,
-      "abs": 2903
-     }
-    },
-    {
-     "rid": "insano3000#unvio",
-     "nm": "insano3000",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 75,
-      "w": 263,
-      "l": 258,
-      "abs": 2775
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCH B",
-   "canon": "UCH B",
-   "ours": true,
-   "players": [
-    {
-     "rid": "Dekai#LAS",
-     "nm": "Dekai",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 91,
-      "w": 36,
-      "l": 39,
-      "abs": 2691
-     }
-    },
-    {
-     "rid": "Minitas Hunter#zzz",
-     "nm": "Minitas Hunter",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 75,
-      "w": 186,
-      "l": 173,
-      "abs": 2775
-     }
-    },
-    {
-     "rid": "Tathamet#LAS",
-     "nm": "Tathamet",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 85,
-      "w": 20,
-      "l": 17,
-      "abs": 2585
-     }
-    },
-    {
-     "rid": "Sunless#0410",
-     "nm": "Sunless",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 967,
-      "w": 133,
-      "l": 113,
-      "abs": 3767
-     }
-    },
-    {
-     "rid": "Lacosabuena#LAS",
-     "nm": "Lacosabuena",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 143,
-      "w": 132,
-      "l": 130,
-      "abs": 2943
-     }
-    },
-    {
-     "rid": "DeSean#Elba",
-     "nm": "DeSean",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 80,
-      "w": 16,
-      "l": 13,
-      "abs": 2580
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCH C",
-   "canon": "UCH C",
-   "ours": true,
-   "players": [
-    {
-     "rid": "Kriida#7777",
-     "nm": "Kriida",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 353,
-      "w": 292,
-      "l": 284,
-      "abs": 3153
-     }
-    },
-    {
-     "rid": "HudsonHornet#gueon",
-     "nm": "HudsonHornet",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 242,
-      "w": 354,
-      "l": 324,
-      "abs": 3042
-     }
-    },
-    {
-     "rid": "Petu#99999",
-     "nm": "Petu",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 707,
-      "w": 320,
-      "l": 295,
-      "abs": 3507
-     }
-    },
-    {
-     "rid": "vishh#LAS",
-     "nm": "vishh",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 236,
-      "w": 393,
-      "l": 366,
-      "abs": 3036
-     }
-    },
-    {
-     "rid": "Maio#BARD",
-     "nm": "Maio",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 63,
-      "w": 428,
-      "l": 414,
-      "abs": 2663
-     }
-    },
-    {
-     "rid": "Manuel#vlaki",
-     "nm": "Manuel",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 758,
-      "w": 307,
-      "l": 277,
-      "abs": 3558
-     }
-    },
-    {
-     "rid": "Jotaaaa#MLJS",
-     "nm": "Jotaaaa",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "III",
-      "lp": 26,
-      "w": 612,
-      "l": 596,
-      "abs": 2126
-     }
-    },
-    {
-     "rid": "carloco69#LAS",
-     "nm": "carloco69",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 581,
-      "w": 465,
-      "l": 445,
-      "abs": 3381
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCH D",
-   "canon": "UCH D",
-   "ours": true,
-   "players": [
-    {
-     "rid": "Plüs#SICK",
-     "nm": "Plüs",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 685,
-      "w": 189,
-      "l": 153,
-      "abs": 3485
-     }
-    },
-    {
-     "rid": "SionAntisionista#SAS",
-     "nm": "SionAntisionista",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 653,
-      "w": 317,
-      "l": 306,
-      "abs": 3453
-     }
-    },
-    {
-     "rid": "kıwı#wıkı",
-     "nm": "kıwı",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 32,
-      "w": 252,
-      "l": 243,
-      "abs": 2732
-     }
-    },
-    {
-     "rid": "matotomatoxd#LAS",
-     "nm": "matotomatoxd",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 40,
-      "w": 374,
-      "l": 373,
-      "abs": 2840
-     }
-    },
-    {
-     "rid": "Yutsero#LAS",
-     "nm": "Yutsero",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 75,
-      "w": 444,
-      "l": 457,
-      "abs": 2875
-     }
-    },
-    {
-     "rid": "Pumajuego#LAS",
-     "nm": "Pumajuego",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 12,
-      "w": 400,
-      "l": 389,
-      "abs": 2812
-     }
-    },
-    {
-     "rid": "henrymiller#379",
-     "nm": "henrymiller",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 74,
-      "w": 108,
-      "l": 91,
-      "abs": 2374
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCT A",
-   "canon": "UCT A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "UCT Argonavth#LAS1",
-     "nm": "UCT Argonavth",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1354,
-      "w": 328,
-      "l": 317,
-      "abs": 4154
-     }
-    },
-    {
-     "rid": "UCT Eritro#666",
-     "nm": "UCT Eritro",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1432,
-      "w": 184,
-      "l": 127,
-      "abs": 4232
-     }
-    },
-    {
-     "rid": "UCT Das#PAPS",
-     "nm": "UCT Das",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 153,
-      "w": 193,
-      "l": 199,
-      "abs": 2953
-     }
-    },
-    {
-     "rid": "UCT soguzx#zzx",
-     "nm": "UCT soguzx",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 85,
-      "w": 196,
-      "l": 176,
-      "abs": 2885
-     }
-    },
-    {
-     "rid": "UCT Beusfy#00000",
-     "nm": "UCT Beusfy",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 558,
-      "w": 129,
-      "l": 113,
-      "abs": 3358
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCT B",
-   "canon": "UCT B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Vishete#LAS",
-     "nm": "Vishete",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 99,
-      "w": 81,
-      "l": 66,
-      "abs": 2799
-     }
-    },
-    {
-     "rid": "AleK#cueca",
-     "nm": "AleK",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 91,
-      "w": 116,
-      "l": 121,
-      "abs": 2491
-     }
-    },
-    {
-     "rid": "Jungla Holandés#1412",
-     "nm": "Jungla Holandés",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 37,
-      "w": 166,
-      "l": 154,
-      "abs": 2437
-     }
-    },
-    {
-     "rid": "SC JeanPolnareff#JOJO",
-     "nm": "SC JeanPolnareff",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 75,
-      "w": 73,
-      "l": 61,
-      "abs": 2375
-     }
-    },
-    {
-     "rid": "alvarorex777OMG#papoi",
-     "nm": "alvarorex777OMG",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 8,
-      "w": 26,
-      "l": 29,
-      "abs": 2408
-     }
-    },
-    {
-     "rid": "Duki#UwU",
-     "nm": "Duki",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 23,
-      "w": 100,
-      "l": 91,
-      "abs": 2723
-     }
-    }
-   ]
-  },
-  {
-   "name": "UDD",
-   "canon": "UDD",
-   "ours": false,
-   "players": [
-    {
-     "rid": "getFrosted#151",
-     "nm": "getFrosted",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 771,
-      "w": 422,
-      "l": 393,
-      "abs": 3571
-     }
-    },
-    {
-     "rid": "michaelolise11#vamp",
-     "nm": "michaelolise11",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 525,
-      "w": 238,
-      "l": 215,
-      "abs": 3325
-     }
-    },
-    {
-     "rid": "Cherry#Aqua",
-     "nm": "Cherry",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 63,
-      "w": 263,
-      "l": 253,
-      "abs": 2863
-     }
-    },
-    {
-     "rid": "maxigod#6767",
-     "nm": "maxigod",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 20,
-      "w": 85,
-      "l": 49,
-      "abs": 2820
-     }
-    },
-    {
-     "rid": "Kiefer#LASS",
-     "nm": "Kiefer",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 2558,
-      "w": 224,
-      "l": 107,
-      "abs": 5358
-     }
-    },
-    {
-     "rid": "Jeff Bezos#LAS",
-     "nm": "Jeff Bezos",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 0,
-      "w": 109,
-      "l": 106,
-      "abs": 2800
-     }
-    }
-   ]
-  },
-  {
-   "name": "PUCV",
-   "canon": "PUCV",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Dakotah#T1WIN",
-     "nm": "Dakotah",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 79,
-      "w": 156,
-      "l": 140,
-      "abs": 2279
-     }
-    },
-    {
-     "rid": "n1llzinho#WASD",
-     "nm": "n1llzinho",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "III",
-      "lp": 84,
-      "w": 208,
-      "l": 195,
-      "abs": 2184
-     }
-    },
-    {
-     "rid": "Ðeepwokeη#Ys0",
-     "nm": "Ðeepwokeη",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "I",
-      "lp": 67,
-      "w": 86,
-      "l": 85,
-      "abs": 1967
-     }
-    },
-    {
-     "rid": "ChunRavel#NMCL",
-     "nm": "ChunRavel",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 23,
-      "w": 383,
-      "l": 377,
-      "abs": 2323
-     }
-    },
-    {
-     "rid": "Pequeño Capibara#hola",
-     "nm": "Pequeño Capibara",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 95,
-      "w": 264,
-      "l": 245,
-      "abs": 2495
-     }
-    },
-    {
-     "rid": "cachorrâo#sech",
-     "nm": "cachorrâo",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 73,
-      "w": 28,
-      "l": 16,
-      "abs": 2573
-     }
-    },
-    {
-     "rid": "DucktorMonty#baker",
-     "nm": "DucktorMonty",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "IV",
-      "lp": 18,
-      "w": 79,
-      "l": 71,
-      "abs": 2018
-     }
-    }
-   ]
-  },
-  {
-   "name": "USACH",
-   "canon": "USACH",
-   "ours": false,
-   "players": [
-    {
-     "rid": "3nder#ezzz",
-     "nm": "3nder",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 254,
-      "w": 476,
-      "l": 468,
-      "abs": 3054
-     }
-    },
-    {
-     "rid": "Rey Kimera#Never",
-     "nm": "Rey Kimera",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 395,
-      "w": 183,
-      "l": 159,
-      "abs": 3195
-     }
-    },
-    {
-     "rid": "exte#las",
-     "nm": "exte",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 562,
-      "w": 206,
-      "l": 195,
-      "abs": 3362
-     }
-    },
-    {
-     "rid": "fernanelcrack#4444",
-     "nm": "fernanelcrack",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 617,
-      "w": 141,
-      "l": 108,
-      "abs": 3417
-     }
-    },
-    {
-     "rid": "Đean#WILD",
-     "nm": "Đean",
-     "rank": null
-    },
-    {
-     "rid": "Xander#017",
-     "nm": "Xander",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1054,
-      "w": 196,
-      "l": 166,
-      "abs": 3854
-     }
-    },
-    {
-     "rid": "Costo hundido#TTTTT",
-     "nm": "Costo hundido",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 166,
-      "w": 405,
-      "l": 396,
-      "abs": 2966
-     }
-    },
-    {
-     "rid": "Diegors#0000",
-     "nm": "Diegors",
-     "rank": {
-      "tier": "GOLD",
-      "div": "I",
-      "lp": 33,
-      "w": 94,
-      "l": 87,
-      "abs": 1533
-     }
-    }
-   ]
-  },
-  {
-   "name": "USM A",
-   "canon": "USM A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Pichito#LAS1",
-     "nm": "Pichito",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1627,
-      "w": 221,
-      "l": 190,
-      "abs": 4427
-     }
-    },
-    {
-     "rid": "Stargazer7#LAS",
-     "nm": "Stargazer7",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1473,
-      "w": 446,
-      "l": 420,
-      "abs": 4273
-     }
-    },
-    {
-     "rid": "Lukes#nvm",
-     "nm": "Lukes",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1192,
-      "w": 152,
-      "l": 128,
-      "abs": 3992
-     }
-    },
-    {
-     "rid": "Tynek#Kiss",
-     "nm": "Tynek",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 12,
-      "w": 123,
-      "l": 115,
-      "abs": 2812
-     }
-    },
-    {
-     "rid": "Dangeflow#Sebax",
-     "nm": "Dangeflow",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 818,
-      "w": 386,
-      "l": 368,
-      "abs": 3618
-     }
-    },
-    {
-     "rid": "Hebi#frost",
-     "nm": "Hebi",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 360,
-      "w": 153,
-      "l": 142,
-      "abs": 3160
-     }
-    },
-    {
-     "rid": "Chocolo#MSc",
-     "nm": "Chocolo",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 558,
-      "w": 355,
-      "l": 355,
-      "abs": 3358
-     }
-    }
-   ]
-  },
-  {
-   "name": "USM B",
-   "canon": "USM B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "373#Ruby",
-     "nm": "373",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1411,
-      "w": 368,
-      "l": 351,
-      "abs": 4211
-     }
-    },
-    {
-     "rid": "lynko#005",
-     "nm": "lynko",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 0,
-      "w": 524,
-      "l": 559,
-      "abs": 2800
-     }
-    },
-    {
-     "rid": "Skadoonish#LAS1",
-     "nm": "Skadoonish",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 520,
-      "w": 263,
-      "l": 263,
-      "abs": 3320
-     }
-    },
-    {
-     "rid": "Οldest Dream#orv",
-     "nm": "Οldest Dream",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 521,
-      "w": 428,
-      "l": 397,
-      "abs": 3321
-     }
-    },
-    {
-     "rid": "Sant1n #kata",
-     "nm": "Sant1n ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 698,
-      "w": 393,
-      "l": 333,
-      "abs": 3498
-     }
-    },
-    {
-     "rid": "Peter pyker #milo",
-     "nm": "Peter pyker ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 162,
-      "w": 188,
-      "l": 176,
-      "abs": 2962
-     }
-    },
-    {
-     "rid": "esclavo de karin#monki",
-     "nm": "esclavo de karin",
-     "rank": null
-    },
-    {
-     "rid": "shutdownxzoe#LAS",
-     "nm": "shutdownxzoe",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 0,
-      "w": 127,
-      "l": 120,
-      "abs": 2800
-     }
-    }
-   ]
-  },
-  {
-   "name": "USM C",
-   "canon": "USM C",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Kripistobal #USM",
-     "nm": "Kripistobal ",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 99,
-      "w": 449,
-      "l": 431,
-      "abs": 2599
-     }
-    },
-    {
-     "rid": "Nachomater#CTLG",
-     "nm": "Nachomater",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 58,
-      "w": 261,
-      "l": 246,
-      "abs": 2558
-     }
-    },
-    {
-     "rid": "King mesura#kyuvst",
-     "nm": "King mesura",
-     "rank": null
-    },
-    {
-     "rid": "moonlight#16180",
-     "nm": "moonlight",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 405,
-      "w": 230,
-      "l": 192,
-      "abs": 3205
-     }
-    },
-    {
-     "rid": "Manjar Con Pann#LAS",
-     "nm": "Manjar Con Pann",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 0,
-      "w": 146,
-      "l": 143,
-      "abs": 2800
-     }
-    },
-    {
-     "rid": "Gravis#RYO",
-     "nm": "Gravis",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 35,
-      "w": 145,
-      "l": 158,
-      "abs": 2735
-     }
-    },
-    {
-     "rid": "Skelia#Homan",
-     "nm": "Skelia",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 74,
-      "w": 139,
-      "l": 155,
-      "abs": 2274
-     }
-    }
-   ]
-  },
-  {
-   "name": "USM D",
-   "canon": "USM D",
-   "ours": false,
-   "players": [
-    {
-     "rid": "UN1CORN1oCOsm1cO",
-     "nm": "UN1CORN1oCOsm1cO",
-     "rank": null
-    },
-    {
-     "rid": "Tapia4#LAS",
-     "nm": "Tapia4",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 354,
-      "w": 252,
-      "l": 221,
-      "abs": 3154
-     }
-    },
-    {
-     "rid": "Brechaqueo#las",
-     "nm": "Brechaqueo",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 79,
-      "w": 46,
-      "l": 55,
-      "abs": 2479
-     }
-    },
-    {
-     "rid": "PanConLimón #ALO",
-     "nm": "PanConLimón ",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 8,
-      "w": 334,
-      "l": 341,
-      "abs": 2608
-     }
-    },
-    {
-     "rid": "lunanova #las",
-     "nm": "lunanova ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 42,
-      "w": 471,
-      "l": 449,
-      "abs": 2842
-     }
-    },
-    {
-     "rid": "mtrix #las1",
-     "nm": "mtrix ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 92,
-      "w": 145,
-      "l": 127,
-      "abs": 2892
-     }
-    },
-    {
-     "rid": "soo ho #LAS",
-     "nm": "soo ho ",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "III",
-      "lp": 82,
-      "w": 58,
-      "l": 58,
-      "abs": 1782
-     }
-    },
-    {
-     "rid": "Josecontildenlae#JTA",
-     "nm": "Josecontildenlae",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 97,
-      "w": 84,
-      "l": 79,
-      "abs": 2297
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCSH",
-   "canon": "UCSH",
-   "ours": false,
-   "players": [
-    {
-     "rid": "ˇ ˆ ˇ ˇ#unu",
-     "nm": "ˇ ˆ ˇ ˇ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 70,
-      "w": 70,
-      "l": 75,
-      "abs": 2870
-     }
-    },
-    {
-     "rid": "GG No Tengo JG#3516",
-     "nm": "GG No Tengo JG",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "IV",
-      "lp": 0,
-      "w": 89,
-      "l": 96,
-      "abs": 2000
-     }
-    },
-    {
-     "rid": "Pucho#gosu",
-     "nm": "Pucho",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 167,
-      "w": 221,
-      "l": 223,
-      "abs": 2967
-     }
-    },
-    {
-     "rid": "Sejoy0#8677",
-     "nm": "Sejoy0",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 186,
-      "w": 157,
-      "l": 151,
-      "abs": 2986
-     }
-    },
-    {
-     "rid": "Kaniewest#MBDTF",
-     "nm": "Kaniewest",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 155,
-      "w": 573,
-      "l": 551,
-      "abs": 2955
-     }
-    },
-    {
-     "rid": "Harry Kayn#9999",
-     "nm": "Harry Kayn",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 27,
-      "w": 400,
-      "l": 384,
-      "abs": 2427
-     }
-    },
-    {
-     "rid": "Zoro220#LAS",
-     "nm": "Zoro220",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 43,
-      "w": 47,
-      "l": 43,
-      "abs": 2243
-     }
-    },
-    {
-     "rid": "N N #172",
-     "nm": "N N ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 195,
-      "w": 181,
-      "l": 156,
-      "abs": 2995
-     }
-    }
-   ]
-  },
-  {
-   "name": "DUOC UC",
-   "canon": "DUOC",
-   "ours": false,
-   "players": [
-    {
-     "rid": "MarceSato#T T",
-     "nm": "MarceSato",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1270,
-      "w": 490,
-      "l": 468,
-      "abs": 4070
-     }
-    },
-    {
-     "rid": "Francesco FIUUU#LAS",
-     "nm": "Francesco FIUUU",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 195,
-      "w": 121,
-      "l": 87,
-      "abs": 2995
-     }
-    },
-    {
-     "rid": "cow#bored",
-     "nm": "cow",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1351,
-      "w": 274,
-      "l": 226,
-      "abs": 4151
-     }
-    },
-    {
-     "rid": "Kindless #0804",
-     "nm": "Kindless ",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 75,
-      "w": 157,
-      "l": 114,
-      "abs": 2775
-     }
-    },
-    {
-     "rid": "Jisoo#y11",
-     "nm": "Jisoo",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 525,
-      "w": 98,
-      "l": 80,
-      "abs": 3325
-     }
-    },
-    {
-     "rid": "P u n c h#Pain",
-     "nm": "P u n c h",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1309,
-      "w": 297,
-      "l": 250,
-      "abs": 4109
-     }
-    },
-    {
-     "rid": "keria 1 completo #las",
-     "nm": "keria 1 completo ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 748,
-      "w": 288,
-      "l": 292,
-      "abs": 3548
-     }
-    }
-   ]
-  },
-  {
-   "name": "UMAYOR",
-   "canon": "UMAYOR",
-   "ours": false,
-   "players": [
-    {
-     "rid": "KarmaYikes#9722",
-     "nm": "KarmaYikes",
-     "rank": {
-      "tier": "IRON",
-      "div": "III",
-      "lp": 88,
-      "w": 70,
-      "l": 96,
-      "abs": 188
-     }
-    },
-    {
-     "rid": "Laval#LAS",
-     "nm": "Laval",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 536,
-      "w": 394,
-      "l": 379,
-      "abs": 3336
-     }
-    },
-    {
-     "rid": "José José#gmhrd",
-     "nm": "José José",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 20,
-      "w": 123,
-      "l": 122,
-      "abs": 2320
-     }
-    },
-    {
-     "rid": "Dargus#mvp",
-     "nm": "Dargus",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 30,
-      "w": 48,
-      "l": 47,
-      "abs": 2430
-     }
-    },
-    {
-     "rid": "King Geedorah#DOOOM",
-     "nm": "King Geedorah",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 164,
-      "w": 260,
-      "l": 252,
-      "abs": 2964
-     }
-    },
-    {
-     "rid": "GIVP#gera",
-     "nm": "GIVP",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 101,
-      "w": 251,
-      "l": 236,
-      "abs": 2901
-     }
-    },
-    {
-     "rid": "VICHOHACK#LAS",
-     "nm": "VICHOHACK",
-     "rank": {
-      "tier": "GOLD",
-      "div": "II",
-      "lp": 84,
-      "w": 60,
-      "l": 57,
-      "abs": 1484
-     }
-    }
-   ]
-  },
-  {
-   "name": "UTEM A",
-   "canon": "UTEM A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Flipy #Loop",
-     "nm": "Flipy ",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "IV",
-      "lp": 82,
-      "w": 128,
-      "l": 126,
-      "abs": 1682
-     }
-    },
-    {
-     "rid": "Creampy#XDD",
-     "nm": "Creampy",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 13,
-      "w": 324,
-      "l": 309,
-      "abs": 2813
-     }
-    },
-    {
-     "rid": "Cero#9189",
-     "nm": "Cero",
-     "rank": {
-      "tier": "SILVER",
-      "div": "III",
-      "lp": 37,
-      "w": 70,
-      "l": 79,
-      "abs": 937
-     }
-    },
-    {
-     "rid": "sech987#LAS",
-     "nm": "sech987",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "II",
-      "lp": 8,
-      "w": 107,
-      "l": 108,
-      "abs": 1808
-     }
-    },
-    {
-     "rid": "IElCocosLOK1",
-     "nm": "IElCocosLOK1",
-     "rank": null
-    },
-    {
-     "rid": "el sin rodillas#5573",
-     "nm": "el sin rodillas",
-     "rank": {
-      "tier": "BRONZE",
-      "div": "I",
-      "lp": 3,
-      "w": 22,
-      "l": 20,
-      "abs": 703
-     }
-    },
-    {
-     "rid": "Ogg#aaa",
-     "nm": "Ogg",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "IV",
-      "lp": 54,
-      "w": 46,
-      "l": 49,
-      "abs": 1654
-     }
-    },
-    {
-     "rid": "merluzini #135BP",
-     "nm": "merluzini ",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "I",
-      "lp": 50,
-      "w": 56,
-      "l": 70,
-      "abs": 1950
-     }
-    }
-   ]
-  },
-  {
-   "name": "UTEM B",
-   "canon": "UTEM B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "mon laferte fan #salvi",
-     "nm": "mon laferte fan ",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 92,
-      "w": 166,
-      "l": 134,
-      "abs": 2592
-     }
-    },
-    {
-     "rid": "Hustl333r#Preda",
-     "nm": "Hustl333r",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 290,
-      "w": 151,
-      "l": 145,
-      "abs": 3090
-     }
-    },
-    {
-     "rid": "Gridmi#viktr",
-     "nm": "Gridmi",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1238,
-      "w": 310,
-      "l": 270,
-      "abs": 4038
-     }
-    },
-    {
-     "rid": "Rico#TEA",
-     "nm": "Rico",
-     "rank": {
-      "tier": "GOLD",
-      "div": "I",
-      "lp": 16,
-      "w": 61,
-      "l": 62,
-      "abs": 1516
-     }
-    },
-    {
-     "rid": "donatello #MID17",
-     "nm": "donatello ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 318,
-      "w": 292,
-      "l": 280,
-      "abs": 3118
-     }
-    },
-    {
-     "rid": "shelao#SSS",
-     "nm": "shelao",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 61,
-      "w": 109,
-      "l": 98,
-      "abs": 2361
-     }
-    }
-   ]
-  },
-  {
-   "name": "UDP A",
-   "canon": "UDP A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "NEEDB12#LAS1",
-     "nm": "NEEDB12",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 28,
-      "w": 521,
-      "l": 532,
-      "abs": 2828
-     }
-    },
-    {
-     "rid": "Ñandú#snsc",
-     "nm": "Ñandú",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 35,
-      "w": 118,
-      "l": 71,
-      "abs": 2835
-     }
-    },
-    {
-     "rid": "Fax flm#LAS",
-     "nm": "Fax flm",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 864,
-      "w": 318,
-      "l": 293,
-      "abs": 3664
-     }
-    },
-    {
-     "rid": "Koelliu#111",
-     "nm": "Koelliu",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1091,
-      "w": 541,
-      "l": 527,
-      "abs": 3891
-     }
-    },
-    {
-     "rid": "Moma#420",
-     "nm": "Moma",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 336,
-      "w": 197,
-      "l": 185,
-      "abs": 3136
-     }
-    },
-    {
-     "rid": "noon#030",
-     "nm": "noon",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 857,
-      "w": 245,
-      "l": 227,
-      "abs": 3657
-     }
-    }
-   ]
-  },
-  {
-   "name": "UDP B",
-   "canon": "UDP B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Multiwaifus#ADO",
-     "nm": "Multiwaifus",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 402,
-      "w": 491,
-      "l": 485,
-      "abs": 3202
-     }
-    },
-    {
-     "rid": "Lolnes#LAS",
-     "nm": "Lolnes",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 156,
-      "w": 221,
-      "l": 224,
-      "abs": 2956
-     }
-    },
-    {
-     "rid": "Moruga#jg777",
-     "nm": "Moruga",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 395,
-      "w": 290,
-      "l": 281,
-      "abs": 3195
-     }
-    },
-    {
-     "rid": "Nibbamin#LACRA",
-     "nm": "Nibbamin",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 991,
-      "w": 341,
-      "l": 318,
-      "abs": 3791
-     }
-    },
-    {
-     "rid": "Bedless#Sashi",
-     "nm": "Bedless",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1334,
-      "w": 150,
-      "l": 116,
-      "abs": 4134
-     }
-    },
-    {
-     "rid": "Benjitapro2010#DAT",
-     "nm": "Benjitapro2010",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1118,
-      "w": 223,
-      "l": 202,
-      "abs": 3918
-     }
-    },
-    {
-     "rid": "hikeN#hkn",
-     "nm": "hikeN",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 634,
-      "w": 218,
-      "l": 185,
-      "abs": 3434
-     }
-    }
-   ]
-  },
-  {
-   "name": "UTAL A",
-   "canon": "UTAL A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Brazil1anGod#BRA",
-     "nm": "Brazil1anGod",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 321,
-      "w": 217,
-      "l": 205,
-      "abs": 3121
-     }
-    },
-    {
-     "rid": "Posséidon#nnnnn",
-     "nm": "Posséidon",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 70,
-      "w": 239,
-      "l": 224,
-      "abs": 2670
-     }
-    },
-    {
-     "rid": "yungvfx#666",
-     "nm": "yungvfx",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 676,
-      "w": 320,
-      "l": 287,
-      "abs": 3476
-     }
-    },
-    {
-     "rid": "LLEFLIGHT CHOA #CHOA",
-     "nm": "LLEFLIGHT CHOA ",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 38,
-      "w": 73,
-      "l": 84,
-      "abs": 2638
-     }
-    },
-    {
-     "rid": "B castro G#castr",
-     "nm": "B castro G",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 238,
-      "w": 155,
-      "l": 135,
-      "abs": 3038
-     }
-    },
-    {
-     "rid": "Alee#31426",
-     "nm": "Alee",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "IV",
-      "lp": 73,
-      "w": 180,
-      "l": 167,
-      "abs": 2473
-     }
-    }
-   ]
-  },
-  {
-   "name": "UTAL B",
-   "canon": "UTAL B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Insomnia#eve",
-     "nm": "Insomnia",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 87,
-      "w": 269,
-      "l": 279,
-      "abs": 2687
-     }
-    },
-    {
-     "rid": "LUCARIOH#LAS",
-     "nm": "LUCARIOH",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 42,
-      "w": 209,
-      "l": 183,
-      "abs": 2542
-     }
-    },
-    {
-     "rid": "Escr0Tit0#CLP",
-     "nm": "Escr0Tit0",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 62,
-      "w": 197,
-      "l": 177,
-      "abs": 2662
-     }
-    },
-    {
-     "rid": "Barlon#meeps",
-     "nm": "Barlon",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 75,
-      "w": 92,
-      "l": 79,
-      "abs": 2675
-     }
-    },
-    {
-     "rid": "Duho#ftit",
-     "nm": "Duho",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 59,
-      "w": 45,
-      "l": 42,
-      "abs": 2759
-     }
-    },
-    {
-     "rid": "Rchay Erome#Richi",
-     "nm": "Rchay Erome",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 98,
-      "w": 173,
-      "l": 151,
-      "abs": 2298
-     }
-    },
-    {
-     "rid": "6 lukas justas#kuroh",
-     "nm": "6 lukas justas",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 75,
-      "w": 155,
-      "l": 144,
-      "abs": 2675
-     }
-    }
-   ]
-  },
-  {
-   "name": "UTAL C",
-   "canon": "UTAL C",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Reybeys #krkas",
-     "nm": "Reybeys ",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "IV",
-      "lp": 74,
-      "w": 27,
-      "l": 26,
-      "abs": 2074
-     }
-    },
-    {
-     "rid": "Green2030#LAS",
-     "nm": "Green2030",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 45,
-      "w": 160,
-      "l": 143,
-      "abs": 2345
-     }
-    },
-    {
-     "rid": "Ninja Precoz #Zen",
-     "nm": "Ninja Precoz ",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "III",
-      "lp": 58,
-      "w": 111,
-      "l": 95,
-      "abs": 2158
-     }
-    },
-    {
-     "rid": "Gatitomancer#FAKER",
-     "nm": "Gatitomancer",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 37,
-      "w": 63,
-      "l": 63,
-      "abs": 2537
-     }
-    },
-    {
-     "rid": "Yose#1983",
-     "nm": "Yose",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "III",
-      "lp": 91,
-      "w": 200,
-      "l": 189,
-      "abs": 2591
-     }
-    },
-    {
-     "rid": "Sexmund Freud#FREUD",
-     "nm": "Sexmund Freud",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 22,
-      "w": 45,
-      "l": 43,
-      "abs": 2822
-     }
-    },
-    {
-     "rid": "Dodoria2#las",
-     "nm": "Dodoria2",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 79,
-      "w": 39,
-      "l": 47,
-      "abs": 2679
-     }
-    }
-   ]
-  },
-  {
-   "name": "UTAL D",
-   "canon": "UTAL D",
-   "ours": false,
-   "players": [
-    {
-     "rid": "majalejeman#las",
-     "nm": "majalejeman",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "II",
-      "lp": 50,
-      "w": 185,
-      "l": 186,
-      "abs": 1850
-     }
-    },
-    {
-     "rid": "elsrgatito#las",
-     "nm": "elsrgatito",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "III",
-      "lp": 18,
-      "w": 83,
-      "l": 73,
-      "abs": 1718
-     }
-    },
-    {
-     "rid": "eternallamb#las",
-     "nm": "eternallamb",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "IV",
-      "lp": 69,
-      "w": 65,
-      "l": 72,
-      "abs": 1669
-     }
-    },
-    {
-     "rid": "matikuri#las",
-     "nm": "matikuri",
-     "rank": {
-      "tier": "PLATINUM",
-      "div": "IV",
-      "lp": 18,
-      "w": 51,
-      "l": 42,
-      "abs": 1618
-     }
-    },
-    {
-     "rid": "Kurosãki Ichigo #Enf",
-     "nm": "Kurosãki Ichigo ",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "III",
-      "lp": 17,
-      "w": 91,
-      "l": 88,
-      "abs": 2117
-     }
-    },
-    {
-     "rid": "panconquezo318#lpg",
-     "nm": "panconquezo318",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "III",
-      "lp": 69,
-      "w": 94,
-      "l": 74,
-      "abs": 2169
-     }
-    }
-   ]
-  },
-  {
-   "name": "UC A",
-   "canon": "UC A",
-   "ours": false,
-   "players": [
-    {
-     "rid": "UC Xiao#1313",
-     "nm": "UC Xiao",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "I",
-      "lp": 75,
-      "w": 9,
-      "l": 8,
-      "abs": 2375
-     }
-    },
-    {
-     "rid": "chovski#LAS",
-     "nm": "chovski",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1818,
-      "w": 253,
-      "l": 212,
-      "abs": 4618
-     }
-    },
-    {
-     "rid": "Cuish#AURA",
-     "nm": "Cuish",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 968,
-      "w": 436,
-      "l": 431,
-      "abs": 3768
-     }
-    },
-    {
-     "rid": "dEHuMAnizEd#susu",
-     "nm": "dEHuMAnizEd",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 846,
-      "w": 171,
-      "l": 128,
-      "abs": 3646
-     }
-    },
-    {
-     "rid": "Heza#perry",
-     "nm": "Heza",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1192,
-      "w": 308,
-      "l": 263,
-      "abs": 3992
-     }
-    },
-    {
-     "rid": "Tillerman#LAS",
-     "nm": "Tillerman",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1201,
-      "w": 408,
-      "l": 400,
-      "abs": 4001
-     }
-    },
-    {
-     "rid": "UC alexkidd#TKL",
-     "nm": "UC alexkidd",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 499,
-      "w": 230,
-      "l": 211,
-      "abs": 3299
-     }
-    },
-    {
-     "rid": "UC neøn#6253",
-     "nm": "UC neøn",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 362,
-      "w": 201,
-      "l": 206,
-      "abs": 3162
-     }
-    }
-   ]
-  },
-  {
-   "name": "UC B",
-   "canon": "UC B",
-   "ours": false,
-   "players": [
-    {
-     "rid": "UC Rash #UCR",
-     "nm": "UC Rash ",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 425,
-      "w": 358,
-      "l": 360,
-      "abs": 3225
-     }
-    },
-    {
-     "rid": "mijoyy#top",
-     "nm": "mijoyy",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 551,
-      "w": 160,
-      "l": 129,
-      "abs": 3351
-     }
-    },
-    {
-     "rid": "Demerzel#1999",
-     "nm": "Demerzel",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 39,
-      "w": 509,
-      "l": 519,
-      "abs": 2739
-     }
-    },
-    {
-     "rid": "Jøseabaran#LAS",
-     "nm": "Jøseabaran",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 306,
-      "w": 117,
-      "l": 107,
-      "abs": 3106
-     }
-    },
-    {
-     "rid": "despair#enso",
-     "nm": "despair",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 166,
-      "w": 318,
-      "l": 299,
-      "abs": 2966
-     }
-    },
-    {
-     "rid": "Cookie#M505",
-     "nm": "Cookie",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 408,
-      "w": 177,
-      "l": 168,
-      "abs": 3208
-     }
-    },
-    {
-     "rid": "mitsu #rinri",
-     "nm": "mitsu ",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 63,
-      "w": 273,
-      "l": 277,
-      "abs": 2663
-     }
-    },
-    {
-     "rid": "JUDINI#cafe",
-     "nm": "JUDINI",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 582,
-      "w": 731,
-      "l": 700,
-      "abs": 3382
-     }
-    }
-   ]
-  },
-  {
-   "name": "UCN",
-   "canon": "UCN",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Winteroh#pupu",
-     "nm": "Winteroh",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "I",
-      "lp": 29,
-      "w": 47,
-      "l": 34,
-      "abs": 2729
-     }
-    },
-    {
-     "rid": "Benlox44#LAS",
-     "nm": "Benlox44",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 387,
-      "w": 187,
-      "l": 175,
-      "abs": 3187
-     }
-    },
-    {
-     "rid": "hide on papoi#PAPOI",
-     "nm": "hide on papoi",
-     "rank": {
-      "tier": "EMERALD",
-      "div": "II",
-      "lp": 78,
-      "w": 146,
-      "l": 144,
-      "abs": 2278
-     }
-    },
-    {
-     "rid": "fragnight#LAS",
-     "nm": "fragnight",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 75,
-      "w": 56,
-      "l": 57,
-      "abs": 2675
-     }
-    },
-    {
-     "rid": "DatCursed#LAS",
-     "nm": "DatCursed",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 366,
-      "w": 327,
-      "l": 320,
-      "abs": 3166
-     }
-    },
-    {
-     "rid": "Kasane Teto#xdlol",
-     "nm": "Kasane Teto",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 249,
-      "w": 164,
-      "l": 174,
-      "abs": 3049
-     }
-    }
-   ]
-  },
-  {
-   "name": "UDEC",
-   "canon": "UDEC",
-   "ours": false,
-   "players": [
-    {
-     "rid": "Tank#PSQ",
-     "nm": "Tank",
-     "rank": {
-      "tier": "DIAMOND",
-      "div": "II",
-      "lp": 55,
-      "w": 293,
-      "l": 272,
-      "abs": 2655
-     }
-    },
-    {
-     "rid": "xXporotosXx#LAS",
-     "nm": "xXporotosXx",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 692,
-      "w": 380,
-      "l": 358,
-      "abs": 3492
-     }
-    },
-    {
-     "rid": "Pollococoman#POIO",
-     "nm": "Pollococoman",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 550,
-      "w": 310,
-      "l": 293,
-      "abs": 3350
-     }
-    },
-    {
-     "rid": "wonder#lass1",
-     "nm": "wonder",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 1113,
-      "w": 231,
-      "l": 171,
-      "abs": 3913
-     }
-    },
-    {
-     "rid": "Fiurius#LAS",
-     "nm": "Fiurius",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 57,
-      "w": 296,
-      "l": 309,
-      "abs": 2857
-     }
-    },
-    {
-     "rid": "Almohada#LOFI",
-     "nm": "Almohada",
-     "rank": {
-      "tier": "CHALLENGER",
-      "div": "",
-      "lp": 1399,
-      "w": 229,
-      "l": 174,
-      "abs": 4199
-     }
-    },
-    {
-     "rid": "Shirou Ogami#1111",
-     "nm": "Shirou Ogami",
-     "rank": {
-      "tier": "GRANDMASTER",
-      "div": "",
-      "lp": 977,
-      "w": 241,
-      "l": 224,
-      "abs": 3777
-     }
-    },
-    {
-     "rid": "alliez#las",
-     "nm": "alliez",
-     "rank": {
-      "tier": "MASTER",
-      "div": "",
-      "lp": 8,
-      "w": 50,
-      "l": 22,
-      "abs": 2808
-     }
-    }
-   ]
-  }
- ],
- "swiss": [
-  {
-   "n": 1,
-   "bo": "BO1",
-   "buckets": [
-    {
-     "record": "0-0",
-     "matches": [
-      {
-       "a": "USM D",
-       "b": "UCT A",
-       "w": "UCT A",
-       "sc": 0
-      },
-      {
-       "a": "UTAL B",
-       "b": "UC A",
-       "w": "UC A",
-       "sc": 0
-      },
-      {
-       "a": "UTEM B",
-       "b": "UDD",
-       "w": "UDD",
-       "sc": 0
-      },
-      {
-       "a": "UTEM A",
-       "b": "UMAYOR",
-       "w": "UMAYOR",
-       "sc": 0
-      },
-      {
-       "a": "UCH D",
-       "b": "UTAL D",
-       "w": "UCH D",
-       "sc": 0
-      },
-      {
-       "a": "DUOC",
-       "b": "USM B",
-       "w": "DUOC",
-       "sc": 0
-      },
-      {
-       "a": "UDP B",
-       "b": "UTAL A",
-       "w": "UDP B",
-       "sc": 0
-      },
-      {
-       "a": "UCH B",
-       "b": "UDEC",
-       "w": "UCH B",
-       "sc": 0
-      },
-      {
-       "a": "UTAL C",
-       "b": "UCH C",
-       "w": "UCH C",
-       "sc": 0
-      },
-      {
-       "a": "UCT B",
-       "b": "UDP A",
-       "w": "UDP A",
-       "sc": 0
-      },
-      {
-       "a": "UCSH",
-       "b": "USACH",
-       "w": "USACH",
-       "sc": 0
-      },
-      {
-       "a": "USM A",
-       "b": "UNAB C",
-       "w": "USM A",
-       "sc": 0
-      },
-      {
-       "a": "PUCV",
-       "b": "UNAB B",
-       "w": "UNAB B",
-       "sc": 0
-      },
-      {
-       "a": "UDA",
-       "b": "UCN",
-       "w": "UDA",
-       "sc": 0
-      },
-      {
-       "a": "UCH A",
-       "b": "UNAB A",
-       "w": "UNAB A",
-       "sc": 0
-      },
-      {
-       "a": "USM C",
-       "b": "UC B",
-       "w": "UC B",
-       "sc": 0
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "n": 2,
-   "bo": "BO1",
-   "buckets": [
-    {
-     "record": "1-0",
-     "matches": [
-      {
-       "a": "UDA",
-       "b": "UNAB B",
-       "w": "UDA",
-       "sc": 0
-      },
-      {
-       "a": "UC B",
-       "b": "UMAYOR",
-       "w": "UC B",
-       "sc": 0
-      },
-      {
-       "a": "DUOC",
-       "b": "UDP A",
-       "w": "DUOC",
-       "sc": 0
-      },
-      {
-       "a": "UNAB A",
-       "b": "UCT A",
-       "w": "UNAB A",
-       "sc": 0
-      },
-      {
-       "a": "UDP B",
-       "b": "UCH B",
-       "w": "UDP B",
-       "sc": 0
-      },
-      {
-       "a": "UCH C",
-       "b": "UC A",
-       "w": "UC A",
-       "sc": 0
-      },
-      {
-       "a": "UDD",
-       "b": "USACH",
-       "w": "USACH",
-       "sc": 0
-      },
-      {
-       "a": "USM A",
-       "b": "UCH D",
-       "w": "USM A",
-       "sc": 0
-      }
-     ]
-    },
-    {
-     "record": "0-1",
-     "matches": [
-      {
-       "a": "UTEM A",
-       "b": "UTAL D",
-       "w": "UTEM A",
-       "sc": 0
-      },
-      {
-       "a": "USM D",
-       "b": "UCSH",
-       "w": "UCSH",
-       "sc": 0
-      },
-      {
-       "a": "UTAL C",
-       "b": "UDEC",
-       "w": "UDEC",
-       "sc": 0
-      },
-      {
-       "a": "UCN",
-       "b": "UNAB C",
-       "w": "UNAB C",
-       "sc": 0
-      },
-      {
-       "a": "USM B",
-       "b": "UCH A",
-       "w": "USM B",
-       "sc": 0
-      },
-      {
-       "a": "UTEM B",
-       "b": "UTAL A",
-       "w": "UTAL A",
-       "sc": 0
-      },
-      {
-       "a": "UCT B",
-       "b": "USM C",
-       "w": "USM C",
-       "sc": 0
-      },
-      {
-       "a": "PUCV",
-       "b": "UTAL B",
-       "w": "UTAL B",
-       "sc": 0
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "n": 3,
-   "bo": "BO3",
-   "buckets": [
-    {
-     "record": "2-0",
-     "matches": [
-      {
-       "a": "UC B",
-       "b": "UDP B",
-       "w": "UDP B",
-       "sc": 0
-      },
-      {
-       "a": "USM A",
-       "b": "USACH",
-       "w": "USM A",
-       "sc": 0
-      },
-      {
-       "a": "UC A",
-       "b": "UDA",
-       "w": "UC A",
-       "sc": 1
-      },
-      {
-       "a": "UNAB A",
-       "b": "DUOC",
-       "w": "UNAB A",
-       "sc": 0
-      }
-     ]
-    },
-    {
-     "record": "1-1",
-     "matches": [
-      {
-       "a": "UTAL B",
-       "b": "UMAYOR",
-       "w": "UMAYOR",
-       "sc": 1
-      },
-      {
-       "a": "UCH B",
-       "b": "UTEM A",
-       "w": "UCH B",
-       "sc": 0
-      },
-      {
-       "a": "UCH C",
-       "b": "UCT A",
-       "w": "UCT A",
-       "sc": 1
-      },
-      {
-       "a": "USM C",
-       "b": "UCH D",
-       "w": "USM C",
-       "sc": 0
-      },
-      {
-       "a": "USM B",
-       "b": "UDEC",
-       "w": "USM B",
-       "sc": 0
-      },
-      {
-       "a": "UNAB C",
-       "b": "UTAL A",
-       "w": "UNAB C",
-       "sc": 0
-      },
-      {
-       "a": "UDD",
-       "b": "UDP A",
-       "w": "UDD",
-       "sc": 1
-      },
-      {
-       "a": "UNAB B",
-       "b": "UCSH",
-       "w": "UNAB B",
-       "sc": 1
-      }
-     ]
-    },
-    {
-     "record": "0-2",
-     "matches": [
-      {
-       "a": "UCT B",
-       "b": "UTEM B",
-       "w": "UTEM B",
-       "sc": 0
-      },
-      {
-       "a": "UTAL C",
-       "b": "USM D",
-       "w": "USM D",
-       "sc": 0
-      },
-      {
-       "a": "UCN",
-       "b": "UTAL D",
-       "w": "UCN",
-       "sc": 0
-      },
-      {
-       "a": "PUCV",
-       "b": "UCH A",
-       "w": "UCH A",
-       "sc": 0
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "n": 4,
-   "bo": "BO3",
-   "buckets": [
-    {
-     "record": "2-1",
-     "matches": [
-      {
-       "a": "USM B",
-       "b": "UMAYOR",
-       "w": "USM B",
-       "sc": 1
-      },
-      {
-       "a": "UC B",
-       "b": "UCT A",
-       "w": "UC B",
-       "sc": 0
-      },
-      {
-       "a": "USM C",
-       "b": "UNAB B",
-       "w": "UNAB B",
-       "sc": 0
-      },
-      {
-       "a": "DUOC",
-       "b": "UNAB C",
-       "w": "DUOC",
-       "sc": 0
-      },
-      {
-       "a": "UDD",
-       "b": "UDA",
-       "w": "UDD",
-       "sc": 0
-      },
-      {
-       "a": "USACH",
-       "b": "UCH B",
-       "w": "UCH B",
-       "sc": 0
-      }
-     ]
-    },
-    {
-     "record": "1-2",
-     "matches": [
-      {
-       "a": "UCSH",
-       "b": "UTEM B",
-       "w": "UTEM B",
-       "sc": 0
-      },
-      {
-       "a": "UCH A",
-       "b": "UTAL A",
-       "w": "UTAL A",
-       "sc": 1
-      },
-      {
-       "a": "UDEC",
-       "b": "UCH D",
-       "w": "UDEC",
-       "sc": 0
-      },
-      {
-       "a": "UCN",
-       "b": "UCH C",
-       "w": "UCN",
-       "sc": 0
-      },
-      {
-       "a": "USM D",
-       "b": "UTEM A",
-       "w": "USM D",
-       "sc": 0
-      },
-      {
-       "a": "UDP A",
-       "b": "UTAL B",
-       "w": "UDP A",
-       "sc": 0
-      }
-     ]
-    }
-   ]
-  },
-  {
-   "n": 5,
-   "bo": "BO3",
-   "buckets": [
-    {
-     "record": "2-2",
-     "matches": [
-      {
-       "a": "UMAYOR",
-       "b": "UTAL A"
-      },
-      {
-       "a": "UCT A",
-       "b": "UTEM B"
-      },
-      {
-       "a": "USM C",
-       "b": "UCN"
-      },
-      {
-       "a": "UNAB C",
-       "b": "USM D"
-      },
-      {
-       "a": "UDA",
-       "b": "UDEC"
-      },
-      {
-       "a": "USACH",
-       "b": "UDP A"
-      }
-     ]
-    }
-   ]
-  }
- ],
- "bracket": {
-  "octavos": [],
-  "cuartos": [],
-  "semis": [],
-  "final": []
- }
 }

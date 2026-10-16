@@ -152,7 +152,13 @@
   .brow+.brow{ border-top:1px solid rgba(255,255,255,.06); }
   .brow.win{ color:var(--up); } .brow.ours{ color:var(--blue); }
   .brow .seed{ font-size:9px; color:var(--muted-2); font-weight:800; width:16px; }
-  .brow .bn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .brow .bn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0; }
+  .brow .bsc{ font-size:12px; font-weight:800; color:var(--muted-2); min-width:10px; text-align:right; } .brow.win .bsc{ color:var(--up); }
+  .brow.lose{ color:var(--muted-2); }
+  .brow .bwin{ display:inline-flex; gap:3px; } .brow .awin{ font-size:9.5px; font-weight:800; padding:2px 5px; border-radius:6px; cursor:pointer; font-family:inherit;
+    background:rgba(74,163,122,.12); color:#7fdcae; border:1px solid rgba(74,163,122,.4); } .brow .awin.on{ background:rgba(74,163,122,.9); color:#07140d; }
+  .bcol-h small{ display:block; font-size:10.5px; font-weight:700; letter-spacing:0; text-transform:none; color:var(--muted); margin-top:2px; }
+  .bthird{ max-width:260px; margin:6px 0 4px auto; }
 
   /* Equipos — estilo rosters (como UDPORROS) */
   .tgrp-h{ font-size:12px; font-weight:800; letter-spacing:.05em; color:var(--blue); margin:24px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
@@ -319,8 +325,11 @@ function findSwissMatch(round, a, b){ const wa=nteam(a), wb=nteam(b);
     if(p.includes(wa)&&p.includes(wb)) return m; }
   return null; }
 // Aplica los resultados que puso el admin (DB) encima de los que trae el JSON (sync/Discord).
+const BR_RES = {};   // resultados de eliminatorias: "ronda:equipoA__equipoB" -> {w, sc}
+const brKey = (round, a, b) => round + ':' + [nteam(a), nteam(b)].sort().join('__');
 function applyUlResults(list){ if(!Array.isArray(list))return;
-  list.forEach(r=>{ const m=findSwissMatch(r.round, r.a, r.b); if(!m)return;
+  list.forEach(r=>{ if(r.round >= 6){ if(r.winner) BR_RES[brKey(r.round, r.a, r.b)] = { w: r.winner, sc: r.loserMaps|0 }; else delete BR_RES[brKey(r.round, r.a, r.b)]; return; }
+    const m=findSwissMatch(r.round, r.a, r.b); if(!m)return;
     if(!r.winner){ delete m.w; delete m.sc; return; }
     m.w = (nteam(m.a)===nteam(r.winner))?m.a:(nteam(m.b)===nteam(r.winner)?m.b:m.w);
     m.sc = Math.max(0, Math.min(2, (r.loserMaps|0))); }); }
@@ -519,25 +528,57 @@ async function onUlWinClick(e){
 }
 
 // ================= ELIMINATORIAS =================
+// Los octavos vienen fijos en los datos; cuartos, semis, final y 3er lugar se arman solos con los ganadores que carga el admin.
+let brEdit = false;
+const BR_ROUND = { octavos:6, cuartos:7, semis:8, final:9, tercer:10 };
+function brTeam(x, from){ if(x) return x; if(!from) return null; const m=findSwissMatch(from.round, from.a, from.b);
+  return m && m.w ? m.w : null; }
+function brLabel(x, from){ return x || (from ? from.a + ' / ' + from.b : null); }
+function brBuild(){
+  const src = (DATA.bracket && DATA.bracket.octavos) || [];
+  const mk = (round, a, b, la, lb) => { const r = a && b ? BR_RES[brKey(round, a, b)] : null; const w = r ? (nteam(r.w)===nteam(a) ? a : nteam(r.w)===nteam(b) ? b : null) : null;
+    return { round, a, b, la: la || a, lb: lb || b, w, sc: r ? r.sc : null, l: w ? (w===a ? b : a) : null }; };
+  const oct = src.map(m => mk(6, brTeam(m.a, m.aFrom), brTeam(m.b, m.bFrom), brLabel(m.a, m.aFrom), brLabel(m.b, m.bFrom)));
+  const next = (prev, round) => { const out=[]; for(let i=0;i<prev.length;i+=2) out.push(mk(round, prev[i].w, prev[i+1] && prev[i+1].w)); return out; };
+  const cua = next(oct, 7), sem = next(cua, 8), fin = next(sem, 9);
+  const ter = [mk(10, sem[0] && sem[0].l, sem[1] && sem[1].l)];
+  return { octavos: oct, cuartos: cua, semis: sem, final: fin, tercer: ter };
+}
 function bracketCols(b){
-  const col=(title,matches,cls)=>`<div class="bcol ${cls||''}"><div class="bcol-h">${title}</div><div class="bcol-b">${matches.map(m=>`<div class="bslot">${bm(m)}</div>`).join('')}</div></div>`;
-  const bm=m=>{ m=m||{}; const a=m.a||'Por definir', bb=m.b||'Por definir';
-    return `<div class="bmatch">
-      <div class="brow ${m.w&&m.w===m.a?'win':''} ${isOurs(m.a)?'ours':''}"><span class="seed">${m.sa||''}</span><span class="bn">${esc(a)}</span></div>
-      <div class="brow ${m.w&&m.w===m.b?'win':''} ${isOurs(m.b)?'ours':''}"><span class="seed">${m.sb||''}</span><span class="bn">${esc(bb)}</span></div></div>`; };
+  const dates=(DATA.bracket&&DATA.bracket.dates)||{};
+  const col=(title,key,matches,cls)=>`<div class="bcol ${cls||''}"><div class="bcol-h">${title}${dates[key]?`<small>${esc(dates[key])}</small>`:''}</div><div class="bcol-b">${matches.map(m=>`<div class="bslot">${bm(m)}</div>`).join('')}</div></div>`;
+  const bm=m=>{ m=m||{};
+    const row=(side)=>{ const t=m[side], lbl=m[side==='a'?'la':'lb'], win=m.w&&m.w===t, lose=m.w&&m.w!==t;
+      const score=m.w?(win?'2':String(m.sc||0)):'';
+      const btns = IS_ADMIN&&brEdit&&m.a&&m.b ? `<span class="bwin">${[0,1].map(lm=>`<button class="awin ${win&&(m.sc|0)===lm?'on':''}" data-br="${m.round}" data-a="${esc(m.a)}" data-b="${esc(m.b)}" data-w="${esc(t)}" data-lm="${lm}" title="Ganó ${esc(t)} ${lm?'2-1':'2-0'}">${lm?'2-1':'2-0'}</button>`).join('')}</span>` : '';
+      return `<div class="brow ${win?'win':''} ${lose?'lose':''} ${isOurs(t)?'ours':''}"><span class="bn">${esc(lbl||'Por definir')}</span>${btns}<span class="bsc">${score}</span></div>`; };
+    return `<div class="bmatch">${row('a')}${row('b')}</div>`; };
   const blank=n=>Array.from({length:n},()=>({}));
-  return col('Octavos', b.octavos.length?b.octavos:blank(8), 'first')
-       + col('Cuartos', b.cuartos.length?b.cuartos:blank(4))
-       + col('Semis', b.semis.length?b.semis:blank(2))
-       + col('Final', b.final.length?b.final:blank(1), 'last');
+  return col('Octavos','octavos', b.octavos.length?b.octavos:blank(8), 'first')
+       + col('Cuartos','cuartos', b.cuartos.length?b.cuartos:blank(4))
+       + col('Semifinal','semis', b.semis.length?b.semis:blank(2))
+       + col('Final','final', b.final.length?b.final:blank(1), 'last');
+}
+async function onBrWinClick(e){
+  const btn=e.target.closest('[data-br]'); if(!btn)return;
+  const round=+btn.dataset.br, a=btn.dataset.a, b=btn.dataset.b, w=btn.dataset.w, lm=+btn.dataset.lm||0;
+  const cur=BR_RES[brKey(round,a,b)], same=cur&&nteam(cur.w)===nteam(w)&&(cur.sc|0)===lm;   // mismo botón = borrar
+  btn.disabled=true;
+  try{ await SQC.api('/admin/uleague-result',{method:'POST',body:{round,a,b,winner:same?'':w,loserMaps:lm}});
+    if(same) delete BR_RES[brKey(round,a,b)]; else BR_RES[brKey(round,a,b)]={w,sc:lm}; renderPlayoffs(); }
+  catch(err){ alert('No se pudo guardar: '+err.message); btn.disabled=false; }
 }
 function renderPlayoffs(){
-  const b = (DATA.bracket && DATA.bracket.octavos) ? DATA.bracket : {octavos:[],cuartos:[],semis:[],final:[]};
+  const b = brBuild(), dates=(DATA.bracket&&DATA.bracket.dates)||{};
   const hasData = b.octavos.length>0;
-  $('#tab-playoffs').innerHTML = `<div class="sect-h">Eliminatorias · Top 16 · todo al mejor de 3</div>`+
+  const t = b.tercer[0];
+  $('#tab-playoffs').innerHTML = `<div class="sect-h" style="display:flex;justify-content:space-between;align-items:center;gap:10px">Eliminatorias · Top 16 · todo al mejor de 3${IS_ADMIN?`<button class="dl-table ${brEdit?'edit-on':''}" id="br-edit">${brEdit?'✓ Listo':'✏️ Editar resultados'}</button>`:''}</div>`+
     (hasData?'':`<div class="empty-note" style="margin-bottom:16px">El bracket se define al terminar la Fase Suiza (15 oct). Los 16 clasificados se sortean por récord: 3-0, 3-1 y 3-2.<br>Mientras tanto, probá la <b>Simulación</b> 🎮 para ver cómo podría quedar.</div>`)+
     `<div class="bracket">${bracketCols(b)}</div>`+
+    (hasData?`<div class="bthird"><div class="bcol-h">Tercer lugar${dates.tercer?`<small>${esc(dates.tercer)}</small>`:''}</div>${bracketCols({octavos:[t],cuartos:[],semis:[],final:[]}).match(/<div class="bmatch">[\s\S]*?<\/div><\/div>/)[0]}</div>`:'')+
     `<div class="sect-h">Calendario</div><div class="timeline">${DATA.phases.filter(p=>p.key!=='suiza').map(p=>`<div class="phase"><div class="pn">${esc(p.name)}</div><div class="pd">${esc(p.dates)}</div><div class="pf">${esc(p.format)}</div></div>`).join('')}</div>`;
+  const eb=$('#br-edit'); if(eb) eb.onclick=()=>{ brEdit=!brEdit; renderPlayoffs(); };
+  $('#tab-playoffs').onclick = onBrWinClick;
 }
 
 // ================= EQUIPOS (rosters estilo UDPORROS) =================
