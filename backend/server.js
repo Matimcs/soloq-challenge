@@ -2728,10 +2728,14 @@ const RK_PREP_MS = 30000;
 const RK = { ready: false, players: new Map(), queue: new Map(), pending: new Map(), matches: new Map(), byUser: new Map(), last: new Map(), pseq: 1 };
 const RK_TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND'], RK_DIVS = ['IV', 'III', 'II', 'I'];
 // Rango visible a partir de los puntos absolutos: 400 por liga (4 divisiones de 100) hasta Diamante I;
-// desde 2800 es Maestro (Gran Maestro con 200 PL, Retador con 500 PL).
+// desde 2800 es Maestro (Gran Maestro con 300 PL, Retador con 500 PL).
+// La ladder SUBE en general (no es suma cero): se gana más de lo que se pierde (base +23 / -17, o sea +3 PL por partida
+// para alguien con 50% de victorias) y el MMR sube lo mismo por partida jugada, para que el ajuste PL↔MMR no lo anule.
+// Con 60% de victorias son ~+7 PL por partida: de Diamante IV a Maestro en ~57 partidas y a Retador en ~130.
+const RK_WIN_BASE = 23, RK_LOSS_BASE = 17, RK_DRIFT = 3;
 function rkRank(abs){
   abs = Math.max(0, Math.round(abs));
-  if (abs >= 2800){ const lp = abs - 2800; return { tier: lp >= 500 ? 'CHALLENGER' : lp >= 200 ? 'GRANDMASTER' : 'MASTER', div: '', lp, abs }; }
+  if (abs >= 2800){ const lp = abs - 2800; return { tier: lp >= 500 ? 'CHALLENGER' : lp >= 300 ? 'GRANDMASTER' : 'MASTER', div: '', lp, abs }; }
   const ti = Math.floor(abs / 400), rem = abs - ti * 400, di = Math.floor(rem / 100);
   return { tier: RK_TIERS[ti], div: RK_DIVS[di], lp: rem - di * 100, abs };
 }
@@ -2941,7 +2945,7 @@ async function rkResolve(m, winner, by){
   m.winner = winner; m.resolvedBy = by; m.status = 'done'; m.endedAt = Date.now();
   if (m.sim){   // sala de prueba: se muestra el resultado, pero no se mueven PL, MMR ni faltas de nadie
     for (const t of m.teams) for (const s of t.players){ const won = t.side === winner, lp = rkPlayer(s.uid).lp;
-      RK.last.set(s.uid, { matchId: m.id, won, delta: won ? 20 : -20, before: lp, after: lp, at: m.endedAt, by, sim: true }); }
+      RK.last.set(s.uid, { matchId: m.id, won, delta: won ? RK_WIN_BASE : -RK_LOSS_BASE, before: lp, after: lp, at: m.endedAt, by, sim: true }); }
     try { await q('DELETE FROM tool_state WHERE id=$1', ['rksim:' + m.id]); } catch {}
     RK.matches.delete(m.id); rkUids(m).forEach(u => RK.byUser.delete(u)); return;
   }
@@ -2951,9 +2955,9 @@ async function rkResolve(m, winner, by){
       const pf = m.assigned && m.assigned[s.uid], lastOffBefore = !!p.lastOff;   // memoria de roles (lo que asignó el emparejamiento)
       if (pf){ if (pf === 'main') p.gMain = (p.gMain | 0) + 1; else if (pf === 'sec') p.gSec = (p.gSec | 0) + 1; else if (pf === 'fill') p.gFill = (p.gFill | 0) + 1; else p.gOff = (p.gOff | 0) + 1; p.lastOff = pf === 'auto'; }
       const gap = (p.mmr - p.lp) / 25;          // quien tiene más MMR que rango sube más rápido (y al revés)
-      const delta = won ? Math.max(10, Math.min(32, Math.round(20 + gap + (0.5 - e) * 10)))
-                        : -Math.max(10, Math.min(32, Math.round(20 - gap + (e - 0.5) * 10)));
-      const before = p.lp, mmrDelta = 40 * ((won ? 1 : 0) - e), strikesBefore = p.strikes; p.lp = Math.max(0, p.lp + delta); p.mmr = p.mmr + mmrDelta;
+      const delta = won ? Math.max(12, Math.min(35, Math.round(RK_WIN_BASE + gap + (0.5 - e) * 10)))
+                        : -Math.max(8, Math.min(30, Math.round(RK_LOSS_BASE - gap + (e - 0.5) * 10)));
+      const before = p.lp, mmrDelta = 40 * ((won ? 1 : 0) - e) + RK_DRIFT, strikesBefore = p.strikes; p.lp = Math.max(0, p.lp + delta); p.mmr = p.mmr + mmrDelta;
       if (won) p.wins++; else p.losses++;
       const v = m.votes[s.uid]; if (v){ if (v === winner) p.strikes = Math.max(0, p.strikes - 1); else p.strikes++; }
       m.lpChanges[s.uid] = { delta: p.lp - before, lp: p.lp, voted: v || null, ok: v ? v === winner : null, mmr: mmrDelta, won, strikes: strikesBefore, pf: pf || null, lastOff: lastOffBefore };
