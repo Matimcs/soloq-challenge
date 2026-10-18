@@ -847,8 +847,11 @@ let DATA = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players) && window.
 let PLAYERS = DATA ? DATA.players : FALLBACK;
 // Smurfs (solo org, vía /api/live): se intercalan por su posición en la lista completa (rk).
 let ORG_SMURFS = [];
-function withSmurfs(list){ const base = (list || []).filter(p => !p._smurf); if (!ORG_SMURFS.length) return base;
-  const all = base.concat(ORG_SMURFS.map(p => ({ ...p, _smurf: true }))); return all.every(p => p.rk != null) ? all.sort((x, y) => x.rk - y.rk) : all; }
+function withSmurfs(list){ const base = (list || []).filter(p => !p._smurf);
+  let all = ORG_SMURFS.length ? base.concat(ORG_SMURFS.map(p => ({ ...p, _smurf: true }))) : base;
+  if (ORG_SMURFS.length && all.every(p => p.rk != null)) all = all.sort((x, y) => x.rk - y.rk);
+  all.forEach((p, i) => { p.rankPos = i + 1; });   // la numeración se recalcula con las smurfs ya intercaladas
+  return all; }
 
 /* ===== helpers ===== */
 const TIER_COLOR = {
