@@ -2058,10 +2058,10 @@ if (location.protocol.startsWith('http')){
       if (!r.ok) return; const d = await r.json(); LIVE_LOCKED = false;
       LIVE_GAMES = d.liveGames || []; if (DATA) DATA.encounters = d.encounters || [];
       // smurfs: el ranking público no las trae; la org las recibe aquí y se intercalan en su posición
-      ORG_SMURFS = Array.isArray(d.smurfs) ? d.smurfs : []; { const before = PLAYERS.length; PLAYERS = withSmurfs(PLAYERS); if (PLAYERS.length !== before) render(); }
+      ORG_SMURFS = Array.isArray(d.smurfs) ? d.smurfs : []; { const before = PLAYERS.length; PLAYERS = withSmurfs(PLAYERS); if (PLAYERS.length !== before){ counts(); render(); } }
       // "● EN PARTIDA" del ranking: el snapshot público ya no lo trae; la org lo recibe aquí
       const ig = new Set((d.inGame || []).map(x => (x.rid || '').toLowerCase())); let ch = false;
-      PLAYERS.forEach(p => { const v = ig.has((p.rid || '').toLowerCase()); if (!!p.inGame !== v){ p.inGame = v; ch = true; } }); if (ch) render();
+      PLAYERS.forEach(p => { const v = ig.has((p.rid || '').toLowerCase()); if (!!p.inGame !== v){ p.inGame = v; ch = true; } }); if (ch){ counts(); render(); }
       renderLive(); if (window.SQC && SQC.navBadges) SQC.navBadges({ liveGames: LIVE_GAMES, encounters: d.encounters || [] });
     } catch (e) {}
   };
