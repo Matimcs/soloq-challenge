@@ -148,6 +148,34 @@ async function reqIsAdmin(req){
 // Organización = jugadores con cuenta en users (todos los registrados hasta hoy + los que se inscriban por
 // las vías permitidas). Las cuentas externas (ext_users) y los visitantes sin sesión NO son org: no ven lo sensible.
 const _orgCache = new Map();
+// ---- Smurfs: solo la org las ve ----
+// Para visitantes y externos las cuentas smurf no existen: ni en el ranking, ni en estadísticas/récords, ni su ficha
+// (aunque no dijeran de quién son, se podía deducir). SMURF_SET = Riot IDs normalizados (sin espacios, minúsculas).
+const nrSmurf = r => String(r || '').toLowerCase().replace(/\s+/g, '');
+let SMURF_SET = new Set();
+async function loadSmurfSet(){
+  const s = new Set();
+  try { for (const r of await q("SELECT riotid r FROM smurfs WHERE coalesce(riotid,'')<>''")) s.add(nrSmurf(r.r)); } catch {}
+  try { for (const r of await q("SELECT smurf_riotid r FROM smurf_links")) s.add(nrSmurf(r.r)); } catch {}
+  if (s.size || !SMURF_SET.size) SMURF_SET = s;
+  return SMURF_SET;
+}
+setTimeout(() => loadSmurfSet().catch(() => {}), 1000); setInterval(() => loadSmurfSet().catch(() => {}), 5 * 60 * 1000);
+const isSmurf = rid => SMURF_SET.has(nrSmurf(rid));
+// Saca de una respuesta (recursivamente) todo elemento de lista que nombre a una smurf en un campo de texto propio
+// (Riot ID o enlace de OP.GG "nombre-tag").
+function strHasSmurf(v){
+  if (typeof v !== 'string' || v.length > 400 || !SMURF_SET.size) return false;
+  let d = v; try { d = decodeURIComponent(v); } catch {}
+  const n = nrSmurf(d);
+  for (const sm of SMURF_SET) if (n.includes(sm) || n.includes(sm.replace('#', '-'))) return true;
+  return false;
+}
+function stripSmurfs(x){
+  if (Array.isArray(x)) return x.map(stripSmurfs).filter(it => !(it && typeof it === 'object' && !Array.isArray(it) && Object.values(it).some(strHasSmurf)));
+  if (x && typeof x === 'object'){ const o = {}; for (const [k, v] of Object.entries(x)) o[k] = stripSmurfs(v); return o; }
+  return x;
+}
 async function reqOrg(req){
   const uid = await optionalUid(req); if (!uid) return false;
   const c = _orgCache.get(uid); if (c && Date.now() - c.at < 300000) return c.v;
@@ -360,7 +388,7 @@ app.get('/api/teams', wrap(async (req,res) => {
   const org = await reqOrg(req); if (org) res.set('Cache-Control', 'private, no-store');
   if (org) users.forEach(u => { const m = map[u.riotid.toLowerCase()];   // propaga los equipos de la main a sus smurfs (solo org)
     if (m && m.teams.size) (byUser[u.id] || []).forEach(rid => m.teams.forEach(t => add(rid, t))); });
-  res.json(Object.values(map).map(x => ({ riotid:x.riotid, teams:[...x.teams] })));
+  res.json(Object.values(map).filter(x => org || !isSmurf(x.riotid)).map(x => ({ riotid:x.riotid, teams:[...x.teams] })));
 }));
 
 // Rosters por equipo: UNA fila por jugador (su cuenta main de team_members), mostrando el
@@ -691,12 +719,12 @@ app.post('/api/me/smurfs', auth, wrap(async (req,res) => {
   await q('INSERT INTO team_members (riotid, team) SELECT $1, team FROM team_members WHERE lower(riotid)=lower($2) ON CONFLICT (riotid, team) DO NOTHING', [req.user.riotid, riotid]);
   await q('DELETE FROM team_members WHERE lower(riotid)=lower($1)', [riotid]);
   invalidateAvatars();   // para que la nueva smurf salga etiquetada en el ranking sin esperar la caché
-  res.json({ ok:true });
+  loadSmurfSet().catch(() => {}); res.json({ ok:true });
 }));
 app.post('/api/me/smurfs/remove', auth, wrap(async (req,res) => {
   await q('DELETE FROM smurfs WHERE id=$1 AND user_id=$2', [Number(req.body && req.body.id), req.user.id]);
   invalidateAvatars();
-  res.json({ ok:true });
+  loadSmurfSet().catch(() => {}); res.json({ ok:true });
 }));
 
 // Ficha de un jugador (para el despliegue del ranking). Todo sale de la DB, sin Riot API.
@@ -731,6 +759,7 @@ function buildHistoryRow(m, puuid){
 app.get('/api/player/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();   // Express ya decodifica el parámetro
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
+  if (isSmurf(riotid) && !(await reqOrg(req))) return res.status(404).json({ error:'Jugador no encontrado' });
   const admin = await reqIsAdmin(req);
   res.set('Cache-Control', admin ? 'private, no-store' : 'public, max-age=300');   // ficha: Cloudflare la sirve del borde ~90s (la de admin trae el nombre real: no se cachea)
 
@@ -991,6 +1020,7 @@ async function excludedSmurfRids(){
 
 app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   const riotid = (req.params.riotid || '').trim();
+  if (isSmurf(riotid) && !(await reqOrg(req))) return res.status(404).json({ error:'Jugador no encontrado' });
   const admin = await reqIsAdmin(req);
   res.set('Cache-Control', admin ? 'private, no-store' : 'public, max-age=300');   // ficha completa: Cloudflare la sirve del borde ~90s
   const lp = liveData && Array.isArray(liveData.players) ? liveData.players.find(p => p.rid === riotid) : null;
@@ -1444,7 +1474,8 @@ app.get('/api/nav-counts', wrap(async (req,res) => {
 // Snapshot público SIN live games ni encuentros (dicen quién juega ahora, con qué y con quién): eso va en /api/live, solo org.
 const publicSnap = () => {
   let d = liveData; if (!d){ try { d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { d = { players: [] }; } }
-  return { ...d, liveGames: [], encounters: [], orgOnly: true, players: (d.players || []).map(p => ({ ...p, inGame: false, game: null })) };
+  return { ...d, liveGames: [], encounters: [], orgOnly: true,
+    players: (d.players || []).map((p, i) => ({ ...p, rk: i, inGame: false, game: null })).filter(p => !isSmurf(p.rid)) };
 };
 app.get('/players.json', (req,res) => { res.setHeader('Cache-Control', 'public, max-age=20'); res.json(publicSnap()); });
 app.get('/api/live', wrap(async (req,res) => {
@@ -1454,7 +1485,8 @@ app.get('/api/live', wrap(async (req,res) => {
   // no se muestran, para no dejar tarjetas fantasma con cronómetros de 80+ minutos.
   const age = liveData && liveData.updatedAt ? Date.now() - new Date(liveData.updatedAt).getTime() : Infinity, stale = age > 10 * 60 * 1000;
   res.json({ liveGames: stale ? [] : ((liveData && liveData.liveGames) || []), encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt, stale,
-    inGame: stale ? [] : ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })) });
+    inGame: stale ? [] : ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })),
+    smurfs: (liveSnapshot().players || []).map((p, i) => ({ ...p, rk: i, inGame: stale ? false : !!p.inGame, game: stale ? null : (p.game || null) })).filter(p => isSmurf(p.rid)) });
 }));
 app.get('/players.js',   (req,res) => { res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(publicSnap()) + ';\n'); });
 
@@ -1571,12 +1603,12 @@ app.post('/api/admin/smurf-link', auth, requireAdmin, wrap(async (req,res) => {
   if (smurf.toLowerCase() === main.toLowerCase()) return res.status(400).json({ error:'La smurf y la main no pueden ser la misma cuenta' });
   await q(`INSERT INTO smurf_links (smurf_riotid, main_riotid) VALUES ($1,$2)
            ON CONFLICT (smurf_riotid) DO UPDATE SET main_riotid=EXCLUDED.main_riotid`, [smurf, main]);
-  res.json({ ok:true, smurf, main });
+  loadSmurfSet().catch(() => {}); res.json({ ok:true, smurf, main });
 }));
 app.post('/api/admin/smurf-unlink', auth, requireAdmin, wrap(async (req,res) => {
   const smurf = ((req.body && req.body.smurf) || '').trim();
   await q('DELETE FROM smurf_links WHERE lower(smurf_riotid)=lower($1)', [smurf]);
-  res.json({ ok:true });
+  loadSmurfSet().catch(() => {}); res.json({ ok:true });
 }));
 
 // Promover o quitar admin a un jugador registrado (solo admin).
@@ -1637,7 +1669,7 @@ app.post('/api/admin/player/remove', auth, requireAdmin, wrap(async (req,res) =>
 const STATS_CACHE = { at: 0, data: null };
 async function statsFor(req, data){
   if (await reqOrg(req)){ req.res.set('Cache-Control', 'private, no-store'); return data; }
-  return { ...data, coincidencias: null, contrincantes: null, orgOnly: true };
+  return stripSmurfs({ ...data, coincidencias: null, contrincantes: null, orgOnly: true });
 }
 app.get('/api/stats', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');   // Cloudflare lo sirve del borde (menos hits al origen)
@@ -3943,7 +3975,8 @@ function recordsEnd(R){
 }
 app.get('/api/records', wrap(async (req, res) => {
   res.set('Cache-Control', 'public, max-age=300');
-  if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 300000) return res.json(RECORDS_CACHE.data);
+  const recFor = async d => { if (await reqOrg(req)){ res.set('Cache-Control', 'private, no-store'); return d; } return stripSmurfs(d); };
+  if (RECORDS_CACHE.data && Date.now() - RECORDS_CACHE.at < 300000) return res.json(await recFor(RECORDS_CACHE.data));
   // puuid -> Riot ID actual + nick (para OP.GG correcto aunque la cuenta se haya renombrado).
   const players = liveSnapshot().players || [];
   const ridByPuuid = {}, nickByRid = {};
@@ -4014,7 +4047,7 @@ app.get('/api/records', wrap(async (req, res) => {
   RECORDS_CACHE.data._sig = _recSig;   // firma incluida en la respuesta (para resaltar lo nuevo)
   _recEnd = recordsEnd(RECORDS_CACHE.data);
   RECORDS_CACHE.at = Date.now();
-  res.json(RECORDS_CACHE.data);
+  res.json(await recFor(RECORDS_CACHE.data));
 }));
 
 // Admin: quién está usando el overlay (desde overlay_reports — cada overlay con LoL abierto
@@ -4030,6 +4063,8 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 
 // ---- Sitio estático ----
+// Pestaña "Ranked": la misma página de Herramientas, que al abrirse como ranked.html muestra solo Ranked.
+app.get('/ranked.html', (req, res) => { res.set('Cache-Control', 'no-cache'); res.sendFile(path.join(ROOT, 'herramientas.html')); });
 const PUBLIC_FILES = new Set(['api.js', 'auth-fetch.js', 'sfx.js', 'nav.css', 'roulette.js', 'torneo-data.js', 'uleague-data.json']);
 app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();

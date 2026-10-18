@@ -676,6 +676,7 @@
         <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
         <a href="estadisticas.html">Estadísticas</a>
         <a href="herramientas.html">Herramientas</a>
+      <a href="ranked.html" id="nav-ranked">Ranked</a>
       <a href="uleague.html">Torneos</a>
         <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
         <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
@@ -844,6 +845,10 @@ const FALLBACK = [
 let DATA = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players) && window.SQC_DATA.players.length)
   ? window.SQC_DATA : null;
 let PLAYERS = DATA ? DATA.players : FALLBACK;
+// Smurfs (solo org, vía /api/live): se intercalan por su posición en la lista completa (rk).
+let ORG_SMURFS = [];
+function withSmurfs(list){ const base = (list || []).filter(p => !p._smurf); if (!ORG_SMURFS.length) return base;
+  const all = base.concat(ORG_SMURFS.map(p => ({ ...p, _smurf: true }))); return all.every(p => p.rk != null) ? all.sort((x, y) => x.rk - y.rk) : all; }
 
 /* ===== helpers ===== */
 const TIER_COLOR = {
@@ -2003,7 +2008,7 @@ if (new URLSearchParams(location.search).has('demo')) setTimeout(demoEncuentro, 
 /* ===================== AUTO-REFRESH ===================== */
 function applyData(nd){
   DATA = nd;
-  PLAYERS = (nd && nd.players) ? nd.players : FALLBACK;
+  PLAYERS = withSmurfs((nd && nd.players) ? nd.players : FALLBACK);
   PLAYERS.forEach((p, i) => { p.rankPos = i + 1; });
   if (nd && Array.isArray(nd.liveGames) && nd.liveGames.length) LIVE_GAMES = nd.liveGames;   // el snapshot público ya no trae live games: los da /api/live (org)
   DDV = (nd && nd.ddragonVersion) || DDV;
@@ -2049,6 +2054,8 @@ if (location.protocol.startsWith('http')){
       if (r.status === 403 || r.status === 401){ LIVE_LOCKED = true; renderLive(); return; }
       if (!r.ok) return; const d = await r.json(); LIVE_LOCKED = false;
       LIVE_GAMES = d.liveGames || []; if (DATA) DATA.encounters = d.encounters || [];
+      // smurfs: el ranking público no las trae; la org las recibe aquí y se intercalan en su posición
+      ORG_SMURFS = Array.isArray(d.smurfs) ? d.smurfs : []; { const before = PLAYERS.length; PLAYERS = withSmurfs(PLAYERS); if (PLAYERS.length !== before) render(); }
       // "● EN PARTIDA" del ranking: el snapshot público ya no lo trae; la org lo recibe aquí
       const ig = new Set((d.inGame || []).map(x => (x.rid || '').toLowerCase())); let ch = false;
       PLAYERS.forEach(p => { const v = ig.has((p.rid || '').toLowerCase()); if (!!p.inGame !== v){ p.inGame = v; ch = true; } }); if (ch) render();

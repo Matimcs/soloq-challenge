@@ -232,7 +232,7 @@
     try {
       const st = await SQC.api('/ranked/state' + (S.as ? '?as=' + S.as : ''));
       S.off = st.now - Date.now(); S.st = st; render();
-    } catch (e) { if (!S.st) cover('No se pudo cargar la sala', 'Revisa tu conexión e intenta de nuevo.', 'herramientas.html#rk', 'Volver a Ranked'); }
+    } catch (e) { if (!S.st) cover('No se pudo cargar la sala', 'Revisa tu conexión e intenta de nuevo.', 'ranked.html', 'Volver a Ranked'); }
   }
   function cover(t, p, href, btn){ const c = $('cover'); c.style.display = ''; c.innerHTML = `<div class="box"><h2>${esc(t)}</h2><p>${p}</p><a href="${href}">${esc(btn)}</a></div>`; }
 
@@ -277,14 +277,14 @@
     const st = S.st;
     renderSim();
     if (!st.me){ cover('Inicia sesión', 'Necesitas una sesión para entrar a la sala de draft.', 'cuenta.html', 'Iniciar sesión'); return; }
-    if (!st.match && S.hadMatch){ const l = st.last; cover('La sala se cerró', l && l.cancelled ? 'La partida se anuló' + (l.kicked ? ' (' + esc(l.kicked) + ' fue expulsado por votación)' : '') + '. Nadie gana ni pierde PL.' : 'La sala ya no existe.', 'herramientas.html#rk', 'Volver a Ranked'); return; }
+    if (!st.match && S.hadMatch){ const l = st.last; cover('La sala se cerró', l && l.cancelled ? 'La partida se anuló' + (l.kicked ? ' (' + esc(l.kicked) + ' fue expulsado por votación)' : '') + '. Nadie gana ni pierde PL.' : 'La sala ya no existe.', 'ranked.html', 'Volver a Ranked'); return; }
     if (st.match) S.hadMatch = true;
-    if (!st.match){ cover('No estás en un draft', 'Busca partida en Ranked y, cuando se junten 10 y todos acepten, la sala se abre aquí.', 'herramientas.html#rk', 'Ir a Ranked'); return; }
+    if (!st.match){ cover('No estás en un draft', 'Busca partida en Ranked y, cuando se junten 10 y todos acepten, la sala se abre aquí.', 'ranked.html', 'Ir a Ranked'); return; }
     sounds(st);
     const C = ctx(), { m, d } = C;
     if (m.status !== 'draft'){
-      cover('¡Draft terminado!', 'Ya están los equipos y los campeones. Vuelve a Ranked para ver los datos de la sala personalizada y votar el resultado al terminar.', 'herramientas.html#rk', 'Ir a la partida');
-      if (!S.leaving){ S.leaving = true; setTimeout(() => { location.href = 'herramientas.html#rk'; }, 4000); }
+      cover('¡Draft terminado!', 'Ya están los equipos y los campeones. Vuelve a Ranked para ver los datos de la sala personalizada y votar el resultado al terminar.', 'ranked.html', 'Ir a la partida');
+      if (!S.leaving){ S.leaving = true; setTimeout(() => { location.href = 'ranked.html'; }, 4000); }
       return;
     }
     $('cover').style.display = 'none';
