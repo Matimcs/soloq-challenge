@@ -3366,11 +3366,7 @@
       },
       {
         "a": "UC B",
-        "bFrom": {
-          "round": 5,
-          "a": "UNAB C",
-          "b": "USM D"
-        }
+        "b": "UNAB C"
       },
       {
         "a": "USM B",
