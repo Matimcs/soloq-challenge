@@ -524,6 +524,13 @@ async function reportCustomResult(creds, gameId, myRid){
   } catch (e) { dlog('ranked-result error: ' + (e && e.message)); }
 }
 
+// Puesto real en el ranking (el público viene sin smurfs, así que contar ahí daba un puesto de menos). Cada 60 s.
+let realPos = null, realPosAt = 0;
+async function refreshStanding(rid){
+  if (!rid || Date.now() - realPosAt < 60000) return; realPosAt = Date.now();
+  try { const r = await fetch(`${BACKEND}/api/overlay/standing?riotid=${encodeURIComponent(rid)}`); if (r.ok){ const j = await r.json(); realPos = { rid, pos: j.pos }; } } catch {}
+}
+
 async function poll(){
   const roster = loadRoster();
   const creds = getCreds();
@@ -550,6 +557,7 @@ async function poll(){
       if (myRid && myRid !== myRidForShells){ dlog('myRid = ' + myRid); myRidForShells = myRid; settings.lastRid = myRid; saveSettings(); }
       const players = roster.players || [];
       const idx = players.findIndex(p => p.rid === myRid);
+      refreshStanding(myRid);
       const standing = idx >= 0 ? players[idx] : null;
       const tier = (solo && solo.tier) || (standing && standing.tier) || 'UNRANKED';
 
@@ -557,7 +565,7 @@ async function poll(){
         connected: true, name: me && me.gameName,
         tier, div: (solo && !NO_DIV.has(solo.tier)) ? solo.division : '',
         lp: (solo && solo.leaguePoints) != null ? solo.leaguePoints : (standing ? standing.lp : 0),
-        pos: idx >= 0 ? idx + 1 : null, elo: HIGH.has(tier) ? 'HIGH' : 'LOW',
+        pos: (realPos && realPos.rid === myRid && realPos.pos) ? realPos.pos : (idx >= 0 ? idx + 1 : null), elo: HIGH.has(tier) ? 'HIGH' : 'LOW',
         session: (standing && standing.session) || { w: 0, l: 0, lp: 0 },
         torneo: { w: standing ? standing.w : 0, l: standing ? standing.l : 0 },
         recent: (standing && standing.recent) || [],

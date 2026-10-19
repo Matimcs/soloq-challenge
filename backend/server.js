@@ -1277,6 +1277,17 @@ app.get('/api/overlay/messages', wrap(async (req,res) => {
 }));
 
 // Blue Shells recibidas por un jugador (para el overlay). Sin auth: solo lectura por Riot ID.
+// Puesto real del jugador en el ranking (contando todas las cuentas, como lo ve la org). El overlay no tiene sesión y
+// el ranking público viene sin smurfs, así que sin esto mostraba un puesto de menos. Solo cuentas de jugadores registrados.
+app.get('/api/overlay/standing', wrap(async (req,res) => {
+  res.set('Cache-Control', 'no-store');
+  const rid = String(req.query.riotid || '').trim(), k = nrSmurf(rid);
+  if (!/^.+#.+$/.test(rid)) return res.status(400).json({ error:'riotid inválido' });
+  const known = await q1("SELECT 1 FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1 UNION SELECT 1 FROM smurfs WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [k]);
+  if (!known) return res.status(404).json({ error:'Cuenta no registrada' });
+  const all = liveSnapshot().players || [], i = all.findIndex(p => nrSmurf(p.rid) === k);
+  res.json({ pos: i >= 0 ? i + 1 : null, total: all.length });
+}));
 app.get('/api/overlay/shells', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
   if (!riotid) return res.json([]);
@@ -1481,7 +1492,7 @@ app.get('/api/nav-counts', wrap(async (req,res) => {
 const publicSnap = () => {
   let d = liveData; if (!d){ try { d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { d = { players: [] }; } }
   return { ...d, liveGames: [], encounters: [], orgOnly: true,
-    players: (d.players || []).map((p, i) => ({ ...p, rk: i, inGame: false, game: null })).filter(p => !isSmurf(p.rid)) };
+    players: (d.players || []).filter(p => !isSmurf(p.rid)).map(p => ({ ...p, inGame: false, game: null })) };
 };
 app.get('/players.json', (req,res) => { res.setHeader('Cache-Control', 'public, max-age=20'); res.json(publicSnap()); });
 app.get('/api/live', wrap(async (req,res) => {
@@ -1492,7 +1503,8 @@ app.get('/api/live', wrap(async (req,res) => {
   const age = liveData && liveData.updatedAt ? Date.now() - new Date(liveData.updatedAt).getTime() : Infinity, stale = age > 10 * 60 * 1000;
   res.json({ liveGames: stale ? [] : ((liveData && liveData.liveGames) || []), encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt, stale,
     inGame: stale ? [] : ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })),
-    smurfs: (liveSnapshot().players || []).map((p, i) => ({ ...p, rk: i, inGame: stale ? false : !!p.inGame, game: stale ? null : (p.game || null) })).filter(p => isSmurf(p.rid)) });
+    smurfs: (liveSnapshot().players || []).filter(p => isSmurf(p.rid)).map(p => ({ ...p, inGame: stale ? false : !!p.inGame, game: stale ? null : (p.game || null) })),
+    order: (liveSnapshot().players || []).map(p => p.rid) });
 }));
 app.get('/players.js',   (req,res) => { res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(publicSnap()) + ';\n'); });
 

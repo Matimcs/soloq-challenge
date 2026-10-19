@@ -847,9 +847,10 @@ let DATA = (window.SQC_DATA && Array.isArray(window.SQC_DATA.players) && window.
 let PLAYERS = DATA ? DATA.players : FALLBACK;
 // Smurfs (solo org, vía /api/live): se intercalan por su posición en la lista completa (rk).
 let ORG_SMURFS = [];
+let ORG_ORDER = null;   // orden completo del ranking (solo org, vía /api/live): rid -> posición
 function withSmurfs(list){ const base = (list || []).filter(p => !p._smurf);
   let all = ORG_SMURFS.length ? base.concat(ORG_SMURFS.map(p => ({ ...p, _smurf: true }))) : base;
-  if (ORG_SMURFS.length && all.every(p => p.rk != null)) all = all.sort((x, y) => x.rk - y.rk);
+  if (ORG_SMURFS.length && ORG_ORDER){ const ix = p => { const v = ORG_ORDER.get(String(p.rid || '').toLowerCase()); return v == null ? 1e9 : v; }; all = all.slice().sort((x, y) => ix(x) - ix(y)); }
   all.forEach((p, i) => { p.rankPos = i + 1; });   // la numeración se recalcula con las smurfs ya intercaladas
   return all; }
 
@@ -2060,7 +2061,8 @@ if (location.protocol.startsWith('http')){
       if (!r.ok) return; const d = await r.json(); LIVE_LOCKED = false;
       LIVE_GAMES = d.liveGames || []; if (DATA) DATA.encounters = d.encounters || [];
       // smurfs: el ranking público no las trae; la org las recibe aquí y se intercalan en su posición
-      ORG_SMURFS = Array.isArray(d.smurfs) ? d.smurfs : []; { const before = PLAYERS.length; PLAYERS = withSmurfs(PLAYERS); if (PLAYERS.length !== before){ counts(); render(); } }
+      ORG_SMURFS = Array.isArray(d.smurfs) ? d.smurfs : [];
+      ORG_ORDER = Array.isArray(d.order) ? new Map(d.order.map((r, i) => [String(r || '').toLowerCase(), i])) : null; { const before = PLAYERS.length; PLAYERS = withSmurfs(PLAYERS); if (PLAYERS.length !== before){ counts(); render(); } }
       // "● EN PARTIDA" del ranking: el snapshot público ya no lo trae; la org lo recibe aquí
       const ig = new Set((d.inGame || []).map(x => (x.rid || '').toLowerCase())); let ch = false;
       PLAYERS.forEach(p => { const v = ig.has((p.rid || '').toLowerCase()); if (!!p.inGame !== v){ p.inGame = v; ch = true; } }); if (ch){ counts(); render(); }
