@@ -528,7 +528,7 @@ async function reportCustomResult(creds, gameId, myRid){
 let realPos = null, realPosAt = 0;
 async function refreshStanding(rid){
   if (!rid || Date.now() - realPosAt < 60000) return; realPosAt = Date.now();
-  try { const r = await fetch(`${BACKEND}/api/overlay/standing?riotid=${encodeURIComponent(rid)}`); if (r.ok){ const j = await r.json(); realPos = { rid, pos: j.pos }; } } catch {}
+  try { const r = await fetch(`${BACKEND}/api/overlay/standing?riotid=${encodeURIComponent(rid)}`); if (r.ok){ const j = await r.json(); realPos = { rid, pos: j.pos, target: j.target || null }; } } catch {}
 }
 
 async function poll(){
@@ -570,7 +570,8 @@ async function poll(){
         torneo: { w: standing ? standing.w : 0, l: standing ? standing.l : 0 },
         recent: (standing && standing.recent) || [],
         // Objetivo: jugador justo arriba en la ladder + LP para alcanzarlo (null si es #1)
-        target: idx > 0 ? { name: players[idx - 1].nm, lp: Math.max(0, absLP(players[idx - 1]) - absLP(standing)) } : null,
+        target: (realPos && realPos.rid === myRid && realPos.pos) ? (realPos.target || null)   // puesto real: el de arriba aunque sea una smurf
+          : idx > 0 ? { name: players[idx - 1].nm, lp: Math.max(0, absLP(players[idx - 1]) - absLP(standing)) } : null,
         matchup: null,
       });
 

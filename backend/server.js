@@ -1286,7 +1286,14 @@ app.get('/api/overlay/standing', wrap(async (req,res) => {
   const known = await q1("SELECT 1 FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1 UNION SELECT 1 FROM smurfs WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [k]);
   if (!known) return res.status(404).json({ error:'Cuenta no registrada' });
   const all = liveSnapshot().players || [], i = all.findIndex(p => nrSmurf(p.rid) === k);
-  res.json({ pos: i >= 0 ? i + 1 : null, total: all.length });
+  // objetivo = la cuenta justo arriba (aunque sea una smurf), con el nick de su dueño como lo ve la org en el ranking
+  const TV = { IRON:0, BRONZE:1, SILVER:2, GOLD:3, PLATINUM:4, EMERALD:5, DIAMOND:6 }, DV = { IV:0, III:1, II:2, I:3 };
+  const abs = p => !p || !p.tier || p.tier === 'UNRANKED' ? 0 : ['MASTER','GRANDMASTER','CHALLENGER'].includes(p.tier) ? 2800 + (p.lp || 0) : (TV[p.tier] || 0) * 400 + (DV[p.div] || 0) * 100 + (p.lp || 0);
+  let target = null;
+  if (i > 0){ const up = all[i - 1], k2 = nrSmurf(up.rid);
+    const o = await q1("SELECT u.nickname FROM users u WHERE lower(regexp_replace(u.riotid, '[[:space:]]', '', 'g')) = $1 UNION ALL SELECT u.nickname FROM smurfs s JOIN users u ON u.id = s.user_id WHERE lower(regexp_replace(s.riotid, '[[:space:]]', '', 'g')) = $1 LIMIT 1", [k2]);
+    target = { name: (o && o.nickname) || up.nm || String(up.rid).split('#')[0], lp: Math.max(0, abs(up) - abs(all[i])) }; }
+  res.json({ pos: i >= 0 ? i + 1 : null, total: all.length, target });
 }));
 app.get('/api/overlay/shells', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
