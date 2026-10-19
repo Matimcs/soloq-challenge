@@ -364,6 +364,12 @@ app.get('/api/avatars', wrap(async (req,res) => {
     const list = byUser[u.id] || [];
     list.forEach((rid, i) => out.push({ ...base, riotid:rid, label: list.length > 1 ? `Smurf ${i+1}` : 'Smurf' }));
   });
+  // smurfs vinculadas por el admin (el dueño puede no tener cuenta en la web): para agrupar "1 cuenta" en la org
+  try { const known = new Set(out.map(a => String(a.riotid || '').toLowerCase().replace(/\s+/g, '')));
+    const nickByRid = {}; users.forEach(u => { nickByRid[String(u.riotid || '').toLowerCase().replace(/\s+/g, '')] = u.nickname; });
+    for (const l of await q('SELECT smurf_riotid, main_riotid FROM smurf_links')){ const k = String(l.smurf_riotid || '').toLowerCase().replace(/\s+/g, ''); if (!k || known.has(k)) continue;
+      const nick = nickByRid[String(l.main_riotid || '').toLowerCase().replace(/\s+/g, '')] || String(l.main_riotid || '').split('#')[0];
+      out.push({ nickname: nick, owner: nick, avatar: null, riotid: l.smurf_riotid, label: 'Smurf' }); known.add(k); } } catch {}
   AVATARS_CACHE = { at: Date.now(), data: out };
   res.json(await avatarsFor(req, out));
 }));

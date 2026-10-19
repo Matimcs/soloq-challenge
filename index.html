@@ -970,7 +970,9 @@ function avaHtml(rid, nm, cls){
 async function loadAvatars(){
   if (!location.protocol.startsWith('http')) return;
   try {
-    const r = await fetch('/api/avatars'); if (!r.ok) return;
+    // con sesión se pide otra dirección: así el navegador nunca reusa la versión pública guardada (sin smurfs)
+    let tok = null; try { tok = localStorage.getItem('sqc_token'); } catch (e) {}
+    const r = await fetch(tok ? '/api/avatars?org=1' : '/api/avatars', tok ? { cache: 'no-store' } : undefined); if (!r.ok) return;
     const list = await r.json();
     AVA_BY_RID = {}; AVA_BY_NAME = {}; ROLE_BY_RID = {}; USER_BY_RID = {}; NICK_BY_RID = {}; LABEL_BY_RID = {};
     list.forEach(u => {
