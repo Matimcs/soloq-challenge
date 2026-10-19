@@ -986,7 +986,7 @@ async function loadAvatars(){
       AVA_BY_NAME[(u.riotid.split('#')[0] || '').toLowerCase()] = u.avatar;
       if (u.nickname) AVA_BY_NAME[u.nickname.toLowerCase()] = u.avatar;
     });
-    render(); renderLive();
+    counts(); render(); renderLive();   // con los dueños ya cargados, '1 cuenta' cuenta jugadores (no cuentas)
   } catch {}
 }
 
