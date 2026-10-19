@@ -653,13 +653,13 @@
 </head>
 <body>
 
-  <!-- Popup: Acaricia a TIDE -->
+  <!-- Popup: Apoya a Hundred Blossom -->
   <div id="pat-popup" class="hidden">
-    <div class="pat-h"><span>🌊</span><span class="t">ACARICIA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
+    <div class="pat-h" style="background:linear-gradient(180deg,rgba(244,114,182,.2),rgba(244,114,182,.03))"><span>🌸</span><span class="t" style="color:#f472b6">APOYA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
     <div class="pat-body">
-      <div class="pat-msg"><b>Acaricia a TIDE</b></div>
-      <img class="pat-img" id="pat-img" src="tide-triste.webp" alt="UCH TIDE" loading="lazy">
-      <button class="pat-btn" id="pat-btn">🌊 Acariciar</button>
+      <div class="pat-msg"><b>Apoya a Hundred Blossom en la uLeague</b><br><span style="color:var(--muted)">Siguiente game vs <b style="color:var(--text)">UDD</b></span></div>
+      <img class="pat-img" id="pat-img" src="hb-logo.webp" alt="Hundred Blossom" loading="lazy" style="aspect-ratio:1/1;object-fit:contain;background:transparent">
+      <button class="pat-btn" id="pat-btn" style="background:#f472b6;color:#2a0716">🌸 Apoyin</button>
       <div class="pat-count" id="pat-count">—</div>
     </div>
   </div>
@@ -2139,24 +2139,24 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
 (function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
   const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
-  const COOLDOWN = 10 * 60 * 1000, KEY = 'patLast';
-  const CLOSE_TTL = 10 * 60 * 1000, CKEY = 'matoClosed';   // tras cerrarlo, reaparece a los 10 min
-  const IMG_SAD = 'tide-triste.webp', IMG_HAPPY = 'tide.webp';   // sombrío = triste; el otro = normal (tras acariciar)
+  const COOLDOWN = 10 * 60 * 1000, KEY = 'patLastHB';   // clave nueva: la espera de la campaña anterior no se arrastra
+  const CLOSE_TTL = 10 * 60 * 1000, CKEY = 'hbClosed';   // tras cerrarlo, reaparece a los 10 min
+  const IMG_SAD = 'hb-logo.webp', IMG_HAPPY = 'hb-logo.webp';   // Hundred Blossom: la misma imagen siempre
   let count = 0, timer = null, reopenT = null;
   window.__patRank = function(){};   // ya no se usa (lo llama el refresco del ranking)
   const lastPat = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
-  function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> caricia${count===1?'':'s'} enviada${count===1?'':'s'}`; }
+  function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> apoyin${count===1?'':'es'} enviado${count===1?'':'s'}`; }
   function refreshBtn(){
     const left = COOLDOWN - (Date.now() - lastPat());
     if (left > 0){ btn.disabled = true; const m = Math.floor(left/60000), s = Math.floor(left%60000/1000);
-      btn.textContent = `🌊 Gracias · ${m}:${String(s).padStart(2,'0')}`;
+      btn.textContent = `🌸 Gracias · ${m}:${String(s).padStart(2,'0')}`;
       if (imgEl && !imgEl.src.endsWith(IMG_HAPPY)) imgEl.src = IMG_HAPPY;   // acariciado → feliz
       clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
-    else { btn.disabled = false; btn.textContent = '🌊 Acariciar'; clearTimeout(timer);
+    else { btn.disabled = false; btn.textContent = '🌸 Apoyin'; clearTimeout(timer);
       if (imgEl && !imgEl.src.endsWith(IMG_SAD)) imgEl.src = IMG_SAD; }   // se puede acariciar → triste
   }
   function pop(){ const s = document.createElement('span'); s.className = 'pat-pop';
-    s.textContent = ['🌊','🖤','❤️','🙌','😊'][Math.floor(Math.random()*5)];
+    s.textContent = ['🌸','💗','🌺','🙌','💪'][Math.floor(Math.random()*5)];
     s.style.left = (12 + Math.random()*66) + '%'; s.style.bottom = '46px'; box.appendChild(s); setTimeout(() => s.remove(), 1000); }
   async function load(){ try { if (window.SQC && SQC.api){ const d = await SQC.api('/palmadita'); count = (d && d.count) || 0; paintCount(); } } catch (e) {} }
   async function send(){
