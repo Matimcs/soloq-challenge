@@ -1335,13 +1335,28 @@ app.get('/api/team/:team/game/:id', wrap(async (req, res) => {
   const team = req.params.team, a = await tgAccess(req, team); if (!a) return res.status(403).json({ error: 'No tienes acceso a este equipo' });
   const r = await q1('SELECT * FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]);
   if (!r || (r.status === 'pending' && !a.captain)) return res.status(404).json({ error: 'Partida no encontrada' });
-  res.json(r);
+  // rol de cada jugador en el roster de este equipo (para deducir roles en el análisis); se extiende a todas sus cuentas
+  const ROLE_MAP = { TOP: 'TOP', JUNGLE: 'JUNGLE', JUNGLA: 'JUNGLE', MID: 'MIDDLE', MIDDLE: 'MIDDLE', ADC: 'BOTTOM', BOTTOM: 'BOTTOM', SUPPORT: 'UTILITY', SUP: 'UTILITY', UTILITY: 'UTILITY' };
+  const rosterRoles = {};
+  try { const tm = await q("SELECT riotid, role, starter FROM team_members WHERE team=$1 AND role IS NOT NULL AND role<>''", [team]);
+    const users = await q('SELECT id, riotid FROM users'), smurfs = await q('SELECT user_id, riotid FROM smurfs');
+    const accs = {}; users.forEach(u => { accs[u.id] = [u.riotid]; }); smurfs.forEach(s => { (accs[s.user_id] = accs[s.user_id] || []).push(s.riotid); });
+    const owner = {}; Object.entries(accs).forEach(([id, list]) => list.forEach(rid => { owner[nrSmurf(rid)] = id; }));
+    tm.sort((x, y) => (y.starter ? 1 : 0) - (x.starter ? 1 : 0)).forEach(m => { const role = ROLE_MAP[String(m.role).toUpperCase()]; if (!role) return;
+      const k = nrSmurf(m.riotid), uid = owner[k], rids = uid ? accs[uid] : [m.riotid];
+      rids.forEach(rid => { const kk = nrSmurf(rid); if (!rosterRoles[kk]) rosterRoles[kk] = role; }); }); } catch {}
+  res.json({ ...r, rosterRoles });
 }));
 app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {
   const team = req.params.team, a = await tgAccess(req, team); if (!a || !a.captain) return res.status(403).json({ error: 'Solo el capitán del equipo y los admins' });
   const r = await q1('SELECT id, status FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]); if (!r) return res.status(404).json({ error: 'Partida no encontrada' });
   const b = req.body || {}, clip = (v, n) => String(v || '').trim().slice(0, n) || null;
   if (b.action === 'discard'){ await q('DELETE FROM team_games WHERE id=$1', [r.id]); return res.json({ ok: true }); }
+  if (b.action === 'roles'){   // el capitán fija los roles a mano {pid: ROL}
+    const OK = new Set(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']), roles = {};
+    for (const [pid, role] of Object.entries(b.roles || {})) if (/^\d{1,2}$/.test(pid) && OK.has(role)) roles[pid] = role;
+    await q('UPDATE team_games SET roles=$2::jsonb WHERE id=$1', [r.id, Object.keys(roles).length ? JSON.stringify(roles) : null]);
+    return res.json({ ok: true }); }
   const kind = b.kind === 'torneo' ? 'torneo' : b.kind === 'scrim' ? 'scrim' : null;
   if (!kind) return res.status(400).json({ error: 'Elige si fue scrim o torneo' });
   const tournament = kind === 'torneo' ? clip(b.tournament, 80) : null;

@@ -276,7 +276,7 @@
         ${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div><button class="x" data-close>✕</button></div>
       ${body}${cap ? `<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:12.5px">Editar datos</summary>${formHtml(g)}</details>` : ''}`;
     $('dbox').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderDetail(); });
-    bindForms($('dbox')); if (S.tab === 'graficos' && d) bindCharts();
+    bindForms($('dbox')); if (S.tab === 'graficos' && d) bindCharts(); if (S.tab === 'analisis' && d) bindRolesEditor();
   }
   const teamsOrder = () => { const d = S.open.data, us = S.open.side; return [us, us === 100 ? 200 : 100].map(id => ({ id, t: d.teams.find(t => t.teamId === id) || {}, ps: d.players.filter(p => p.teamId === id) })); };
   const pName = p => esc(String(p.rid || '').split('#')[0]);
@@ -345,10 +345,34 @@
     return v;
   }
   const PERMS = (() => { const out = []; (function pm(a, r){ if (!r.length){ out.push(a); return; } r.forEach((x, i) => pm(a.concat(x), r.filter((_, j) => j !== i))); })([], ROLES); return out; })();
-  function assignRoles(ps, dur){
+  function assignRoles(ps, dur, fixed){
+    fixed = fixed || {};
     let best = null, bs = -1e9;
-    for (const pr of PERMS){ const sc = ps.reduce((t, p, i) => t + roleScore(p, pr[i], dur), 0); if (sc > bs){ bs = sc; best = pr; } }
+    for (const pr of PERMS){ const sc = ps.reduce((t, p, i) => t + roleScore(p, pr[i], dur) + (fixed[p.pid] ? (fixed[p.pid] === pr[i] ? 100 : -100) : 0), 0); if (sc > bs){ bs = sc; best = pr; } }
     const m = {}; ps.forEach((p, i) => { m[p.pid] = best[i]; }); return m;
+  }
+  const champRoles = p => { const cid = /^\d+$/.test(String(p.championId)) ? S.dd.champ[p.championId] : p.championId; return (S.dd.roles || {})[cid] || []; };
+  const hasSupItem = p => [0, 1, 2, 3, 4, 5, 6].some(i => SUP_ITEMS.has(p.st['item' + i]));
+  // ¿puede este jugador haber jugado ese rol? (por su campeón, Castigo o ítem de support)
+  const canPlay = (p, role) => champRoles(p).includes(role) || (role === 'JUNGLE' && (p.spells || []).includes(11)) || (role === 'UTILITY' && hasSupItem(p));
+  // Roles de nuestro equipo con el roster: Castigo = jungla siempre; el rol del roster vale salvo que el campeón sea de otro
+  // rol y nadie más del equipo pudiera cubrir ese rol (ahí se pregunta al capitán).
+  function ourFixedRoles(ps, roster){
+    const fixed = {}, ask = [], smite = ps.filter(p => (p.spells || []).includes(11));
+    if (smite.length === 1) fixed[smite[0].pid] = 'JUNGLE';
+    const rr = p => roster[String(p.rid || '').toLowerCase().replace(/\s+/g, '')];
+    const count = {}; ps.forEach(p => { const r = rr(p); if (r) count[r] = (count[r] || 0) + 1; });
+    for (const p of ps){
+      if (fixed[p.pid]) continue;
+      const R = rr(p); if (!R || count[R] > 1) continue;              // sin rol en el roster, o dos con el mismo rol
+      if (R === 'JUNGLE' && smite.length === 1) continue;            // el jungla del roster no llevó Castigo: otro jungleó
+      const cr = champRoles(p);
+      if (!cr.length || cr.includes(R)){ fixed[p.pid] = R; continue; }
+      // campeón de otro rol (p.ej. Kayn siendo top): ¿otro del equipo pudo cubrir ese rol?
+      const covered = cr.every(X => ps.some(q => q !== p && canPlay(q, X)));
+      if (covered) fixed[p.pid] = R; else ask.push({ p, R, cr });
+    }
+    return { fixed, ask };
   }
   const atMin = (tl, m) => { const f = tl.frames; let b = f[0]; for (const x of f) if (Math.abs(x.t - m * 60) < Math.abs(b.t - m * 60)) b = x; return b; };
   const sign = v => (v > 0 ? '+' : '') + v;
@@ -356,7 +380,14 @@
     const g = S.open, d = g.data, tl = g.timeline && g.timeline.frames && g.timeline.frames.length ? g.timeline : null, us = g.side, them = us === 100 ? 200 : 100;
     const dur = d.duration || 0, mins = dur / 60;
     const P = { [us]: d.players.filter(p => p.teamId === us), [them]: d.players.filter(p => p.teamId === them) };
-    const R = { ...assignRoles(P[us], dur), ...assignRoles(P[them], dur) };
+    const manual = g.roles || null, roster = g.rosterRoles || {};
+    const ourRoles = manual ? null : ourFixedRoles(P[us], roster);
+    const R = manual ? { ...assignRoles(P[us], dur, manual), ...assignRoles(P[them], dur, manual) }
+      : { ...assignRoles(P[us], dur, ourRoles.fixed), ...assignRoles(P[them], dur) };
+    S.anRoles = R;
+    const askHtml = !manual && ourRoles.ask.length ? `<div class="an-card" style="border-color:rgba(233,255,31,.45);margin-bottom:12px"><h4><span>¿Qué rol jugó cada uno?</span></h4>
+      <div style="font-size:13px;line-height:1.5">${ourRoles.ask.map(x => `<b>${pName(x.p)}</b> es ${ROLE_ES[x.R]} en el roster pero jugó <b>${esc(cName(x.p.championId))}</b> (${x.cr.map(r => ROLE_ES[r]).join('/')}), y nadie más del equipo podía ir de ${x.cr.map(r => ROLE_ES[r]).join('/')}.`).join('<br>')}
+      ${myTeam().captain ? ' Confirma los roles abajo (en "Corregir roles") para que el análisis compare bien.' : ''}</div></div>` : '';
     const byRole = (team, role) => P[team].find(p => R[p.pid] === role);
     const lbl = id => id === us ? esc(S.team) : esc(g.rival || 'Rival');
     const tK = team => P[team].reduce((t, p) => t + (p.st.kills || 0), 0), tDmg = team => P[team].reduce((t, p) => t + (p.st.totalDamageDealtToChampions || 0), 0), tGold = team => P[team].reduce((t, p) => t + (p.st.goldEarned || 0), 0);
@@ -425,10 +456,30 @@
     if (dr.us + dr.them) facts.push(`🐉 Dragones: ${esc(S.team)} ${dr.us} – ${dr.them} ${lbl(them)}.`);
     const vis = (team) => P[team].reduce((t, p) => t + (p.st.visionScore || 0), 0); facts.push(`👁 Visión total: ${esc(S.team)} ${vis(us)} vs ${vis(them)} ${lbl(them)}.`);
     const lanes = ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'];
-    return `${!tl ? `<div class="an-note">Esta partida llegó sin línea de tiempo: el análisis de early (min 10 y 15) no está disponible.</div>` : `<div class="an-note">Roles detectados automáticamente (campeón, hechizos, ítems y farm). Barras: <span style="color:var(--blue)">${esc(S.team)}</span> a la izquierda, <span style="color:var(--red)">${lbl(them)}</span> a la derecha.</div>`}
+    return `${askHtml}${!tl ? `<div class="an-note">Esta partida llegó sin línea de tiempo: el análisis de early (min 10 y 15) no está disponible.</div>` : `<div class="an-note">Roles detectados automáticamente (campeón, hechizos, ítems y farm). Barras: <span style="color:var(--blue)">${esc(S.team)}</span> a la izquierda, <span style="color:var(--red)">${lbl(them)}</span> a la derecha.</div>`}
       <div class="an-grid">${lanes.map(duel).join('')}</div>
+      ${myTeam().captain ? rolesEditor(P, R, lbl) : ''}
       <div class="an-grid"><div class="an-card"><h4><span>Datos de la partida</span></h4><div class="an-facts">${facts.map(f => `<div>${f}</div>`).join('')}</div></div>
         ${objs.length ? `<div class="an-card"><h4><span>Objetivos en orden</span></h4><div class="an-obj">${objs.map(o => `<span class="${o.team === us ? 'us' : 'them'}" title="${lbl(o.team)}">${Math.floor(o.t / 60)}' ${o.txt}${o.n > 1 ? ' ×' + o.n : ''}</span>`).join('')}</div></div>` : ''}</div>`;
+  }
+  function rolesEditor(P, R, lbl){
+    const g = S.open, open = !g.roles && false;
+    const sel = p => `<select data-rpid="${p.pid}">${ROLES.map(r => `<option value="${r}" ${R[p.pid] === r ? 'selected' : ''}>${ROLE_ES[r]}</option>`).join('')}</select>`;
+    const col = team => `<div><div style="font-size:12px;font-weight:800;margin-bottom:6px">${lbl(team)}</div>${P[team].map(p => `<div style="display:grid;grid-template-columns:26px 1fr 110px;gap:8px;align-items:center;margin:4px 0;font-size:12.5px"><img src="${cIcon(p.championId)}" style="width:24px;height:24px;border-radius:6px"><span>${pName(p)} <small class="muted">${esc(cName(p.championId))}</small></span>${sel(p)}</div>`).join('')}</div>`;
+    return `<details class="an-card" style="margin-bottom:12px" ${open ? 'open' : ''}><summary style="cursor:pointer;font-size:12.5px;font-weight:700">Corregir roles${g.roles ? ' <span class="muted">(fijados a mano)</span>' : ' <span class="muted">(detectados automáticamente)</span>'}</summary>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:10px" id="role-ed">${col(g.side)}${col(g.side === 100 ? 200 : 100)}</div>
+      <div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:8px"><span class="err" id="role-err" style="color:var(--down);font-size:12px;margin-right:auto"></span>${g.roles ? '<button class="btn ghost" id="role-auto">Volver a automático</button>' : ''}<button class="btn pri" id="role-save">Guardar roles</button></div></details>`;
+  }
+  function bindRolesEditor(){
+    const save = $('role-save'); if (!save) return;
+    const post = async roles => { save.disabled = true;
+      try { await SQC.api('/team/' + encodeURIComponent(S.team) + '/game/' + S.open.id, { method: 'POST', body: { action: 'roles', roles } }); S.open.roles = roles && Object.keys(roles).length ? roles : null; renderDetail(); }
+      catch (e) { $('role-err').textContent = e.message; save.disabled = false; } };
+    save.onclick = () => { const roles = {}; document.querySelectorAll('#role-ed [data-rpid]').forEach(x => { roles[x.dataset.rpid] = x.value; });
+      for (const team of [100, 200]){ const rs = S.open.data.players.filter(p => p.teamId === team).map(p => roles[p.pid]);
+        if (new Set(rs).size !== rs.length){ $('role-err').textContent = 'Cada equipo tiene que tener los 5 roles, sin repetir.'; return; } }
+      post(roles); };
+    const auto = $('role-auto'); if (auto) auto.onclick = () => post({});
   }
   // ---------- gráficos (SVG simple) ----------
   const PCOL = ['#4aa3ff', '#7dd3fc', '#34d399', '#a78bfa', '#e9ff1f', '#ff5d6c', '#fb923c', '#f472b6', '#facc15', '#f87171'];

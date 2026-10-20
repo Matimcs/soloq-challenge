@@ -379,6 +379,7 @@ async function init(){
       created_at TIMESTAMPTZ DEFAULT now(),
       UNIQUE (team, game_id)
     );
+    ALTER TABLE team_games ADD COLUMN IF NOT EXISTS roles JSONB;   -- roles fijados a mano por el capitán {pid: ROL}
     CREATE TABLE IF NOT EXISTS team_captains (
       team    TEXT NOT NULL,
       user_id INTEGER NOT NULL,
