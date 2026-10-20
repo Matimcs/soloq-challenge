@@ -549,10 +549,12 @@
       <button class="tab" data-t="sb">SUBASTA</button>
       <button class="tab" data-t="dle">SOLOQDLE</button>
       <button class="tab" data-t="bs">BLUE SHELLS</button>
+      <button class="tab" data-t="eq" id="tab-eq" style="display:none" title="Historial de scrims y torneos (capitanes y admins)">EQUIPO</button>
       <button class="tab" data-t="analisis">ANÁLISIS</button>
     </div>
 
     <div class="panel active" id="p-fv"><div class="loading">Cargando sala…</div></div>
+    <div class="panel" id="p-eq"><iframe id="eq-frame" title="Equipo" class="dle-frame" loading="lazy"></iframe></div>
     <div class="panel" id="p-bs"><iframe id="bs-frame" title="Blue Shells" class="dle-frame" loading="lazy" allow="microphone; autoplay"></iframe></div>
     <div class="panel" id="p-dle"><iframe id="dle-frame" title="SoloQdle" class="dle-frame" loading="lazy"></iframe></div>
     <div class="panel" id="p-sb"><div class="loading">Cargando…</div></div>
@@ -582,6 +584,7 @@
     if (t === 'rk'){ rkLoad(true); rkBoard(); }
     if (t === 'dle'){ const f = $('dle-frame'); if (!f.src) f.src = 'soloqdle.html'; }
     if (t === 'bs'){ const f = $('bs-frame'); if (!f.src) f.src = 'blueshell.html'; }
+    if (t === 'eq'){ const f = $('eq-frame'); if (!f.src) f.src = 'equipo.html'; if (history.replaceState && !window.RANKED_PAGE) history.replaceState(null, '', '#equipo'); }
     if (t === 'bs' && history.replaceState) history.replaceState(null, '', '#blueshells');
     if (t === 'sb'){ sbLoad(true); sbRankLoad().then(() => { if (!SBC.st || SBC.st.status === 'done') sbRender(); }); }
   }
@@ -1584,13 +1587,17 @@
   }
 
   // SoloQdle embebido: el marco toma el alto de su contenido
-  setInterval(() => { if (CUR_TAB !== 'dle' && CUR_TAB !== 'bs') return; const f = $(CUR_TAB + '-frame'); try { const h = f.contentDocument.documentElement.scrollHeight; if (h && Math.abs(f.offsetHeight - h) > 4) f.style.height = h + 'px'; } catch (e) {} }, 400);
+  setInterval(() => { if (CUR_TAB !== 'dle' && CUR_TAB !== 'bs' && CUR_TAB !== 'eq') return; const f = $(CUR_TAB + '-frame'); try { const h = f.contentDocument.documentElement.scrollHeight; if (h && Math.abs(f.offsetHeight - h) > 4) f.style.height = h + 'px'; } catch (e) {} }, 400);
   const h0 = (location.hash || '').slice(1);
   // Ranked tiene su propia pestaña: ranked.html. Los enlaces viejos (herramientas.html#rk) se mandan ahí.
   if (!window.RANKED_PAGE && (h0 === 'rk' || h0 === 'ranked')) location.replace('ranked.html');
   if (window.RANKED_PAGE){ document.title = 'SoloQ Challenge — Ranked';
     document.querySelectorAll('.nav-pill a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === 'ranked.html')); }
-  if (window.RANKED_PAGE) showTab('rk'); else  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'blueshells' || h0 === 'bs') ? 'bs' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
+  if (window.RANKED_PAGE) showTab('rk'); else  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'blueshells' || h0 === 'bs') ? 'bs' : (h0 === 'equipo' || h0 === 'eq') ? 'eq' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
+
+  // Pestaña EQUIPO: solo si eres capitán de algún equipo o admin
+  (async function(){ try { if (!(window.SQC && SQC.token && SQC.token()) || window.RANKED_PAGE) return; const r = await SQC.api('/team/me');
+    if (r && r.teams && r.teams.length){ $('tab-eq').style.display = ''; if ((location.hash || '') === '#equipo') showTab('eq'); } } catch (e) {} })();
 </script>
 </body>
 </html>

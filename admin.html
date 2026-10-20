@@ -241,6 +241,14 @@
         </div>
       </div>
 
+      <!-- Capitanes de equipo (historial privado de scrims/torneos) -->
+      <div class="box">
+        <h2>Capitanes de equipo</h2>
+        <div class="sub" style="margin:-6px 0 12px">Los capitanes catalogan las partidas personalizadas de su equipo (scrim o torneo) desde la página Equipo. Los admins también pueden.</div>
+        <div class="drop-row"><select id="cap-team"></select><select id="cap-user"></select><button class="btn btn-accent" id="cap-add">Hacer capitán</button></div>
+        <div id="cap-list" class="sub" style="margin-top:10px"></div>
+      </div>
+
       <!-- Cuentas: contraseña y bloqueos -->
       <div class="box">
         <h2>Cuentas</h2>
@@ -616,6 +624,26 @@
       try { const r = await SQC.api('/admin/login-unlock', { method:'POST' }); out.textContent = r.cleared ? 'Listo: se liberaron ' + r.cleared + ' bloqueo(s). Ya pueden volver a intentar.' : 'No había nadie bloqueado.'; }
       catch(e){ toast(e.message); }
     };
+  })();
+
+  // ---- Capitanes de equipo ----
+  (async function(){
+    const esc3 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    async function render(){
+      let d, ps; try { d = await SQC.api('/admin/team-captains'); ps = await SQC.api('/admin/participants'); } catch (e) { return; }
+      const ts = document.getElementById('cap-team'), us = document.getElementById('cap-user');
+      if (!ts.options.length) ts.innerHTML = d.teams.map(t => `<option>${esc3(t)}</option>`).join('');
+      if (!us.options.length) us.innerHTML = ps.slice().sort((a, b) => String(a.nickname).localeCompare(String(b.nickname))).map(p => `<option value="${p.id}">${esc3(p.nickname)} · ${esc3(p.riotid)}</option>`).join('');
+      document.getElementById('cap-list').innerHTML = d.teams.map(t => { const cs = d.captains.filter(c => c.team === t);
+        return `<div style="margin:4px 0"><b>${esc3(t)}:</b> ${cs.length ? cs.map(c => `${esc3(c.nickname)} <button class="btn btn-ghost" style="padding:2px 8px;font-size:11px" data-capdel="${esc3(t)}|${c.user_id}">quitar</button>`).join(' ') : '<span style="color:var(--muted)">sin capitán</span>'}</div>`; }).join('');
+      document.querySelectorAll('[data-capdel]').forEach(b => b.onclick = async () => { const [team, uid] = b.dataset.capdel.split('|');
+        try { await SQC.api('/admin/team-captains', { method:'POST', body:{ team, userId: +uid, on: false } }); toast('Capitán quitado'); render(); } catch (e) { toast(e.message); } });
+    }
+    document.getElementById('cap-add').onclick = async () => {
+      try { await SQC.api('/admin/team-captains', { method:'POST', body:{ team: document.getElementById('cap-team').value, userId: +document.getElementById('cap-user').value, on: true } }); toast('Capitán asignado'); render(); }
+      catch (e) { toast(e.message); }
+    };
+    render();
   })();
 </script>
 </body>

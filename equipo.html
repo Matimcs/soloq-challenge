@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+<script src="auth-fetch.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Equipo</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --red:#ff5d6c;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  button, input, select, textarea{ font-family:inherit; }
+  .wrap{ max-width:1100px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  main.wrap{ padding-bottom:60px; }
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:18px; }
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }
+  .empty{ text-align:center; padding:40px 10px; color:var(--muted); font-size:14px; }
+  .empty b{ display:block; color:var(--text); font-size:16px; margin-bottom:4px; }
+  .pills{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .pill{ cursor:pointer; background:var(--panel-2); border:1px solid var(--line-2); color:var(--muted); border-radius:999px; padding:8px 16px; font-size:13.5px; font-weight:700; }
+  .pill.on{ background:var(--accent); color:#0b0b0b; border-color:var(--accent); }
+  .tabs{ display:flex; gap:4px; background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:12px; padding:4px; width:max-content; max-width:100%; flex-wrap:wrap; margin-bottom:14px; }
+  .tabs button{ cursor:pointer; background:none; border:0; color:var(--muted); font-size:13px; font-weight:700; padding:8px 14px; border-radius:9px; }
+  .tabs button.on{ background:var(--panel-2); color:var(--text); box-shadow:inset 0 0 0 1px var(--line-2); }
+  .tabs .n{ display:inline-block; margin-left:6px; background:var(--down); color:#000; border-radius:999px; font-size:10px; padding:1px 6px; }
+  .btn{ cursor:pointer; background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:8px 14px; font-size:13px; font-weight:700; }
+  .btn.pri{ background:var(--accent); color:#0b0b0b; border-color:var(--accent); }
+  .btn.ghost{ background:none; color:var(--muted); }
+  .btn:disabled{ opacity:.4; cursor:default; }
+  .muted{ color:var(--muted); } .up{ color:var(--up); } .down{ color:var(--down); }
+  /* partidas */
+  .gl{ display:flex; flex-direction:column; gap:10px; }
+  .g{ background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--line-2); border-radius:12px; padding:12px 14px; }
+  .g.w{ border-left-color:var(--up); } .g.l{ border-left-color:var(--down); }
+  .g.click{ cursor:pointer; } .g.click:hover{ background:rgba(255,255,255,.03); }
+  .gh{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:13px; }
+  .gh .res{ font-weight:800; } .g.w .res{ color:var(--up); } .g.l .res{ color:var(--down); }
+  .badge{ font-size:10.5px; font-weight:800; letter-spacing:.03em; padding:3px 8px; border-radius:6px; background:rgba(255,255,255,.07); color:var(--muted); }
+  .badge.torneo{ background:rgba(255,210,74,.14); color:var(--gold); } .badge.scrim{ background:rgba(74,163,255,.14); color:var(--blue); }
+  .badge.wait{ background:rgba(233,255,31,.1); color:var(--accent); }
+  .sides{ display:grid; grid-template-columns:1fr auto 1fr; gap:10px; align-items:center; margin-top:10px; }
+  .side{ display:flex; flex-direction:column; gap:3px; } .side.r{ text-align:right; align-items:flex-end; }
+  .side .lbl{ font-size:10.5px; font-weight:800; letter-spacing:.06em; color:var(--muted-2); text-transform:uppercase; }
+  .icons{ display:flex; gap:3px; } .icons img, .icons i{ width:30px; height:30px; border-radius:7px; background:var(--panel-2); display:block; }
+  .names{ font-size:11.5px; color:var(--muted); max-width:100%; }
+  .vs{ font-size:11px; font-weight:800; color:var(--muted-2); }
+  .gc{ margin-top:8px; font-size:12.5px; color:var(--muted); white-space:pre-wrap; }
+  .form{ display:grid; grid-template-columns:150px 200px 1fr; gap:8px; margin-top:12px; align-items:start; }
+  .form textarea{ grid-column:1 / -1; min-height:56px; resize:vertical; }
+  .form input, .form select, .form textarea{ background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:8px 10px; font-size:13px; width:100%; }
+  .form .act{ grid-column:1 / -1; display:flex; gap:8px; justify-content:flex-end; align-items:center; }
+  .form .err{ color:var(--down); font-size:12px; margin-right:auto; }
+  @media (max-width:700px){ .form{ grid-template-columns:1fr; } .sides{ grid-template-columns:1fr; } .side.r{ text-align:left; align-items:flex-start; } .vs{ display:none; } }
+  /* detalle */
+  .det{ position:fixed; inset:0; z-index:90; background:rgba(0,0,0,.78); display:none; place-items:center; padding:14px; }
+  .dbox{ width:min(1120px,100%); max-height:calc(100vh - 28px); overflow-y:auto; background:var(--panel); border:1px solid var(--line-2); border-radius:18px; padding:16px 18px; }
+  .dhead{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; margin-bottom:12px; }
+  .dhead b{ font-size:19px; } .dhead .meta{ font-size:13px; color:var(--muted); margin-top:3px; }
+  .x{ cursor:pointer; background:none; border:0; color:var(--muted); font-size:18px; }
+  .tbl{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  .tbl th{ text-align:left; font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted-2); padding:6px 8px; font-weight:800; }
+  .tbl td{ padding:6px 8px; border-top:1px solid var(--line); vertical-align:middle; }
+  .tbl .num{ text-align:right; font-variant-numeric:tabular-nums; }
+  .th-team{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; padding:10px 8px 6px; font-size:13px; }
+  .th-team b{ font-size:14px; } .th-team.blue b{ color:var(--blue); } .th-team.red b{ color:var(--red); }
+  .ch{ position:relative; width:34px; height:34px; } .ch img{ width:34px; height:34px; border-radius:8px; display:block; }
+  .ch em{ position:absolute; right:-4px; bottom:-4px; font-style:normal; font-size:9.5px; font-weight:800; background:#000; border:1px solid var(--line-2); border-radius:5px; padding:0 3px; }
+  .sp{ display:flex; flex-direction:column; gap:2px; } .sp img{ width:16px; height:16px; border-radius:3px; display:block; }
+  .its{ display:flex; gap:2px; } .its img, .its i{ width:22px; height:22px; border-radius:4px; background:var(--panel-2); display:block; }
+  .pn{ font-weight:700; white-space:nowrap; max-width:170px; overflow:hidden; text-overflow:ellipsis; }
+  .bars{ display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; }
+  .bar-row{ display:grid; grid-template-columns:26px 1fr 64px; gap:8px; align-items:center; font-size:12px; margin:4px 0; }
+  .bar-row img{ width:24px; height:24px; border-radius:6px; }
+  .bar{ height:8px; border-radius:4px; background:rgba(255,255,255,.06); overflow:hidden; } .bar i{ display:block; height:100%; border-radius:4px; }
+  .obj{ display:grid; grid-template-columns:1fr auto 1fr; gap:6px 14px; max-width:420px; margin:0 auto 14px; font-size:13px; text-align:center; }
+  .obj .l{ text-align:right; font-weight:800; } .obj .rr{ text-align:left; font-weight:800; } .obj .m{ color:var(--muted); }
+  .stats-wrap{ overflow-x:auto; } .stats th img{ width:28px; height:28px; border-radius:6px; display:block; margin:0 auto; }
+  .stats td:first-child{ color:var(--muted); white-space:nowrap; } .stats .best{ color:var(--accent); font-weight:800; }
+  .runes{ display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:10px; }
+  .rp{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px; }
+  .rp .top{ display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12.5px; font-weight:700; } .rp .top img{ width:28px; height:28px; border-radius:7px; }
+  .rp .row{ display:flex; gap:6px; align-items:center; margin:4px 0; flex-wrap:wrap; } .rp .row img{ width:26px; height:26px; border-radius:50%; background:#000; }
+  .rp .row img.ks{ width:36px; height:36px; } .rp small{ font-size:11px; color:var(--muted); }
+  .chart{ background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:12px; }
+  .chart h4{ font-size:12.5px; margin:0 0 6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .chart select{ background:var(--panel); color:var(--text); border:1px solid var(--line-2); border-radius:7px; padding:3px 6px; font-size:12px; }
+  .lg{ display:flex; flex-wrap:wrap; gap:4px 10px; font-size:11px; margin-top:6px; } .lg span{ display:inline-flex; align-items:center; gap:4px; } .lg i{ width:10px; height:3px; border-radius:2px; display:inline-block; }
+</style>
+<link rel="stylesheet" href="nav.css?v=3">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+<script>(function(){ if (window.top === window){ location.replace('herramientas.html#equipo'); return; } document.documentElement.classList.add('embed'); })();</script>
+<style>html.embed header, html.embed h1, html.embed .sub:first-of-type{ display:none; } html.embed body{ background:transparent; min-height:0; } html.embed main.wrap{ padding:0; max-width:none; }
+  html.embed .det{ position:static; background:none; padding:0; place-items:stretch; } html.embed .dbox{ max-height:none; width:100%; }</style>
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="herramientas.html">Herramientas</a>
+      <a href="ranked.html" id="nav-ranked">Ranked</a>
+      <a href="uleague.html">Torneos</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap">
+    <h1>Equipo</h1>
+    <div class="sub">Historial privado de scrims y partidas de torneo. Solo lo ven los jugadores del equipo y los admins.</div>
+    <div id="app"><div class="empty">Cargando…</div></div>
+  </main>
+  <div class="det" id="det"><div class="dbox" id="dbox"></div></div>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => (s == null ? '' : String(s)).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const fdate = v => v ? new Date(v).toLocaleString('es-CL', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '';
+  const dur = s => s ? Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : '';
+  const fk = v => v == null ? '–' : v >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(v);
+  const S = { me: null, team: null, box: 'history', games: [], inboxN: 0, dd: null, open: null, tab: 'tablero' };
+  try { S.team = localStorage.getItem('sqc_team_sel'); } catch (e) {}
+
+  // ---------- Data Dragon (íconos de campeones, ítems, hechizos y runas) ----------
+  async function ddLoad(){
+    if (S.dd) return S.dd;
+    let ver = '16.20.1'; try { ver = (await (await fetch('https://ddragon.leagueoflegends.com/api/versions.json')).json())[0]; } catch (e) {}
+    const get = async f => { try { return await (await fetch(`https://ddragon.leagueoflegends.com/cdn/${ver}/data/es_MX/${f}.json`)).json(); } catch (e) { return null; } };
+    const [ch, sm, rr] = await Promise.all([get('champion'), get('summoner'), get('runesReforged')]);
+    const champ = {}, champName = {}; Object.values((ch && ch.data) || {}).forEach(c => { champ[c.key] = c.id; champName[c.id] = c.name; });
+    const spell = {}; Object.values((sm && sm.data) || {}).forEach(s => { spell[s.key] = s.image.full; });
+    const rune = {}; (rr || []).forEach(st => { rune[st.id] = { icon: st.icon, name: st.name }; st.slots.forEach(sl => sl.runes.forEach(r => { rune[r.id] = { icon: r.icon, name: r.name }; })); });
+    S.dd = { ver, champ, champName, spell, rune }; return S.dd;
+  }
+  const cIcon = id => { const d = S.dd; if (!d || !id) return ''; const k = /^\d+$/.test(String(id)) ? d.champ[id] : id; return k ? `https://ddragon.leagueoflegends.com/cdn/${d.ver}/img/champion/${k}.png` : ''; };
+  const cName = id => { const d = S.dd; if (!d || !id) return ''; const k = /^\d+$/.test(String(id)) ? d.champ[id] : id; return d.champName[k] || k || ''; };
+  const iIcon = id => id ? `<img src="https://ddragon.leagueoflegends.com/cdn/${S.dd.ver}/img/item/${id}.png" alt="" loading="lazy">` : '<i></i>';
+  const sIcon = id => S.dd.spell[id] ? `<img src="https://ddragon.leagueoflegends.com/cdn/${S.dd.ver}/img/spell/${S.dd.spell[id]}" alt="">` : '';
+  const rIcon = (id, cls) => S.dd.rune[id] ? `<img class="${cls || ''}" src="https://ddragon.leagueoflegends.com/cdn/img/${S.dd.rune[id].icon}" alt="" title="${esc(S.dd.rune[id].name)}">` : '';
+  const SHARD = { 5008:'Fuerza adaptable', 5005:'Velocidad de ataque', 5007:'Aceleración de habilidades', 5002:'Armadura', 5003:'Resistencia mágica', 5001:'Vida (escalable)', 5010:'Velocidad de movimiento', 5011:'Vida', 5013:'Tenacidad' };
+
+  // ---------- carga ----------
+  async function boot(){
+    SQC.preNav(); SQC.mountNav();
+    if (!(window.SQC && SQC.token && SQC.token())){ $('app').innerHTML = `<div class="card empty"><b>Inicia sesión</b>El historial del equipo es privado. <a href="cuenta.html" style="color:var(--accent)">Iniciar sesión</a></div>`; return; }
+    try { S.me = await SQC.api('/team/me'); } catch (e) { $('app').innerHTML = `<div class="card empty"><b>Solo para capitanes de equipo y admins</b>${esc(e.message)}</div>`; return; }
+    if (!S.me.teams.length){ $('app').innerHTML = `<div class="card empty"><b>No perteneces a ningún equipo de la organización</b>Si es un error, pídele a un admin que te agregue al roster.</div>`; return; }
+    if (!S.me.teams.some(t => t.team === S.team)) S.team = S.me.teams[0].team;
+    await ddLoad(); await loadGames();
+  }
+  const myTeam = () => S.me.teams.find(t => t.team === S.team) || {};
+  async function loadGames(){
+    try {
+      const h = await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=' + S.box);
+      S.games = h.games;
+      if (myTeam().captain){ const ib = S.box === 'inbox' ? h : await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=inbox'); S.inboxN = ib.games.length; } else S.inboxN = 0;
+    } catch (e) { S.games = []; S.err = e.message; }
+    render();
+  }
+  // ---------- vista ----------
+  function sidesHtml(g){
+    const ps = (g.summary && g.summary.players) || [], us = ps.filter(p => p.teamId === g.side), them = ps.filter(p => p.teamId !== g.side);
+    const icons = arr => arr.map(p => p.champ ? `<img src="${cIcon(p.champ)}" alt="" title="${esc(String(p.rid).split('#')[0])} · ${esc(cName(p.champ))}${p.k != null ? ' · ' + p.k + '/' + p.d + '/' + p.a : ''}">` : '<i></i>').join('');
+    return `<div class="sides"><div class="side"><span class="lbl">${esc(S.team)}</span><div class="icons">${icons(us)}</div><div class="names">${us.map(p => esc(String(p.rid).split('#')[0])).join(', ')}</div></div>
+      <span class="vs">VS</span>
+      <div class="side r"><span class="lbl">${esc(g.rival || 'Rival')}</span><div class="icons">${icons(them)}</div><div class="names">${them.map(p => esc(String(p.rid).split('#')[0])).join(', ')}</div></div></div>`;
+  }
+  function headHtml(g){
+    return `<div class="gh"><span class="res">${g.won ? 'Victoria' : 'Derrota'}</span><span class="muted">${fdate(g.game_at)} · ${dur(g.duration)}</span>
+      ${g.kind ? `<span class="badge ${g.kind}">${g.kind === 'torneo' ? '🏆 ' + esc(g.tournament || 'Torneo') : 'Scrim'}</span>` : ''}
+      ${g.rival ? `<span>vs <b>${esc(g.rival)}</b></span>` : ''}
+      ${g.status === 'requested' ? `<span class="badge wait" title="Se baja sola cuando un jugador de esa partida tenga el overlay abierto">⏳ esperando datos del overlay</span>` : ''}</div>`;
+  }
+  function render(){
+    const t = myTeam(), ts = S.me.teams;
+    let html = '';
+    if (ts.length > 1) html += `<div class="pills">${ts.map(x => `<button class="pill ${x.team === S.team ? 'on' : ''}" data-team="${esc(x.team)}">${esc(x.team)}</button>`).join('')}</div>`;
+    html += `<div class="tabs"><button class="${S.box === 'history' ? 'on' : ''}" data-box="history">Historial</button>${t.captain ? `<button class="${S.box === 'inbox' ? 'on' : ''}" data-box="inbox">Bandeja${S.inboxN ? `<span class="n">${S.inboxN}</span>` : ''}</button>` : ''}</div>`;
+    if (S.box === 'inbox'){
+      html += `<div class="sub" style="margin-top:-4px">Personalizadas recientes donde jugaron 3 o más del equipo. Cataloga las que sirvan; las demás se borran solas a las 3 semanas.</div>`;
+      html += !S.games.length ? `<div class="card empty"><b>La bandeja está vacía</b>Las personalizadas aparecen aquí cuando termina la partida y alguien del equipo tiene el overlay abierto.</div>`
+        : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'}">${headHtml(g)}${sidesHtml(g)}${formHtml(g)}</div>`).join('')}</div>`;
+    } else {
+      html += !S.games.length ? `<div class="card empty"><b>Todavía no hay partidas en el historial</b>${t.captain ? 'Revisa la Bandeja para catalogar scrims y partidas de torneo.' : 'El capitán las agrega desde la Bandeja.'}</div>`
+        : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'} click" data-open="${g.id}">${headHtml(g)}${sidesHtml(g)}${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div>`).join('')}</div>`;
+    }
+    $('app').innerHTML = html;
+    $('app').querySelectorAll('[data-team]').forEach(b => b.onclick = () => { S.team = b.dataset.team; try { localStorage.setItem('sqc_team_sel', S.team); } catch (e) {} loadGames(); });
+    $('app').querySelectorAll('[data-box]').forEach(b => b.onclick = () => { S.box = b.dataset.box; loadGames(); });
+    $('app').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openGame(+b.dataset.open));
+    bindForms($('app'));
+  }
+  function formHtml(g){
+    const tours = S.me.tournaments || [];
+    return `<div class="form" data-form="${g.id}">
+      <select data-f="kind"><option value="">Tipo…</option><option value="scrim" ${g.kind === 'scrim' ? 'selected' : ''}>Scrim</option><option value="torneo" ${g.kind === 'torneo' ? 'selected' : ''}>Torneo</option></select>
+      <select data-f="tour" style="${g.kind === 'torneo' ? '' : 'visibility:hidden'}">${tours.map(t => `<option ${g.tournament === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="__otro">Otro…</option></select>
+      <input data-f="rival" placeholder="Rival (ej: UDD)" value="${esc(g.rival || '')}" maxlength="60">
+      <input data-f="tourOther" placeholder="Nombre del torneo" style="display:none" maxlength="80">
+      <textarea data-f="comment" placeholder="Comentarios (draft, qué salió bien o mal…)" maxlength="1000">${esc(g.comment || '')}</textarea>
+      <div class="act"><span class="err"></span>${g.status === 'pending' ? `<button class="btn ghost" data-a="discard">Descartar</button>` : ''}<button class="btn pri" data-a="save">${g.status === 'pending' ? 'Guardar en el historial' : 'Guardar cambios'}</button></div></div>`;
+  }
+  function bindForms(root){
+    root.querySelectorAll('[data-form]').forEach(f => {
+      const kind = f.querySelector('[data-f="kind"]'), tour = f.querySelector('[data-f="tour"]'), other = f.querySelector('[data-f="tourOther"]'), err = f.querySelector('.err');
+      const sync = () => { tour.style.visibility = kind.value === 'torneo' ? '' : 'hidden'; other.style.display = kind.value === 'torneo' && tour.value === '__otro' ? '' : 'none'; };
+      kind.onchange = sync; tour.onchange = sync; sync();
+      f.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+        const id = +f.dataset.form, a = b.dataset.a; err.textContent = '';
+        if (a === 'discard' && !confirm('¿Descartar esta partida? Se borra de la bandeja.')) return;
+        const body = a === 'discard' ? { action: 'discard' } : { kind: kind.value, tournament: tour.value === '__otro' ? other.value : tour.value, rival: f.querySelector('[data-f="rival"]').value, comment: f.querySelector('[data-f="comment"]').value };
+        b.disabled = true;
+        try { const r = await SQC.api('/team/' + encodeURIComponent(S.team) + '/game/' + id, { method: 'POST', body });
+          if (S.open && S.open.id === id){ await openGame(id); } await loadGames();
+          if (r && r.status === 'requested') toastMsg('Guardada. Los datos completos se bajan solos cuando un jugador de esa partida tenga el overlay abierto.'); }
+        catch (e) { err.textContent = e.message; b.disabled = false; }
+      });
+    });
+  }
+  function toastMsg(t){ const d = document.createElement('div'); d.textContent = t; d.style.cssText = 'position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel-2);border:1px solid var(--line-2);border-radius:12px;padding:10px 16px;font-size:13px;z-index:99;max-width:90vw'; document.body.appendChild(d); setTimeout(() => d.remove(), 5000); }
+
+  // ---------- detalle ----------
+  async function openGame(id){
+    const det = $('det'); det.style.display = document.documentElement.classList.contains('embed') ? 'block' : 'grid'; $('dbox').innerHTML = '<div class="empty">Cargando partida…</div>';
+    if (document.documentElement.classList.contains('embed')){ $('app').style.display = 'none'; try { window.frameElement.scrollIntoView({ block: 'start' }); } catch (e) {} }
+    try { S.open = await SQC.api('/team/' + encodeURIComponent(S.team) + '/game/' + id); } catch (e) { $('dbox').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return; }
+    renderDetail();
+  }
+  function closeDet(){ $('det').style.display = 'none'; $('app').style.display = ''; S.open = null; }
+  $('det').addEventListener('click', e => { if (e.target.id === 'det' || e.target.closest('[data-close]')) closeDet(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDet(); });
+  function renderDetail(){
+    const g = S.open, d = g.data, cap = myTeam().captain;
+    const TABS = [['tablero', 'Tablero'], ['resumen', 'Resumen'], ['stats', 'Estadísticas'], ['graficos', 'Gráficos'], ['runas', 'Runas']];
+    let body;
+    if (!d) body = `<div class="card empty" style="margin-top:6px"><b>⏳ Esperando los datos completos</b>Se bajan solos cuando un jugador de esa partida tenga el overlay abierto (versión 0.2.34 o más nueva).</div>${sidesHtml(g)}`;
+    else body = `<div class="tabs">${TABS.map(([k, t]) => `<button class="${S.tab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div><div id="dtab">${tabHtml(S.tab)}</div>`;
+    $('dbox').innerHTML = `<div class="dhead"><div><b>${g.won ? '<span class="up">Victoria</span>' : '<span class="down">Derrota</span>'} ${g.rival ? 'vs ' + esc(g.rival) : ''}</b>
+        <div class="meta">${fdate(g.game_at)} · ${dur(g.duration)} · ${g.kind === 'torneo' ? '🏆 ' + esc(g.tournament || 'Torneo') : g.kind === 'scrim' ? 'Scrim' : ''}</div>
+        ${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div><button class="x" data-close>✕</button></div>
+      ${body}${cap ? `<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:12.5px">Editar datos</summary>${formHtml(g)}</details>` : ''}`;
+    $('dbox').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderDetail(); });
+    bindForms($('dbox')); if (S.tab === 'graficos' && d) bindCharts();
+  }
+  const teamsOrder = () => { const d = S.open.data, us = S.open.side; return [us, us === 100 ? 200 : 100].map(id => ({ id, t: d.teams.find(t => t.teamId === id) || {}, ps: d.players.filter(p => p.teamId === id) })); };
+  const pName = p => esc(String(p.rid || '').split('#')[0]);
+  function tabHtml(k){
+    const d = S.open.data, T = teamsOrder(), lbl = id => id === S.open.side ? esc(S.team) : esc(S.open.rival || 'Rival');
+    const allP = T.flatMap(x => x.ps);
+    if (k === 'tablero') return T.map(x => { const st = x.ps.map(p => p.st);
+      const sum = f => st.reduce((s, v) => s + (v[f] || 0), 0);
+      return `<div class="th-team ${x.id === 100 ? 'blue' : 'red'}"><b>${lbl(x.id)}</b><span class="${x.t.win ? 'up' : 'down'}">${x.t.win ? 'Victoria' : 'Derrota'}</span><span>${sum('kills')} / ${sum('deaths')} / ${sum('assists')}</span><span class="muted">🪙 ${fk(sum('goldEarned'))}</span><span class="muted">🗼 ${x.t.towers || 0} · 🐉 ${x.t.dragons || 0} · 👑 ${x.t.barons || 0}${x.t.heralds ? ' · 🦀 ' + x.t.heralds : ''}</span>${(x.t.bans || []).filter(b => b > 0).length ? `<span class="icons" title="Bans">${x.t.bans.filter(b => b > 0).map(b => `<img src="${cIcon(b)}" style="width:22px;height:22px;filter:grayscale(1)">`).join('')}</span>` : ''}</div>
+        <table class="tbl"><thead><tr><th></th><th></th><th></th><th>Jugador</th><th>Ítems</th><th class="num">KDA</th><th class="num">CS</th><th class="num">Oro</th><th class="num">Daño</th></tr></thead><tbody>` +
+        x.ps.map(p => { const s = p.st, cs = (s.totalMinionsKilled || 0) + (s.neutralMinionsKilled || 0);
+          return `<tr><td><div class="ch"><img src="${cIcon(p.championId)}" alt="" title="${esc(cName(p.championId))}"><em>${s.champLevel || ''}</em></div></td>
+            <td><div class="sp">${sIcon(p.spells[0])}${sIcon(p.spells[1])}</div></td><td><div class="sp">${rIcon(s.perk0)}${rIcon(s.perkSubStyle)}</div></td>
+            <td><div class="pn">${pName(p)}</div><div class="muted" style="font-size:11px">${esc(cName(p.championId))}</div></td>
+            <td><div class="its">${[0,1,2,3,4,5,6].map(i => iIcon(s['item' + i])).join('')}</div></td>
+            <td class="num"><b>${s.kills}/${s.deaths}/${s.assists}</b><div class="muted" style="font-size:11px">${s.deaths ? ((s.kills + s.assists) / s.deaths).toFixed(2) : 'Perfecto'}</div></td>
+            <td class="num">${cs}<div class="muted" style="font-size:11px">${d.duration ? (cs / (d.duration / 60)).toFixed(1) + '/min' : ''}</div></td>
+            <td class="num">${fk(s.goldEarned)}</td><td class="num">${fk(s.totalDamageDealtToChampions)}</td></tr>`; }).join('') + `</tbody></table>`; }).join('');
+    if (k === 'resumen'){
+      const [A, B] = T, sumT = (x, f) => x.ps.reduce((s, p) => s + (p.st[f] || 0), 0);
+      const objRows = [['Asesinatos', sumT(A, 'kills'), sumT(B, 'kills')], ['Oro', fk(sumT(A, 'goldEarned')), fk(sumT(B, 'goldEarned'))], ['Torres', A.t.towers || 0, B.t.towers || 0], ['Inhibidores', A.t.inhibs || 0, B.t.inhibs || 0], ['Dragones', A.t.dragons || 0, B.t.dragons || 0], ['Barones', A.t.barons || 0, B.t.barons || 0], ['Heraldos', A.t.heralds || 0, B.t.heralds || 0]];
+      const bar = (f, title, col) => { const mx = Math.max(1, ...allP.map(p => p.st[f] || 0));
+        return `<div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:6px">${title}</div>${allP.map(p => `<div class="bar-row"><img src="${cIcon(p.championId)}" alt="" title="${pName(p)}"><div class="bar"><i style="width:${Math.round((p.st[f] || 0) / mx * 100)}%;background:${p.teamId === S.open.side ? 'var(--blue)' : 'var(--red)'}"></i></div><span class="num" style="text-align:right">${fk(p.st[f] || 0)}</span></div>`).join('')}</div>`; };
+      return `<div class="obj"><span class="l" style="color:var(--blue)">${lbl(A.id)}</span><span></span><span class="rr" style="color:var(--red)">${lbl(B.id)}</span>${objRows.map(r => `<span class="l">${r[1]}</span><span class="m">${r[0]}</span><span class="rr">${r[2]}</span>`).join('')}</div>
+        <div class="bars">${bar('totalDamageDealtToChampions', 'Daño a campeones')}${bar('goldEarned', 'Oro')}${bar('totalDamageTaken', 'Daño recibido')}${bar('visionScore', 'Puntuación de visión')}${bar('damageDealtToObjectives', 'Daño a objetivos')}${bar('totalHeal', 'Curación')}</div>`;
+    }
+    if (k === 'stats'){
+      const ROWS = [['Combate'], ['Asesinatos', 'kills'], ['Muertes', 'deaths', 1], ['Asistencias', 'assists'], ['Mayor racha', 'largestKillingSpree'], ['Mayor multiasesinato', 'largestMultiKill'], ['Dobles', 'doubleKills'], ['Triples', 'tripleKills'], ['Cuádruples', 'quadraKills'], ['Pentas', 'pentaKills'],
+        ['Daño'], ['Daño a campeones', 'totalDamageDealtToChampions'], ['Físico a campeones', 'physicalDamageDealtToChampions'], ['Mágico a campeones', 'magicDamageDealtToChampions'], ['Verdadero a campeones', 'trueDamageDealtToChampions'], ['Daño total', 'totalDamageDealt'], ['Daño a torres', 'damageDealtToTurrets'], ['Daño a objetivos', 'damageDealtToObjectives'], ['Daño recibido', 'totalDamageTaken'], ['Daño mitigado', 'damageSelfMitigated'], ['Curación', 'totalHeal'], ['Control (s)', 'timeCCingOthers'],
+        ['Visión'], ['Puntuación de visión', 'visionScore'], ['Wards puestas', 'wardsPlaced'], ['Wards destruidas', 'wardsKilled'], ['Pinks compradas', 'visionWardsBoughtInGame'],
+        ['Oro y farm'], ['Oro ganado', 'goldEarned'], ['Oro gastado', 'goldSpent'], ['Súbditos', 'totalMinionsKilled'], ['Monstruos', 'neutralMinionsKilled'], ['Torres', 'turretKills'], ['Inhibidores', 'inhibitorKills'], ['Nivel', 'champLevel']];
+      return `<div class="stats-wrap"><table class="tbl stats"><thead><tr><th></th>${allP.map(p => `<th title="${pName(p)}"><img src="${cIcon(p.championId)}" alt="" style="${p.teamId === S.open.side ? 'box-shadow:0 0 0 2px var(--blue)' : 'box-shadow:0 0 0 2px var(--red)'}"></th>`).join('')}</tr></thead><tbody>` +
+        ROWS.map(r => { if (r.length === 1) return `<tr><td colspan="11" style="color:var(--text);font-weight:800;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding-top:12px">${r[0]}</td></tr>`;
+          const vals = allP.map(p => p.st[r[1]] || 0), best = r[2] ? Math.min(...vals) : Math.max(...vals);
+          return `<tr><td>${r[0]}</td>${vals.map(v => `<td class="num ${v === best && v > 0 ? 'best' : ''}">${v >= 10000 ? fk(v) : v}</td>`).join('')}</tr>`; }).join('') + `</tbody></table></div>`;
+    }
+    if (k === 'runas') return `<div class="runes">${allP.map(p => { const s = p.st;
+        return `<div class="rp" style="border-color:${p.teamId === S.open.side ? 'rgba(74,163,255,.35)' : 'rgba(255,93,108,.35)'}"><div class="top"><img src="${cIcon(p.championId)}" alt="">${pName(p)}<small style="margin-left:auto">${esc(cName(p.championId))}</small></div>
+          <div class="row">${rIcon(s.perkPrimaryStyle)}${rIcon(s.perk0, 'ks')}${rIcon(s.perk1)}${rIcon(s.perk2)}${rIcon(s.perk3)}</div>
+          <div class="row">${rIcon(s.perkSubStyle)}${rIcon(s.perk4)}${rIcon(s.perk5)}</div>
+          ${s.statPerk0 ? `<div class="row"><small>${[s.statPerk0, s.statPerk1, s.statPerk2].map(x => SHARD[x] || x).join(' · ')}</small></div>` : ''}
+          <div class="row"><small>${[s.perk0, s.perk1, s.perk2, s.perk3, s.perk4, s.perk5].map(x => S.dd.rune[x] ? S.dd.rune[x].name : '').filter(Boolean).join(' · ')}</small></div></div>`; }).join('')}</div>`;
+    if (k === 'graficos'){
+      if (!S.open.timeline || !S.open.timeline.frames) return `<div class="card empty"><b>Sin línea de tiempo</b>Esta partida llegó sin los datos minuto a minuto.</div>`;
+      return `<div class="chart"><h4>Diferencia de oro del equipo</h4><div id="ch-diff"></div></div>
+        <div class="chart"><h4>Por jugador: <select id="ch-metric"><option value="0">Oro total</option><option value="1">Experiencia</option><option value="2">Súbditos</option><option value="4">Nivel</option></select></h4><div id="ch-players"></div><div class="lg" id="ch-lg"></div></div>`;
+    }
+    return '';
+  }
+  // ---------- gráficos (SVG simple) ----------
+  const PCOL = ['#4aa3ff', '#7dd3fc', '#34d399', '#a78bfa', '#e9ff1f', '#ff5d6c', '#fb923c', '#f472b6', '#facc15', '#f87171'];
+  function lineChart(series, opts){
+    const W = 1000, H = opts.h || 220, P = { l: 46, r: 10, t: 10, b: 22 }, n = Math.max(...series.map(s => s.v.length)), tMax = Math.max(1, n - 1);
+    let mn = Math.min(0, ...series.flatMap(s => s.v)), mx = Math.max(1, ...series.flatMap(s => s.v)); if (opts.sym){ const m = Math.max(Math.abs(mn), Math.abs(mx), 1); mn = -m; mx = m; }
+    const X = i => P.l + i / tMax * (W - P.l - P.r), Y = v => P.t + (1 - (v - mn) / (mx - mn || 1)) * (H - P.t - P.b);
+    let g = `<line x1="${P.l}" x2="${W - P.r}" y1="${Y(0)}" y2="${Y(0)}" stroke="rgba(255,255,255,.18)"/>`;
+    for (let m = 0; m <= tMax; m += 5) g += `<line x1="${X(m)}" x2="${X(m)}" y1="${P.t}" y2="${H - P.b}" stroke="rgba(255,255,255,.05)"/><text x="${X(m)}" y="${H - 6}" fill="rgba(255,255,255,.4)" font-size="11" text-anchor="middle">${m}'</text>`;
+    [mx, (mx + mn) / 2, mn].forEach(v => { g += `<text x="${P.l - 6}" y="${Y(v) + 4}" fill="rgba(255,255,255,.4)" font-size="11" text-anchor="end">${fk(Math.round(v))}</text>`; });
+    (opts.marks || []).forEach(e => { g += `<text x="${X(e.t / 60)}" y="${P.t + 11}" font-size="12" text-anchor="middle">${e.i}</text>`; });
+    series.forEach(s => { if (s.area){ const pts = s.v.map((v, i) => `${X(i)},${Y(v)}`).join(' ');
+        g += `<clipPath id="cpA"><rect x="0" y="0" width="${W}" height="${Y(0)}"/></clipPath><clipPath id="cpB"><rect x="0" y="${Y(0)}" width="${W}" height="${H}"/></clipPath>`;
+        g += `<polygon points="${X(0)},${Y(0)} ${pts} ${X(s.v.length - 1)},${Y(0)}" fill="rgba(74,163,255,.35)" clip-path="url(#cpA)"/><polygon points="${X(0)},${Y(0)} ${pts} ${X(s.v.length - 1)},${Y(0)}" fill="rgba(255,93,108,.35)" clip-path="url(#cpB)"/>`; }
+      g += `<polyline points="${s.v.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}" fill="none" stroke="${s.c}" stroke-width="${s.w || 2}" opacity="${s.o || 1}"/>`; });
+    return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${g}</svg>`;
+  }
+  function bindCharts(){
+    const tl = S.open.timeline, d = S.open.data, us = S.open.side, pidTeam = {}; d.players.forEach(p => { pidTeam[p.pid] = p.teamId; });
+    const IC = { M: e => /BARON/.test(e.m) ? '👑' : /DRAGON/.test(e.m) ? '🐉' : /HERALD/.test(e.m) ? '🦀' : /HORDE|GRUB/.test(e.m) ? '🪲' : '⚔', B: () => '🗼' };
+    const marks = (tl.events || []).filter(e => e.y === 'M' || e.y === 'B').map(e => ({ t: e.t, i: IC[e.y](e) }));
+    const diff = tl.frames.map(f => f.p.reduce((s, x, i) => s + (pidTeam[i + 1] === us ? x[0] : -x[0]), 0));
+    $('ch-diff').innerHTML = lineChart([{ v: diff, c: '#fff', area: true, w: 2 }], { sym: true, marks, h: 230 }) + `<div class="lg"><span><i style="background:var(--blue)"></i>${esc(S.team)} adelante</span><span><i style="background:var(--red)"></i>${esc(S.open.rival || 'Rival')} adelante</span><span class="muted">🐉 dragón · 👑 barón · 🦀 heraldo · 🗼 torre</span></div>`;
+    const draw = () => { const k = +$('ch-metric').value;
+      const series = d.players.map((p, i) => ({ v: tl.frames.map(f => (f.p[p.pid - 1] || [])[k] || 0), c: PCOL[(p.teamId === us ? 0 : 5) + (i % 5)], w: 2 }));
+      $('ch-players').innerHTML = lineChart(series, { h: 240 });
+      $('ch-lg').innerHTML = d.players.map((p, i) => `<span><i style="background:${PCOL[(p.teamId === us ? 0 : 5) + (i % 5)]}"></i>${pName(p)} (${esc(cName(p.championId))})</span>`).join(''); };
+    $('ch-metric').onchange = draw; draw();
+  }
+  boot();
+</script>
+</body>
+</html>

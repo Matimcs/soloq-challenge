@@ -531,6 +531,38 @@ async function refreshStanding(rid){
   try { const r = await fetch(`${BACKEND}/api/overlay/standing?riotid=${encodeURIComponent(rid)}`); if (r.ok){ const j = await r.json(); realPos = { rid, pos: j.pos, target: j.target || null }; } } catch {}
 }
 
+// ---- Historial privado del equipo: cuando un capitán cataloga una personalizada, el servidor la pide y el overlay de
+// cualquier jugador de esa partida la sube completa (partida + línea de tiempo compacta) desde el historial del cliente.
+const sentTeamGames = new Set();
+function compactTimeline(t){
+  if (!t || !Array.isArray(t.frames)) return null;
+  const TYPES = { CHAMPION_KILL: 'K', ELITE_MONSTER_KILL: 'M', BUILDING_KILL: 'B' };
+  const frames = t.frames.map(f => { const pf = f.participantFrames || {};
+    return { t: Math.round((f.timestamp || 0) / 1000), p: Object.keys(pf).sort((a, b) => a - b).map(k => { const x = pf[k] || {}; return [x.totalGold || 0, x.xp || 0, x.minionsKilled || 0, x.jungleMinionsKilled || 0, x.level || 0]; }) }; });
+  const events = [];
+  t.frames.forEach(f => (f.events || []).forEach(e => { const y = TYPES[e.type]; if (!y) return;
+    events.push({ t: Math.round((e.timestamp || 0) / 1000), y, k: e.killerId || 0, v: e.victimId || 0, a: e.assistingParticipantIds || [], tm: e.teamId || 0,
+      m: e.monsterType || '', s: e.monsterSubType || e.buildingType || '', l: e.laneType || '', x: e.position ? e.position.x : null, z: e.position ? e.position.y : null }); }));
+  return { frames, events };
+}
+async function pollTeamRequests(){
+  const rid = myRidForShells; if (!rid) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/overlay/team-requests?riotid=${encodeURIComponent(rid)}`); if (!r.ok) return;
+    const ids = (await r.json()).filter(id => !sentTeamGames.has(String(id))); if (!ids.length) return;
+    const creds = getCreds(); if (!creds) return;
+    for (const id of ids){
+      const game = await lcu(creds, `/lol-match-history/v1/games/${id}`);
+      if (!game || game.error || !Array.isArray(game.participants)) { dlog(`equipo: partida ${id} no está en el historial de este cliente`); continue; }
+      const tl = await lcu(creds, `/lol-match-history/v1/game-timelines/${id}`);
+      const res = await fetch(`${BACKEND}/api/overlay/team-game`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ riotid: rid, gameId: id, game, timeline: tl && !tl.error ? compactTimeline(tl) : null }) });
+      dlog(`equipo: partida ${id} subida → HTTP ${res.status}`);
+      if (res.ok) sentTeamGames.add(String(id));
+    }
+  } catch (e) { dlog('pollTeamRequests: ' + (e && e.message)); }
+}
+
 async function poll(){
   const roster = loadRoster();
   const creds = getCreds();
@@ -764,6 +796,7 @@ if (hasLock) app.whenReady().then(async () => {
   setInterval(pollShells, 12000);   // revisa Blue Shells recibidas cada 12s
   pollMessages();
   setInterval(pollMessages, 8000);  // revisa mensajes del admin cada 8s
+  setInterval(pollTeamRequests, 60000);   // partidas que un capitán pidió para el historial del equipo
   // Onboarding: SOLO en la primera instalación se abre el modo posicionar una vez, para acomodar
   // los overlays. NUNCA se re-abre en actualizaciones (antes se disparaba con cada cambio de versión,
   // por eso "aparecía de la nada" al terminar una partida tras un auto-update). Quien ya lo vio en una

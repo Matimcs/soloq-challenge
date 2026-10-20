@@ -354,6 +354,36 @@ async function init(){
     ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS g_fill  INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE ranked_players ADD COLUMN IF NOT EXISTS last_off BOOLEAN NOT NULL DEFAULT false;
     -- Ranked: cada sala con sus equipos, draft, votos y resultado (JSON).
+    -- Historial privado de cada equipo (scrims y partidas de torneo). El overlay manda un RESUMEN de cada personalizada
+    -- (bandeja temporal, status 'pending'); el capitán la cataloga ('requested') y recién ahí el overlay de un jugador de
+    -- esa partida sube la partida completa + línea de tiempo ('filed').
+    CREATE TABLE IF NOT EXISTS team_games (
+      id         SERIAL PRIMARY KEY,
+      team       TEXT NOT NULL,
+      game_id    TEXT NOT NULL,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      kind       TEXT,
+      tournament TEXT,
+      rival      TEXT,
+      comment    TEXT,
+      side       INTEGER,
+      won        BOOLEAN,
+      duration   INTEGER,
+      game_at    TIMESTAMPTZ,
+      summary    JSONB,
+      data       JSONB,
+      timeline   JSONB,
+      reported_by TEXT,
+      filed_by   INTEGER,
+      filed_at   TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      UNIQUE (team, game_id)
+    );
+    CREATE TABLE IF NOT EXISTS team_captains (
+      team    TEXT NOT NULL,
+      user_id INTEGER NOT NULL,
+      PRIMARY KEY (team, user_id)
+    );
     CREATE TABLE IF NOT EXISTS ranked_matches (
       id         SERIAL PRIMARY KEY,
       status     TEXT NOT NULL,            -- draft | playing | dispute | done | cancelled
