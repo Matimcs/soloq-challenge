@@ -545,6 +545,22 @@ function compactTimeline(t){
       m: e.monsterType || '', s: e.monsterSubType || e.buildingType || '', l: e.laneType || '', x: e.position ? e.position.x : null, z: e.position ? e.position.y : null }); }));
   return { frames, events };
 }
+// Puesta al día: personalizadas recientes que no se alcanzaron a mandar (overlay cerrado al terminar, servidor caído,
+// etc.). Revisa el historial del cliente (últimos 7 días) al abrir y cada 20 min. El servidor ignora las repetidas.
+async function catchUpCustoms(){
+  const rid = myRidForShells, creds = getCreds(); if (!rid || !creds) return;
+  try {
+    const r = await lcu(creds, '/lol-match-history/v1/products/lol/current-summoner/matches?begIndex=0&endIndex=20');
+    const games = ((r && r.games && r.games.games) || []).filter(g => g.gameType === 'CUSTOM_GAME' && Date.now() - (g.gameCreation || 0) < 7 * 864e5 && (g.gameDuration || 0) >= 180 && !reportedGames.has(String(g.gameId)));
+    for (const g0 of games){
+      const h = await lcu(creds, `/lol-match-history/v1/games/${g0.gameId}`); if (!h || h.error || !Array.isArray(h.participants)) continue;
+      const res = await fetch(`${BACKEND}/api/overlay/ranked-result`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ riotid: rid, secret: CONFIG.reportSecret || undefined, game: gameFromHistory(h) }) });
+      dlog(`puesta al día: personalizada ${g0.gameId} → HTTP ${res.status}`);
+      if (res.ok){ reportedGames.add(String(g0.gameId)); settings.reportedGames = [...reportedGames].slice(-60); saveSettings(); }
+    }
+  } catch (e) { dlog('catchUpCustoms: ' + (e && e.message)); }
+}
 async function pollTeamRequests(){
   const rid = myRidForShells; if (!rid) return;
   try {
@@ -797,6 +813,7 @@ if (hasLock) app.whenReady().then(async () => {
   pollMessages();
   setInterval(pollMessages, 8000);  // revisa mensajes del admin cada 8s
   setInterval(pollTeamRequests, 60000);   // partidas que un capitán pidió para el historial del equipo
+  setTimeout(catchUpCustoms, 60000); setInterval(catchUpCustoms, 20 * 60000);   // personalizadas que quedaron sin mandar
   // Onboarding: SOLO en la primera instalación se abre el modo posicionar una vez, para acomodar
   // los overlays. NUNCA se re-abre en actualizaciones (antes se disparaba con cada cambio de versión,
   // por eso "aparecía de la nada" al terminar una partida tras un auto-update). Quien ya lo vio en una
