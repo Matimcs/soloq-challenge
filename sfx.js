@@ -56,6 +56,8 @@ window.SFX = (function(){
     tickLast(){ tone(1500, 0.07, { type: 'square', vol: 0.13 }); },
     // solicitud recibida (cambio de rol, de turno, de campeón, de ban…)
     notify(){ tone(740, 0.12, { type: 'sine', vol: 0.4, slide: 990 }); tone(1180, 0.18, { type: 'sine', vol: 0.3, delay: 0.1 }); },
+    // alerta: alguien pidió cambiar un pick o un ban (dos "ding-dong" seguidos, más notorio)
+    alert(){ [0, 0.32].forEach(d => { tone(988, 0.16, { type: 'triangle', vol: 0.5, delay: d }); tone(1319, 0.24, { type: 'triangle', vol: 0.45, delay: d + 0.12 }); }); },
     // fin del draft
     done(){ [392, 523.25, 659.25, 783.99].forEach((f, i) => tone(f, 0.5, { type: 'triangle', vol: 0.35, delay: i * 0.11 })); },
     win(){ [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone(f, 0.55, { type: 'triangle', vol: 0.35, delay: i * 0.1 })); },

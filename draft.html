@@ -260,7 +260,8 @@
     const cur = { id: m.id, status: m.status, phase: d.phase, my: !!(C && (C.canBan || C.canPick)),
       picks: m.teams.reduce((s, t) => s + t.players.filter(p => p.champ).length, 0),
       bans: m.teams.reduce((s, t) => s + t.bans.filter(b => b.champ).length, 0),
-      reqs: (d.roleIn || []).length + (d.swapIn || []).length + (d.tradeIn || []).length + (d.banReqs || []).filter(r => r.rival).length + (d.pickReqs || []).filter(r => r.rival).length + (d.side && d.side.canVote && d.side.votes ? 1 : 0) };
+      reqs: (d.roleIn || []).length + (d.swapIn || []).length + (d.tradeIn || []).length + (d.side && d.side.canVote && d.side.votes ? 1 : 0),
+      chg: (d.banReqs || []).map(r => 'b' + r.uid + ':' + r.to).concat((d.pickReqs || []).map(r => 'p' + r.uid + ':' + r.to)) };
     const p = S.snd; S.snd = cur; if (!p || p.id !== cur.id) return;
     if (cur.status !== 'draft'){ if (p.status === 'draft') SFX.done(); return; }
     const hit = cur.picks > p.picks || cur.bans > p.bans;
@@ -268,6 +269,7 @@
     if (cur.my && !p.my) setTimeout(() => SFX.turn(), hit ? 380 : 0);
     else if (cur.phase !== p.phase) setTimeout(() => SFX.phase(), hit ? 380 : 0);
     if (cur.reqs > p.reqs) SFX.notify();
+    if (cur.chg.some(k => !(p.chg || []).includes(k))) SFX.alert();   // nueva solicitud de cambio de pick o ban (para todos)
   }
   function sfxBtn(){ const b = $('sfx-btn'); if (!b) return; b.textContent = SFX.muted ? '🔇 Sonidos' : '🔊 Sonidos'; b.classList.toggle('off', SFX.muted); b.title = SFX.muted ? 'Activar sonidos' : 'Silenciar sonidos'; }
   sfxBtn(); $('sfx-btn').onclick = () => { SFX.toggle(); sfxBtn(); };
