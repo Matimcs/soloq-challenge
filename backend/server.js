@@ -2790,10 +2790,11 @@ app.post('/api/5v5/join', auth, wrap(async (req, res) => {
   const st = await fvRoom(req, res); if (!st) return;
   const p = await fvPlayerForUser(req.user);
   const ex = st.players.find(x => x.id === p.id || x.uid === req.user.id);
+  if (st.queue && !ex) return res.status(403).json({ error: 'Esta sala salió de la cola: solo entran los 10 que aceptaron' });
   if (ex){ ex.uid = req.user.id; }
   else { if (st.players.length >= FV_SIZE) return res.status(400).json({ error: 'La sala está llena' }); st.players.push(p); }
   // el anfitrión pasa a quien entra solo si no hay ninguno presente (y no es el creador de la sala)
-  if (st.host == null || (st.host !== st.owner && !st.players.some(x => x.uid === st.host))) st.host = req.user.id;
+  if (!st.queue && (st.host == null || (st.host !== st.owner && !st.players.some(x => x.uid === st.host)))) st.host = req.user.id;
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // Sacar a un jugador (uno mismo, o cualquiera si eres anfitrión). Al cambiar la sala se anula el sorteo.
@@ -2803,14 +2804,14 @@ app.post('/api/5v5/leave', auth, wrap(async (req, res) => {
   const target = id ? st.players.find(x => x.id === id) : st.players.find(x => x.uid === req.user.id);
   if (!target) return res.json(await fvView(st, req.user.id));
   if (target.uid !== req.user.id && !fvIsHost(st, req.user)) return res.status(403).json({ error: 'Solo el anfitrión puede sacar a otros' });
-  st.players = st.players.filter(x => x !== target); st.draw = null;
-  if (st.host === target.uid){ const nx = st.players.find(x => x.uid); st.host = nx ? nx.uid : null; }
+  st.players = st.players.filter(x => x !== target); if (!st.queue) st.draw = null;
+  if (!st.queue && st.host === target.uid){ const nx = st.players.find(x => x.uid); st.host = nx ? nx.uid : null; }
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 // El anfitrión agrega a mano a alguien del ranking (para quienes no han iniciado sesión).
 app.post('/api/5v5/add', auth, wrap(async (req, res) => {
   const st = await fvRoom(req, res); if (!st) return;
-  if (!fvIsHost(st, req.user) && st.host != null) return res.status(403).json({ error: 'Solo el anfitrión puede agregar jugadores' });
+  if (!fvIsHost(st, req.user) && (st.host != null || st.queue)) return res.status(403).json({ error: 'Solo el anfitrión puede agregar jugadores' });
   if (st.players.length >= FV_SIZE) return res.status(400).json({ error: 'La sala está llena' });
   const key = String((req.body && req.body.key) || '');
   const e = (await analysisEntities('top')).find(x => x.key === key);
@@ -2957,6 +2958,90 @@ app.post('/api/5v5/reroll', auth, wrap(async (req, res) => {
   await fvSave(st); res.json(await fvView(st, req.user.id));
 }));
 
+// ---- Cola pública del 5v5: cada uno busca partida; con 10 en cola salta "partida encontrada" (20 s para
+// aceptar). Si aceptan todos se arma una sala sin anfitrión, ya sorteada (parejos en elo, roles y campeones
+// al azar, 1 cambio). Quien no acepta sale de la cola; los que aceptaron vuelven a la cola con su lugar.
+// Quien cierra la página sale de la cola a los 45 s. El estado se respalda en tool_state ('5v5q').
+const FVQ_ACCEPT_MS = 20000, FVQ_IDLE_MS = 45000, FVQ_KEY = process.env.RK_LOCAL ? null : '5v5q';
+let FVQ = null, FVQ_LOCK = Promise.resolve();
+const fvqSerial = fn => { const run = FVQ_LOCK.then(fn); FVQ_LOCK = run.catch(() => {}); return run; };
+async function fvqState(){
+  if (!FVQ){ FVQ = { queue: [], pending: null, last: {} };
+    if (FVQ_KEY) try { const r = await q1('SELECT data FROM tool_state WHERE id=$1', [FVQ_KEY]); if (r && r.data) FVQ = { ...FVQ, ...r.data, last: r.data.last || {} }; } catch {}
+    const now = Date.now(); FVQ.queue.forEach(e => { e.seen = now; }); }   // tras un reinicio, nadie se cae de la cola por inactivo
+  return FVQ;
+}
+async function fvqSave(){ if (!FVQ_KEY) return;
+  try { await q("INSERT INTO tool_state (id, data, updated_at) VALUES ($1, $2::jsonb, now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()", [FVQ_KEY, JSON.stringify(FVQ)]); } catch {} }
+async function fvqCreateRoom(uids){
+  const rooms = await fvRooms(); let code; do { code = fvCode(); } while (rooms[code]);
+  const st = { code, v: 0, owner: null, host: null, queue: true, createdAt: Date.now(), players: [], settings: { teamMode: 'elo', roleMode: 'random', champs: true, rerolls: 1, hidden: false }, draw: null };
+  for (const uid of uids){ const u = await q1('SELECT id, riotid, nickname FROM users WHERE id=$1', [uid]); if (u) st.players.push(await fvPlayerForUser(u)); }
+  rooms[code] = st;
+  if (st.players.length === FV_SIZE) await fvDoDraw(st);
+  await fvSave(st); return code;
+}
+function fvqTick(){ return fvqSerial(async () => {
+  const s = await fvqState(), now = Date.now(); let ch = false;
+  const inPend = new Set(s.pending ? s.pending.uids : []);
+  const n0 = s.queue.length; s.queue = s.queue.filter(e => inPend.has(e.uid) || now - (e.seen || 0) < FVQ_IDLE_MS); if (s.queue.length !== n0) ch = true;
+  if (s.pending){ const p = s.pending;
+    if (p.accepted.length >= p.uids.length){
+      const code = await fvqCreateRoom(p.uids), set = new Set(p.uids);
+      s.queue = s.queue.filter(e => !set.has(e.uid)); p.uids.forEach(u => { s.last[u] = { code, at: now }; }); s.pending = null; ch = true;
+    } else if (p.declined.length || now > p.deadline){
+      const out = new Set(p.declined.length ? p.declined : p.uids.filter(u => !p.accepted.includes(u)));
+      s.queue = s.queue.filter(e => !out.has(e.uid)); s.pending = null; ch = true;
+    }
+  }
+  if (!s.pending && s.queue.length >= FV_SIZE){
+    const uids = s.queue.slice().sort((a, b) => a.since - b.since).slice(0, FV_SIZE).map(e => e.uid);
+    s.pending = { id: fvCode(), uids, accepted: [], declined: [], deadline: now + FVQ_ACCEPT_MS }; ch = true;
+  }
+  for (const u of Object.keys(s.last)) if (now - s.last[u].at > FV_TTL){ delete s.last[u]; ch = true; }
+  if (ch) await fvqSave();
+  return s;
+}); }
+function fvqView(s, uid){
+  const out = { now: Date.now(), size: FV_SIZE, count: s.queue.length, inQueue: false, since: null, pending: null, room: null };
+  if (!uid) return out;
+  const e = s.queue.find(x => x.uid === uid); if (e){ out.inQueue = true; out.since = e.since; }
+  const p = s.pending; if (p && p.uids.includes(uid)) out.pending = { id: p.id, deadline: p.deadline, accepted: p.accepted.length, total: p.uids.length, iAccepted: p.accepted.includes(uid) };
+  if (s.last[uid]) out.room = s.last[uid].code;
+  return out;
+}
+app.get('/api/5v5/queue', wrap(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const uid = await optionalUid(req), s = await fvqState();
+  const e = uid && s.queue.find(x => x.uid === uid); if (e) e.seen = Date.now();
+  res.json(fvqView(await fvqTick(), uid));
+}));
+app.post('/api/5v5/queue/join', auth, wrap(async (req, res) => {
+  const uid = req.user.id;
+  await fvqSerial(async () => { const s = await fvqState(), now = Date.now();
+    if (!s.queue.some(x => x.uid === uid)) s.queue.push({ uid, since: now, seen: now });
+    delete s.last[uid]; await fvqSave(); });
+  res.json(fvqView(await fvqTick(), uid));
+}));
+app.post('/api/5v5/queue/leave', auth, wrap(async (req, res) => {
+  const uid = req.user.id;
+  await fvqSerial(async () => { const s = await fvqState();
+    if (s.pending && s.pending.uids.includes(uid) && !s.pending.declined.includes(uid)) s.pending.declined.push(uid);
+    s.queue = s.queue.filter(x => x.uid !== uid); await fvqSave(); });
+  res.json(fvqView(await fvqTick(), uid));
+}));
+app.post('/api/5v5/queue/accept', auth, wrap(async (req, res) => {
+  const uid = req.user.id, yes = !(req.body && req.body.accept === false);
+  const err = await fvqSerial(async () => { const s = await fvqState(), p = s.pending;
+    if (!p || !p.uids.includes(uid)) return 'No hay partida por aceptar';
+    if (yes){ if (!p.accepted.includes(uid)) p.accepted.push(uid); } else if (!p.declined.includes(uid)) p.declined.push(uid);
+    await fvqSave(); return null; });
+  if (err) return res.status(400).json({ error: err });
+  res.json(fvqView(await fvqTick(), uid));
+}));
+// la cola avanza aunque nadie esté mirando (vencimiento de la aceptación, inactivos)
+setInterval(() => { if (FVQ) fvqTick().catch(() => {}); }, 2000).unref();
+
 // ================= HERRAMIENTAS · RANKED (cola interna con ranking propio) =================
 // Los jugadores eligen rol principal/secundario y entran a una cola. Al juntarse 10 hay que aceptar
 // (como en el LoL); después se arma la sala con equipos parejos por MMR, se hace el pick/ban igual
@@ -2973,8 +3058,8 @@ const RK_GRACE_MS = 3000;
 // Cambio de campeón: se puede pedir hasta 30 s después de fijarlo (lo acepta el rival). Por eso, tras el último pick
 // hay una fase final de 30 s antes de cerrar el draft.
 const RK_PICKCHG_MS = 30000, RK_FINAL_MS = 30000;
-// Preparación: 30 s al inicio para ponerse de acuerdo. Solo en esa fase se pueden cambiar los roles.
-const RK_PREP_MS = 30000;
+// Preparación: 1 min al inicio para ponerse de acuerdo. Solo en esa fase se pueden cambiar los roles.
+const RK_PREP_MS = 60000;
 const RK = { ready: false, players: new Map(), queue: new Map(), pending: new Map(), matches: new Map(), byUser: new Map(), last: new Map(), pseq: 1 };
 const RK_TIERS = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND'], RK_DIVS = ['IV', 'III', 'II', 'I'];
 // Rango visible a partir de los puntos absolutos: 400 por liga (4 divisiones de 100) hasta Diamante I;
@@ -3113,11 +3198,12 @@ async function rkCreateMatch(uids){
   // Draft por turnos, como en torneo (azul = equipo de la izquierda). El orden dentro de cada equipo es al azar
   // y vale para banear y para elegir; dos compañeros pueden intercambiar sus turnos (ver /api/ranked/swap).
   //   bans  A R A R A R  →  picks A · RR · AA · R  →  bans A R A R  →  picks R · AA · R
+  // Cada pick es su propio turno con su propio tiempo (en un doble pick, primero uno y después el otro).
   const bo = fvShuffle(blue.players.map(p => p.uid)), ro = fvShuffle(red.players.map(p => p.uid));
   const bb = bo, rb = ro;
   const B = u => ({ t: 'ban', u: [u] }), K = (...u) => ({ t: 'pick', u });
-  const seq = [B(bb[0]), B(rb[0]), B(bb[1]), B(rb[1]), B(bb[2]), B(rb[2]), K(bo[0]), K(ro[0], ro[1]), K(bo[1], bo[2]), K(ro[2]),
-               B(bb[3]), B(rb[3]), B(bb[4]), B(rb[4]), K(ro[3]), K(bo[3], bo[4]), K(ro[4])];
+  const seq = [B(bb[0]), B(rb[0]), B(bb[1]), B(rb[1]), B(bb[2]), B(rb[2]), K(bo[0]), K(ro[0]), K(ro[1]), K(bo[1]), K(bo[2]), K(ro[2]),
+               B(bb[3]), B(rb[3]), B(bb[4]), B(rb[4]), K(ro[3]), K(bo[3]), K(bo[4]), K(ro[4])];
   const assigned = {}; [blue, red].forEach(t => t.players.forEach(p => { assigned[p.uid] = p.pref; }));
   const m = { id: null, sim: uids.some(u => u < 0), status: 'draft', createdAt: Date.now(), teams: [blue, red], assigned,
     draft: { phase: 'prep', deadline: Date.now() + RK_PREP_MS, bans: {}, locked: {}, step: 0, picks: {}, seq, swaps: {}, hover: {}, banHover: {}, roleSwaps: {}, banReq: {}, banChanged: {} }, kicks: {},

@@ -101,3 +101,27 @@ window.SQC = (function(){
 
   return { api, token, setToken, clearToken, me, logout, paintNav, mountNav, preNav, navBadges };
 })();
+
+/* Colas (5v5 y Ranked): si estás buscando partida y te vas a otra página del sitio, esta página sigue la
+   cola (así no te saca por inactivo) y, si sale partida por aceptar, te lleva a la página de la cola. */
+(function(){
+  const path = location.pathname.toLowerCase();
+  const onRanked = /\/ranked(\.html)?$/.test(path), onTools = /\/herramientas(\.html)?$/.test(path) && !onRanked;
+  if (/\/draft(\.html)?$/.test(path) || /\/equipo(\.html)?$/.test(path) && window.top !== window) return;
+  const flag = k => { try { return localStorage.getItem(k) === '1'; } catch (e) { return false; } };
+  const clear = k => { try { localStorage.removeItem(k); } catch (e) {} };
+  async function tick(){
+    if (!window.SQC || !SQC.token || !SQC.token()) return;
+    if (!onTools && flag('sqc_fvq_on')){
+      try { const s = await SQC.api('/5v5/queue');
+        if (s.pending && !s.pending.iAccepted) { location.href = 'herramientas.html#fv'; return; }
+        if (!s.inQueue && !s.pending) clear('sqc_fvq_on'); } catch (e) {}
+    }
+    if (!onRanked && flag('sqc_rkq_on')){
+      try { const s = await SQC.api('/ranked/state');
+        if (s.pending && !s.pending.iAccepted) { location.href = 'ranked.html'; return; }
+        if (s.me && !(s.queue && s.queue.inQueue) && !s.pending) clear('sqc_rkq_on'); } catch (e) {}
+    }
+  }
+  setInterval(tick, 2500); setTimeout(tick, 800);
+})();

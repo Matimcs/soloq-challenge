@@ -202,6 +202,7 @@
   .loading{ color:var(--muted); font-size:14px; text-align:center; padding:60px 0; }
   .subh{ font-size:15px; font-weight:700; margin:26px 0 12px; }
   /* ---- Organizador de 5v5 ---- */
+  .fvq-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; max-width:960px; align-items:start; }
   .fv-head{ display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px; }
   .fv-head h2{ font-size:18px; font-weight:800; } .fv-head .cnt{ font-size:13px; color:var(--muted); font-weight:700; margin-left:8px; }
   .fv-btn{ font-family:inherit; cursor:pointer; font-size:13px; font-weight:800; padding:9px 15px; border-radius:10px; border:1px solid var(--line-2); background:var(--panel); color:var(--text); }
@@ -850,12 +851,15 @@
   // Sin sala (o con una que ya no existe): pantalla para crear una.
   function fvLanding(){
     const msg = FVC.gone ? `<div class="fv-err">Esa sala no existe o ya expiró.</div>` : (FVC.err ? `<div class="fv-err">${esc(FVC.err)}</div>` : '');
-    $('p-fv').innerHTML = `<div class="card" style="max-width:560px">
-        <h3>Organiza un 5v5</h3>
+    $('p-fv').innerHTML = `<div class="fvq-grid">
+      <div class="card" id="fvq-card">${fvqCardHtml()}</div>
+      <div class="card">
+        <h3>Sala privada</h3>
         <div class="fv-note" style="margin-top:4px">Crea una sala y comparte el enlace con los demás. Cuando estén los 10, el anfitrión sortea equipos parejos en elo, con roles y campeones al azar si quieren. La sala se cierra sola tras 3 horas sin actividad.</div>
         ${msg}
         <div style="margin-top:14px">${fvLogged() ? `<button class="fv-btn pri" id="fv-create">Crear sala</button>` : `<a class="fv-btn" href="cuenta.html">Inicia sesión para crear una sala</a>`}</div>
-      </div>`;
+      </div></div>`;
+    fvqBind(); if (fvLogged() && !FVQ.st) fvqPoll();
     const b = $('fv-create'); if (b) b.onclick = async () => { b.disabled = true; FVC.err = '';
       try { const st = await SQC.api('/5v5/create', { method:'POST', body:{} }); fvSetRoom(st.code); fvApply(st, true); }
       catch (e) { FVC.err = e.message || 'No se pudo crear la sala'; fvLanding(); } };
@@ -910,7 +914,7 @@
       : joined ? `<button class="fv-btn" id="fv-leave">Salir de la sala</button>`
       : `<button class="fv-btn pri" id="fv-join" ${P.length >= st.size ? 'disabled' : ''}>Unirme</button>`;
     const s = st.settings;
-    const canHost = host || (fvLogged() && st.host == null);   // sala sin anfitrión: cualquiera con sesión puede armarla
+    const canHost = host || (fvLogged() && st.host == null && !st.queue);   // sala sin anfitrión: cualquiera con sesión puede armarla
     if (canHost && !FVC.cands) fvCands();
     const cands = (FVC.cands || []).filter(c => !byId[c.key]);
     const hostCard = canHost ? `<div class="card">
@@ -930,7 +934,7 @@
       </div>`
       : `<div class="card"><h3>Opciones del sorteo</h3>
           <div class="fv-note" style="margin-top:0">Equipos: <b>${s.teamMode === 'random' ? 'totalmente al azar' : 'parejos en elo'}</b> · Roles: <b>${fvRoleMode(s.roleMode)}</b> · Campeón: <b>${s.champs ? 'al azar según el rol' : 'cada uno elige'}</b>${s.champs ? ` · Cambios por jugador: <b>${s.rerolls}</b> · Selección: <b>${s.hidden ? 'oculta' : 'visible'}</b>` : ''}<br>
-          ${hostP ? `El anfitrión es <b>${esc(hostP.nick)}</b>; solo esa persona o un admin puede sortear.` : 'Aún no hay anfitrión: el primero que se una lo será.'}</div></div>`;
+          ${st.queue ? 'Sala armada por la cola: los equipos ya se sortearon solos. Si no les convence, voten remake.' : hostP ? `El anfitrión es <b>${esc(hostP.nick)}</b>; solo esa persona o un admin puede sortear.` : 'Aún no hay anfitrión: el primero que se una lo será.'}</div></div>`;
     let drawHtml = '';
     if (st.draw){
       const d = st.draw;
@@ -954,7 +958,7 @@
     }
     const exp = st.expiresAt ? new Date(st.expiresAt).toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' }) : '';
     box.innerHTML = `
-      <div class="fv-head"><div><h2 style="display:inline">Sala 5v5</h2><span class="cnt">${P.length}/${st.size} jugadores</span></div><div>${action}</div></div>
+      <div class="fv-head"><div><h2 style="display:inline">${st.queue ? 'Partida de la cola' : 'Sala 5v5'}</h2><span class="cnt">${P.length}/${st.size} jugadores</span></div><div style="display:flex;gap:8px"><button class="fv-btn" id="fv-home">← Inicio 5v5</button>${st.queue && !joined ? '' : action}</div></div>
       <div class="fv-invite">
         <label for="fv-link">Enlace para invitar</label>
         <input id="fv-link" type="text" readonly value="${esc(fvUrl(st.code))}">
@@ -965,6 +969,7 @@
       <div class="fv-players">${slots}</div>
       ${hostCard}${drawHtml}`;
     const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
+    on('fv-home', 'onclick', () => { fvSetRoom(''); fvLanding(); });
     on('fv-join', 'onclick', () => fvAct('join'));
     on('fv-leave', 'onclick', () => fvAct('leave'));
     on('fv-add', 'onchange', e => { if (e.target.value) fvAct('add', { key: e.target.value }); });
@@ -985,6 +990,73 @@
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => fvAct('leave', { id: b.dataset.kick }));
     box.querySelectorAll('[data-rr]').forEach(b => b.onclick = () => fvAct('reroll', { id: b.dataset.rr }));
   }
+  // ---------- cola pública del 5v5 ----------
+  const FVQ = { st: null, off: 0, pid: null, err: '' };
+  const fvqNow = () => Date.now() + FVQ.off;
+  const fvqSeenRoom = () => { try { return localStorage.getItem('sqc_fvq_room') || ''; } catch (e) { return ''; } };
+  function fvqCardHtml(){
+    const s = FVQ.st;
+    const head = `<h3 style="display:flex;justify-content:space-between;align-items:center">Cola 5v5 <button class="fv-btn sm" data-fvqsfx title="${SFX.muted ? 'Activar sonidos' : 'Silenciar sonidos'}">${SFX.muted ? '🔇' : '🔊'}</button></h3>
+      <div class="fv-note" style="margin-top:4px">Busca partida y, cuando se junten 10, todos aceptan y se arma la sala sola: equipos parejos en elo, roles y campeones al azar (1 cambio cada uno). No da ni quita puntos.</div>`;
+    if (!fvLogged()) return head + `<div style="margin-top:14px"><a class="fv-btn" href="cuenta.html">Inicia sesión para buscar partida</a></div>`;
+    if (!s) return head + `<div class="loading">Cargando cola…</div>`;
+    const btn = s.inQueue ? `<button class="rk-find on" id="fvq-leave"><span>BUSCANDO PARTIDA</span><b class="fvq-clock" data-since="${s.since}">0:00</b><small>Cancelar</small></button>`
+      : `<button class="rk-find" id="fvq-join"><span>BUSCAR PARTIDA</span></button>`;
+    const back = s.room && !s.inQueue ? `<div class="fv-note">Tu última partida de la cola: <a href="#" id="fvq-back" style="color:var(--accent)">volver a la sala</a></div>` : '';
+    return head + `<div class="fv-err">${esc(FVQ.err)}</div>${btn}
+      <div class="rkx-q"><div class="rkx-qbar"><i style="width:${Math.min(100, s.count / s.size * 100)}%"></i></div><span><b>${s.count}</b> de ${s.size} en cola${s.inQueue ? ' · puedes moverte por la página: si sale partida te traemos aquí' : ''}</span></div>${back}`;
+  }
+  function fvqBind(){
+    const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+    on('fvq-join', () => { SFX.queue(); fvqAct('join'); }); on('fvq-leave', () => { SFX.cancel(); fvqAct('leave'); });
+    on('fvq-back', e => { e.preventDefault(); fvSetRoom(FVQ.st.room); fvLoad(true); });
+    document.querySelectorAll('[data-fvqsfx]').forEach(b => b.onclick = () => { SFX.toggle(); fvqDraw(); });
+  }
+  function fvqDraw(){
+    const card = $('fvq-card'); if (card){ card.innerHTML = fvqCardHtml(); fvqBind(); }
+    let m = $('fvq-modal'); const p = FVQ.st && FVQ.st.pending;
+    if (!p){ if (m) m.remove(); window.FVQ_PENDING = false; return; }
+    if (!m){ m = document.createElement('div'); m.id = 'fvq-modal'; m.className = 'rk-modal'; document.body.appendChild(m); }
+    m.innerHTML = `<div class="rk-found"><div class="t">¡PARTIDA ENCONTRADA!</div><div style="font-size:12px;color:var(--muted);font-weight:700">Cola 5v5</div>
+      <div class="c fvq-count" data-deadline="${p.deadline}">20</div><div class="s">${p.accepted} de ${p.total} aceptaron</div>
+      ${p.iAccepted ? `<div class="ok">Aceptaste. Esperando a los demás…</div>` : `<div class="b"><button class="rk-acc" id="fvq-acc">ACEPTAR</button><button class="rk-dec" id="fvq-dec">Rechazar</button></div>`}</div>`;
+    const a = $('fvq-acc'); if (a) a.onclick = () => { SFX.accept(); fvqAct('accept', { accept: true }); };
+    const d = $('fvq-dec'); if (d) d.onclick = () => { SFX.cancel(); fvqAct('accept', { accept: false }); };
+    window.FVQ_PENDING = !p.iAccepted; fvqClocks();
+  }
+  function fvqApply(s){
+    FVQ.st = s; FVQ.off = s.now - Date.now();
+    // aviso para las otras páginas del sitio (api.js): mientras buscas, siguen la cola y te traen aquí si sale partida
+    try { if (s.inQueue || s.pending) localStorage.setItem('sqc_fvq_on', '1'); else localStorage.removeItem('sqc_fvq_on'); } catch (e) {}
+    const pid = s.pending ? s.pending.id : null; if (pid && pid !== FVQ.pid && !s.pending.iAccepted) SFX.found(); FVQ.pid = pid;
+    // partida por aceptar: cambiar a la pestaña 5V5 para no perderla
+    if (s.pending && !s.pending.iAccepted && CUR_TAB !== 'fv'){ if (window.RANKED_PAGE){ location.href = 'herramientas.html#fv'; return; } showTab('fv'); }
+    // se armó la sala: llevar a todos a ella (una vez por sala)
+    if (s.room && !s.inQueue && s.room !== fvqSeenRoom()){
+      try { localStorage.setItem('sqc_fvq_room', s.room); } catch (e) {}
+      if (window.RANKED_PAGE){ location.href = 'herramientas.html?sala=' + encodeURIComponent(s.room) + '#fv'; return; }
+      fvSetRoom(s.room); if (CUR_TAB !== 'fv') showTab('fv'); else fvLoad(true);
+    }
+    fvqDraw();
+  }
+  async function fvqPoll(){
+    if (!fvLogged()) return;
+    try { fvqApply(await SQC.api('/5v5/queue')); } catch (e) {}
+  }
+  async function fvqAct(path, body){
+    FVQ.err = '';
+    try { fvqApply(await SQC.api('/5v5/queue/' + path, { method: 'POST', body: body || {} })); }
+    catch (e) { FVQ.err = e.message || 'No se pudo completar la acción'; fvqDraw(); }
+  }
+  function fvqClocks(){
+    document.querySelectorAll('.fvq-count').forEach(el => { el.textContent = Math.max(0, Math.ceil((+el.dataset.deadline - fvqNow()) / 1000)); });
+    document.querySelectorAll('.fvq-clock').forEach(el => { const t = Math.max(0, Math.floor((fvqNow() - +el.dataset.since) / 1000)); el.textContent = Math.floor(t / 60) + ':' + String(t % 60).padStart(2, '0'); });
+  }
+  setInterval(fvqClocks, 250);
+  // mientras buscas (o tienes partida por aceptar) se consulta cada 2 s, aunque estés en otra pestaña
+  setInterval(() => { const s = FVQ.st, busy = s && (s.inQueue || s.pending);
+    let flag = false; try { flag = !s && localStorage.getItem('sqc_fvq_on') === '1'; } catch (e) {}
+    if (busy || flag || (CUR_TAB === 'fv' && !FVC.room && !document.hidden)) fvqPoll(); }, 2000);
   // La sala se refresca sola cada 3 s mientras la pestaña está a la vista (así todos ven lo mismo).
   setInterval(() => { if (CUR_TAB === 'fv' && !document.hidden) fvLoad(false); }, 3000);
 
@@ -1009,6 +1081,7 @@
     try { const st = await SQC.api('/ranked/state' + (RKC.as ? '?as=' + RKC.as : '')); RKC.off = st.now - Date.now(); RKC.st = st;
       const lid = st.last ? st.last.matchId : null; if (lid !== RKC.lastId){ if (RKC.lastId !== null) { RKC.hist = {}; rkBoard(); if (st.last && !st.last.cancelled) (st.last.won ? SFX.win : SFX.lose)(); } RKC.lastId = lid; }
       const pid = st.pending ? st.pending.id : null; if (pid && pid !== RKC.pendId && !st.pending.iAccepted) SFX.found(); RKC.pendId = pid;
+      try { if (st.queue && (st.queue.inQueue || st.pending)) localStorage.setItem('sqc_rkq_on', '1'); else if (st.me) localStorage.removeItem('sqc_rkq_on'); } catch (e) {}
       const sig = JSON.stringify({ ...st, now: 0 }) + '|' + (rkLogged() ? 1 : 0);
       if (force || sig !== RKC.sig){ RKC.sig = sig; rkRender(); } }
     catch (e) { if (!RKC.st) $('p-rk').innerHTML = `<div class="loading">No se pudo cargar Ranked.</div>`; }
@@ -1305,7 +1378,7 @@
   function rkClocks(){
     document.querySelectorAll('#p-rk .rk-count').forEach(el => { el.textContent = Math.max(0, Math.ceil((+el.dataset.deadline - rkNow()) / 1000)); });
     document.querySelectorAll('#p-rk .rk-clock').forEach(el => { const s = Math.max(0, Math.floor((rkNow() - +el.dataset.since) / 1000)); el.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); });
-    const st = RKC.st; document.title = (st && st.pending && !st.pending.iAccepted && Math.floor(Date.now() / 700) % 2) ? '¡PARTIDA ENCONTRADA!' : (window.RANKED_PAGE ? 'SoloQ Challenge — Ranked' : 'SoloQ Challenge — Herramientas');
+    const st = RKC.st; document.title = (((st && st.pending && !st.pending.iAccepted) || window.FVQ_PENDING) && Math.floor(Date.now() / 700) % 2) ? '¡PARTIDA ENCONTRADA!' : (window.RANKED_PAGE ? 'SoloQ Challenge — Ranked' : 'SoloQ Challenge — Herramientas');
   }
   setInterval(rkClocks, 250);
   // refresco: rápido mientras buscas o estás en sala; lento si solo miras la tabla
