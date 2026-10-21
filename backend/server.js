@@ -1305,21 +1305,30 @@ app.post('/api/overlay/team-game', wrap(async (req, res) => {
   await q("UPDATE team_games SET data=$2::jsonb, timeline=$3::jsonb, status='filed', filed_at=coalesce(filed_at, now()) WHERE game_id=$1 AND status='requested'", [gameId, JSON.stringify(norm), tlStr]);
   res.json({ ok: true, filed: rows.length });
 }));
-// Web: equipos que el usuario puede ver (los suyos; los admins, todos) y si es capitán.
+// Equipos donde el usuario es integrante: solo por el roster (team_members) con su cuenta principal.
+// (No cuenta el equipo elegido al registrarse ni las smurfs que uno mismo declara.)
+async function tgRosterTeams(uid){
+  const rows = await q(`SELECT DISTINCT tm.team FROM team_members tm JOIN users u ON lower(replace(u.riotid,' ','')) = lower(replace(tm.riotid,' ',''))
+                        WHERE u.id=$1 AND tm.team IS NOT NULL`, [uid]);
+  return new Set(rows.map(r => r.team).filter(t => TEAMS.has(t)));
+}
+// Web: el historial lo ven los integrantes del equipo; catalogar/editar solo su capitán y los admins.
 async function tgAccess(req, team){
   const uid = await optionalUid(req); if (!uid) return null;
   const admin = await reqIsAdmin(req);
-  // por ahora solo capitanes (de ese equipo) y admins
-  if (team){ if (!TEAMS.has(team)) return null; const captain = admin || await tgIsCaptain(uid, team); if (!captain) return null;
+  if (team){ if (!TEAMS.has(team)) return null;
+    const captain = admin || await tgIsCaptain(uid, team);
+    if (!captain && !(await tgRosterTeams(uid)).has(team)) return null;
     return { uid, admin, captain }; }
   return { uid, admin };
 }
 app.get('/api/team/me', wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   const a = await tgAccess(req); if (!a) return res.status(401).json({ error: 'Inicia sesión' });
-  const caps = new Set((await q('SELECT team FROM team_captains WHERE user_id=$1', [a.uid])).map(r => r.team)), mine = a.admin ? [...TEAMS] : [...caps].filter(t => TEAMS.has(t));
-  if (!mine.length) return res.status(403).json({ error: 'Solo para capitanes de equipo y admins' });
-  res.json({ admin: a.admin, tournaments: TG_TOURNAMENTS, teams: mine.map(t => ({ team: t, captain: true })) });
+  const caps = new Set((await q('SELECT team FROM team_captains WHERE user_id=$1', [a.uid])).map(r => r.team)), roster = await tgRosterTeams(a.uid);
+  const mine = a.admin ? [...TEAMS] : [...TEAMS].filter(t => caps.has(t) || roster.has(t));
+  if (!mine.length) return res.status(403).json({ error: 'Solo para integrantes de un equipo' });
+  res.json({ admin: a.admin, tournaments: TG_TOURNAMENTS, teams: mine.map(t => ({ team: t, captain: a.admin || caps.has(t) })) });
 }));
 app.get('/api/team/:team/games', wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');

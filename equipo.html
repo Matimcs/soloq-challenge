@@ -179,7 +179,7 @@
   async function boot(){
     SQC.preNav(); SQC.mountNav();
     if (!(window.SQC && SQC.token && SQC.token())){ $('app').innerHTML = `<div class="card empty"><b>Inicia sesión</b>El historial del equipo es privado. <a href="cuenta.html" style="color:var(--accent)">Iniciar sesión</a></div>`; return; }
-    try { S.me = await SQC.api('/team/me'); } catch (e) { $('app').innerHTML = `<div class="card empty"><b>Solo para capitanes de equipo y admins</b>${esc(e.message)}</div>`; return; }
+    try { S.me = await SQC.api('/team/me'); } catch (e) { $('app').innerHTML = `<div class="card empty"><b>Solo para integrantes de un equipo</b>${esc(e.message)}</div>`; return; }
     if (!S.me.teams.length){ $('app').innerHTML = `<div class="card empty"><b>No perteneces a ningún equipo de la organización</b>Si es un error, pídele a un admin que te agregue al roster.</div>`; return; }
     if (!S.me.teams.some(t => t.team === S.team)) S.team = S.me.teams[0].team;
     await ddLoad(); await loadGames();
