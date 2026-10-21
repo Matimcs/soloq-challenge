@@ -1349,7 +1349,7 @@ app.get('/api/team/:team/game/:id', wrap(async (req, res) => {
 }));
 app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {
   const team = req.params.team, a = await tgAccess(req, team); if (!a || !a.captain) return res.status(403).json({ error: 'Solo el capitán del equipo y los admins' });
-  const r = await q1('SELECT id, status FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]); if (!r) return res.status(404).json({ error: 'Partida no encontrada' });
+  const r = await q1('SELECT id, status, (data IS NOT NULL) AS has_data FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]); if (!r) return res.status(404).json({ error: 'Partida no encontrada' });
   const b = req.body || {}, clip = (v, n) => String(v || '').trim().slice(0, n) || null;
   if (b.action === 'discard'){ await q('DELETE FROM team_games WHERE id=$1', [r.id]); return res.json({ ok: true }); }
   if (b.action === 'roles'){   // el capitán fija los roles a mano {pid: ROL}
@@ -1362,8 +1362,9 @@ app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {
   const tournament = kind === 'torneo' ? clip(b.tournament, 80) : null;
   if (kind === 'torneo' && !tournament) return res.status(400).json({ error: 'Elige el torneo' });
   // catalogar desde la bandeja → se pide la partida completa al overlay; editar una ya guardada solo cambia los datos
-  const status = r.status === 'pending' ? 'requested' : r.status;
-  await q('UPDATE team_games SET kind=$2, tournament=$3, rival=$4, comment=$5, status=$6, filed_by=$7 WHERE id=$1', [r.id, kind, tournament, clip(b.rival, 60), clip(b.comment, 1000), status, a.uid]);
+  // (si ya tiene los datos completos —p.ej. corregidos a mano— se guarda directo, sin pedirla de nuevo)
+  const status = r.status === 'pending' ? (r.has_data ? 'filed' : 'requested') : r.status;
+  await q(`UPDATE team_games SET kind=$2, tournament=$3, rival=$4, comment=$5, status=$6, filed_by=$7, filed_at=CASE WHEN $6='filed' THEN coalesce(filed_at, now()) ELSE filed_at END WHERE id=$1`, [r.id, kind, tournament, clip(b.rival, 60), clip(b.comment, 1000), status, a.uid]);
   res.json({ ok: true, status });
 }));
 // ================= HERRAMIENTAS · LINKS (generales y por campeón) =================
