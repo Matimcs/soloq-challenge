@@ -1327,7 +1327,7 @@ app.get('/api/team/:team/games', wrap(async (req, res) => {
   await q("DELETE FROM team_games WHERE status='pending' AND created_at < now() - interval '21 days'").catch(() => {});
   const box = req.query.box === 'inbox' ? 'inbox' : 'history';
   if (box === 'inbox' && !a.captain) return res.status(403).json({ error: 'Solo el capitán y los admins' });
-  const rows = await q(`SELECT id, game_id, status, kind, tournament, rival, comment, side, won, duration, game_at, summary, filed_at FROM team_games WHERE team=$1 AND ${box === 'inbox' ? "status='pending'" : "status IN ('requested','filed')"} ORDER BY game_at DESC LIMIT 100`, [team]);
+  const rows = await q(`SELECT id, game_id, status, kind, tournament, rival, comment, game_no, side, won, duration, game_at, summary, filed_at FROM team_games WHERE team=$1 AND ${box === 'inbox' ? "status='pending'" : "status IN ('requested','filed')"} ORDER BY game_at DESC LIMIT 100`, [team]);
   res.json({ captain: a.captain, games: rows });
 }));
 app.get('/api/team/:team/game/:id', wrap(async (req, res) => {
@@ -1364,7 +1364,8 @@ app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {
   // catalogar desde la bandeja → se pide la partida completa al overlay; editar una ya guardada solo cambia los datos
   // (si ya tiene los datos completos —p.ej. corregidos a mano— se guarda directo, sin pedirla de nuevo)
   const status = r.status === 'pending' ? (r.has_data ? 'filed' : 'requested') : r.status;
-  await q(`UPDATE team_games SET kind=$2, tournament=$3, rival=$4, comment=$5, status=$6, filed_by=$7, filed_at=CASE WHEN $6='filed' THEN coalesce(filed_at, now()) ELSE filed_at END WHERE id=$1`, [r.id, kind, tournament, clip(b.rival, 60), clip(b.comment, 1000), status, a.uid]);
+  const gameNo = /^[1-5]$/.test(String(b.gameNo)) ? +b.gameNo : null;
+  await q(`UPDATE team_games SET kind=$2, tournament=$3, rival=$4, comment=$5, status=$6, filed_by=$7, filed_at=CASE WHEN $6='filed' THEN coalesce(filed_at, now()) ELSE filed_at END, game_no=$8 WHERE id=$1`, [r.id, kind, tournament, clip(b.rival, 60), clip(b.comment, 1000), status, a.uid, gameNo]);
   res.json({ ok: true, status });
 }));
 // ================= HERRAMIENTAS · LINKS (generales y por campeón) =================

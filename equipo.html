@@ -54,7 +54,7 @@
   .names{ font-size:11.5px; color:var(--muted); max-width:100%; }
   .vs{ font-size:11px; font-weight:800; color:var(--muted-2); }
   .gc{ margin-top:8px; font-size:12.5px; color:var(--muted); white-space:pre-wrap; }
-  .form{ display:grid; grid-template-columns:150px 200px 1fr; gap:8px; margin-top:12px; align-items:start; }
+  .form{ display:grid; grid-template-columns:150px 200px 1fr 120px; gap:8px; margin-top:12px; align-items:start; }
   .form textarea{ grid-column:1 / -1; min-height:56px; resize:vertical; }
   .form input, .form select, .form textarea{ background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:8px 10px; font-size:13px; width:100%; }
   .form .act{ grid-column:1 / -1; display:flex; gap:8px; justify-content:flex-end; align-items:center; }
@@ -204,7 +204,7 @@
   function headHtml(g){
     return `<div class="gh"><span class="res">${g.won ? 'Victoria' : 'Derrota'}</span><span class="muted">${fdate(g.game_at)} · ${dur(g.duration)}</span>
       ${g.kind ? `<span class="badge ${g.kind}">${g.kind === 'torneo' ? '🏆 ' + esc(g.tournament || 'Torneo') : 'Scrim'}</span>` : ''}
-      ${g.rival ? `<span>vs <b>${esc(g.rival)}</b></span>` : ''}
+      ${g.rival ? `<span>vs <b>${esc(g.rival)}</b></span>` : ''}${g.game_no ? `<span class="badge">Game ${g.game_no}</span>` : ''}
       ${g.status === 'requested' ? `<span class="badge wait" title="Se baja sola cuando un jugador de esa partida tenga el overlay abierto">⏳ esperando datos del overlay</span>` : ''}</div>`;
   }
   function render(){
@@ -232,6 +232,7 @@
       <select data-f="kind"><option value="">Tipo…</option><option value="scrim" ${g.kind === 'scrim' ? 'selected' : ''}>Scrim</option><option value="torneo" ${g.kind === 'torneo' ? 'selected' : ''}>Torneo</option></select>
       <select data-f="tour" style="${g.kind === 'torneo' ? '' : 'visibility:hidden'}">${tours.map(t => `<option ${g.tournament === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="__otro">Otro…</option></select>
       <input data-f="rival" placeholder="Rival (ej: UDD)" value="${esc(g.rival || '')}" maxlength="60">
+      <select data-f="gameNo" title="Qué game de la serie fue"><option value="">Game…</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${g.game_no === n ? 'selected' : ''}>Game ${n}</option>`).join('')}</select>
       <input data-f="tourOther" placeholder="Nombre del torneo" style="display:none" maxlength="80">
       <textarea data-f="comment" placeholder="Comentarios (draft, qué salió bien o mal…)" maxlength="1000">${esc(g.comment || '')}</textarea>
       <div class="act"><span class="err"></span>${g.status === 'pending' ? `<button class="btn ghost" data-a="discard">Descartar</button>` : ''}<button class="btn pri" data-a="save">${g.status === 'pending' ? 'Guardar en el historial' : 'Guardar cambios'}</button></div></div>`;
@@ -244,7 +245,7 @@
       f.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
         const id = +f.dataset.form, a = b.dataset.a; err.textContent = '';
         if (a === 'discard' && !confirm('¿Descartar esta partida? Se borra de la bandeja.')) return;
-        const body = a === 'discard' ? { action: 'discard' } : { kind: kind.value, tournament: tour.value === '__otro' ? other.value : tour.value, rival: f.querySelector('[data-f="rival"]').value, comment: f.querySelector('[data-f="comment"]').value };
+        const body = a === 'discard' ? { action: 'discard' } : { kind: kind.value, tournament: tour.value === '__otro' ? other.value : tour.value, rival: f.querySelector('[data-f="rival"]').value, gameNo: f.querySelector('[data-f="gameNo"]').value, comment: f.querySelector('[data-f="comment"]').value };
         b.disabled = true;
         try { const r = await SQC.api('/team/' + encodeURIComponent(S.team) + '/game/' + id, { method: 'POST', body });
           if (S.open && S.open.id === id){ await openGame(id); } await loadGames();
@@ -272,7 +273,7 @@
     if (!d) body = `<div class="card empty" style="margin-top:6px"><b>⏳ Esperando los datos completos</b>Se bajan solos cuando un jugador de esa partida tenga el overlay abierto (versión 0.2.34 o más nueva).</div>${sidesHtml(g)}`;
     else body = `<div class="tabs">${TABS.map(([k, t]) => `<button class="${S.tab === k ? 'on' : ''}" data-tab="${k}">${t}</button>`).join('')}</div><div id="dtab">${tabHtml(S.tab)}</div>`;
     $('dbox').innerHTML = `<div class="dhead"><div><b>${g.won ? '<span class="up">Victoria</span>' : '<span class="down">Derrota</span>'} ${g.rival ? 'vs ' + esc(g.rival) : ''}</b>
-        <div class="meta">${fdate(g.game_at)} · ${dur(g.duration)} · ${g.kind === 'torneo' ? '🏆 ' + esc(g.tournament || 'Torneo') : g.kind === 'scrim' ? 'Scrim' : ''}</div>
+        <div class="meta">${fdate(g.game_at)} · ${dur(g.duration)} · ${g.kind === 'torneo' ? '🏆 ' + esc(g.tournament || 'Torneo') : g.kind === 'scrim' ? 'Scrim' : ''}${g.game_no ? ' · Game ' + g.game_no : ''}</div>
         ${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div><button class="x" data-close>✕</button></div>
       ${body}${cap ? `<details style="margin-top:14px"><summary class="muted" style="cursor:pointer;font-size:12.5px">Editar datos</summary>${formHtml(g)}</details>` : ''}`;
     $('dbox').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { S.tab = b.dataset.tab; renderDetail(); });

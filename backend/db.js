@@ -379,6 +379,7 @@ async function init(){
       created_at TIMESTAMPTZ DEFAULT now(),
       UNIQUE (team, game_id)
     );
+    ALTER TABLE team_games ADD COLUMN IF NOT EXISTS game_no SMALLINT;   -- game 1..5 de la serie (scrim o torneo)
     ALTER TABLE team_games ADD COLUMN IF NOT EXISTS roles JSONB;   -- roles fijados a mano por el capitán {pid: ROL}
     -- Herramientas → Links: enlaces útiles (generales o de un campeón) que agrega la org.
     CREATE TABLE IF NOT EXISTS links (
