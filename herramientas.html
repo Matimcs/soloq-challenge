@@ -492,6 +492,10 @@
   .ln-sec{ font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--muted-2); margin:18px 0 8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
   .ln-sec input{ font-family:inherit; text-transform:none; letter-spacing:0; font-weight:600; background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:6px 10px; font-size:12.5px; width:220px; }
   .ln-list{ display:flex; flex-direction:column; gap:8px; }
+  .ln-sites{ display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
+  .ln-site{ display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; padding:10px 12px; transition:border-color .15s, transform .15s; }
+  .ln-site:hover{ border-color:var(--accent); transform:translateY(-1px); } .ln-site img{ width:26px; height:26px; border-radius:6px; flex:none; background:#fff1; }
+  .ln-site span{ display:flex; flex-direction:column; min-width:0; } .ln-site b{ font-size:13.5px; } .ln-site small{ font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .ln-item{ display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
   .ln-item .ic{ width:34px; height:34px; border-radius:9px; flex:none; display:grid; place-items:center; background:var(--panel-2); font-size:16px; overflow:hidden; } .ln-item .ic img{ width:100%; height:100%; }
   .ln-item .tx{ flex:1; min-width:0; } .ln-item .tt{ font-size:14px; font-weight:700; } .ln-item .tt a:hover{ color:var(--accent); }
@@ -1312,8 +1316,17 @@
 
   // ================= LINKS: generales y por campeón (los agrega la org) =================
   const LN = { list: null, err: '', form: false, q: '', busy: false };
+  // Páginas de referencia (fijas, arriba de todo)
+  const LN_SITES = [
+    ['ProBuilds', 'https://probuilds.net/', 'Builds y runas de jugadores pro'],
+    ['DeepLoL', 'https://www.deeplol.gg/', 'Perfiles, partidas y análisis con IA'],
+    ['LoLalytics', 'https://lolalytics.com/es/', 'Tier list, builds y matchups'],
+    ['DPM.lol', 'https://dpm.lol/', 'Estadísticas y perfiles de jugadores'],
+    ['OP.GG Multisearch', 'https://op.gg/es/lol/multisearch', 'Buscar varios jugadores a la vez'],
+  ];
   async function lnLoad(){
-    if (!rkLogged()){ $('p-ln').innerHTML = `<div class="card"><h3>Links</h3><div class="fv-note">Guías, planillas y recursos que comparte la organización. <a href="cuenta.html" style="color:var(--accent)">Inicia sesión</a> para verlos.</div></div>`; return; }
+    if (!rkLogged()){ $('p-ln').innerHTML = `<div class="card"><h3>Links</h3><div class="ln-sec" style="margin-top:4px"><span>Páginas</span></div><div class="ln-sites">${LN_SITES.map(([n, u, d]) => `<a class="ln-site" href="${u}" target="_blank" rel="noopener noreferrer"><img src="https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(lnHost(u))}" alt="" loading="lazy"><span><b>${n}</b><small>${d}</small></span></a>`).join('')}</div>
+      <div class="fv-note" style="margin-top:14px">Las guías y planillas que comparte la organización se ven con sesión iniciada. <a href="cuenta.html" style="color:var(--accent)">Inicia sesión</a>.</div></div>`; return; }
     if (!RKC.champs) await rkEnsureChamps();
     try { LN.list = await SQC.api('/links'); LN.err = ''; } catch (e) { LN.list = []; LN.err = e.message; }
     lnRender();
@@ -1335,6 +1348,8 @@
       <div class="ln-top"><div><h3 style="margin:0">Links</h3><div class="cap" style="margin:2px 0 0">Guías, planillas y recursos para el equipo. Cualquiera de la organización puede agregar.</div></div>
         <button class="fv-btn ${LN.form ? '' : 'pri'}" id="ln-add">${LN.form ? 'Cancelar' : '+ Agregar link'}</button></div>
       ${LN.err ? `<div class="fv-err">${esc(LN.err)}</div>` : ''}
+      <div class="ln-sec" style="margin-top:4px"><span>Páginas</span></div>
+      <div class="ln-sites">${LN_SITES.map(([n, u, d]) => `<a class="ln-site" href="${u}" target="_blank" rel="noopener noreferrer"><img src="https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(lnHost(u))}" alt="" loading="lazy"><span><b>${n}</b><small>${d}</small></span></a>`).join('')}</div>
       ${LN.form ? `<div class="ln-form" id="ln-form">
         <label>Tipo</label><select id="ln-kind"><option value="general">General</option><option value="champ">De un campeón</option></select>
         <label class="ln-ch">Campeón</label><input class="ln-ch" id="ln-champ" list="ln-champs" placeholder="Escribe el campeón (ej: K'Sante)" autocomplete="off">
