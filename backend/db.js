@@ -380,6 +380,17 @@ async function init(){
       UNIQUE (team, game_id)
     );
     ALTER TABLE team_games ADD COLUMN IF NOT EXISTS roles JSONB;   -- roles fijados a mano por el capitán {pid: ROL}
+    -- Herramientas → Links: enlaces útiles (generales o de un campeón) que agrega la org.
+    CREATE TABLE IF NOT EXISTS links (
+      id         SERIAL PRIMARY KEY,
+      kind       TEXT NOT NULL DEFAULT 'general',   -- general | champ
+      champ      TEXT,                              -- id de Data Dragon (p.ej. KSante) si kind='champ'
+      title      TEXT NOT NULL,
+      url        TEXT NOT NULL,
+      note       TEXT,
+      user_id    INTEGER,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
     CREATE TABLE IF NOT EXISTS team_captains (
       team    TEXT NOT NULL,
       user_id INTEGER NOT NULL,

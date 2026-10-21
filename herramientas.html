@@ -481,6 +481,23 @@
   .qn-res{ margin-top:10px; font-size:14px; font-weight:800; } .qn-res.ok{ color:var(--up); } .qn-res.no{ color:#fb7185; }
   .qn-out{ border-color:rgba(52,211,153,.5); } .qn-name{ font-size:30px; font-weight:800; margin-top:2px; }
   .dle-frame{ width:100%; min-height:700px; border:0; display:block; background:transparent; }
+  /* ---- Links ---- */
+  .ln-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .ln-form{ display:grid; grid-template-columns:150px 1fr; gap:8px 12px; align-items:center; margin-bottom:14px; }
+  .ln-form label{ font-size:12px; font-weight:700; color:var(--muted); }
+  .ln-form input, .ln-form select, .ln-form textarea{ font-family:inherit; background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:8px 10px; font-size:13px; width:100%; }
+  .ln-form textarea{ min-height:46px; resize:vertical; }
+  .ln-form .act{ grid-column:1 / -1; display:flex; gap:8px; justify-content:flex-end; align-items:center; } .ln-form .act .fv-err{ margin:0 auto 0 0; }
+  @media (max-width:640px){ .ln-form{ grid-template-columns:1fr; } }
+  .ln-sec{ font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--muted-2); margin:18px 0 8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+  .ln-sec input{ font-family:inherit; text-transform:none; letter-spacing:0; font-weight:600; background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:6px 10px; font-size:12.5px; width:220px; }
+  .ln-list{ display:flex; flex-direction:column; gap:8px; }
+  .ln-item{ display:flex; align-items:center; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 12px; }
+  .ln-item .ic{ width:34px; height:34px; border-radius:9px; flex:none; display:grid; place-items:center; background:var(--panel-2); font-size:16px; overflow:hidden; } .ln-item .ic img{ width:100%; height:100%; }
+  .ln-item .tx{ flex:1; min-width:0; } .ln-item .tt{ font-size:14px; font-weight:700; } .ln-item .tt a:hover{ color:var(--accent); }
+  .ln-item .mt{ font-size:11.5px; color:var(--muted-2); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .ln-item .nt{ font-size:12.5px; color:var(--muted); margin-top:3px; }
+  .ln-item .del{ background:none; border:0; color:var(--muted-2); cursor:pointer; font-size:14px; } .ln-item .del:hover{ color:var(--down); }
+  .ln-champ{ margin-bottom:12px; } .ln-champ h4{ display:flex; align-items:center; gap:8px; font-size:14px; margin:0 0 6px; } .ln-champ h4 img{ width:26px; height:26px; border-radius:7px; }
   .sb-clues{ display:flex; flex-direction:column; gap:8px; margin:10px 0 12px; }
   .sb-clue{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-size:13px; color:var(--muted); } .sb-clue b{ color:var(--text); font-size:15px; }
   .sb-clue.col{ flex-direction:column; align-items:stretch; } .sb-clue .n{ font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); margin-right:4px; }
@@ -549,11 +566,13 @@
       <button class="tab" data-t="sb">SUBASTA</button>
       <button class="tab" data-t="dle">SOLOQDLE</button>
       <button class="tab" data-t="bs">BLUE SHELLS</button>
+      <button class="tab" data-t="ln">LINKS</button>
       <button class="tab" data-t="eq" id="tab-eq" style="display:none" title="Historial de scrims y torneos (capitanes y admins)">EQUIPO</button>
       <button class="tab" data-t="analisis">ANÁLISIS</button>
     </div>
 
     <div class="panel active" id="p-fv"><div class="loading">Cargando sala…</div></div>
+    <div class="panel" id="p-ln"><div class="loading">Cargando…</div></div>
     <div class="panel" id="p-eq"><iframe id="eq-frame" title="Equipo" class="dle-frame" loading="lazy"></iframe></div>
     <div class="panel" id="p-bs"><iframe id="bs-frame" title="Blue Shells" class="dle-frame" loading="lazy" allow="microphone; autoplay"></iframe></div>
     <div class="panel" id="p-dle"><iframe id="dle-frame" title="SoloQdle" class="dle-frame" loading="lazy"></iframe></div>
@@ -584,6 +603,7 @@
     if (t === 'rk'){ rkLoad(true); rkBoard(); }
     if (t === 'dle'){ const f = $('dle-frame'); if (!f.src) f.src = 'soloqdle.html'; }
     if (t === 'bs'){ const f = $('bs-frame'); if (!f.src) f.src = 'blueshell.html'; }
+    if (t === 'ln'){ lnLoad(); if (history.replaceState && !window.RANKED_PAGE) history.replaceState(null, '', '#links'); }
     if (t === 'eq'){ const f = $('eq-frame'); if (!f.src) f.src = 'equipo.html'; if (history.replaceState && !window.RANKED_PAGE) history.replaceState(null, '', '#equipo'); }
     if (t === 'bs' && history.replaceState) history.replaceState(null, '', '#blueshells');
     if (t === 'sb'){ sbLoad(true); sbRankLoad().then(() => { if (!SBC.st || SBC.st.status === 'done') sbRender(); }); }
@@ -1290,6 +1310,62 @@
     if (active || RKC.tick % 4 === 0) rkLoad(false);
     if (RKC.tick % 14 === 0 && !(st && st.match)) rkBoard(); }, 1500);
 
+  // ================= LINKS: generales y por campeón (los agrega la org) =================
+  const LN = { list: null, err: '', form: false, q: '', busy: false };
+  async function lnLoad(){
+    if (!rkLogged()){ $('p-ln').innerHTML = `<div class="card"><h3>Links</h3><div class="fv-note">Guías, planillas y recursos que comparte la organización. <a href="cuenta.html" style="color:var(--accent)">Inicia sesión</a> para verlos.</div></div>`; return; }
+    if (!RKC.champs) await rkEnsureChamps();
+    try { LN.list = await SQC.api('/links'); LN.err = ''; } catch (e) { LN.list = []; LN.err = e.message; }
+    lnRender();
+  }
+  const lnHost = u => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return ''; } };
+  const lnIcon = u => { const h = lnHost(u); return /docs\.google|sheets/.test(u) ? '📊' : /youtube|youtu\.be/.test(h) ? '▶️' : /twitch/.test(h) ? '📺' : /discord/.test(h) ? '💬' : '🔗'; };
+  function lnItem(l){
+    return `<div class="ln-item"><span class="ic">${lnIcon(l.url)}</span><div class="tx"><div class="tt"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.title)}</a></div>
+      ${l.note ? `<div class="nt">${esc(l.note)}</div>` : ''}<div class="mt">${esc(lnHost(l.url))} · agregado por ${esc(l.nickname || '?')} · ${fdate(new Date(l.created_at).getTime())}</div></div>
+      ${l.canDelete ? `<button class="del" data-lndel="${l.id}" title="Borrar">✕</button>` : ''}</div>`;
+  }
+  function lnRender(){
+    const box = $('p-ln'), list = LN.list || [], champs = RKC.champs || [];
+    const gen = list.filter(l => l.kind !== 'champ'), byChamp = {};
+    list.filter(l => l.kind === 'champ').forEach(l => { (byChamp[l.champ] = byChamp[l.champ] || []).push(l); });
+    const qy = LN.q.trim().toLowerCase();
+    const champKeys = Object.keys(byChamp).filter(c => !qy || rkChampName(c).toLowerCase().includes(qy) || c.toLowerCase().includes(qy)).sort((a, b) => rkChampName(a).localeCompare(rkChampName(b), 'es'));
+    box.innerHTML = `<div class="card">
+      <div class="ln-top"><div><h3 style="margin:0">Links</h3><div class="cap" style="margin:2px 0 0">Guías, planillas y recursos para el equipo. Cualquiera de la organización puede agregar.</div></div>
+        <button class="fv-btn ${LN.form ? '' : 'pri'}" id="ln-add">${LN.form ? 'Cancelar' : '+ Agregar link'}</button></div>
+      ${LN.err ? `<div class="fv-err">${esc(LN.err)}</div>` : ''}
+      ${LN.form ? `<div class="ln-form" id="ln-form">
+        <label>Tipo</label><select id="ln-kind"><option value="general">General</option><option value="champ">De un campeón</option></select>
+        <label class="ln-ch">Campeón</label><input class="ln-ch" id="ln-champ" list="ln-champs" placeholder="Escribe el campeón (ej: K'Sante)" autocomplete="off">
+        <datalist id="ln-champs">${champs.map(c => `<option value="${esc(c.name)}">`).join('')}</datalist>
+        <label>Título</label><input id="ln-title" maxlength="120" placeholder="Ej: Jungle Clear Compilation S16/2026">
+        <label>Link</label><input id="ln-url" maxlength="600" placeholder="https://…">
+        <label>Nota (opcional)</label><textarea id="ln-note" maxlength="400" placeholder="Para qué sirve, de quién es…"></textarea>
+        <div class="act"><span class="fv-err" id="ln-err"></span><button class="fv-btn pri" id="ln-save">Guardar</button></div></div>` : ''}
+      <div class="ln-sec"><span>Generales <span style="color:var(--muted)">(${gen.length})</span></span></div>
+      ${gen.length ? `<div class="ln-list">${gen.map(lnItem).join('')}</div>` : `<div class="fv-note">Todavía no hay links generales.</div>`}
+      <div class="ln-sec"><span>Por campeón <span style="color:var(--muted)">(${Object.keys(byChamp).length})</span></span><input id="ln-q" placeholder="Buscar campeón…" value="${esc(LN.q)}" autocomplete="off"></div>
+      ${champKeys.length ? champKeys.map(c => `<div class="ln-champ"><h4><img src="${anChamp(c)}" alt="">${esc(rkChampName(c))} <span style="color:var(--muted);font-weight:600;font-size:12px">${byChamp[c].length}</span></h4><div class="ln-list">${byChamp[c].map(lnItem).join('')}</div></div>`).join('')
+        : `<div class="fv-note">${qy ? 'Ningún campeón con links coincide.' : 'Todavía no hay links de campeones.'}</div>`}
+    </div>`;
+    $('ln-add').onclick = () => { LN.form = !LN.form; lnRender(); };
+    const q = $('ln-q'); q.oninput = () => { LN.q = q.value; const pos = q.selectionStart; lnRender(); const q2 = $('ln-q'); q2.focus(); q2.setSelectionRange(pos, pos); };
+    box.querySelectorAll('[data-lndel]').forEach(b => b.onclick = async () => { if (!confirm('¿Borrar este link?')) return;
+      try { await SQC.api('/links/' + b.dataset.lndel + '/delete', { method: 'POST' }); await lnLoad(); } catch (e) { alert(e.message); } });
+    if (LN.form){
+      const kind = $('ln-kind'), sync = () => box.querySelectorAll('.ln-ch').forEach(x => { x.style.display = kind.value === 'champ' ? '' : 'none'; }); kind.onchange = sync; sync();
+      $('ln-save').onclick = async () => {
+        const err = $('ln-err'); err.textContent = '';
+        let champ = null; if (kind.value === 'champ'){ const nm = $('ln-champ').value.trim().toLowerCase(); const c = champs.find(x => x.name.toLowerCase() === nm || x.id.toLowerCase() === nm.replace(/[^a-z]/g, '')); if (!c){ err.textContent = 'Elige un campeón de la lista'; return; } champ = c.id; }
+        const body = { kind: kind.value, champ, title: $('ln-title').value, url: $('ln-url').value.trim(), note: $('ln-note').value };
+        if (!body.title.trim()){ err.textContent = 'Ponle un título'; return; } if (!/^https?:\/\//i.test(body.url)){ err.textContent = 'El link debe empezar con http:// o https://'; return; }
+        $('ln-save').disabled = true;
+        try { await SQC.api('/links', { method: 'POST', body }); LN.form = false; await lnLoad(); } catch (e) { err.textContent = e.message; $('ln-save').disabled = false; }
+      };
+    }
+  }
+
   // ================= SUBASTA: hasta 5 capitanes arman su equipo pujando; dirige quien crea la sala =================
   const SBC = { st:null, sig:'', err:'', room:(new URLSearchParams(location.search).get('subasta') || '').trim().toUpperCase(), busy:false, amt:'' };
   const SB_ROLE = { TOP:'Top', JUNGLE:'Jungla', MID:'Mid', ADC:'ADC', SUPPORT:'Support', SUB:'Suplente' };
@@ -1593,7 +1669,7 @@
   if (!window.RANKED_PAGE && (h0 === 'rk' || h0 === 'ranked')) location.replace('ranked.html');
   if (window.RANKED_PAGE){ document.title = 'SoloQ Challenge — Ranked';
     document.querySelectorAll('.nav-pill a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === 'ranked.html')); }
-  if (window.RANKED_PAGE) showTab('rk'); else  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'blueshells' || h0 === 'bs') ? 'bs' : (h0 === 'equipo' || h0 === 'eq') ? 'eq' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
+  if (window.RANKED_PAGE) showTab('rk'); else  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'blueshells' || h0 === 'bs') ? 'bs' : (h0 === 'equipo' || h0 === 'eq') ? 'eq' : (h0 === 'links' || h0 === 'ln') ? 'ln' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
 
   // Pestaña EQUIPO: solo si eres capitán de algún equipo o admin
   (async function(){ try { if (!(window.SQC && SQC.token && SQC.token()) || window.RANKED_PAGE) return; const r = await SQC.api('/team/me');

@@ -1366,6 +1366,34 @@ app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {
   await q('UPDATE team_games SET kind=$2, tournament=$3, rival=$4, comment=$5, status=$6, filed_by=$7 WHERE id=$1', [r.id, kind, tournament, clip(b.rival, 60), clip(b.comment, 1000), status, a.uid]);
   res.json({ ok: true, status });
 }));
+// ================= HERRAMIENTAS · LINKS (generales y por campeón) =================
+// Los ve y los agrega la org; cada link lo borra quien lo agregó o un admin.
+app.get('/api/links', wrap(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if (!(await reqOrg(req))) return res.status(403).json({ error: 'Solo para jugadores de la organización' });
+  const uid = await optionalUid(req), admin = await reqIsAdmin(req);
+  const rows = await q('SELECT l.id, l.kind, l.champ, l.title, l.url, l.note, l.user_id, l.created_at, u.nickname FROM links l LEFT JOIN users u ON u.id = l.user_id ORDER BY l.created_at DESC LIMIT 1000');
+  res.json(rows.map(r => ({ ...r, canDelete: admin || (uid && r.user_id === uid) })));
+}));
+app.post('/api/links', auth, wrap(async (req, res) => {
+  const b = req.body || {}, clip = (v, n) => String(v || '').trim().slice(0, n);
+  const kind = b.kind === 'champ' ? 'champ' : 'general', title = clip(b.title, 120), url = clip(b.url, 600), note = clip(b.note, 400) || null;
+  const champ = kind === 'champ' ? clip(b.champ, 40).replace(/[^A-Za-z]/g, '') : null;
+  if (!title) return res.status(400).json({ error: 'Ponle un título' });
+  if (!/^https?:\/\/[^\s]+\.[^\s]+/i.test(url)) return res.status(400).json({ error: 'El link debe empezar con http:// o https://' });
+  if (kind === 'champ' && !(await rkChamps()).some(c => c.id === champ)) return res.status(400).json({ error: 'Elige un campeón de la lista' });
+  if (await tooManyLinks(req.user.id)) return res.status(429).json({ error: 'Agregaste muchos links seguidos, espera un poco' });
+  const r = await q1('INSERT INTO links (kind, champ, title, url, note, user_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id', [kind, champ, title, url, note, req.user.id]);
+  res.json({ ok: true, id: r.id });
+}));
+const _linkHits = new Map();
+async function tooManyLinks(uid){ const now = Date.now(), a = (_linkHits.get(uid) || []).filter(t => now - t < 600000); a.push(now); _linkHits.set(uid, a); return a.length > 20; }
+app.post('/api/links/:id/delete', auth, wrap(async (req, res) => {
+  const r = await q1('SELECT id, user_id FROM links WHERE id=$1', [Number(req.params.id)]); if (!r) return res.status(404).json({ error: 'Link no encontrado' });
+  if (r.user_id !== req.user.id && !(await reqIsAdmin(req))) return res.status(403).json({ error: 'Solo quien lo agregó o un admin puede borrarlo' });
+  await q('DELETE FROM links WHERE id=$1', [r.id]); res.json({ ok: true });
+}));
+
 // Admin: capitanes de cada equipo.
 app.get('/api/admin/team-captains', auth, requireAdmin, wrap(async (req, res) => {
   res.json({ teams: [...TEAMS], captains: await q('SELECT c.team, c.user_id, u.nickname, u.riotid FROM team_captains c JOIN users u ON u.id = c.user_id ORDER BY c.team') });
