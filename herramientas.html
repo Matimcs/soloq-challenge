@@ -1323,6 +1323,7 @@
     ['LoLalytics', 'https://lolalytics.com/es/', 'Tier list, builds y matchups'],
     ['DPM.lol', 'https://dpm.lol/', 'Estadísticas y perfiles de jugadores'],
     ['OP.GG Multisearch', 'https://op.gg/es/lol/multisearch', 'Buscar varios jugadores a la vez'],
+    ['Drafter', 'https://drafter.lol/', 'Simular drafts (pick y ban) con el equipo'],
   ];
   async function lnLoad(){
     if (!rkLogged()){ $('p-ln').innerHTML = `<div class="card"><h3>Links</h3><div class="ln-sec" style="margin-top:4px"><span>Páginas</span></div><div class="ln-sites">${LN_SITES.map(([n, u, d]) => `<a class="ln-site" href="${u}" target="_blank" rel="noopener noreferrer"><img src="https://www.google.com/s2/favicons?sz=64&domain=${encodeURIComponent(lnHost(u))}" alt="" loading="lazy"><span><b>${n}</b><small>${d}</small></span></a>`).join('')}</div>
