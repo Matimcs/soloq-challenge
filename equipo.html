@@ -189,6 +189,8 @@
     try {
       const h = await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=' + S.box);
       S.games = h.games;
+      // historial catalogado (para sugerir el nombre del rival en la bandeja)
+      S.hist = S.box === 'history' ? h.games : (await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=history').catch(() => ({ games: [] }))).games;
       if (myTeam().captain){ const ib = S.box === 'inbox' ? h : await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=inbox'); S.inboxN = ib.games.length; } else S.inboxN = 0;
     } catch (e) { S.games = []; S.err = e.message; }
     render();
@@ -226,12 +228,27 @@
     $('app').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openGame(+b.dataset.open));
     bindForms($('app'));
   }
+  // Rivales ya catalogados: nombres para autocompletar, y el más probable según los jugadores rivales.
+  const rivKey = rid => String(rid || '').toLowerCase().replace(/\s+/g, '');
+  function rivalNames(){ const c = {}; (S.hist || []).forEach(g => { const n = (g.rival || '').trim(); if (n) c[n] = (c[n] || 0) + 1; });
+    return Object.keys(c).sort((a, b) => c[b] - c[a] || a.localeCompare(b, 'es')); }
+  function rivalGuess(g){
+    const them = new Set(((g.summary && g.summary.players) || []).filter(p => p.teamId !== g.side).map(p => rivKey(p.rid)));
+    const score = {};
+    (S.hist || []).forEach(h => { const n = (h.rival || '').trim(); if (!n || h.id === g.id) return;
+      const k = ((h.summary && h.summary.players) || []).filter(p => p.teamId !== h.side && them.has(rivKey(p.rid))).length;
+      if (k > (score[n] || 0)) score[n] = k; });
+    const best = Object.keys(score).sort((a, b) => score[b] - score[a])[0];
+    return best && score[best] >= 2 ? best : '';   // al menos 2 jugadores rivales repetidos
+  }
   function formHtml(g){
     const tours = S.me.tournaments || [];
+    const guess = !g.rival && g.status === 'pending' ? rivalGuess(g) : '';
     return `<div class="form" data-form="${g.id}">
       <select data-f="kind"><option value="">Tipo…</option><option value="scrim" ${g.kind === 'scrim' ? 'selected' : ''}>Scrim</option><option value="torneo" ${g.kind === 'torneo' ? 'selected' : ''}>Torneo</option></select>
       <select data-f="tour" style="${g.kind === 'torneo' ? '' : 'visibility:hidden'}">${tours.map(t => `<option ${g.tournament === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}<option value="__otro">Otro…</option></select>
-      <input data-f="rival" placeholder="Rival (ej: UDD)" value="${esc(g.rival || '')}" maxlength="60">
+      <input data-f="rival" placeholder="Rival (ej: UDD)" value="${esc(g.rival || guess)}" maxlength="60" list="riv-list" autocomplete="off" ${guess ? 'title="Sugerido: estos jugadores rivales ya aparecen en partidas contra ' + esc(guess) + '"' : ''}>
+      <datalist id="riv-list">${rivalNames().map(n => `<option value="${esc(n)}">`).join('')}</datalist>
       <select data-f="gameNo" title="Qué game de la serie fue"><option value="">Game…</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${g.game_no === n ? 'selected' : ''}>Game ${n}</option>`).join('')}</select>
       <input data-f="tourOther" placeholder="Nombre del torneo" style="display:none" maxlength="80">
       <textarea data-f="comment" placeholder="Comentarios (draft, qué salió bien o mal…)" maxlength="1000">${esc(g.comment || '')}</textarea>
