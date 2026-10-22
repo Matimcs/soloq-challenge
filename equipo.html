@@ -54,6 +54,10 @@
   .names{ font-size:11.5px; color:var(--muted); max-width:100%; }
   .vs{ font-size:11px; font-weight:800; color:var(--muted-2); }
   .gc{ margin-top:8px; font-size:12.5px; color:var(--muted); white-space:pre-wrap; }
+  .wr-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .wr-box{ flex:1; min-width:150px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; }
+  .wr-l{ font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .wr-v{ font-size:26px; font-weight:800; font-variant-numeric:tabular-nums; margin:2px 0; } .wr-s{ font-size:12px; color:var(--muted); }
   .form{ display:grid; grid-template-columns:150px 200px 1fr 120px; gap:8px; margin-top:12px; align-items:start; }
   .form textarea{ grid-column:1 / -1; min-height:56px; resize:vertical; }
   .form input, .form select, .form textarea{ background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:9px; padding:8px 10px; font-size:13px; width:100%; }
@@ -219,6 +223,7 @@
       html += !S.games.length ? `<div class="card empty"><b>La bandeja está vacía</b>Las personalizadas aparecen aquí cuando termina la partida y alguien del equipo tiene el overlay abierto.</div>`
         : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'}">${headHtml(g)}${sidesHtml(g)}${formHtml(g)}</div>`).join('')}</div>`;
     } else {
+      html += wrHtml(S.games);
       html += !S.games.length ? `<div class="card empty"><b>Todavía no hay partidas en el historial</b>${t.captain ? 'Revisa la Bandeja para catalogar scrims y partidas de torneo.' : 'El capitán las agrega desde la Bandeja.'}</div>`
         : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'} click" data-open="${g.id}">${headHtml(g)}${sidesHtml(g)}${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div>`).join('')}</div>`;
     }
@@ -240,6 +245,15 @@
       if (k > (score[n] || 0)) score[n] = k; });
     const best = Object.keys(score).sort((a, b) => score[b] - score[a])[0];
     return best && score[best] >= 2 ? best : '';   // al menos 2 jugadores rivales repetidos
+  }
+  // Resumen del historial: winrate total y por tipo (scrim / torneo)
+  function wrHtml(games){
+    const done = games.filter(g => g.status === 'filed' || g.status === 'requested');
+    if (!done.length) return '';
+    const box = (lbl, list) => { const w = list.filter(g => g.won).length, l = list.length - w, wr = Math.round(w / list.length * 100);
+      return `<div class="wr-box"><div class="wr-l">${lbl}</div><div class="wr-v ${wr >= 50 ? 'up' : 'down'}">${wr}%</div><div class="wr-s">${w}V · ${l}D · ${list.length} partida${list.length === 1 ? '' : 's'}</div></div>`; };
+    const sc = done.filter(g => g.kind === 'scrim'), to = done.filter(g => g.kind === 'torneo');
+    return `<div class="wr-row">${box('Winrate total', done)}${sc.length ? box('Scrims', sc) : ''}${to.length ? box('Torneos', to) : ''}</div>`;
   }
   function formHtml(g){
     const tours = S.me.tournaments || [];
