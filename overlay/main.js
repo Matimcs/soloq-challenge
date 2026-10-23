@@ -778,24 +778,29 @@ if (hasLock) app.whenReady().then(async () => {
   // ---- Auto-actualización VISIBLE (electron-updater vía GitHub Releases público) ----
   // Muestra el progreso en una ventana (no en 2do plano) e instala apenas termina de bajar.
   if (app.isPackaged){
+    var updDownloading = false;   // hay una actualización descargándose (sus errores sí se muestran)
     try {
       // Si ya corremos la versión que intentamos instalar, el auto-update funcionó → limpia el guard.
       if (settings.updTriedVer && settings.updTriedVer === safeVersion()){ delete settings.updTriedVer; saveSettings(); }
       autoUpdater.autoDownload = true;
       autoUpdater.autoInstallOnAppQuit = true;
       autoUpdater.on('checking-for-update', () => { if (updManual) showUpd('Buscando actualización…', null); });
-      autoUpdater.on('update-available', i => { dlog('update disponible: ' + (i && i.version));
+      autoUpdater.on('update-available', i => { dlog('update disponible: ' + (i && i.version)); updDownloading = true;
         showUpd('Actualización ' + (i && i.version ? 'v' + i.version : '') + ' — descargando…', 0); });
       autoUpdater.on('update-not-available', () => { dlog('sin updates');
         if (updManual){ showUpd('Ya tienes la última versión ✓', null); setTimeout(hideUpd, 4000); } updManual = false; });
       autoUpdater.on('download-progress', p => showUpd('Descargando actualización… ' + Math.round(p.percent) + '%', p.percent));
-      autoUpdater.on('update-downloaded', i => { const v = i && i.version; dlog('update descargada: ' + v); pendingVer = v;
+      autoUpdater.on('update-downloaded', i => { const v = i && i.version; dlog('update descargada: ' + v); pendingVer = v; updDownloading = false;
         // Si ya intentamos auto-instalar ESTA versión y seguimos en la vieja, la instalación silenciosa no
         // funciona en esta máquina → NO reintentar en loop; ofrecer instalación manual clicable.
         if (v && settings.updTriedVer === v){ offerManualInstall(v); return; }
         updateReady = true;
         setTimeout(tryInstall, 2500); });
       autoUpdater.on('error', e => { dlog('updater error: ' + (e && e.message));
+        // Sin internet / DNS caído en la revisión automática: solo queda en el registro (se reintenta en 15 min).
+        const netErr = /net::ERR_|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENETUNREACH|socket hang up|timeout/i.test(String(e && e.message));
+        const wasDownloading = updDownloading; updDownloading = false;
+        if (netErr && !updManual && !wasDownloading) return;
         // Oculta la ventana también en modo automático para que no quede "Descargando…/Actualizando…" pegado.
         showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); updManual = false; });
       checkUpdates(false);
