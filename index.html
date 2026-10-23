@@ -653,13 +653,13 @@
 </head>
 <body>
 
-  <!-- Popup: Apoya a Hundred Blossom -->
+  <!-- Popup: Hundred Blossom perdió en la uLeague → press F to pay respects -->
   <div id="pat-popup" class="hidden">
-    <div class="pat-h" style="background:linear-gradient(180deg,rgba(244,114,182,.2),rgba(244,114,182,.03))"><span>🌸</span><span class="t" style="color:#f472b6">APOYA</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
+    <div class="pat-h" style="background:linear-gradient(180deg,rgba(200,200,200,.14),rgba(200,200,200,.02))"><span>🕯️</span><span class="t" style="color:#cfcfcf">PAY RESPECTS</span><button class="pat-x" id="pat-x" title="Cerrar">✕</button></div>
     <div class="pat-body">
-      <div class="pat-msg"><b>Apoya a Hundred Blossom en la uLeague</b><br><span style="color:var(--muted)">Siguiente game vs <b style="color:var(--text)">UDD</b></span></div>
-      <img class="pat-img" id="pat-img" src="hb-logo.webp" alt="Hundred Blossom" loading="lazy" style="aspect-ratio:1/1;object-fit:contain;background:transparent">
-      <button class="pat-btn" id="pat-btn" style="background:#f472b6;color:#2a0716">🌸 Apoyin</button>
+      <div class="pat-msg"><b>Hundred Blossom cayó en la uLeague</b><br><span style="color:var(--muted)">Lucharon hasta el final. Press <b style="color:var(--text)">F</b> to pay respects.</span></div>
+      <img class="pat-img" id="pat-img" src="hb-logo.webp" alt="Hundred Blossom" loading="lazy" style="aspect-ratio:1/1;object-fit:contain;background:transparent;filter:grayscale(1) brightness(.85) contrast(1.05)">
+      <button class="pat-btn" id="pat-btn" style="background:#d4d4d4;color:#111">F</button>
       <div class="pat-count" id="pat-count">—</div>
     </div>
   </div>
@@ -2139,24 +2139,24 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
 (function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
   const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
-  const COOLDOWN = 10 * 60 * 1000, KEY = 'patLastHB';   // clave nueva: la espera de la campaña anterior no se arrastra
+  const COOLDOWN = 10 * 60 * 1000, KEY = 'patLastHBF';   // clave nueva: la espera de la campaña anterior no se arrastra
   const CLOSE_TTL = 10 * 60 * 1000, CKEY = 'hbClosed';   // tras cerrarlo, reaparece a los 10 min
   const IMG_SAD = 'hb-logo.webp', IMG_HAPPY = 'hb-logo.webp';   // Hundred Blossom: la misma imagen siempre
   let count = 0, timer = null, reopenT = null;
   window.__patRank = function(){};   // ya no se usa (lo llama el refresco del ranking)
   const lastPat = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
-  function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> apoyin${count===1?'':'es'} enviado${count===1?'':'s'}`; }
+  function paintCount(){ countEl.innerHTML = `<b>${count.toLocaleString('es-CL')}</b> F${count===1?'':'s'} en el chat`; }
   function refreshBtn(){
     const left = COOLDOWN - (Date.now() - lastPat());
     if (left > 0){ btn.disabled = true; const m = Math.floor(left/60000), s = Math.floor(left%60000/1000);
-      btn.textContent = `🌸 Gracias · ${m}:${String(s).padStart(2,'0')}`;
+      btn.textContent = `🕯️ Respetos dados · ${m}:${String(s).padStart(2,'0')}`;
       if (imgEl && !imgEl.src.endsWith(IMG_HAPPY)) imgEl.src = IMG_HAPPY;   // acariciado → feliz
       clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
-    else { btn.disabled = false; btn.textContent = '🌸 Apoyin'; clearTimeout(timer);
+    else { btn.disabled = false; btn.textContent = 'F'; clearTimeout(timer);
       if (imgEl && !imgEl.src.endsWith(IMG_SAD)) imgEl.src = IMG_SAD; }   // se puede acariciar → triste
   }
   function pop(){ const s = document.createElement('span'); s.className = 'pat-pop';
-    s.textContent = ['🌸','💗','🌺','🙌','💪'][Math.floor(Math.random()*5)];
+    s.textContent = ['F','F','🕯️','🥀','🫡'][Math.floor(Math.random()*5)];
     s.style.left = (12 + Math.random()*66) + '%'; s.style.bottom = '46px'; box.appendChild(s); setTimeout(() => s.remove(), 1000); }
   async function load(){ try { if (window.SQC && SQC.api){ const d = await SQC.api('/palmadita'); count = (d && d.count) || 0; paintCount(); } } catch (e) {} }
   async function send(){
@@ -2170,6 +2170,8 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   const x = document.getElementById('pat-x');
   if (x) x.addEventListener('click', () => { try { localStorage.setItem(CKEY, String(Date.now())); } catch (e) {} closeFor(CLOSE_TTL); });
   btn.addEventListener('click', send);
+  // la tecla F también da respetos (si el popup está abierto y no estás escribiendo)
+  document.addEventListener('keydown', e => { if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey && !e.altKey && !box.classList.contains('hidden') && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '') && !(e.target && e.target.isContentEditable)) send(); });
   // Estado inicial: si se cerró hace menos de 10 min, sigue oculto y reaparece al cumplirse; si no, se muestra.
   let closedAt = 0; try { closedAt = +localStorage.getItem(CKEY) || 0; } catch (e) {}
   const remaining = CLOSE_TTL - (Date.now() - closedAt);
