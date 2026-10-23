@@ -2316,7 +2316,9 @@ app.get('/api/menciones', wrap(async (req, res) => {
     if (r.gend){ const t = chileHD(r.gend); A.days[t.d] = (A.days[t.d]||0)+1; if (t.h>=2 && t.h<6) A.night++; if (t.h>=6 && t.h<11) A.morning++; }
     if (+r.dur >= 900){   // solo partidas reales (≥15 min); descarta remakes/rendiciones tempranas
       const kda = (+r.k + +r.a)/Math.max(1,+r.d);
-      if (r.win){ const c = carreadoBy[o]; if (!c || kda < c.kda) carreadoBy[o] = { champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, mid:r.match_id }; }
+      // Carreado: KDA suavizado (K+A+1)/(D+1) para que pesen las muertes (0/13/2 es peor que 0/3/0 o 0/1/0)
+      const sc = (+r.k + +r.a + 1)/(+r.d + 1);
+      if (r.win){ const c = carreadoBy[o]; if (!c || sc < c.sc) carreadoBy[o] = { champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, sc, mid:r.match_id }; }
       else { const c = griefeadoBy[o]; if (!c || kda > c.kda) griefeadoBy[o] = { champ:r.champ, k:+r.k, d:+r.d, a:+r.a, kda, mid:r.match_id }; }
     }
   }
@@ -2347,7 +2349,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
     rank(Object.keys(dropByOwner).filter(o=>dropByOwner[o].drop>=50), o=>dropByOwner[o].drop,
       o=>{ const d=dropByOwner[o]; return { nm:nick(o), value:`−${d.drop} LP`, detail:`de ${absLabel(d.peak)} a ${absLabel(d.cur)}` }; }, 1));
   push('🍼','Carreado','Peor KDA en una partida GANADA',
-    rank(Object.keys(carreadoBy), o=>carreadoBy[o].kda,
+    rank(Object.keys(carreadoBy), o=>carreadoBy[o].sc,
       o=>{ const c=carreadoBy[o]; return { nm:nick(o), value:`${c.k}/${c.d}/${c.a}`, detail:`KDA ${c.kda.toFixed(2)} · ${c.champ} · W`, matchId:c.mid }; }, -1));
   push('😭','Griefeado','Mejor KDA en una partida PERDIDA',
     rank(Object.keys(griefeadoBy), o=>griefeadoBy[o].kda,
