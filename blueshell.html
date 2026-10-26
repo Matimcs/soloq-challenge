@@ -215,7 +215,10 @@
     function updateRevHint(){
       const opt = $('target').selectedOptions[0];
       const pos = opt && +opt.dataset.pos;
-      $('rev-hint').textContent = pos ? `Probabilidad de rebote sobre este objetivo: ${reverseChance(pos)}%` : '';
+      // total = sale el castigo Reverse (6%) o rebota por la posición del objetivo (independientes)
+      if (pos){ const r = reverseChance(pos), tot = (1 - (1 - 0.06) * (1 - r / 100)) * 100;
+        $('rev-hint').innerHTML = `Probabilidad de rebote: <b>${tot.toLocaleString('es-CL', { maximumFractionDigits: 1 })}%</b> <span style="opacity:.75">(${r}% por ${pos <= 5 ? 'ser el #' + pos : 'estar fuera del top 5'} + 6% de que salga el castigo Reverse)</span>`; }
+      else $('rev-hint').textContent = '';
     }
     $('target').addEventListener('change', updateRevHint);
 
