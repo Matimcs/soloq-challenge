@@ -261,8 +261,8 @@
 
   <main class="wrap">
     <div class="tourn-tabs">
-      <button class="ttab-btn active">🏆 uLeague <span style="opacity:.7;font-weight:700">Clausura 2026</span></button>
-      <a class="ttab-btn closed" href="torneos.html#archivo">📦 Torneos archivados</a>
+      <a class="ttab-btn closed" href="torneos.html#archivo">← Torneos archivados</a>
+      <button class="ttab-btn active">🏆 uLeague <span style="opacity:.7;font-weight:700">Clausura 2026 · finalizado</span></button>
     </div>
 
     <section class="hero">
@@ -356,7 +356,7 @@ function renderResumen(){
   $('#hero-meta').innerHTML =
     `<span class="chipm">🏫 <b>${DATA.teams.length}</b> equipos</span>`+
     `<span class="chipm">📅 Inicia <b>sáb 3 oct</b></span>`+
-    (started?`<span class="chipm live">● en curso</span>`:`<span class="chipm">⏳ en <b>${Math.max(0,daysTo(DATA.startDate))} días</b></span>`)+
+    `<span class="chipm">🏁 Finalizado</span>`+
     `<span class="chipm">🇨🇭 Suiza → Top 16 → Bo3</span>`;
   // nuestros equipos + rival de R1
   const r1 = (DATA.swiss[0] && DATA.swiss[0].buckets[0]) ? DATA.swiss[0].buckets[0].matches : [];
