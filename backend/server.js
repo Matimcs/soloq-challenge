@@ -1312,6 +1312,26 @@ async function tgRosterTeams(uid){
                         WHERE u.id=$1 AND tm.team IS NOT NULL`, [uid]);
   return new Set(rows.map(r => r.team).filter(t => TEAMS.has(t)));
 }
+// Rol de cada jugador en el roster de este equipo (para deducir roles en el análisis); se extiende a todas sus cuentas
+async function tgRosterRoles(team){
+  const ROLE_MAP = { TOP: 'TOP', JUNGLE: 'JUNGLE', JUNGLA: 'JUNGLE', MID: 'MIDDLE', MIDDLE: 'MIDDLE', ADC: 'BOTTOM', BOTTOM: 'BOTTOM', SUPPORT: 'UTILITY', SUP: 'UTILITY', UTILITY: 'UTILITY' };
+  const rosterRoles = {};
+  try { const tm = await q("SELECT riotid, role, starter FROM team_members WHERE team=$1 AND role IS NOT NULL AND role<>''", [team]);
+    const users = await q('SELECT id, riotid FROM users'), smurfs = await q('SELECT user_id, riotid FROM smurfs');
+    const accs = {}; users.forEach(u => { accs[u.id] = [u.riotid]; }); smurfs.forEach(s => { (accs[s.user_id] = accs[s.user_id] || []).push(s.riotid); });
+    const owner = {}; Object.entries(accs).forEach(([id, list]) => list.forEach(rid => { owner[nrSmurf(rid)] = id; }));
+    tm.sort((x, y) => (y.starter ? 1 : 0) - (x.starter ? 1 : 0)).forEach(m => { const role = ROLE_MAP[String(m.role).toUpperCase()]; if (!role) return;
+      const k = nrSmurf(m.riotid), uid = owner[k], rids = uid ? accs[uid] : [m.riotid];
+      rids.forEach(rid => { const kk = nrSmurf(rid); if (!rosterRoles[kk]) rosterRoles[kk] = role; }); }); } catch {}
+  return rosterRoles;
+}
+// Dueño de cada cuenta (para juntar smurfs con su cuenta principal): Riot ID normalizado → { key, nick }
+async function tgOwners(){
+  const users = await q('SELECT id, riotid, nickname FROM users'), smurfs = await q('SELECT user_id, riotid FROM smurfs');
+  const out = {}, byId = {}; users.forEach(u => { byId[u.id] = u; out[nrSmurf(u.riotid)] = { key: 'u' + u.id, nick: (u.nickname || '').trim() || String(u.riotid).split('#')[0] }; });
+  smurfs.forEach(sm => { const u = byId[sm.user_id]; if (u) out[nrSmurf(sm.riotid)] = { key: 'u' + u.id, nick: (u.nickname || '').trim() || String(u.riotid).split('#')[0] }; });
+  return out;
+}
 // Web: el historial lo ven los integrantes del equipo; catalogar/editar solo su capitán y los admins.
 async function tgAccess(req, team){
   const uid = await optionalUid(req); if (!uid) return null;
@@ -1339,21 +1359,24 @@ app.get('/api/team/:team/games', wrap(async (req, res) => {
   const rows = await q(`SELECT id, game_id, status, kind, tournament, rival, comment, game_no, side, won, duration, game_at, summary, filed_at FROM team_games WHERE team=$1 AND ${box === 'inbox' ? "status='pending'" : "status IN ('requested','filed')"} ORDER BY game_at DESC LIMIT 100`, [team]);
   res.json({ captain: a.captain, games: rows });
 }));
+// Análisis del equipo: todas las scrims con datos completos (jugadores, roles fijados y el minuto 15 de la línea de tiempo).
+app.get('/api/team/:team/scrim-stats', wrap(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  const team = req.params.team, a = await tgAccess(req, team); if (!a) return res.status(403).json({ error: 'No tienes acceso a este equipo' });
+  const rows = await q("SELECT id, side, won, duration, game_at, rival, game_no, roles, data, timeline FROM team_games WHERE team=$1 AND status='filed' AND kind='scrim' AND data IS NOT NULL ORDER BY game_at DESC LIMIT 300", [team]);
+  const owners = await tgOwners();
+  const games = rows.map(r => { const fr = r.timeline && Array.isArray(r.timeline.frames) ? r.timeline.frames : [];
+    let f15 = null; for (const f of fr) if (f.t <= 15 * 60 + 30) f15 = f;
+    return { id: r.id, side: r.side, won: r.won, duration: r.duration, game_at: r.game_at, rival: r.rival, game_no: r.game_no, roles: r.roles,
+      players: (r.data.players || []).map(p => ({ ...p, owner: owners[nrSmurf(p.rid)] || null })), f15: f15 && f15.t >= 14 * 60 ? f15.p : null }; });
+  res.json({ games, rosterRoles: await tgRosterRoles(team) });
+}));
 app.get('/api/team/:team/game/:id', wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   const team = req.params.team, a = await tgAccess(req, team); if (!a) return res.status(403).json({ error: 'No tienes acceso a este equipo' });
   const r = await q1('SELECT * FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]);
   if (!r || (r.status === 'pending' && !a.captain)) return res.status(404).json({ error: 'Partida no encontrada' });
-  // rol de cada jugador en el roster de este equipo (para deducir roles en el análisis); se extiende a todas sus cuentas
-  const ROLE_MAP = { TOP: 'TOP', JUNGLE: 'JUNGLE', JUNGLA: 'JUNGLE', MID: 'MIDDLE', MIDDLE: 'MIDDLE', ADC: 'BOTTOM', BOTTOM: 'BOTTOM', SUPPORT: 'UTILITY', SUP: 'UTILITY', UTILITY: 'UTILITY' };
-  const rosterRoles = {};
-  try { const tm = await q("SELECT riotid, role, starter FROM team_members WHERE team=$1 AND role IS NOT NULL AND role<>''", [team]);
-    const users = await q('SELECT id, riotid FROM users'), smurfs = await q('SELECT user_id, riotid FROM smurfs');
-    const accs = {}; users.forEach(u => { accs[u.id] = [u.riotid]; }); smurfs.forEach(s => { (accs[s.user_id] = accs[s.user_id] || []).push(s.riotid); });
-    const owner = {}; Object.entries(accs).forEach(([id, list]) => list.forEach(rid => { owner[nrSmurf(rid)] = id; }));
-    tm.sort((x, y) => (y.starter ? 1 : 0) - (x.starter ? 1 : 0)).forEach(m => { const role = ROLE_MAP[String(m.role).toUpperCase()]; if (!role) return;
-      const k = nrSmurf(m.riotid), uid = owner[k], rids = uid ? accs[uid] : [m.riotid];
-      rids.forEach(rid => { const kk = nrSmurf(rid); if (!rosterRoles[kk]) rosterRoles[kk] = role; }); }); } catch {}
+  const rosterRoles = await tgRosterRoles(team);
   res.json({ ...r, rosterRoles });
 }));
 app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {

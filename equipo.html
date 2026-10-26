@@ -54,6 +54,16 @@
   .names{ font-size:11.5px; color:var(--muted); max-width:100%; }
   .vs{ font-size:11px; font-weight:800; color:var(--muted-2); }
   .gc{ margin-top:8px; font-size:12.5px; color:var(--muted); white-space:pre-wrap; }
+  .ts-sort{ display:flex; gap:6px; align-items:center; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .ts-sort button{ font-family:inherit; background:var(--panel-2); border:1px solid var(--line-2); color:var(--muted); border-radius:8px; padding:4px 10px; font-size:12px; font-weight:700; cursor:pointer; }
+  .ts-sort button.on{ color:var(--text); border-color:var(--text); }
+  .ts-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:12px; }
+  .ts-card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; }
+  .ts-h{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:10px; } .ts-h b{ font-size:15px; }
+  .ts-g{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px 10px; }
+  .ts-c .l{ font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; } .ts-c .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .ts-chs{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
+  .ts-ch{ position:relative; } .ts-ch img{ width:30px; height:30px; border-radius:7px; display:block; } .ts-ch small{ position:absolute; right:-3px; bottom:-3px; background:var(--panel-2); border:1px solid var(--line-2); border-radius:6px; font-size:10px; font-weight:800; padding:0 4px; }
   .wr-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   .wr-box{ flex:1; min-width:150px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; }
   .wr-l{ font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
@@ -190,6 +200,10 @@
   }
   const myTeam = () => S.me.teams.find(t => t.team === S.team) || {};
   async function loadGames(){
+    if (S.box === 'stats'){
+      try { S.stats = await SQC.api('/team/' + encodeURIComponent(S.team) + '/scrim-stats'); S.err = ''; } catch (e) { S.stats = { games: [], rosterRoles: {} }; S.err = e.message; }
+      render(); return;
+    }
     try {
       const h = await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=' + S.box);
       S.games = h.games;
@@ -217,8 +231,9 @@
     const t = myTeam(), ts = S.me.teams;
     let html = '';
     if (ts.length > 1) html += `<div class="pills">${ts.map(x => `<button class="pill ${x.team === S.team ? 'on' : ''}" data-team="${esc(x.team)}">${esc(x.team)}</button>`).join('')}</div>`;
-    html += `<div class="tabs"><button class="${S.box === 'history' ? 'on' : ''}" data-box="history">Historial</button>${t.captain ? `<button class="${S.box === 'inbox' ? 'on' : ''}" data-box="inbox">Bandeja${S.inboxN ? `<span class="n">${S.inboxN}</span>` : ''}</button>` : ''}</div>`;
-    if (S.box === 'inbox'){
+    html += `<div class="tabs"><button class="${S.box === 'history' ? 'on' : ''}" data-box="history">Historial</button><button class="${S.box === 'stats' ? 'on' : ''}" data-box="stats">Análisis</button>${t.captain ? `<button class="${S.box === 'inbox' ? 'on' : ''}" data-box="inbox">Bandeja${S.inboxN ? `<span class="n">${S.inboxN}</span>` : ''}</button>` : ''}</div>`;
+    if (S.box === 'stats'){ html += statsHtml(); }
+    else if (S.box === 'inbox'){
       html += `<div class="sub" style="margin-top:-4px">Personalizadas recientes donde jugaron 3 o más del equipo. Cataloga las que sirvan; las demás se borran solas a las 3 semanas.</div>`;
       html += !S.games.length ? `<div class="card empty"><b>La bandeja está vacía</b>Las personalizadas aparecen aquí cuando termina la partida y alguien del equipo tiene el overlay abierto.</div>`
         : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'}">${headHtml(g)}${sidesHtml(g)}${formHtml(g)}</div>`).join('')}</div>`;
@@ -231,6 +246,7 @@
     $('app').querySelectorAll('[data-team]').forEach(b => b.onclick = () => { S.team = b.dataset.team; try { localStorage.setItem('sqc_team_sel', S.team); } catch (e) {} loadGames(); });
     $('app').querySelectorAll('[data-box]').forEach(b => b.onclick = () => { S.box = b.dataset.box; loadGames(); });
     $('app').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openGame(+b.dataset.open));
+    $('app').querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { S.sort = b.dataset.sort; render(); });
     bindForms($('app'));
   }
   // Rivales ya catalogados: nombres para autocompletar, y el más probable según los jugadores rivales.
@@ -512,6 +528,69 @@
         if (new Set(rs).size !== rs.length){ $('role-err').textContent = 'Cada equipo tiene que tener los 5 roles, sin repetir.'; return; } }
       post(roles); };
     const auto = $('role-auto'); if (auto) auto.onclick = () => post({});
+  }
+  // ---------- análisis del equipo: promedio de cada jugador en las scrims ----------
+  function gameRoles(g, roster){
+    const us = g.side, them = us === 100 ? 200 : 100, dur = g.duration || 0;
+    const P = { [us]: g.players.filter(p => p.teamId === us), [them]: g.players.filter(p => p.teamId === them) };
+    if (g.roles) return { P, R: { ...assignRoles(P[us], dur, g.roles), ...assignRoles(P[them], dur, g.roles) } };
+    return { P, R: { ...assignRoles(P[us], dur, ourFixedRoles(P[us], roster).fixed), ...assignRoles(P[them], dur) } };
+  }
+  function teamStats(){
+    const st = S.stats || { games: [] }, roster = st.rosterRoles || {}, by = {};
+    for (const g of st.games){
+      const { P, R } = gameRoles(g, roster), us = g.side, them = us === 100 ? 200 : 100, mins = Math.max(1, (g.duration || 0) / 60);
+      const tot = (team, f) => P[team].reduce((t, p) => t + (p.st[f] || 0), 0);
+      const tK = tot(us, 'kills'), tDmg = tot(us, 'totalDamageDealtToChampions');
+      for (const p of P[us]){
+        const key = p.owner ? p.owner.key : 'r' + rivKey(p.rid), nick = p.owner ? p.owner.nick : String(p.rid).split('#')[0];
+        const a = by[key] || (by[key] = { key, nick, g: 0, w: 0, k: 0, d: 0, a: 0, cs: 0, gold: 0, dmg: 0, vis: 0, mins: 0, kp: 0, ds: 0, roles: {}, champs: {}, gd15: [], csd15: [], xpd15: [] });
+        const s = p.st, role = R[p.pid], cs = (s.totalMinionsKilled || 0) + (s.neutralMinionsKilled || 0);
+        a.g++; if (g.won) a.w++; a.k += s.kills || 0; a.d += s.deaths || 0; a.a += s.assists || 0; a.cs += cs; a.gold += s.goldEarned || 0;
+        a.dmg += s.totalDamageDealtToChampions || 0; a.vis += s.visionScore || 0; a.mins += mins;
+        a.kp += tK ? ((s.kills || 0) + (s.assists || 0)) / tK : 0; a.ds += tDmg ? (s.totalDamageDealtToChampions || 0) / tDmg : 0;
+        a.roles[role] = (a.roles[role] || 0) + 1;
+        const c = a.champs[p.championId] || (a.champs[p.championId] = { g: 0, w: 0 }); c.g++; if (g.won) c.w++;
+        // diferencias al minuto 15 contra el rival de su misma línea
+        const opp = P[them].find(q => R[q.pid] === role);
+        if (g.f15 && opp){ const me = g.f15[p.pid - 1], ot = g.f15[opp.pid - 1];
+          if (me && ot){ a.gd15.push(me[0] - ot[0]); a.csd15.push((me[2] + me[3]) - (ot[2] + ot[3])); a.xpd15.push(me[1] - ot[1]); } }
+      }
+    }
+    const avg = l => l.length ? l.reduce((x, y) => x + y, 0) / l.length : null;
+    return Object.values(by).map(a => ({ ...a, main: Object.keys(a.roles).sort((x, y) => a.roles[y] - a.roles[x])[0],
+      wr: a.w / a.g, kda: (a.k + a.a) / Math.max(1, a.d), cspm: a.cs / a.mins, gpm: a.gold / a.mins, dpm: a.dmg / a.mins, vpm: a.vis / a.mins,
+      kpA: a.kp / a.g, dsA: a.ds / a.g, gd: avg(a.gd15), csd: avg(a.csd15), xpd: avg(a.xpd15) }));
+  }
+  function statsHtml(){
+    const st = S.stats; if (!st) return `<div class="loading">Cargando…</div>`;
+    const games = st.games || [];
+    if (!games.length) return `<div class="card empty"><b>Todavía no hay scrims con datos completos</b>El análisis promedia a cada jugador en las scrims guardadas en el historial.</div>`;
+    const w = games.filter(g => g.won).length, ps = teamStats(), sort = S.sort || 'role';
+    const ord = { role: (a, b) => ROLES.indexOf(a.main) - ROLES.indexOf(b.main) || b.g - a.g, g: (a, b) => b.g - a.g, wr: (a, b) => b.wr - a.wr || b.g - a.g, kda: (a, b) => b.kda - a.kda, gd: (a, b) => (b.gd ?? -1e9) - (a.gd ?? -1e9) };
+    ps.sort(ord[sort] || ord.role);
+    const n1 = (v, d) => v == null ? '–' : v.toLocaleString('es-CL', { minimumFractionDigits: d, maximumFractionDigits: d });
+    const sg = v => { if (v == null) return '–'; const r = Math.round(v); return (r > 0 ? '+' : '') + r.toLocaleString('es-CL'); };
+    const cl = (v, good) => v == null ? '' : (good ? (v > 0 ? 'up' : v < 0 ? 'down' : '') : '');
+    const card = a => {
+      const champs = Object.entries(a.champs).sort((x, y) => y[1].g - x[1].g).slice(0, 5)
+        .map(([c, v]) => `<span class="ts-ch" title="${esc(cName(c))} · ${v.g} partida${v.g === 1 ? '' : 's'} · ${Math.round(v.w / v.g * 100)}% WR"><img src="${cIcon(c)}" alt=""><small>${v.g}</small></span>`).join('');
+      const roles = Object.entries(a.roles).sort((x, y) => y[1] - x[1]).map(([r, n]) => `${ROLE_ES[r] || r}${Object.keys(a.roles).length > 1 ? ' ' + n : ''}`).join(' · ');
+      const cell = (l, v, c) => `<div class="ts-c"><div class="l">${l}</div><div class="v ${c || ''}">${v}</div></div>`;
+      return `<div class="ts-card"><div class="ts-h"><div><b>${esc(a.nick)}</b><div class="muted" style="font-size:12px">${roles}</div></div>
+          <div style="text-align:right"><div class="v ${a.wr >= .5 ? 'up' : 'down'}" style="font-size:20px;font-weight:800">${Math.round(a.wr * 100)}%</div><div class="muted" style="font-size:11.5px">${a.w}V · ${a.g - a.w}D</div></div></div>
+        <div class="ts-g">
+          ${cell('KDA', n1(a.kda, 2))}${cell('K / D / A', `${n1(a.k / a.g, 1)} / ${n1(a.d / a.g, 1)} / ${n1(a.a / a.g, 1)}`)}${cell('Part. en kills', Math.round(a.kpA * 100) + '%')}
+          ${cell('% daño del equipo', Math.round(a.dsA * 100) + '%')}${cell('Daño / min', Math.round(a.dpm).toLocaleString('es-CL'))}${cell('Oro / min', Math.round(a.gpm).toLocaleString('es-CL'))}
+          ${a.main === 'UTILITY' ? '' : cell('CS / min', n1(a.cspm, 1))}${cell('Visión / min', n1(a.vpm, 2))}
+          ${cell('Oro @15 vs rival', sg(a.gd), cl(a.gd, true))}${a.main === 'UTILITY' ? '' : cell('CS @15 vs rival', sg(a.csd), cl(a.csd, true))}${cell('XP @15 vs rival', sg(a.xpd), cl(a.xpd, true))}
+        </div><div class="ts-chs">${champs}</div></div>`;
+    };
+    const sortBtn = (k, t) => `<button class="${sort === k ? 'on' : ''}" data-sort="${k}">${t}</button>`;
+    return `<div class="wr-row"><div class="wr-box"><div class="wr-l">Scrims analizadas</div><div class="wr-v">${games.length}</div><div class="wr-s">${w}V · ${games.length - w}D · ${Math.round(w / games.length * 100)}% WR</div></div></div>
+      <div class="sub" style="margin:-2px 0 10px">Promedio de cada jugador en las scrims con datos completos. Las comparaciones "@15 vs rival" son contra el rival de su misma línea al minuto 15.</div>
+      <div class="ts-sort">Ordenar: ${sortBtn('role', 'Rol')}${sortBtn('g', 'Partidas')}${sortBtn('wr', 'Winrate')}${sortBtn('kda', 'KDA')}${sortBtn('gd', 'Oro @15')}</div>
+      <div class="ts-grid">${ps.map(card).join('')}</div>`;
   }
   // ---------- gráficos (SVG simple) ----------
   const PCOL = ['#4aa3ff', '#7dd3fc', '#34d399', '#a78bfa', '#e9ff1f', '#ff5d6c', '#fb923c', '#f472b6', '#facc15', '#f87171'];
