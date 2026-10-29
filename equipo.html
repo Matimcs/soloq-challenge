@@ -211,7 +211,7 @@
       S.games = h.games;
       // historial catalogado (para sugerir el nombre del rival en la bandeja)
       S.hist = S.box === 'history' ? h.games : (await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=history').catch(() => ({ games: [] }))).games;
-      if (myTeam().captain){ const ib = S.box === 'inbox' ? h : await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=inbox'); S.inboxN = ib.games.length; } else S.inboxN = 0;
+      { const ib = S.box === 'inbox' ? h : await SQC.api('/team/' + encodeURIComponent(S.team) + '/games?box=inbox'); S.inboxN = ib.games.length; }
     } catch (e) { S.games = []; S.err = e.message; }
     render();
   }
@@ -227,6 +227,7 @@
     return `<div class="gh"><span class="res">${g.won ? 'Victoria' : 'Derrota'}</span><span class="muted">${fdate(g.game_at)} · ${dur(g.duration)}</span>
       ${g.kind ? `<span class="badge ${g.kind}">${g.kind === 'torneo' ? '🏆 ' + esc(g.tournament || 'Torneo') : 'Scrim'}</span>` : ''}
       ${g.rival ? `<span>vs <b>${esc(g.rival)}</b></span>` : ''}${g.game_no ? `<span class="badge">Game ${g.game_no}</span>` : ''}
+      ${g.status === 'pending' ? (g.has_data ? `<span class="badge" style="color:var(--up)">✓ datos completos</span>` : `<span class="badge wait" title="Se baja sola cuando un jugador de esa partida tenga el overlay abierto">⏳ bajando datos…</span>`) : ''}
       ${g.status === 'requested' ? `<span class="badge wait" title="Se baja sola cuando un jugador de esa partida tenga el overlay abierto">⏳ esperando datos del overlay</span>` : ''}</div>`;
   }
   // Historial filtrado por el buscador: jugadores (de ambos equipos, con o sin #TAG) o nombre del rival.
@@ -241,16 +242,16 @@
     const t = myTeam(), ts = S.me.teams;
     let html = '';
     if (ts.length > 1) html += `<div class="pills">${ts.map(x => `<button class="pill ${x.team === S.team ? 'on' : ''}" data-team="${esc(x.team)}">${esc(x.team)}</button>`).join('')}</div>`;
-    html += `<div class="tabs"><button class="${S.box === 'history' ? 'on' : ''}" data-box="history">Historial</button><button class="${S.box === 'stats' ? 'on' : ''}" data-box="stats">Análisis</button>${t.captain ? `<button class="${S.box === 'inbox' ? 'on' : ''}" data-box="inbox">Bandeja${S.inboxN ? `<span class="n">${S.inboxN}</span>` : ''}</button>` : ''}</div>`;
+    html += `<div class="tabs"><button class="${S.box === 'history' ? 'on' : ''}" data-box="history">Historial</button><button class="${S.box === 'stats' ? 'on' : ''}" data-box="stats">Análisis</button><button class="${S.box === 'inbox' ? 'on' : ''}" data-box="inbox">Bandeja${S.inboxN ? `<span class="n">${S.inboxN}</span>` : ''}</button></div>`;
     if (S.box === 'stats'){ html += statsHtml(); }
     else if (S.box === 'inbox'){
-      html += `<div class="sub" style="margin-top:-4px">Personalizadas recientes donde jugaron 3 o más del equipo. Cataloga las que sirvan; las demás se borran solas a las 3 semanas.</div>`;
+      html += `<div class="sub" style="margin-top:-4px">Personalizadas recientes donde jugaron 3 o más del equipo, ya con todos sus datos. Cualquiera del equipo puede autorizar las que sirvan (pasan al historial al tiro); las demás se borran solas a las 3 semanas.</div>`;
       html += !S.games.length ? `<div class="card empty"><b>La bandeja está vacía</b>Las personalizadas aparecen aquí cuando termina la partida y alguien del equipo tiene el overlay abierto.</div>`
         : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'}">${headHtml(g)}${sidesHtml(g)}${formHtml(g)}</div>`).join('')}</div>`;
     } else {
       html += wrHtml(S.games);
       if (S.games.length) html += `<input class="hsearch" id="hsearch" placeholder="Buscar por jugador o equipo rival…" value="${esc(S.q || '')}" autocomplete="off">`;
-      html += !S.games.length ? `<div class="card empty"><b>Todavía no hay partidas en el historial</b>${t.captain ? 'Revisa la Bandeja para catalogar scrims y partidas de torneo.' : 'El capitán las agrega desde la Bandeja.'}</div>`
+      html += !S.games.length ? `<div class="card empty"><b>Todavía no hay partidas en el historial</b>Las personalizadas llegan a la Bandeja con todos sus datos; cualquiera del equipo puede autorizarlas para que aparezcan aquí.</div>`
         : `<div class="gl" id="hlist">${histList()}</div>`;
     }
     $('app').innerHTML = html;
@@ -295,7 +296,7 @@
       <select data-f="gameNo" title="Qué game de la serie fue"><option value="">Game…</option>${[1, 2, 3, 4, 5].map(n => `<option value="${n}" ${g.game_no === n ? 'selected' : ''}>Game ${n}</option>`).join('')}</select>
       <input data-f="tourOther" placeholder="Nombre del torneo" style="display:none" maxlength="80">
       <textarea data-f="comment" placeholder="Comentarios (draft, qué salió bien o mal…)" maxlength="1000">${esc(g.comment || '')}</textarea>
-      <div class="act"><span class="err"></span>${g.status === 'pending' ? `<button class="btn ghost" data-a="discard">Descartar</button>` : ''}<button class="btn pri" data-a="save">${g.status === 'pending' ? 'Guardar en el historial' : 'Guardar cambios'}</button></div></div>`;
+      <div class="act"><span class="err"></span><button class="btn ghost" data-a="discard">${g.status === 'pending' ? 'Descartar' : 'Borrar del historial'}</button><button class="btn pri" data-a="save">${g.status === 'pending' ? 'Guardar en el historial' : 'Guardar cambios'}</button></div></div>`;
   }
   function bindForms(root){
     root.querySelectorAll('[data-form]').forEach(f => {
@@ -304,11 +305,11 @@
       kind.onchange = sync; tour.onchange = sync; sync();
       f.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
         const id = +f.dataset.form, a = b.dataset.a; err.textContent = '';
-        if (a === 'discard' && !confirm('¿Descartar esta partida? Se borra de la bandeja.')) return;
+        if (a === 'discard' && !confirm('¿Borrar esta partida? Desaparece del historial y de las estadísticas del equipo.')) return;
         const body = a === 'discard' ? { action: 'discard' } : { kind: kind.value, tournament: tour.value === '__otro' ? other.value : tour.value, rival: f.querySelector('[data-f="rival"]').value, gameNo: f.querySelector('[data-f="gameNo"]').value, comment: f.querySelector('[data-f="comment"]').value };
         b.disabled = true;
         try { const r = await SQC.api('/team/' + encodeURIComponent(S.team) + '/game/' + id, { method: 'POST', body });
-          if (S.open && S.open.id === id){ await openGame(id); } await loadGames();
+          if (S.open && S.open.id === id){ if (a === 'discard') closeDet(); else await openGame(id); } await loadGames();
           if (r && r.status === 'requested') toastMsg('Guardada. Los datos completos se bajan solos cuando un jugador de esa partida tenga el overlay abierto.'); }
         catch (e) { err.textContent = e.message; b.disabled = false; }
       });

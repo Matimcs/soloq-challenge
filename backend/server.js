@@ -1227,8 +1227,9 @@ app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
 
 // ================= HISTORIAL PRIVADO DE EQUIPOS (scrims / torneos) =================
 // 1) El overlay manda un resumen de cada personalizada (mismo envío que Ranked). Si 3+ jugadores de un equipo de la org
-//    estaban en el mismo lado, cae en la BANDEJA de ese equipo ('pending'). Las pendientes se borran a las 3 semanas.
-// 2) El capitán (o un admin) la cataloga: scrim/torneo (cuál), rival y comentario → 'requested'.
+//    estaban en el mismo lado, cae en la BANDEJA de ese equipo ('pending'), con el rival adivinado, y los overlays de esa
+//    partida suben de inmediato la partida completa + línea de tiempo. Las pendientes se borran a las 3 semanas.
+// 2) El capitán (o un admin) la autoriza y cataloga (scrim/torneo, rival, game, comentario) → 'filed' directo, o la descarta.
 // 3) El overlay de cualquier jugador de esa partida ve el pedido, saca del cliente la partida completa + línea de tiempo y
 //    la sube → 'filed' (historial del equipo con tablero, resumen, estadísticas, gráficos y runas).
 const TG_TOURNAMENTS = ['uLeague Clausura 2026'];   // torneos activos para catalogar (más "Otro")
@@ -1251,6 +1252,14 @@ async function tgUserTeams(uid){   // equipos de un usuario (por cualquiera de s
   rids.forEach(r => (mem.get(nrSmurf(r)) || []).forEach(t => ts.add(t))); return ts;
 }
 async function tgIsCaptain(uid, team){ return !!(await q1('SELECT 1 FROM team_captains WHERE team=$1 AND user_id=$2', [team, uid])); }
+async function tgGuessRival(team, rids){
+  const them = new Set(rids.map(nrSmurf)), score = {};
+  for (const r of await q("SELECT rival, side, summary FROM team_games WHERE team=$1 AND coalesce(rival,'')<>'' ORDER BY game_at DESC LIMIT 200", [team])){
+    const k = ((r.summary && r.summary.players) || []).filter(p => p.teamId !== r.side && them.has(nrSmurf(p.rid))).length;
+    if (k > (score[r.rival] || 0)) score[r.rival] = k; }
+  const best = Object.keys(score).sort((a, b) => score[b] - score[a])[0];
+  return best && score[best] >= 2 ? best : null;
+}
 async function tgIngest(g, reporter){
   const players = (g.players || []).filter(p => p && p.rid).slice(0, 10);
   if (players.length < 6 || (Number(g.duration) || 0) < 180) return null;
@@ -1264,8 +1273,11 @@ async function tgIngest(g, reporter){
     for (const side of [100, 200]){
       const n = players.filter(p => p.teamId === side && (mem.get(nrSmurf(p.rid)) || new Set()).has(team)).length;
       if (n < 3) continue;
-      await q(`INSERT INTO team_games (team, game_id, side, won, duration, game_at, summary, reported_by) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8)
-               ON CONFLICT (team, game_id) DO NOTHING`, [team, gameId, side, won(side), num(g.duration), g.creation ? new Date(+g.creation) : new Date(), JSON.stringify(summary), String(reporter || '').slice(0, 60)]);
+      // Cae en la bandeja ('pending'); los overlays suben la partida completa de inmediato, así al autorizarla pasa
+      // directo al historial. El rival se adivina si 2+ de sus jugadores ya aparecen en una partida contra ese equipo.
+      const rival = await tgGuessRival(team, players.filter(p => p.teamId !== side).map(p => p.rid));
+      await q(`INSERT INTO team_games (team, game_id, side, won, duration, game_at, summary, reported_by, rival) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)
+               ON CONFLICT (team, game_id) DO NOTHING`, [team, gameId, side, won(side), num(g.duration), g.creation ? new Date(+g.creation) : new Date(), JSON.stringify(summary), String(reporter || '').slice(0, 60), rival]);
       out.push(team);
     }
   }
@@ -1288,13 +1300,13 @@ function tgNormGame(h){
 app.get('/api/overlay/team-requests', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const k = nrSmurf(req.query.riotid || ''); if (!k.includes('#')) return res.json([]);
-  const rows = await q("SELECT DISTINCT game_id, summary FROM team_games WHERE status='requested' AND created_at > now() - interval '60 days'");
+  const rows = await q("SELECT DISTINCT game_id, summary FROM team_games WHERE (status='requested' OR (status='pending' AND data IS NULL)) AND created_at > now() - interval '60 days'");
   res.json(rows.filter(r => ((r.summary && r.summary.players) || []).some(p => nrSmurf(p.rid) === k)).map(r => r.game_id).slice(0, 5));
 }));
 app.post('/api/overlay/team-game', wrap(async (req, res) => {
   const b = req.body || {}, k = nrSmurf(b.riotid || ''), gameId = String(b.gameId || '').replace(/\D/g, '').slice(0, 20);
   if (!k.includes('#') || !gameId || !b.game || typeof b.game !== 'object') return res.status(400).json({ error: 'datos inválidos' });
-  const rows = await q("SELECT id, summary FROM team_games WHERE game_id=$1 AND status='requested'", [gameId]);
+  const rows = await q("SELECT id, summary FROM team_games WHERE game_id=$1 AND (status='requested' OR (status='pending' AND data IS NULL))", [gameId]);
   if (!rows.length) return res.json({ ok: true, ignored: 'no pedida' });
   const norm = tgNormGame(b.game);
   if (norm.gameId !== gameId || norm.players.length < 6) return res.status(400).json({ error: 'la partida no coincide' });
@@ -1302,7 +1314,10 @@ app.post('/api/overlay/team-game', wrap(async (req, res) => {
   if (!want.has(k) || norm.players.filter(p => want.has(nrSmurf(p.rid))).length < Math.min(want.size, 6)) return res.status(400).json({ error: 'los jugadores no coinciden' });
   const tl = b.timeline && typeof b.timeline === 'object' && Array.isArray(b.timeline.frames) ? b.timeline : null;
   const tlStr = tl ? JSON.stringify(tl) : null; if (tlStr && tlStr.length > 600000) return res.status(400).json({ error: 'línea de tiempo demasiado grande' });
-  await q("UPDATE team_games SET data=$2::jsonb, timeline=$3::jsonb, status='filed', filed_at=coalesce(filed_at, now()) WHERE game_id=$1 AND status='requested'", [gameId, JSON.stringify(norm), tlStr]);
+  // pedida por el capitán → queda en el historial; en la bandeja → sigue pendiente, pero ya con todos los datos
+  await q(`UPDATE team_games SET data=$2::jsonb, timeline=$3::jsonb, status=CASE WHEN status='requested' THEN 'filed' ELSE status END,
+           filed_at=CASE WHEN status='requested' THEN coalesce(filed_at, now()) ELSE filed_at END
+           WHERE game_id=$1 AND (status='requested' OR (status='pending' AND data IS NULL))`, [gameId, JSON.stringify(norm), tlStr]);
   res.json({ ok: true, filed: rows.length });
 }));
 // Equipos donde el usuario es integrante: solo por el roster (team_members) con su cuenta principal.
@@ -1355,8 +1370,7 @@ app.get('/api/team/:team/games', wrap(async (req, res) => {
   const team = req.params.team, a = await tgAccess(req, team); if (!a) return res.status(403).json({ error: 'No tienes acceso a este equipo' });
   await q("DELETE FROM team_games WHERE status='pending' AND created_at < now() - interval '21 days'").catch(() => {});
   const box = req.query.box === 'inbox' ? 'inbox' : 'history';
-  if (box === 'inbox' && !a.captain) return res.status(403).json({ error: 'Solo el capitán y los admins' });
-  const rows = await q(`SELECT id, game_id, status, kind, tournament, rival, comment, game_no, side, won, duration, game_at, summary, filed_at FROM team_games WHERE team=$1 AND ${box === 'inbox' ? "status='pending'" : "status IN ('requested','filed')"} ORDER BY game_at DESC LIMIT 100`, [team]);
+  const rows = await q(`SELECT id, game_id, status, kind, tournament, rival, comment, game_no, side, won, duration, game_at, summary, filed_at, (data IS NOT NULL) AS has_data FROM team_games WHERE team=$1 AND ${box === 'inbox' ? "status='pending'" : "status IN ('requested','filed')"} ORDER BY game_at DESC LIMIT 100`, [team]);
   res.json({ captain: a.captain, games: rows });
 }));
 // Análisis del equipo: todas las scrims con datos completos (jugadores, roles fijados y el minuto 15 de la línea de tiempo).
@@ -1375,15 +1389,18 @@ app.get('/api/team/:team/game/:id', wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   const team = req.params.team, a = await tgAccess(req, team); if (!a) return res.status(403).json({ error: 'No tienes acceso a este equipo' });
   const r = await q1('SELECT * FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]);
-  if (!r || (r.status === 'pending' && !a.captain)) return res.status(404).json({ error: 'Partida no encontrada' });
+  if (!r || r.status === 'discarded') return res.status(404).json({ error: 'Partida no encontrada' });
   const rosterRoles = await tgRosterRoles(team);
   res.json({ ...r, rosterRoles });
 }));
 app.post('/api/team/:team/game/:id', auth, wrap(async (req, res) => {
-  const team = req.params.team, a = await tgAccess(req, team); if (!a || !a.captain) return res.status(403).json({ error: 'Solo el capitán del equipo y los admins' });
+  const team = req.params.team, a = await tgAccess(req, team); if (!a) return res.status(403).json({ error: 'Solo los integrantes del equipo' });
   const r = await q1('SELECT id, status, (data IS NOT NULL) AS has_data FROM team_games WHERE team=$1 AND id=$2', [team, Number(req.params.id)]); if (!r) return res.status(404).json({ error: 'Partida no encontrada' });
+  // cualquier integrante autoriza (o descarta) lo de la bandeja; editar lo ya guardado y los roles: capitán o admin
+  if (!a.captain && (r.status !== 'pending' || (req.body || {}).action === 'roles')) return res.status(403).json({ error: 'Solo el capitán del equipo y los admins pueden editar partidas ya guardadas' });
   const b = req.body || {}, clip = (v, n) => String(v || '').trim().slice(0, n) || null;
-  if (b.action === 'discard'){ await q('DELETE FROM team_games WHERE id=$1', [r.id]); return res.json({ ok: true }); }
+  // descartar: queda marcada (sin datos) para que otro overlay no la vuelva a subir
+  if (b.action === 'discard'){ await q("UPDATE team_games SET status='discarded', data=NULL, timeline=NULL WHERE id=$1", [r.id]); return res.json({ ok: true }); }
   if (b.action === 'roles'){   // el capitán fija los roles a mano {pid: ROL}
     const OK = new Set(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']), roles = {};
     for (const [pid, role] of Object.entries(b.roles || {})) if (/^\d{1,2}$/.test(pid) && OK.has(role)) roles[pid] = role;
