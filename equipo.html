@@ -64,6 +64,8 @@
   .ts-c .l{ font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; } .ts-c .v{ font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; }
   .ts-chs{ display:flex; gap:6px; margin-top:10px; flex-wrap:wrap; }
   .ts-ch{ position:relative; } .ts-ch img{ width:30px; height:30px; border-radius:7px; display:block; } .ts-ch small{ position:absolute; right:-3px; bottom:-3px; background:var(--panel-2); border:1px solid var(--line-2); border-radius:6px; font-size:10px; font-weight:800; padding:0 4px; }
+  .hsearch{ width:100%; font-family:inherit; background:var(--panel-2); border:1px solid var(--line-2); color:var(--text); border-radius:10px; padding:9px 12px; font-size:13.5px; margin-bottom:12px; outline:none; }
+  .hsearch:focus{ border-color:var(--text); }
   .wr-row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   .wr-box{ flex:1; min-width:150px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:10px 14px; }
   .wr-l{ font-size:11px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
@@ -227,6 +229,14 @@
       ${g.rival ? `<span>vs <b>${esc(g.rival)}</b></span>` : ''}${g.game_no ? `<span class="badge">Game ${g.game_no}</span>` : ''}
       ${g.status === 'requested' ? `<span class="badge wait" title="Se baja sola cuando un jugador de esa partida tenga el overlay abierto">⏳ esperando datos del overlay</span>` : ''}</div>`;
   }
+  // Historial filtrado por el buscador: jugadores (de ambos equipos, con o sin #TAG) o nombre del rival.
+  const norm = v => String(v || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, '');
+  function histList(){
+    const q = norm(S.q);
+    const gs = !q ? S.games : S.games.filter(g => norm(g.rival).includes(q) || ((g.summary && g.summary.players) || []).some(p => norm(p.rid).includes(q)));
+    if (!gs.length) return `<div class="card empty"><b>Sin resultados</b>Ninguna partida tiene un jugador o rival que coincida con "${esc(S.q)}".</div>`;
+    return gs.map(g => `<div class="g ${g.won ? 'w' : 'l'} click" data-open="${g.id}">${headHtml(g)}${sidesHtml(g)}${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div>`).join('');
+  }
   function render(){
     const t = myTeam(), ts = S.me.teams;
     let html = '';
@@ -239,13 +249,16 @@
         : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'}">${headHtml(g)}${sidesHtml(g)}${formHtml(g)}</div>`).join('')}</div>`;
     } else {
       html += wrHtml(S.games);
+      if (S.games.length) html += `<input class="hsearch" id="hsearch" placeholder="Buscar por jugador o equipo rival…" value="${esc(S.q || '')}" autocomplete="off">`;
       html += !S.games.length ? `<div class="card empty"><b>Todavía no hay partidas en el historial</b>${t.captain ? 'Revisa la Bandeja para catalogar scrims y partidas de torneo.' : 'El capitán las agrega desde la Bandeja.'}</div>`
-        : `<div class="gl">${S.games.map(g => `<div class="g ${g.won ? 'w' : 'l'} click" data-open="${g.id}">${headHtml(g)}${sidesHtml(g)}${g.comment ? `<div class="gc">💬 ${esc(g.comment)}</div>` : ''}</div>`).join('')}</div>`;
+        : `<div class="gl" id="hlist">${histList()}</div>`;
     }
     $('app').innerHTML = html;
     $('app').querySelectorAll('[data-team]').forEach(b => b.onclick = () => { S.team = b.dataset.team; try { localStorage.setItem('sqc_team_sel', S.team); } catch (e) {} loadGames(); });
     $('app').querySelectorAll('[data-box]').forEach(b => b.onclick = () => { S.box = b.dataset.box; loadGames(); });
     $('app').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openGame(+b.dataset.open));
+    const hs = $('hsearch'); if (hs) hs.oninput = () => { S.q = hs.value; $('hlist').innerHTML = histList();
+      $('hlist').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openGame(+b.dataset.open)); };
     $('app').querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { S.sort = b.dataset.sort; render(); });
     bindForms($('app'));
   }
@@ -328,6 +341,7 @@
   }
   const teamsOrder = () => { const d = S.open.data, us = S.open.side; return [us, us === 100 ? 200 : 100].map(id => ({ id, t: d.teams.find(t => t.teamId === id) || {}, ps: d.players.filter(p => p.teamId === id) })); };
   const pName = p => esc(String(p.rid || '').split('#')[0]);
+  const pFull = p => { const [n, t] = String(p.rid || '').split('#'); return esc(n) + (t ? `<span class="muted" style="font-weight:600">#${esc(t)}</span>` : ''); };
   function tabHtml(k){
     const d = S.open.data, T = teamsOrder(), lbl = id => id === S.open.side ? esc(S.team) : esc(S.open.rival || 'Rival');
     const allP = T.flatMap(x => x.ps);
@@ -338,7 +352,7 @@
         x.ps.map(p => { const s = p.st, cs = (s.totalMinionsKilled || 0) + (s.neutralMinionsKilled || 0);
           return `<tr><td><div class="ch"><img src="${cIcon(p.championId)}" alt="" title="${esc(cName(p.championId))}"><em>${s.champLevel || ''}</em></div></td>
             <td><div class="sp">${sIcon(p.spells[0])}${sIcon(p.spells[1])}</div></td><td><div class="sp">${rIcon(s.perk0)}${rIcon(s.perkSubStyle)}</div></td>
-            <td><div class="pn">${pName(p)}</div><div class="muted" style="font-size:11px">${esc(cName(p.championId))}</div></td>
+            <td><div class="pn">${pFull(p)}</div><div class="muted" style="font-size:11px">${esc(cName(p.championId))}</div></td>
             <td><div class="its">${[0,1,2,3,4,5,6].map(i => iIcon(s['item' + i])).join('')}</div></td>
             <td class="num"><b>${s.kills}/${s.deaths}/${s.assists}</b><div class="muted" style="font-size:11px">${s.deaths ? ((s.kills + s.assists) / s.deaths).toFixed(2) : 'Perfecto'}</div></td>
             <td class="num">${cs}<div class="muted" style="font-size:11px">${d.duration ? (cs / (d.duration / 60)).toFixed(1) + '/min' : ''}</div></td>
