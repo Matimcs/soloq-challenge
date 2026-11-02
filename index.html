@@ -91,6 +91,10 @@
   }
   .countdown-card .label{ font-size:11px; font-weight:700; letter-spacing:.16em; color:var(--muted); text-transform:uppercase; }
   .countdown{ display:flex; gap:10px; margin-top:10px; }
+  .cd-rules{ list-style:none; padding:0; margin:14px 0 0; display:flex; flex-direction:column; gap:6px; }
+  .cd-rules li{ position:relative; padding-left:16px; font-size:12.5px; line-height:1.45; color:var(--muted); }
+  .cd-rules li::before{ content:'›'; position:absolute; left:3px; top:-1px; color:var(--accent); font-weight:800; }
+  .cd-rules b{ color:var(--text); }
   .cd-unit{ text-align:center; min-width:58px; }
   .cd-unit .num{
     font-size:30px; font-weight:700; letter-spacing:-.02em;
@@ -698,13 +702,18 @@
         <h1>El <em>SoloQ Challenge</em><br/>de la universidad</h1>
         <p class="lead">El ranking en vivo de los jugadores del equipo de esports. Sube en la ladder, aparece arriba. Actualizado automáticamente.</p>
         <div class="countdown-card">
-          <div class="label">El torneo empieza en</div>
+          <div class="label">El SoloQ Challenge parte el 1 de marzo</div>
           <div class="countdown" id="countdown">
             <div class="cd-unit"><div class="num" id="cd-d">00</div><div class="u">días</div></div>
             <div class="cd-unit"><div class="num" id="cd-h">00</div><div class="u">hrs</div></div>
             <div class="cd-unit"><div class="num" id="cd-m">00</div><div class="u">min</div></div>
             <div class="cd-unit"><div class="num" id="cd-s">00</div><div class="u">seg</div></div>
           </div>
+          <ul class="cd-rules">
+            <li><b>5 partidas por día</b>, acumulables: si un día juegas menos, lo que no jugaste se guarda para otro día y puedes descansar.</li>
+            <li>Si juegas de más, se descuenta del cupo de los días siguientes. Pasarse por <b>5 o más</b> puede llevar a una <b>penalización</b>.</li>
+            <li>Cuentan <b>todas las partidas de la Grieta del Invocador</b>, no solo las rankeds.</li>
+          </ul>
         </div>
       </div>
 
@@ -1205,8 +1214,8 @@ document.getElementById('filters').addEventListener('click', e=>{
   render();
 });
 
-/* ===== countdown al torneo (1 de diciembre 2026) ===== */
-const TARGET = new Date('2026-12-01T20:00:00-03:00').getTime();
+/* ===== countdown al inicio del SoloQ Challenge (lunes 1 de marzo de 2027, 00:00 hora de Chile) ===== */
+const TARGET = new Date('2027-03-01T00:00:00-03:00').getTime();
 function tick(){
   const diff = Math.max(0, TARGET - Date.now());
   const d = Math.floor(diff/86400000);
