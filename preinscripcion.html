@@ -77,6 +77,8 @@
   .send:disabled{ opacity:.6; cursor:wait; }
   .err{ color:var(--down); font-size:13px; font-weight:700; min-height:18px; margin-top:8px; text-align:center; }
   .done{ text-align:center; padding:30px 20px; } .done .big{ font-size:44px; } .done h2{ justify-content:center; font-size:20px; }
+  .sim-btn{ display:block; text-align:center; margin:0 0 16px; padding:11px 14px; border-radius:11px; border:1px solid rgba(233,255,31,.45); color:var(--accent); font-weight:800; font-size:14px; background:rgba(233,255,31,.05); }
+  .sim-btn:hover{ background:rgba(233,255,31,.1); } .sim-btn span{ display:block; font-size:11.5px; font-weight:600; color:var(--muted); margin-top:2px; }
   .hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -157,7 +159,8 @@
 
       <div class="box">
         <h2>💰 Entrada y premios</h2>
-        <p style="margin-bottom:12px">Los premios salen de las entradas: <b>mientras mayor la entrada y más participantes, mayor el pozo de premios</b>. Con una entrada más alta los premios para los primeros lugares serían bastante mejores. <a href="premios.html" target="_blank" style="color:var(--accent);font-weight:700">💰 Simula los premios →</a></p>
+        <p style="margin-bottom:12px">Los premios salen de las entradas: <b>mientras mayor la entrada y más participantes, mayor el pozo de premios</b>. Con una entrada más alta los premios para los primeros lugares serían bastante mejores.</p>
+        <a href="premios" target="_blank" rel="noopener" class="sim-btn">💰 Simula los premios <span>(se abre en otra pestaña, no pierdes lo que llevas)</span></a>
         <div class="f"><div class="q">¿Cuánto estarías dispuesto a pagar de entrada? <span class="req">*</span></div>
           <div class="opts"><label class="opt"><input type="radio" name="fee" value="0"><span>$0</span></label><label class="opt"><input type="radio" name="fee" value="3000"><span>$3.000</span></label><label class="opt"><input type="radio" name="fee" value="5000"><span>$5.000</span></label><label class="opt"><input type="radio" name="fee" value="10000"><span>$10.000</span></label></div></div>
       </div>
@@ -190,6 +193,7 @@
     <div class="box done" id="done" style="display:none">
       <div class="big">🎉</div><h2>¡Preinscripción enviada!</h2>
       <p>Gracias. Te avisaremos por Discord o correo cuando se abran las inscripciones.</p>
+      <p style="margin-top:14px"><a href="premios" class="sim-btn" style="display:inline-block;margin:0">💰 Simula los premios</a></p>
       <p style="margin-top:16px;color:var(--text);font-weight:700">Únete a la comunidad del SoloQ Challenge:</p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:10px">
         <a href="https://chat.whatsapp.com/Ccnyqxme7xWIvfws5nQMws" target="_blank" rel="noopener" style="background:#25d366;color:#04140a;font-weight:800;font-size:14px;border-radius:10px;padding:11px 18px">💬 Grupo de WhatsApp</a>
