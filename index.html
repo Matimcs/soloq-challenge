@@ -91,6 +91,8 @@
   }
   .countdown-card .label{ font-size:11px; font-weight:700; letter-spacing:.16em; color:var(--muted); text-transform:uppercase; }
   .countdown{ display:flex; gap:10px; margin-top:10px; }
+  .test-note{ font-size:13px; line-height:1.45; color:var(--muted); background:rgba(255,210,74,.07); border:1px solid rgba(255,210,74,.3); border-radius:10px; padding:9px 12px; margin:-4px 0 16px; max-width:560px; }
+  .test-note b{ color:var(--text); }
   .cd-rules{ list-style:none; padding:0; margin:14px 0 0; display:flex; flex-direction:column; gap:6px; }
   .cd-rules li{ position:relative; padding-left:16px; font-size:12.5px; line-height:1.45; color:var(--muted); }
   .cd-rules li::before{ content:'›'; position:absolute; left:3px; top:-1px; color:var(--accent); font-weight:800; }
@@ -701,6 +703,7 @@
       <div>
         <h1>El <em>SoloQ Challenge</em><br/>de la universidad</h1>
         <p class="lead">El ranking en vivo de los jugadores del equipo de esports. Sube en la ladder, aparece arriba. Actualizado automáticamente.</p>
+        <p class="test-note">⚠️ Los datos actuales son una <b>prueba</b> con los jugadores de la organización y <b>no tienen nada que ver con el SoloQ Challenge de marzo</b>.</p>
         <div class="countdown-card">
           <div class="label">El SoloQ Challenge parte el 1 de marzo</div>
           <div class="countdown" id="countdown">
