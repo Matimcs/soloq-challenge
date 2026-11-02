@@ -4629,7 +4629,7 @@ const PRE = {
   interest: ['si', 'talvez', 'no'], way: ['grinding', 'compra', 'nose'], fee: [3000, 5000, 10000],
   roles: ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY', 'FILL'],
   ranks: ['UNRANKED', 'IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'],
-  sources: ['Un amigo', 'Discord', 'Redes sociales', 'Esta página', 'Otro'],
+  sources: ['Un amigo', 'Discord', 'Redes sociales', 'U-Cursos', 'Grupos organizados', 'Esta página', 'Otro'],
 };
 const PRE_HITS = new Map();   // ip -> [timestamps] (máx. 6 envíos por hora por IP)
 app.post('/api/preinscripcion', wrap(async (req, res) => {
