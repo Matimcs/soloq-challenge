@@ -4653,11 +4653,14 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
   if (!PRE.ranks.includes(b.peak_rank)) return res.status(400).json({ error: 'Elige tu rango más alto' });
   if (!b.rules_ok) return res.status(400).json({ error: 'Tienes que confirmar que leíste las reglas' });
   const riotid = str(b.riotid, 40); if (riotid && !/^.+#.+$/.test(riotid)) return res.status(400).json({ error: 'La cuenta debe ser Nombre#TAG' });
-  // ¿jugador de la organización? → elige quién es (y no se pregunta cómo se enteró)
-  const org = b.org_member === true || b.org_member === 'si';
+  // ¿jugador de la organización? → elige quién es (y no se pregunta cómo se enteró). Con sesión de la org, es él mismo.
+  const me = await optionalUid(req), meUser = me ? await q1('SELECT id FROM users WHERE id=$1', [me]) : null;
+  const org = !!meUser || b.org_member === true || b.org_member === 'si';
   let orgUid = null;
-  if (org){ orgUid = Number(b.org_user_id) || null;
-    if (!orgUid || !(await q1('SELECT 1 FROM users WHERE id=$1', [orgUid]))) return res.status(400).json({ error: 'Elige qué jugador de la organización eres' }); }
+  if (org){ orgUid = meUser ? meUser.id : (Number(b.org_user_id) || null);
+    if (!orgUid || !(await q1('SELECT 1 FROM users WHERE id=$1', [orgUid]))) return res.status(400).json({ error: 'Elige qué jugador de la organización eres' });
+    // un jugador de la org se preinscribe una sola vez (con otro correo no puede volver a tomarlo)
+    if (await q1('SELECT 1 FROM preinscriptions WHERE org_user_id=$1 AND email<>$2', [orgUid, email])) return res.status(400).json({ error: 'Ese jugador de la organización ya está preinscrito. Si eres tú y quieres corregir algo, usa el mismo correo de la primera vez.' }); }
   const source = !org && PRE.sources.includes(b.source) ? b.source : null;
   await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
@@ -4667,10 +4670,14 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 app.get('/api/preinscripcion/options', wrap(async (req, res) => {
-  res.set('Cache-Control', 'public, max-age=300');
-  // jugadores de la organización (solo el nick, que ya es público en el ranking)
-  const players = (await q("SELECT id, nickname FROM users WHERE coalesce(nickname,'')<>'' ORDER BY lower(nickname)")).map(u => ({ id: u.id, nick: u.nickname }));
-  res.json({ ...PRE, players });
+  res.set('Cache-Control', 'private, no-store');
+  // jugadores de la organización que aún no se preinscriben (solo el nick, que ya es público en el ranking)
+  const players = (await q(`SELECT id, nickname FROM users WHERE coalesce(nickname,'')<>''
+                            AND id NOT IN (SELECT org_user_id FROM preinscriptions WHERE org_user_id IS NOT NULL) ORDER BY lower(nickname)`)).map(u => ({ id: u.id, nick: u.nickname }));
+  // con sesión de la org: se detecta solo (aunque ya esté preinscrito, para que pueda corregir)
+  const uid = await optionalUid(req), u = uid ? await q1('SELECT id, nickname, discord, email FROM users WHERE id=$1', [uid]) : null;
+  const done = u ? await q1('SELECT email FROM preinscriptions WHERE org_user_id=$1', [u.id]) : null;
+  res.json({ ...PRE, players, me: u ? { id: u.id, nick: u.nickname, discord: u.discord || '', email: (done && done.email) || u.email || '', already: !!done } : null });
 }));
 app.get('/api/admin/preinscripciones', auth, requireAdmin, wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');

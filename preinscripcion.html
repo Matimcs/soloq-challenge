@@ -197,9 +197,20 @@
   const ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Cualquiera (fill)' };
   const RANK = { UNRANKED:'Nunca he jugado ranked', IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' };
   const fill = (id, list, lbl) => { $(id).insertAdjacentHTML('beforeend', list.map(v => `<option value="${v}">${(lbl && lbl[v]) || v}</option>`).join('')); };
-  fetch('/api/preinscripcion/options', { cache: 'no-cache' }).then(r => r.json()).then(o => {
+  const tok = (() => { try { return localStorage.getItem('sqc_token'); } catch (e) { return null; } })();
+  fetch('/api/preinscripcion/options', { cache: 'no-cache', headers: tok ? { Authorization: 'Bearer ' + tok } : {} }).then(r => r.json()).then(o => {
     fill('faculty', o.faculties); fill('role', o.roles, ROLE); fill('peak_rank', o.ranks, RANK); fill('source', o.sources);
-    $('org_user_id').insertAdjacentHTML('beforeend', (o.players || []).map(p => `<option value="${p.id}">${String(p.nick).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]))}</option>`).join(''));
+    const escH = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+    $('org_user_id').insertAdjacentHTML('beforeend', (o.players || []).map(p => `<option value="${p.id}">${escH(p.nick)}</option>`).join(''));
+    // con sesión de la organización: se detecta solo
+    if (o.me){
+      if (![...$('org_user_id').options].some(x => x.value == o.me.id)) $('org_user_id').insertAdjacentHTML('beforeend', `<option value="${o.me.id}">${escH(o.me.nick)}</option>`);
+      $('org_user_id').value = String(o.me.id); $('org_user_id').disabled = true;
+      document.querySelectorAll('input[name="org_member"]').forEach(x => { x.checked = x.value === 'si'; x.disabled = true; });
+      $('org-pick').style.display = ''; $('source-f').style.display = 'none';
+      $('org-pick').insertAdjacentHTML('beforeend', `<div class="h">Detectado por tu sesión: eres <b style="color:var(--text)">${escH(o.me.nick)}</b>.${o.me.already ? ' Ya estás preinscrito: si envías de nuevo con el mismo correo, se actualiza.' : ''}</div>`);
+      const f = $('pre'); if (!f.elements.discord.value) f.elements.discord.value = o.me.discord; if (!f.elements.email.value) f.elements.email.value = o.me.email;
+    }
   }).catch(() => { $('err').textContent = 'No se pudo cargar el formulario. Recarga la página.'; });
   // De la organización: elige quién es y no se pregunta cómo se enteró
   document.querySelectorAll('input[name="org_member"]').forEach(x => x.addEventListener('change', () => {
@@ -216,7 +227,7 @@
       rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: org === 'si' ? '' : v('source'), comments: v('comments'), website: v('website') };
     const btn = $('send'); btn.disabled = true; $('err').textContent = '';
     try {
-      const res = await fetch('/api/preinscripcion', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+      const res = await fetch('/api/preinscripcion', { method:'POST', headers:{ 'Content-Type':'application/json', ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: JSON.stringify(body) });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'No se pudo enviar');
       f.style.display = 'none'; $('done').style.display = ''; window.scrollTo(0, 0);
