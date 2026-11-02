@@ -4679,8 +4679,10 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
     if (await q1('SELECT 1 FROM preinscriptions WHERE org_user_id=$1 AND email<>$2', [orgUid, email])) return res.status(400).json({ error: 'Ese jugador de la organización ya está preinscrito. Si eres tú y quieres corregir algo, usa el mismo correo de la primera vez.' }); }
   const source = !org && PRE.sources.includes(b.source) ? b.source : null;
   const extendUc = org && ['si', 'no', 'nose', 'igual'].includes(b.extend_uc) ? b.extend_uc : null;
-  const startMonth = ['enero', 'febrero', 'marzo', 'despues'].includes(b.start_month) ? b.start_month : null;
-  if (!startMonth) return res.status(400).json({ error: 'Elige qué mes prefieres para el inicio' });
+  // meses que le acomodan (puede marcar varios): se guardan en orden, separados por coma
+  const MONTHS = ['enero', 'febrero', 'marzo', 'despues'], picked = new Set([].concat(b.start_month || []).map(String));
+  const startMonth = MONTHS.filter(m => picked.has(m)).join(',') || null;
+  if (!startMonth) return res.status(400).json({ error: 'Elige al menos un mes para el inicio' });
   if (org && !extendUc) return res.status(400).json({ error: 'Responde si extenderías la invitación a la comunidad UC' });
   await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id, extend_uc, start_month)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)

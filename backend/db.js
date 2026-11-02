@@ -404,7 +404,7 @@ async function init(){
     );
     ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS org_member BOOLEAN DEFAULT false;
     ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS org_user_id INTEGER;   -- qué jugador de la organización es (si org_member)
-    ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS start_month TEXT;      -- mes que prefiere para el inicio: enero | febrero | marzo | despues
+    ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS start_month TEXT;      -- meses que le acomodan para el inicio (varios, separados por coma): enero,febrero,marzo,despues
     ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS extend_uc TEXT;        -- solo org: ¿extender la invitación a la comunidad UC? si | no | nose | igual
     -- Cuentas de prueba (solo superadmin): se trackean con su propia API key (TRACK_RIOT_KEY), aparte del ranking.
     CREATE TABLE IF NOT EXISTS track_accounts (
