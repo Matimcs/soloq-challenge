@@ -113,8 +113,22 @@
       <button class="atab-btn" data-g="shells">🐚 Shells y castigos</button>
       <button class="atab-btn" data-g="jugadores">🎮 Jugadores</button>
       <button class="atab-btn" data-g="comunidad">📺 Streams y tickets</button>
+      <button class="atab-btn" data-g="pre">📝 Preinscripciones</button>
       <button class="atab-btn" data-g="track" id="tab-track" style="display:none">🔭 Cuentas de prueba</button>
     </div>
+
+    <!-- ===== PREINSCRIPCIONES AL SOLOQ CHALLENGE ===== -->
+    <section class="atab" id="at-pre">
+      <div class="box">
+        <h2>Resumen <span class="n" id="pre-count"></span><button class="btn btn-ghost" id="pre-csv" style="margin-left:auto;padding:6px 12px;font-size:12px">⬇ Descargar CSV (Excel)</button></h2>
+        <div id="pre-sum" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+      </div>
+      <div class="box">
+        <h2>Respuestas</h2>
+        <input type="text" id="pre-q" placeholder="Buscar por nombre, correo, Discord, facultad o carrera…" style="width:100%;margin-bottom:12px">
+        <div id="pre-list"></div>
+      </div>
+    </section>
 
     <!-- ===== CUENTAS DE PRUEBA (solo superadmin) ===== -->
     <section class="atab" id="at-track">
@@ -643,6 +657,49 @@
       try { const r = await SQC.api('/admin/login-unlock', { method:'POST' }); out.textContent = r.cleared ? 'Listo: se liberaron ' + r.cleared + ' bloqueo(s). Ya pueden volver a intentar.' : 'No había nadie bloqueado.'; }
       catch(e){ toast(e.message); }
     };
+  })();
+
+  // ---- Preinscripciones ----
+  (async function(){
+    const e5 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const L = {
+      interest: { si:'Sí', talvez:'Tal vez', no:'No' }, account_way: { grinding:'Grinding', compra:'Compra', nose:'Aún no sabe' },
+      role: { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Fill' },
+      peak_rank: { UNRANKED:'Sin ranked', IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' },
+      fee: { 3000:'$3.000', 5000:'$5.000', 10000:'$10.000' },
+    };
+    const lab = (k, v) => (L[k] && L[k][v]) || v || '–';
+    let rows = [], qy = '';
+    async function load(){ try { rows = await SQC.api('/admin/preinscripciones'); } catch (e) { $('pre-list').textContent = e.message; return; } render(); }
+    function tally(k){ const c = {}; rows.forEach(r => { const v = lab(k, r[k]); c[v] = (c[v] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1]); }
+    function render(){
+      $('pre-count').textContent = rows.length;
+      const card = (t, k) => `<div style="background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px"><div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${t}</div>`
+        + (rows.length ? tally(k).map(([v, n]) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>${e5(v)}</span><b>${n} <span style="color:var(--muted);font-weight:600">(${Math.round(n / rows.length * 100)}%)</span></b></div>`).join('') : '<div style="color:var(--muted);font-size:13px">—</div>') + `</div>`;
+      $('pre-sum').innerHTML = card('¿Jugaría?', 'interest') + card('Entrada que pagaría', 'fee') + card('Cómo conseguiría la cuenta', 'account_way') + card('Rol', 'role') + card('Rango más alto', 'peak_rank') + card('Facultad', 'faculty') + card('Cómo se enteró', 'source');
+      const k = qy.toLowerCase(), list = !k ? rows : rows.filter(r => [r.name, r.email, r.discord, r.faculty, r.career, r.riotid].some(x => String(x || '').toLowerCase().includes(k)));
+      $('pre-list').innerHTML = !list.length ? '<div style="color:var(--muted);font-size:13px">Sin respuestas.</div>' : `<div class="scrollbox" style="max-height:600px;overflow-x:auto"><table style="width:100%;min-width:860px;border-collapse:collapse;font-size:12.5px">
+        <tr style="color:var(--muted);text-align:left"><th style="padding:6px">Nombre</th><th>Contacto</th><th>Facultad · carrera</th><th>¿Juega?</th><th>Entrada</th><th>Cuenta</th><th>Rol · rango</th><th>Fecha</th><th></th></tr>`
+        + list.map(r => `<tr style="border-top:1px solid var(--line);vertical-align:top">
+          <td style="padding:7px 6px"><b>${e5(r.name)}</b>${r.comments ? `<div style="color:var(--muted);margin-top:3px;max-width:240px">💬 ${e5(r.comments)}</div>` : ''}</td>
+          <td style="padding:7px 6px">${e5(r.email)}<div style="color:var(--muted)">${e5(r.discord)}</div>${r.contact_ok ? '' : '<div style="color:var(--down)">no quiere contacto</div>'}</td>
+          <td style="padding:7px 6px">${e5(r.faculty)}<div style="color:var(--muted)">${e5(r.career)}</div></td>
+          <td style="padding:7px 6px">${lab('interest', r.interest)}</td><td style="padding:7px 6px">${lab('fee', r.fee)}</td>
+          <td style="padding:7px 6px">${lab('account_way', r.account_way)}${r.riotid ? `<div style="color:var(--muted)">${e5(r.riotid)}</div>` : ''}</td>
+          <td style="padding:7px 6px">${lab('role', r.role)}<div style="color:var(--muted)">${lab('peak_rank', r.peak_rank)}</div></td>
+          <td style="padding:7px 6px;color:var(--muted)">${fdate(r.created_at)}</td>
+          <td style="padding:7px 6px"><button class="btn btn-no" style="padding:3px 8px;font-size:11px" data-pdel="${r.id}">Borrar</button></td></tr>`).join('') + `</table></div>`;
+      document.querySelectorAll('[data-pdel]').forEach(b => b.onclick = async () => { if (!confirm('¿Borrar esta preinscripción?')) return;
+        try { await SQC.api('/admin/preinscripciones/' + b.dataset.pdel + '/delete', { method:'POST' }); toast('Borrada'); load(); } catch (e) { toast(e.message); } });
+    }
+    $('pre-q').oninput = e => { qy = e.target.value; render(); };
+    $('pre-csv').onclick = () => {
+      const cols = [['name','Nombre'],['email','Correo'],['discord','Discord'],['faculty','Facultad'],['career','Carrera'],['interest','¿Jugaría?'],['fee','Entrada'],['account_way','Cuenta'],['riotid','Cuenta actual'],['role','Rol'],['peak_rank','Rango más alto'],['source','Cómo se enteró'],['contact_ok','Acepta contacto'],['comments','Comentarios'],['created_at','Fecha']];
+      const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const csv = '\ufeff' + cols.map(c => cell(c[1])).join(';') + '\r\n' + rows.map(r => cols.map(([k]) => cell(k === 'contact_ok' ? (r[k] ? 'Sí' : 'No') : k === 'created_at' ? fdate(r[k]) : lab(k, r[k]))).join(';')).join('\r\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); a.download = 'preinscripciones.csv'; a.click();
+    };
+    load();
   })();
 
   // ---- Cuentas de prueba (solo superadmin) ----

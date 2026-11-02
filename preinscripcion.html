@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+<script src="auth-fetch.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Preinscripción</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .link{ color:var(--muted); font-size:14px; font-weight:500; } .link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .me{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; } .me img{ width:26px; height:26px; border-radius:7px; object-fit:cover; }
+  .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:8px 13px; font-size:13px; font-weight:700; }
+  .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+  .box h2{ font-size:16px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .box p{ font-size:13.5px; color:var(--muted); line-height:1.55; }
+  .box p b{ color:var(--text); }
+
+  .get-list,.rule-list{ list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; }
+  .rule-list{ grid-template-columns:1fr; }
+  .get-list li,.rule-list li{ position:relative; padding-left:22px; font-size:13.5px; color:var(--muted); line-height:1.45; }
+  .get-list li::before{ content:'🛡'; position:absolute; left:0; top:0; font-size:11px; }
+  .rule-list li::before{ content:'›'; position:absolute; left:4px; top:-1px; color:var(--accent); font-weight:800; }
+  .get-list li b,.rule-list li b{ color:var(--text); font-weight:700; }
+
+  .castigos{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; }
+  .cast{ display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
+  .cast img{ width:40px; height:40px; object-fit:contain; flex-shrink:0; }
+  .cast .ci{ flex:1; min-width:0; }
+  .cast .cn{ font-size:12.5px; font-weight:600; line-height:1.25; }
+  .cast .cp{ font-size:12px; font-weight:800; color:var(--accent); margin-top:2px; }
+
+  .rev-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  .rev-table td{ padding:7px 10px; font-size:13px; border-bottom:1px solid var(--line); }
+  .rev-table td:last-child{ text-align:right; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
+  @media (max-width:760px){ .get-list{ grid-template-columns:1fr; } }
+  .wrap.narrow{ max-width:760px; }
+  .f{ display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+  .f > label, .q{ font-size:13.5px; font-weight:700; } .f .h{ font-size:12px; color:var(--muted); font-weight:500; }
+  .req{ color:var(--accent); }
+  .f input[type=text], .f input[type=email], .f select, .f textarea{ font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; width:100%; outline:none; }
+  .f input:focus, .f select:focus, .f textarea:focus{ border-color:var(--accent); }
+  .f textarea{ min-height:80px; resize:vertical; }
+  .two{ display:grid; grid-template-columns:1fr 1fr; gap:0 14px; } @media (max-width:640px){ .two{ grid-template-columns:1fr; } }
+  .opts{ display:flex; flex-wrap:wrap; gap:8px; }
+  .opt{ position:relative; } .opt input{ position:absolute; opacity:0; pointer-events:none; }
+  .opt span{ display:inline-block; cursor:pointer; padding:9px 14px; border-radius:10px; border:1px solid var(--line-2); background:var(--panel-2); font-size:13.5px; font-weight:700; color:var(--muted); }
+  .opt input:checked + span{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .opt input:focus-visible + span{ outline:2px solid var(--accent); outline-offset:2px; }
+  .card-opt{ display:block; cursor:pointer; padding:12px 14px; border-radius:12px; border:1px solid var(--line-2); background:var(--panel-2); margin-bottom:8px; }
+  .card-opt input{ margin-right:8px; accent-color:var(--accent); } .card-opt b{ font-size:14px; } .card-opt p{ font-size:12.5px; color:var(--muted); margin:4px 0 0 24px; line-height:1.45; }
+  .card-opt:has(input:checked){ border-color:var(--accent); background:rgba(233,255,31,.05); }
+  .tag{ font-size:10px; font-weight:800; padding:2px 7px; border-radius:6px; margin-left:6px; vertical-align:middle; }
+  .tag.rec{ background:rgba(52,211,153,.15); color:var(--up); } .tag.warn{ background:rgba(255,210,74,.14); color:var(--gold); }
+  .chk{ display:flex; gap:10px; align-items:flex-start; font-size:13.5px; color:var(--muted); margin-bottom:10px; cursor:pointer; } .chk input{ margin-top:3px; accent-color:var(--accent); } .chk b{ color:var(--text); }
+  .send{ width:100%; font-family:var(--font); cursor:pointer; border:0; border-radius:12px; padding:14px; font-size:15px; font-weight:800; background:var(--accent); color:#000; margin-top:6px; }
+  .send:disabled{ opacity:.6; cursor:wait; }
+  .err{ color:var(--down); font-size:13px; font-weight:700; min-height:18px; margin-top:8px; text-align:center; }
+  .done{ text-align:center; padding:30px 20px; } .done .big{ font-size:44px; } .done h2{ justify-content:center; font-size:20px; }
+  .hp{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+</style>
+<link rel="stylesheet" href="nav.css?v=3">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="herramientas.html">Herramientas</a>
+      <a href="ranked.html" id="nav-ranked">Ranked</a>
+      <a href="torneos.html">Torneos</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>/* Revela pestañas de sesión al instante (sin parpadeo), antes de pintar. */(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap narrow">
+    <h1>Preinscripción</h1>
+    <div class="sub">SoloQ Challenge universitario · parte en marzo (fecha provisoria). Esto no te inscribe todavía: nos sirve para saber cuántos interesados hay y armar el challenge a su medida.</div>
+
+    <form id="pre" autocomplete="on" novalidate>
+      <div class="box">
+        <h2>🎮 ¿Te interesa?</h2>
+        <div class="f"><div class="q">¿Estarías dispuesto a jugar un eventual SoloQ Challenge universitario? <span class="req">*</span></div>
+          <div class="opts"><label class="opt"><input type="radio" name="interest" value="si"><span>Sí</span></label><label class="opt"><input type="radio" name="interest" value="talvez"><span>Tal vez</span></label><label class="opt"><input type="radio" name="interest" value="no"><span>No</span></label></div></div>
+      </div>
+
+      <div class="box">
+        <h2>👤 Tus datos</h2>
+        <div class="f"><label for="name">Nombre completo <span class="req">*</span></label><input type="text" id="name" name="name" maxlength="100" autocomplete="name"></div>
+        <div class="two">
+          <div class="f"><label for="email">Correo <span class="req">*</span></label><input type="email" id="email" name="email" maxlength="120" autocomplete="email"></div>
+          <div class="f"><label for="discord">Discord <span class="req">*</span></label><input type="text" id="discord" name="discord" maxlength="60" placeholder="tu usuario de Discord"></div>
+        </div>
+        <div class="two">
+          <div class="f"><label for="faculty">Facultad <span class="req">*</span></label><select id="faculty" name="faculty"><option value="">— elige —</option></select></div>
+          <div class="f"><label for="career">Carrera <span class="req">*</span></label><input type="text" id="career" name="career" maxlength="100"></div>
+        </div>
+      </div>
+
+      <div class="box">
+        <h2>🕹 Tu cuenta para el challenge</h2>
+        <p style="margin-bottom:12px">El challenge se juega con una <b>cuenta nueva</b>. Hay dos formas de conseguirla:</p>
+        <div class="f" style="margin-bottom:6px"><div class="q">¿Cómo conseguirías tu cuenta? <span class="req">*</span></div></div>
+        <label class="card-opt"><input type="radio" name="account_way" value="grinding"><b>Grinding manual</b><span class="tag rec">RECOMENDADO</span>
+          <p>Subes una cuenta nueva a nivel 30 jugando. Evita un posible ban a futuro, y ganando partidas normales tú mismo ajustas el MMR con que la cuenta llega a ranked.</p></label>
+        <label class="card-opt"><input type="radio" name="account_way" value="compra"><b>Compra</b><span class="tag warn">CON CONDICIONES</span>
+          <p>Solo se aceptan cuentas <b style="color:var(--text)">nivel 30 sin ninguna partida clasificatoria jugada</b>. Ojo: las reglas de Riot no permiten comprar cuentas, así que existe el riesgo de que la cuenta sea baneada.</p></label>
+        <label class="card-opt"><input type="radio" name="account_way" value="nose"><b>Aún no sé</b></label>
+        <div class="two" style="margin-top:12px">
+          <div class="f"><label for="role">Rol que te gustaría jugar <span class="req">*</span></label><select id="role" name="role"><option value="">— elige —</option></select></div>
+          <div class="f"><label for="peak_rank">Rango más alto que has tenido en SoloQ <span class="req">*</span></label><select id="peak_rank" name="peak_rank"><option value="">— elige —</option></select></div>
+        </div>
+        <div class="f"><label for="riotid">Tu cuenta actual <span class="h">(opcional · Nombre#TAG)</span></label><input type="text" id="riotid" name="riotid" maxlength="40" placeholder="Nombre#TAG"></div>
+      </div>
+
+      <div class="box">
+        <h2>💰 Entrada y premios</h2>
+        <p style="margin-bottom:12px">Los premios salen de las entradas: <b>mientras mayor la entrada y más participantes, mayor el pozo de premios</b>. Con una entrada más alta los premios para los primeros lugares serían bastante mejores.</p>
+        <div class="f"><div class="q">¿Cuánto estarías dispuesto a pagar de entrada? <span class="req">*</span></div>
+          <div class="opts"><label class="opt"><input type="radio" name="fee" value="3000"><span>$3.000</span></label><label class="opt"><input type="radio" name="fee" value="5000"><span>$5.000</span></label><label class="opt"><input type="radio" name="fee" value="10000"><span>$10.000</span></label></div></div>
+      </div>
+
+      <div class="box">
+        <h2>📜 Reglas</h2>
+        <ul class="rule-list" style="margin-bottom:10px">
+          <li><b>5 partidas por día</b>, acumulables: si un día juegas menos, lo que no jugaste se guarda para otro día. Si juegas de más, se descuenta de los días siguientes, y pasarse por <b>5 o más</b> puede llevar a una <b>penalización</b>.</li>
+          <li><b>Blue Shells:</b> se ganan con logros en SoloQ (pentakill, rachas, comebacks…) y se lanzan a otro participante, que debe cumplir un castigo en su próxima partida (sin Flash, con Yuumi, autofill…).</li>
+        </ul>
+        <p style="margin-bottom:14px">El detalle está en <a href="normas.html" target="_blank" style="color:var(--accent);font-weight:700">Normas</a>. Las reglas pueden ajustarse antes del inicio.</p>
+        <label class="chk"><input type="checkbox" name="rules_ok"><span><b>Leí y entiendo las reglas</b> <span class="req">*</span></span></label>
+        <label class="chk"><input type="checkbox" name="contact_ok" checked><span>Acepto que me contacten por Discord o correo sobre el challenge.</span></label>
+      </div>
+
+      <div class="box">
+        <h2>💬 Para terminar</h2>
+        <div class="f"><label for="source">¿Cómo te enteraste?</label><select id="source" name="source"><option value="">— elige —</option></select></div>
+        <div class="f" style="margin-bottom:0"><label for="comments">Comentarios <span class="h">(opcional)</span></label><textarea id="comments" name="comments" maxlength="1000" placeholder="Ideas, dudas, lo que quieras contarnos"></textarea></div>
+      </div>
+
+      <div class="hp" aria-hidden="true"><label>No llenar <input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <button class="send" type="submit" id="send">Enviar preinscripción</button>
+      <div class="err" id="err" role="alert"></div>
+      <div class="note">Tus datos solo se usan para organizar el challenge. Si te equivocas, vuelve a enviar con el mismo correo y se actualiza.</div>
+    </form>
+
+    <div class="box done" id="done" style="display:none">
+      <div class="big">🎉</div><h2>¡Preinscripción enviada!</h2>
+      <p>Gracias. Te avisaremos por Discord o correo cuando se abran las inscripciones.</p>
+      <p style="margin-top:14px"><a href="index.html" style="color:var(--accent);font-weight:700">← Volver al inicio</a></p>
+    </div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Cualquiera (fill)' };
+  const RANK = { UNRANKED:'Nunca he jugado ranked', IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' };
+  const fill = (id, list, lbl) => { $(id).insertAdjacentHTML('beforeend', list.map(v => `<option value="${v}">${(lbl && lbl[v]) || v}</option>`).join('')); };
+  fetch('/api/preinscripcion/options').then(r => r.json()).then(o => {
+    fill('faculty', o.faculties); fill('role', o.roles, ROLE); fill('peak_rank', o.ranks, RANK); fill('source', o.sources);
+  }).catch(() => { $('err').textContent = 'No se pudo cargar el formulario. Recarga la página.'; });
+  $('pre').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target, v = n => { const el = f.elements[n]; return el ? (el.value || '').trim() : ''; }, r = n => { const el = f.querySelector(`input[name="${n}"]:checked`); return el ? el.value : ''; };
+    const body = { interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
+      account_way: r('account_way'), role: v('role'), peak_rank: v('peak_rank'), riotid: v('riotid'), fee: r('fee'),
+      rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: v('source'), comments: v('comments'), website: v('website') };
+    const btn = $('send'); btn.disabled = true; $('err').textContent = '';
+    try {
+      const res = await fetch('/api/preinscripcion', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || 'No se pudo enviar');
+      f.style.display = 'none'; $('done').style.display = ''; window.scrollTo(0, 0);
+    } catch (err) { $('err').textContent = err.message; btn.disabled = false; }
+  });
+  SQC.preNav(); SQC.mountNav();
+</script>
+</body>
+</html>

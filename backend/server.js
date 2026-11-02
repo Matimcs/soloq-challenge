@@ -4619,6 +4619,57 @@ async function detectRenames(){
   }
 }
 
+// ================= PREINSCRIPCIONES AL SOLOQ CHALLENGE =================
+// Formulario público (preinscripcion.html). Una por correo: si reenvía con el mismo correo, se actualiza.
+const PRE = {
+  faculties: ['Arquitectura y Urbanismo', 'Artes', 'Ciencias', 'Ciencias Agronómicas', 'Ciencias Físicas y Matemáticas (FCFM)',
+    'Ciencias Forestales y de la Conservación de la Naturaleza', 'Ciencias Químicas y Farmacéuticas', 'Ciencias Sociales',
+    'Ciencias Veterinarias y Pecuarias', 'Comunicación e Imagen', 'Derecho', 'Economía y Negocios (FEN)', 'Filosofía y Humanidades',
+    'Gobierno', 'Medicina', 'Odontología', 'Instituto de Estudios Internacionales', 'Programa de Bachillerato', 'Otra'],
+  interest: ['si', 'talvez', 'no'], way: ['grinding', 'compra', 'nose'], fee: [3000, 5000, 10000],
+  roles: ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY', 'FILL'],
+  ranks: ['UNRANKED', 'IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'],
+  sources: ['Un amigo', 'Discord', 'Redes sociales', 'Esta página', 'Otro'],
+};
+const PRE_HITS = new Map();   // ip -> [timestamps] (máx. 6 envíos por hora por IP)
+app.post('/api/preinscripcion', wrap(async (req, res) => {
+  const b = req.body || {};
+  if (b.website) return res.json({ ok: true });   // trampa para bots (campo oculto)
+  const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+  const now = Date.now(), hits = (PRE_HITS.get(ip) || []).filter(t => now - t < 3600e3);
+  if (hits.length >= 6) return res.status(429).json({ error: 'Demasiados envíos. Intenta en un rato.' });
+  hits.push(now); PRE_HITS.set(ip, hits);
+  const str = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+  const email = str(b.email, 120).toLowerCase(), name = str(b.name, 100), discord = str(b.discord, 60), career = str(b.career, 100);
+  if (!PRE.interest.includes(b.interest)) return res.status(400).json({ error: 'Responde si jugarías el challenge' });
+  if (name.length < 3) return res.status(400).json({ error: 'Escribe tu nombre completo' });
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Correo inválido' });
+  if (discord.length < 2) return res.status(400).json({ error: 'Escribe tu Discord' });
+  if (!PRE.faculties.includes(b.faculty)) return res.status(400).json({ error: 'Elige tu facultad' });
+  if (career.length < 2) return res.status(400).json({ error: 'Escribe tu carrera' });
+  if (!PRE.way.includes(b.account_way)) return res.status(400).json({ error: 'Elige cómo conseguirías tu cuenta' });
+  const fee = PRE.fee.includes(Number(b.fee)) ? Number(b.fee) : null; if (!fee) return res.status(400).json({ error: 'Elige cuánto pagarías de entrada' });
+  if (!PRE.roles.includes(b.role)) return res.status(400).json({ error: 'Elige el rol que te gustaría jugar' });
+  if (!PRE.ranks.includes(b.peak_rank)) return res.status(400).json({ error: 'Elige tu rango más alto' });
+  if (!b.rules_ok) return res.status(400).json({ error: 'Tienes que confirmar que leíste las reglas' });
+  const riotid = str(b.riotid, 40); if (riotid && !/^.+#.+$/.test(riotid)) return res.status(400).json({ error: 'La cuenta debe ser Nombre#TAG' });
+  const source = PRE.sources.includes(b.source) ? b.source : null;
+  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+           ON CONFLICT (email) DO UPDATE SET name=$2, discord=$3, faculty=$4, career=$5, interest=$6, account_way=$7, fee=$8, role=$9, riotid=$10,
+             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, updated_at=now()`,
+    [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip]);
+  res.json({ ok: true });
+}));
+app.get('/api/preinscripcion/options', (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(PRE); });
+app.get('/api/admin/preinscripciones', auth, requireAdmin, wrap(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.json(await q('SELECT id, email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, created_at, updated_at FROM preinscriptions ORDER BY created_at DESC'));
+}));
+app.post('/api/admin/preinscripciones/:id/delete', auth, requireAdmin, wrap(async (req, res) => {
+  await q('DELETE FROM preinscriptions WHERE id=$1', [Number(req.params.id)]); res.json({ ok: true });
+}));
+
 // Cuentas de prueba (solo superadmin), con su propia API key: ver track.js
 require('./track')(app, { q, q1, wrap, auth, isSuper: rkIsSuper });
 

@@ -381,6 +381,27 @@ async function init(){
     );
     ALTER TABLE team_games ADD COLUMN IF NOT EXISTS game_no SMALLINT;   -- game 1..5 de la serie (scrim o torneo)
     ALTER TABLE team_games ADD COLUMN IF NOT EXISTS roles JSONB;   -- roles fijados a mano por el capitán {pid: ROL}
+    -- Preinscripciones al SoloQ Challenge universitario (formulario público; una por correo, se puede reenviar para corregir)
+    CREATE TABLE IF NOT EXISTS preinscriptions (
+      id          SERIAL PRIMARY KEY,
+      email       TEXT UNIQUE NOT NULL,      -- en minúsculas
+      name        TEXT NOT NULL,
+      discord     TEXT NOT NULL,
+      faculty     TEXT NOT NULL,
+      career      TEXT NOT NULL,
+      interest    TEXT NOT NULL,             -- si | talvez | no
+      account_way TEXT NOT NULL,             -- grinding | compra | nose
+      fee         INTEGER,                   -- 3000 | 5000 | 10000 (lo que estaría dispuesto a pagar)
+      role        TEXT,
+      riotid      TEXT,                      -- cuenta actual (opcional)
+      peak_rank   TEXT,
+      source      TEXT,
+      comments    TEXT,
+      contact_ok  BOOLEAN DEFAULT false,
+      ip          TEXT,
+      created_at  TIMESTAMPTZ DEFAULT now(),
+      updated_at  TIMESTAMPTZ DEFAULT now()
+    );
     -- Cuentas de prueba (solo superadmin): se trackean con su propia API key (TRACK_RIOT_KEY), aparte del ranking.
     CREATE TABLE IF NOT EXISTS track_accounts (
       id         SERIAL PRIMARY KEY,
