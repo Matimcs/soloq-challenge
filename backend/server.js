@@ -4626,7 +4626,7 @@ const PRE = {
     'Ciencias Forestales y de la Conservación de la Naturaleza', 'Ciencias Químicas y Farmacéuticas', 'Ciencias Sociales',
     'Ciencias Veterinarias y Pecuarias', 'Comunicación e Imagen', 'Derecho', 'Economía y Negocios (FEN)', 'Filosofía y Humanidades',
     'Gobierno', 'Medicina', 'Odontología', 'Instituto de Estudios Internacionales', 'Programa de Bachillerato', 'Otra'],
-  interest: ['si', 'talvez', 'no'], way: ['grinding', 'compra', 'nose'], fee: [3000, 5000, 10000],
+  interest: ['si', 'talvez', 'no'], way: ['grinding', 'compra', 'nose'], fee: [0, 3000, 5000, 10000],
   roles: ['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY', 'FILL'],
   ranks: ['UNRANKED', 'IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'],
   sources: ['Un amigo', 'Discord', 'Redes sociales', 'U-Cursos', 'Grupos organizados', 'Esta página', 'Otro'],
@@ -4648,7 +4648,7 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
   if (!PRE.faculties.includes(b.faculty)) return res.status(400).json({ error: 'Elige tu facultad' });
   if (career.length < 2) return res.status(400).json({ error: 'Escribe tu carrera' });
   if (!PRE.way.includes(b.account_way)) return res.status(400).json({ error: 'Elige cómo conseguirías tu cuenta' });
-  const fee = PRE.fee.includes(Number(b.fee)) ? Number(b.fee) : null; if (!fee) return res.status(400).json({ error: 'Elige cuánto pagarías de entrada' });
+  const fee = b.fee !== '' && b.fee != null && PRE.fee.includes(Number(b.fee)) ? Number(b.fee) : null; if (fee === null) return res.status(400).json({ error: 'Elige cuánto pagarías de entrada' });
   if (!PRE.roles.includes(b.role)) return res.status(400).json({ error: 'Elige el rol que te gustaría jugar' });
   if (!PRE.ranks.includes(b.peak_rank)) return res.status(400).json({ error: 'Elige tu rango más alto' });
   if (!b.rules_ok) return res.status(400).json({ error: 'Tienes que confirmar que leíste las reglas' });
