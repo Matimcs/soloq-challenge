@@ -4409,8 +4409,24 @@ app.get('/api/admin/overlay-usage', auth, requireAdmin, wrap(async (_req, res) =
 app.get('/ping', (_req, res) => res.type('text').send('ok'));
 
 // ---- Sitio estático ----
-// Pestaña "Ranked": la misma página de Herramientas, que al abrirse como ranked.html muestra solo Ranked.
-app.get('/ranked.html', (req, res) => { res.set('Cache-Control', 'no-cache'); res.sendFile(path.join(ROOT, 'herramientas.html')); });
+// URLs limpias: /premios sirve premios.html, y /premios.html redirige (301) a /premios. /index.html → /.
+// (Se mantiene la query y el #, así no se rompen enlaces viejos ni salas compartidas.)
+const qsOf = req => { const i = req.originalUrl.indexOf('?'); return i >= 0 ? req.originalUrl.slice(i) : ''; };
+const PAGE_RE = /^\/([a-z0-9_-]+)$/i, HTML_RE = /^\/([a-z0-9_-]+)\.html$/i;
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const h = req.path.match(HTML_RE);
+  if (h){ const name = h[1].toLowerCase();
+    if (name === 'index') return res.redirect(301, '/' + qsOf(req));
+    if (name === 'ranked' || fs.existsSync(path.join(ROOT, name + '.html'))) return res.redirect(301, '/' + name + qsOf(req));
+    return next(); }
+  const m = req.path.match(PAGE_RE);
+  if (m && !req.path.startsWith('/api')){ const name = m[1].toLowerCase();
+    // Pestaña "Ranked": la misma página de Herramientas, que al abrirse como /ranked muestra solo Ranked.
+    const file = name === 'ranked' ? 'herramientas.html' : name + '.html';
+    if (fs.existsSync(path.join(ROOT, file))){ res.set('Cache-Control', 'no-cache'); return res.sendFile(path.join(ROOT, file)); } }
+  next();
+});
 const PUBLIC_FILES = new Set(['api.js', 'auth-fetch.js', 'sfx.js', 'nav.css', 'roulette.js', 'torneo-data.js', 'uleague-data.json']);
 app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
