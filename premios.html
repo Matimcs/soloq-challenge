@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="es">
+<head>
+<script src="auth-fetch.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Premios</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .link{ color:var(--muted); font-size:14px; font-weight:500; } .link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .me{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; } .me img{ width:26px; height:26px; border-radius:7px; object-fit:cover; }
+  .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:8px 13px; font-size:13px; font-weight:700; }
+  .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+  .box h2{ font-size:16px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .box p{ font-size:13.5px; color:var(--muted); line-height:1.55; }
+  .box p b{ color:var(--text); }
+
+  .get-list,.rule-list{ list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; }
+  .rule-list{ grid-template-columns:1fr; }
+  .get-list li,.rule-list li{ position:relative; padding-left:22px; font-size:13.5px; color:var(--muted); line-height:1.45; }
+  .get-list li::before{ content:'🛡'; position:absolute; left:0; top:0; font-size:11px; }
+  .rule-list li::before{ content:'›'; position:absolute; left:4px; top:-1px; color:var(--accent); font-weight:800; }
+  .get-list li b,.rule-list li b{ color:var(--text); font-weight:700; }
+
+  .castigos{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; }
+  .cast{ display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
+  .cast img{ width:40px; height:40px; object-fit:contain; flex-shrink:0; }
+  .cast .ci{ flex:1; min-width:0; }
+  .cast .cn{ font-size:12.5px; font-weight:600; line-height:1.25; }
+  .cast .cp{ font-size:12px; font-weight:800; color:var(--accent); margin-top:2px; }
+
+  .rev-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  .rev-table td{ padding:7px 10px; font-size:13px; border-bottom:1px solid var(--line); }
+  .rev-table td:last-child{ text-align:right; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
+  @media (max-width:760px){ .get-list{ grid-template-columns:1fr; } }
+  .wrap.narrow{ max-width:860px; }
+  .sim{ display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:680px){ .sim{ grid-template-columns:1fr; } }
+  .lbl{ font-size:12px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px; }
+  .num{ display:flex; align-items:center; gap:10px; }
+  .num input[type=number]{ width:110px; font-family:var(--font); font-size:20px; font-weight:800; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:8px 10px; }
+  input[type=range]{ width:100%; accent-color:var(--accent); margin-top:10px; }
+  .chips{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .chip{ font-family:var(--font); cursor:pointer; padding:7px 12px; border-radius:9px; border:1px solid var(--line-2); background:var(--panel-2); color:var(--muted); font-size:13px; font-weight:800; }
+  .chip.on{ background:var(--accent); color:#000; border-color:var(--accent); }
+  .pot{ text-align:center; padding:22px 16px; border:1px solid rgba(233,255,31,.3); border-radius:16px; background:radial-gradient(500px 160px at 50% 0, rgba(233,255,31,.10), transparent 70%), var(--panel); margin-bottom:18px; }
+  .pot .k{ font-size:12px; font-weight:800; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; }
+  .pot .v{ font-size:44px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; margin:4px 0; }
+  .pot .s{ font-size:13px; color:var(--muted); }
+  .grp{ margin-bottom:18px; } .grp h3{ font-size:15px; margin-bottom:10px; display:flex; justify-content:space-between; gap:8px; } .grp h3 span{ color:var(--muted); font-size:12.5px; font-weight:700; }
+  .rows{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px; }
+  .row{ display:flex; justify-content:space-between; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:11px; padding:10px 12px; font-size:13.5px; }
+  .row b{ font-variant-numeric:tabular-nums; color:var(--gold); white-space:nowrap; } .row small{ display:block; color:var(--muted); font-size:11.5px; margin-top:2px; }
+  .div2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; } @media (max-width:680px){ .div2{ grid-template-columns:1fr; } }
+  .div2 .col h4{ font-size:13px; margin-bottom:8px; } .div2 .col .row{ margin-bottom:8px; }
+</style>
+<link rel="stylesheet" href="nav.css?v=3">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="herramientas.html">Herramientas</a>
+      <a href="ranked.html" id="nav-ranked">Ranked</a>
+      <a href="torneos.html">Torneos</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>/* Revela pestañas de sesión al instante (sin parpadeo), antes de pintar. */(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap narrow">
+    <h1>Premios</h1>
+    <div class="sub">Los premios salen <b style="color:var(--text)">100% de las entradas</b>: la organización no se queda con nada. Simula cuánto se repartiría según cuántos se inscriban y el valor de la entrada.</div>
+
+    <div class="box">
+      <div class="sim">
+        <div><div class="lbl">Jugadores inscritos</div>
+          <div class="num"><input type="number" id="n" min="2" max="500" value="30"></div>
+          <input type="range" id="nr" min="10" max="150" step="1" value="30"></div>
+        <div><div class="lbl">Entrada por jugador</div>
+          <div class="num"><span style="font-size:20px;font-weight:800">$</span><input type="number" id="fee" min="0" max="100000" step="500" value="5000"></div>
+          <div class="chips" id="chips"></div></div>
+      </div>
+    </div>
+
+    <div class="pot"><div class="k">Pozo total de premios</div><div class="v" id="pot">$0</div><div class="s" id="pots"></div></div>
+    <div id="out"></div>
+
+    <div class="box" style="margin-top:6px">
+      <h2>📌 Cómo funciona</h2>
+      <ul class="rule-list">
+        <li><b>Dos divisiones</b> según el rango más alto que haya tenido cada jugador: <b>Alta</b> (Diamante o más) y <b>Baja</b> (Esmeralda o menos), para que nadie compita contra alguien muy por encima de su nivel.</li>
+        <li>El reparto es por <b>porcentajes</b>: si entra más gente, todos los premios crecen.</li>
+        <li><b>Propuesta preliminar:</b> los premios y categorías pueden ajustarse antes del inicio.</li>
+      </ul>
+    </div>
+    <div class="note">Montos redondeados a la centena. <a href="preinscripcion.html" style="color:var(--accent);font-weight:700">📝 Preinscríbete</a></div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  // Reparto en fracciones del pozo (diseñado sobre $150.000: 30 jugadores × $5.000). Suma 100%.
+  const B = 150000;
+  const PLAN = [
+    { t: '🏆 Podios', div: true, items: [
+      { a: ['🥇 1° lugar', 35000], b: ['🥇 1° lugar', 18000] },
+      { a: ['🥈 2° lugar', 18000], b: ['🥈 2° lugar', 10000] },
+      { a: ['🥉 3° lugar', 10000], b: ['🥉 3° lugar', 6000] },
+      { a: ['🎖 4° lugar', 5000], b: ['🎖 4° lugar', 3000] } ] },
+    { t: '🎯 Mejor por rol', items: [['Mejor Top', 3000], ['Mejor Jungla', 3000], ['Mejor Mid', 3000], ['Mejor ADC', 3000], ['Mejor Support', 3000]] },
+    { t: '⭐ Premios especiales', items: [
+      ['El Grindeador', 3000, 'Más partidas jugadas (sin pasarse del cupo)'], ['One Trick King', 3000, 'Más partidas con un mismo campeón'],
+      ['Main Character', 3000, 'Mejor winrate (mín. 50 partidas)'], ['Rocky Balboa', 3000, 'Mayor remontada de LP desde su punto más bajo'],
+      ['Agente del Caos', 3000, 'Racha de derrotas más larga 😅'], ['Rey de las Blue Shells 🛡', 3000, 'Más Blue Shells lanzadas que impactaron'],
+      ['El Cumplidor', 3000, 'Más castigos de Blue Shell cumplidos'], ['Pentakill Hunter', 3000, 'Más pentakills (o cuadrakills si no hay)'] ] },
+    { t: '📊 Récords en una partida', items: [['Más kills', 1000], ['Más asistencias', 1000], ['Más daño a campeones', 1000], ['Más visión', 1000], ['Mejor KDA', 1000], ['Victoria más larga', 1000]] },
+  ];
+  const $ = id => document.getElementById(id);
+  const clp = v => '$' + Math.round(v).toLocaleString('es-CL');
+  const amt = (pot, base) => Math.round(pot * base / B / 100) * 100;
+  const pct = base => (base / B * 100).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + '%';
+  $('chips').innerHTML = [0, 3000, 5000, 10000].map(v => `<button class="chip" data-fee="${v}">${clp(v)}</button>`).join('');
+  function render(){
+    const n = Math.max(0, Math.min(500, parseInt($('n').value, 10) || 0)), fee = Math.max(0, Math.min(100000, parseInt($('fee').value, 10) || 0)), pot = n * fee;
+    document.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', +c.dataset.fee === fee));
+    $('pot').textContent = clp(pot); $('pots').textContent = `${n} jugadores × ${clp(fee)}`;
+    if (!pot){ $('out').innerHTML = '<div class="box" style="text-align:center;color:var(--muted)">Con entrada de $0 no hay pozo: los premios dependerían de auspicios.</div>'; return; }
+    $('out').innerHTML = PLAN.map(g => {
+      const tot = g.div ? g.items.reduce((s, x) => s + x.a[1] + x.b[1], 0) : g.items.reduce((s, x) => s + x[1], 0);
+      const head = `<h3>${g.t}<span>${clp(amt(pot, tot))} · ${pct(tot)}</span></h3>`;
+      if (g.div) return `<div class="box grp">${head}<div class="div2">
+        <div class="col"><h4>División Alta</h4>${g.items.map(x => `<div class="row"><span>${x.a[0]}</span><b>${clp(amt(pot, x.a[1]))}</b></div>`).join('')}</div>
+        <div class="col"><h4>División Baja</h4>${g.items.map(x => `<div class="row"><span>${x.b[0]}</span><b>${clp(amt(pot, x.b[1]))}</b></div>`).join('')}</div></div></div>`;
+      return `<div class="box grp">${head}<div class="rows">${g.items.map(x => `<div class="row"><span>${x[0]}${x[2] ? `<small>${x[2]}</small>` : ''}</span><b>${clp(amt(pot, x[1]))}</b></div>`).join('')}</div></div>`;
+    }).join('');
+  }
+  $('n').oninput = () => { $('nr').value = Math.min(150, Math.max(10, $('n').value)); render(); };
+  $('nr').oninput = () => { $('n').value = $('nr').value; render(); };
+  $('fee').oninput = render;
+  $('chips').onclick = e => { const b = e.target.closest('[data-fee]'); if (b){ $('fee').value = b.dataset.fee; render(); } };
+  render();
+  SQC.preNav(); SQC.mountNav();
+</script>
+</body>
+</html>
