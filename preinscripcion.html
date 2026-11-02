@@ -120,6 +120,9 @@
 
       <div class="box">
         <h2>👤 Tus datos</h2>
+        <div class="f"><div class="q">¿Eres jugador de la organización? <span class="req">*</span></div>
+          <div class="opts"><label class="opt"><input type="radio" name="org_member" value="si"><span>Sí</span></label><label class="opt"><input type="radio" name="org_member" value="no"><span>No</span></label></div></div>
+        <div class="f" id="org-pick" style="display:none"><label for="org_user_id">¿Qué jugador eres? <span class="req">*</span></label><select id="org_user_id" name="org_user_id"><option value="">— elige —</option></select></div>
         <div class="f"><label for="name">Nombre completo <span class="req">*</span></label><input type="text" id="name" name="name" maxlength="100" autocomplete="name"></div>
         <div class="two">
           <div class="f"><label for="email">Correo <span class="req">*</span></label><input type="email" id="email" name="email" maxlength="120" autocomplete="email"></div>
@@ -171,7 +174,7 @@
 
       <div class="box">
         <h2>💬 Para terminar</h2>
-        <div class="f"><label for="source">¿Cómo te enteraste?</label><select id="source" name="source"><option value="">— elige —</option></select></div>
+        <div class="f" id="source-f"><label for="source">¿Cómo te enteraste?</label><select id="source" name="source"><option value="">— elige —</option></select></div>
         <div class="f" style="margin-bottom:0"><label for="comments">Comentarios <span class="h">(opcional)</span></label><textarea id="comments" name="comments" maxlength="1000" placeholder="Ideas, dudas, lo que quieras contarnos"></textarea></div>
       </div>
 
@@ -194,15 +197,23 @@
   const ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Cualquiera (fill)' };
   const RANK = { UNRANKED:'Nunca he jugado ranked', IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' };
   const fill = (id, list, lbl) => { $(id).insertAdjacentHTML('beforeend', list.map(v => `<option value="${v}">${(lbl && lbl[v]) || v}</option>`).join('')); };
-  fetch('/api/preinscripcion/options').then(r => r.json()).then(o => {
+  fetch('/api/preinscripcion/options', { cache: 'no-cache' }).then(r => r.json()).then(o => {
     fill('faculty', o.faculties); fill('role', o.roles, ROLE); fill('peak_rank', o.ranks, RANK); fill('source', o.sources);
+    $('org_user_id').insertAdjacentHTML('beforeend', (o.players || []).map(p => `<option value="${p.id}">${String(p.nick).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]))}</option>`).join(''));
   }).catch(() => { $('err').textContent = 'No se pudo cargar el formulario. Recarga la página.'; });
+  // De la organización: elige quién es y no se pregunta cómo se enteró
+  document.querySelectorAll('input[name="org_member"]').forEach(x => x.addEventListener('change', () => {
+    const org = document.querySelector('input[name="org_member"]:checked').value === 'si';
+    $('org-pick').style.display = org ? '' : 'none'; $('source-f').style.display = org ? 'none' : '';
+  }));
   $('pre').addEventListener('submit', async e => {
     e.preventDefault();
     const f = e.target, v = n => { const el = f.elements[n]; return el ? (el.value || '').trim() : ''; }, r = n => { const el = f.querySelector(`input[name="${n}"]:checked`); return el ? el.value : ''; };
-    const body = { interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
+    const org = r('org_member');
+    if (!org){ $('err').textContent = 'Responde si eres jugador de la organización'; return; }
+    const body = { org_member: org === 'si', org_user_id: org === 'si' ? v('org_user_id') : null, interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
       account_way: r('account_way'), role: v('role'), peak_rank: v('peak_rank'), riotid: v('riotid'), fee: r('fee'),
-      rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: v('source'), comments: v('comments'), website: v('website') };
+      rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: org === 'si' ? '' : v('source'), comments: v('comments'), website: v('website') };
     const btn = $('send'); btn.disabled = true; $('err').textContent = '';
     try {
       const res = await fetch('/api/preinscripcion', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) });

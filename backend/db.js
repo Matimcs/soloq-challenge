@@ -402,6 +402,8 @@ async function init(){
       created_at  TIMESTAMPTZ DEFAULT now(),
       updated_at  TIMESTAMPTZ DEFAULT now()
     );
+    ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS org_member BOOLEAN DEFAULT false;
+    ALTER TABLE preinscriptions ADD COLUMN IF NOT EXISTS org_user_id INTEGER;   -- qué jugador de la organización es (si org_member)
     -- Cuentas de prueba (solo superadmin): se trackean con su propia API key (TRACK_RIOT_KEY), aparte del ranking.
     CREATE TABLE IF NOT EXISTS track_accounts (
       id         SERIAL PRIMARY KEY,

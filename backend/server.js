@@ -4653,18 +4653,30 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
   if (!PRE.ranks.includes(b.peak_rank)) return res.status(400).json({ error: 'Elige tu rango más alto' });
   if (!b.rules_ok) return res.status(400).json({ error: 'Tienes que confirmar que leíste las reglas' });
   const riotid = str(b.riotid, 40); if (riotid && !/^.+#.+$/.test(riotid)) return res.status(400).json({ error: 'La cuenta debe ser Nombre#TAG' });
-  const source = PRE.sources.includes(b.source) ? b.source : null;
-  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+  // ¿jugador de la organización? → elige quién es (y no se pregunta cómo se enteró)
+  const org = b.org_member === true || b.org_member === 'si';
+  let orgUid = null;
+  if (org){ orgUid = Number(b.org_user_id) || null;
+    if (!orgUid || !(await q1('SELECT 1 FROM users WHERE id=$1', [orgUid]))) return res.status(400).json({ error: 'Elige qué jugador de la organización eres' }); }
+  const source = !org && PRE.sources.includes(b.source) ? b.source : null;
+  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
            ON CONFLICT (email) DO UPDATE SET name=$2, discord=$3, faculty=$4, career=$5, interest=$6, account_way=$7, fee=$8, role=$9, riotid=$10,
-             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, updated_at=now()`,
-    [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip]);
+             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, org_member=$16, org_user_id=$17, updated_at=now()`,
+    [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip, org, orgUid]);
   res.json({ ok: true });
 }));
-app.get('/api/preinscripcion/options', (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(PRE); });
+app.get('/api/preinscripcion/options', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=300');
+  // jugadores de la organización (solo el nick, que ya es público en el ranking)
+  const players = (await q("SELECT id, nickname FROM users WHERE coalesce(nickname,'')<>'' ORDER BY lower(nickname)")).map(u => ({ id: u.id, nick: u.nickname }));
+  res.json({ ...PRE, players });
+}));
 app.get('/api/admin/preinscripciones', auth, requireAdmin, wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
-  res.json(await q('SELECT id, email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, created_at, updated_at FROM preinscriptions ORDER BY created_at DESC'));
+  res.json(await q(`SELECT p.id, p.email, p.name, p.discord, p.faculty, p.career, p.interest, p.account_way, p.fee, p.role, p.riotid, p.peak_rank, p.source, p.comments, p.contact_ok,
+                      p.org_member, p.org_user_id, u.nickname AS org_nick, p.created_at, p.updated_at
+                    FROM preinscriptions p LEFT JOIN users u ON u.id = p.org_user_id ORDER BY p.created_at DESC`));
 }));
 app.post('/api/admin/preinscripciones/:id/delete', auth, requireAdmin, wrap(async (req, res) => {
   await q('DELETE FROM preinscriptions WHERE id=$1', [Number(req.params.id)]); res.json({ ok: true });
