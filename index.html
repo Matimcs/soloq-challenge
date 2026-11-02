@@ -711,8 +711,7 @@
             <div class="cd-unit"><div class="num" id="cd-m">00</div><div class="u">min</div></div>
             <div class="cd-unit"><div class="num" id="cd-s">00</div><div class="u">seg</div></div>
           </div>
-          <a class="pre-btn" id="pre-btn" href="preinscripcion.html" style="display:none">📝 Preinscríbete al SoloQ Challenge</a>
-          <script>/* Preinscripción: por ahora solo visible para el superadmin */(function(){if(!window.localStorage||!localStorage.getItem('sqc_token'))return;fetch('/api/me',{headers:{Authorization:'Bearer '+localStorage.getItem('sqc_token')}}).then(function(r){return r.ok?r.json():null}).then(function(d){if(d&&d.user&&String(d.user.riotid||'').trim().toLowerCase()==='sionantisionista#sas')document.getElementById('pre-btn').style.display='';}).catch(function(){});})();</script>
+          <a class="pre-btn" id="pre-btn" href="preinscripcion.html">📝 Preinscríbete al SoloQ Challenge</a>
         </div>
       </div>
 
