@@ -31,9 +31,9 @@ window.SQC = (function(){
     if (user){
       // Blue Shells y Tickets ocultos por ahora (se re-activan quitando este comentario):
       // ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
-      // Botón "Descargar app" (overlay) para jugadores con sesión — se inyecta en la navbar.
+      // Botón "Descargar app" (overlay): por ahora solo jugadores de la organización (no externos) — se inyecta en la navbar.
       const nr = document.querySelector('.nav-right');
-      if (nr && !g('nav-download')){
+      if (nr && !user.external && !g('nav-download')){
         const dl = document.createElement('a');
         dl.id = 'nav-download'; dl.className = 'download-pill';
         dl.href = 'descargar.html';

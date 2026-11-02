@@ -75,7 +75,7 @@
     </div>
   </div></header>
 
-  <main class="wrap">
+  <main class="wrap" id="dl-main" style="visibility:hidden">
     <div class="hero">
       <div class="beta">⚗ EN FASE DE PRUEBA (BETA)</div>
       <h1>El <em>overlay</em> de SoloQ Challenge</h1>
@@ -133,6 +133,17 @@
 <script src="api.js"></script>
 <script>
   SQC.preNav(); SQC.mountNav();
+  // Por ahora la descarga del overlay es solo para jugadores de la organización (sesión de la org, no externos).
+  (async () => {
+    const main = document.getElementById('dl-main');
+    let u = null; try { u = await SQC.me(); } catch (e) {}
+    if (!u || u.external){
+      main.innerHTML = `<div style="max-width:520px;margin:60px auto;text-align:center;padding:28px 22px;border:1px dashed rgba(255,255,255,.18);border-radius:16px">
+        <div style="font-size:40px">🔒</div><h2 style="margin:8px 0 6px">Solo para jugadores de la organización</h2>
+        <p style="color:rgba(255,255,255,.6);font-size:14px;line-height:1.5">Por ahora el overlay de escritorio está disponible solo para los jugadores de la organización.${u ? '' : ' Si eres uno, <a href="cuenta.html" style="color:var(--accent,#e9ff1f);font-weight:700">inicia sesión</a>.'}</p></div>`;
+    }
+    main.style.visibility = '';
+  })();
   // Pequeño feedback al hacer clic (la descarga la maneja el navegador vía GitHub).
   document.getElementById('dl').addEventListener('click', () => {
     const b = document.getElementById('dl');
