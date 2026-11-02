@@ -4669,6 +4669,12 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
     [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip, org, orgUid]);
   res.json({ ok: true });
 }));
+// Contador público: cuántos se han preinscrito (los que dijeron Sí o Tal vez; el "No" no cuenta como preinscrito)
+app.get('/api/preinscripcion/count', wrap(async (req, res) => {
+  res.set('Cache-Control', 'public, max-age=30');
+  const r = await q1("SELECT count(*)::int n FROM preinscriptions WHERE interest IN ('si','talvez')");
+  res.json({ count: r ? r.n : 0 });
+}));
 app.get('/api/preinscripcion/options', wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   // jugadores de la organización que aún no se preinscriben (solo el nick, que ya es público en el ranking)

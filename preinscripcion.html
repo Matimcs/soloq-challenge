@@ -109,6 +109,7 @@
 
   <main class="wrap narrow">
     <h1>Preinscripción</h1>
+    <div id="pre-count" style="display:none;margin:-2px 0 10px;font-size:13px;font-weight:800;color:var(--accent)"></div>
     <div class="sub">SoloQ Challenge universitario · parte en marzo (fecha provisoria). Esto no te inscribe todavía: nos sirve para saber cuántos interesados hay y armar el challenge a su medida.</div>
 
     <form id="pre" autocomplete="on" novalidate>
@@ -202,6 +203,7 @@
   const ROLE = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Cualquiera (fill)' };
   const RANK = { UNRANKED:'Nunca he jugado ranked', IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' };
   const fill = (id, list, lbl) => { $(id).insertAdjacentHTML('beforeend', list.map(v => `<option value="${v}">${(lbl && lbl[v]) || v}</option>`).join('')); };
+  fetch('/api/preinscripcion/count').then(r => r.json()).then(d => { if (d && d.count > 0){ const el = $('pre-count'); el.textContent = `🔥 ${d.count} preinscrito${d.count === 1 ? '' : 's'} hasta ahora`; el.style.display = ''; } }).catch(() => {});
   const tok = (() => { try { return localStorage.getItem('sqc_token'); } catch (e) { return null; } })();
   fetch('/api/preinscripcion/options', { cache: 'no-cache', headers: tok ? { Authorization: 'Bearer ' + tok } : {} }).then(r => r.json()).then(o => {
     fill('faculty', o.faculties); fill('role', o.roles, ROLE); fill('peak_rank', o.ranks, RANK); fill('source', o.sources);

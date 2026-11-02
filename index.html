@@ -94,7 +94,7 @@
   .test-note{ font-size:13px; line-height:1.45; color:var(--muted); background:rgba(255,210,74,.07); border:1px solid rgba(255,210,74,.3); border-radius:10px; padding:9px 12px; margin:-4px 0 16px; max-width:560px; }
   .test-note b{ color:var(--text); }
   .pre-btn{ display:block; text-align:center; margin-top:14px; background:var(--accent); color:#000; font-weight:800; font-size:14px; border-radius:10px; padding:11px 16px; text-decoration:none; }
-  .pre-btn:hover{ filter:brightness(1.08); }
+  .pre-btn:hover{ filter:brightness(1.08); } .pre-btn .pre-n{ font-weight:700; opacity:.75; }
   .cd-unit{ text-align:center; min-width:58px; }
   .cd-unit .num{
     font-size:30px; font-weight:700; letter-spacing:-.02em;
@@ -711,7 +711,8 @@
             <div class="cd-unit"><div class="num" id="cd-m">00</div><div class="u">min</div></div>
             <div class="cd-unit"><div class="num" id="cd-s">00</div><div class="u">seg</div></div>
           </div>
-          <a class="pre-btn" id="pre-btn" href="preinscripcion.html">📝 Preinscríbete al SoloQ Challenge</a>
+          <a class="pre-btn" id="pre-btn" href="preinscripcion.html">📝 Preinscríbete al SoloQ Challenge<span class="pre-n" id="pre-n"></span></a>
+          <script>fetch('/api/preinscripcion/count').then(function(r){return r.json()}).then(function(d){if(d&&d.count>0)document.getElementById('pre-n').textContent=' · '+d.count+' preinscrito'+(d.count===1?'':'s');}).catch(function(){});</script>
         </div>
       </div>
 
