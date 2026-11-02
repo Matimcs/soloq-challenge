@@ -257,6 +257,7 @@
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || 'No se pudo enviar');
       f.style.display = 'none'; $('done').style.display = ''; window.scrollTo(0, 0);
+      try { localStorage.setItem('sqc_preinscrito', '1'); } catch (e) {}   // la portada ya no le muestra la invitación
     } catch (err) { $('err').textContent = err.message; btn.disabled = false; }
   });
   SQC.preNav(); SQC.mountNav();

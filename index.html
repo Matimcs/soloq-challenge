@@ -2142,8 +2142,36 @@ SQC.preNav(); SQC.mountNav();
 /* enlace "Live Games" desde otras páginas: index.html#live abre esa vista */
 if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[data-view="live"]'); if (lt) lt.click(); }
 
+/* ===== Popup: invitación a preinscribirse (a quien aún no lo hace) o, si ya está preinscrito, el popup de siempre ===== */
+(async function choosePopup(){
+  let done = false;
+  try { done = localStorage.getItem('sqc_preinscrito') === '1'; } catch (e) {}
+  const tok = (() => { try { return localStorage.getItem('sqc_token'); } catch (e) { return null; } })();
+  if (!done && tok){ try { const r = await fetch('/api/preinscripcion/me', { headers: { Authorization: 'Bearer ' + tok } }); const d = await r.json();
+    if (d && d.done === true){ done = true; try { localStorage.setItem('sqc_preinscrito', '1'); } catch (e) {} } } catch (e) {} }
+  if (done) initPat(); else initInvite();
+})();
+function initInvite(){
+  const box = document.getElementById('pat-popup'); if (!box) return;
+  const CLOSE_TTL = 30 * 60 * 1000, CKEY = 'preInvClosed';   // tras cerrarla, reaparece a los 30 min
+  box.innerHTML = `<div class="pat-h" style="background:linear-gradient(180deg,rgba(233,255,31,.16),rgba(233,255,31,.02))"><span>📝</span><span class="t" style="color:var(--accent)">SOLOQ CHALLENGE</span><button class="pat-x" id="inv-x" title="Cerrar">✕</button></div>
+    <div class="pat-body">
+      <div class="pat-msg"><b>¡Preinscríbete al SoloQ Challenge!</b><br><span style="color:var(--muted)">Competencia de SoloQ para estudiantes de la U. Parte el <b style="color:var(--text)">1 de marzo</b> (provisorio). Preinscribirte no te compromete.</span></div>
+      <img class="pat-img" src="overlay/assets/logo.png" alt="SoloQ Challenge" loading="lazy" style="aspect-ratio:1/1;object-fit:contain;background:transparent">
+      <a class="pat-btn" href="preinscripcion" style="display:block;text-align:center;text-decoration:none;background:var(--accent);color:#000">📝 Preinscribirme</a>
+      <div class="pat-count" id="inv-count"></div>
+    </div>`;
+  fetch('/api/preinscripcion/count').then(r => r.json()).then(d => { if (d && d.count > 0) document.getElementById('inv-count').innerHTML = `<b>${d.count}</b> preinscrito${d.count === 1 ? '' : 's'} hasta ahora`; }).catch(() => {});
+  let reopenT = null;
+  const open = () => box.classList.remove('hidden');
+  document.getElementById('inv-x').addEventListener('click', () => { try { localStorage.setItem(CKEY, String(Date.now())); } catch (e) {} box.classList.add('hidden'); clearTimeout(reopenT); reopenT = setTimeout(open, CLOSE_TTL); });
+  let closedAt = 0; try { closedAt = +localStorage.getItem(CKEY) || 0; } catch (e) {}
+  const remaining = CLOSE_TTL - (Date.now() - closedAt);
+  if (closedAt && remaining > 0){ box.classList.add('hidden'); reopenT = setTimeout(open, remaining); } else open();
+}
+
 /* ===== Popup: Acaricia a TIDE ===== */
-(function initPat(){
+function initPat(){
   const box = document.getElementById('pat-popup'); if (!box) return;
   const btn = document.getElementById('pat-btn'), countEl = document.getElementById('pat-count'), imgEl = document.getElementById('pat-img');
   const COOLDOWN = 10 * 60 * 1000, KEY = 'patLastHBF';   // clave nueva: la espera de la campaña anterior no se arrastra
@@ -2184,7 +2212,7 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   const remaining = CLOSE_TTL - (Date.now() - closedAt);
   if (closedAt && remaining > 0){ box.classList.add('hidden'); clearTimeout(reopenT); reopenT = setTimeout(openPopup, remaining); }
   else openPopup();
-})();
+}
 </script>
 </body>
 </html>

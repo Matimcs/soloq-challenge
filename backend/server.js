@@ -4697,6 +4697,12 @@ app.get('/api/preinscripcion/count', wrap(async (req, res) => {
   const r = await q1("SELECT count(*)::int n FROM preinscriptions WHERE interest IN ('si','talvez')");
   res.json({ count: r ? r.n : 0 });
 }));
+// ¿Este usuario ya se preinscribió? (para el popup de la portada). Sin sesión de la org → null (lo decide el navegador).
+app.get('/api/preinscripcion/me', wrap(async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  const uid = await optionalUid(req); if (!uid) return res.json({ done: null });
+  res.json({ done: !!(await q1('SELECT 1 FROM preinscriptions WHERE org_user_id=$1', [uid])) });
+}));
 app.get('/api/preinscripcion/options', wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   // jugadores de la organización que aún no se preinscriben (solo el nick, que ya es público en el ranking)
