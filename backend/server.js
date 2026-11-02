@@ -4678,7 +4678,7 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
     // un jugador de la org se preinscribe una sola vez (con otro correo no puede volver a tomarlo)
     if (await q1('SELECT 1 FROM preinscriptions WHERE org_user_id=$1 AND email<>$2', [orgUid, email])) return res.status(400).json({ error: 'Ese jugador de la organización ya está preinscrito. Si eres tú y quieres corregir algo, usa el mismo correo de la primera vez.' }); }
   const source = !org && PRE.sources.includes(b.source) ? b.source : null;
-  const extendUc = org && ['si', 'no', 'igual'].includes(b.extend_uc) ? b.extend_uc : null;
+  const extendUc = org && ['si', 'no', 'nose', 'igual'].includes(b.extend_uc) ? b.extend_uc : null;
   if (org && !extendUc) return res.status(400).json({ error: 'Responde si extenderías la invitación a la comunidad UC' });
   await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id, extend_uc)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
