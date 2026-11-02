@@ -4619,6 +4619,9 @@ async function detectRenames(){
   }
 }
 
+// Cuentas de prueba (solo superadmin), con su propia API key: ver track.js
+require('./track')(app, { q, q1, wrap, auth, isSuper: rkIsSuper });
+
 init()
   .then(() => app.listen(PORT, () => {
     console.log(`✔ Backend + web en http://localhost:${PORT}`);

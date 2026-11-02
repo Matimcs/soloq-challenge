@@ -113,7 +113,26 @@
       <button class="atab-btn" data-g="shells">🐚 Shells y castigos</button>
       <button class="atab-btn" data-g="jugadores">🎮 Jugadores</button>
       <button class="atab-btn" data-g="comunidad">📺 Streams y tickets</button>
+      <button class="atab-btn" data-g="track" id="tab-track" style="display:none">🔭 Cuentas de prueba</button>
     </div>
+
+    <!-- ===== CUENTAS DE PRUEBA (solo superadmin) ===== -->
+    <section class="atab" id="at-track">
+      <div class="box">
+        <h2>Agregar cuenta</h2>
+        <div class="drop-row">
+          <input type="text" id="tr-rid" placeholder="Nombre#TAG" autocomplete="off">
+          <select id="tr-user"><option value="">— sin jugador asociado —</option></select>
+          <input type="text" id="tr-note" placeholder="Nota (opcional): para qué es la cuenta" maxlength="200">
+          <button class="btn btn-accent" id="tr-add">Agregar</button>
+        </div>
+        <div style="color:var(--muted);font-size:12px;margin-top:8px" id="tr-info">Se revisan cada 5 min con su propia API key. Cuentan las partidas de la Grieta que mueven MMR: normales, rankeds, quickplay y swiftplay (sin ARAM, eventos ni personalizadas). Al agregar una cuenta se bajan sus últimas 40 partidas.</div>
+      </div>
+      <div class="box">
+        <h2>Cuentas <span class="n" id="tr-count"></span></h2>
+        <div id="tr-list"></div>
+      </div>
+    </section>
 
     <!-- ===== EQUIPOS Y RANKING ===== -->
     <section class="atab active" id="at-equipos">
@@ -624,6 +643,72 @@
       try { const r = await SQC.api('/admin/login-unlock', { method:'POST' }); out.textContent = r.cleared ? 'Listo: se liberaron ' + r.cleared + ' bloqueo(s). Ya pueden volver a intentar.' : 'No había nadie bloqueado.'; }
       catch(e){ toast(e.message); }
     };
+  })();
+
+  // ---- Cuentas de prueba (solo superadmin) ----
+  (async function(){
+    const e4 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' };
+    const rk = r => !r ? '<span style="color:var(--muted)">sin rango</span>' : `${TIER[r.tier] || r.tier}${/MASTER|CHALLENGER/.test(r.tier) ? '' : ' ' + r.div} · ${r.lp} LP <span style="color:var(--muted)">(${r.w}V ${r.l}D)</span>`;
+    const ago = t => { if (!t) return '–'; const m = Math.round((Date.now() - new Date(t).getTime()) / 60000); return m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`; };
+    const opgg = rid => 'https://op.gg/es/lol/summoners/las/' + encodeURIComponent(String(rid).replace('#', '-'));
+    let D = null, open = null;
+    async function render(){
+      try { D = await SQC.api('/track/accounts'); } catch (e) { return; }   // 403 = no es superadmin: la pestaña queda oculta
+      document.getElementById('tab-track').style.display = '';
+      const us = document.getElementById('tr-user');
+      if (us.options.length <= 1) us.innerHTML += D.users.map(u => `<option value="${u.id}">${e4(u.nickname)} · ${e4(u.riotid)}</option>`).join('');
+      if (!D.hasKey) document.getElementById('tr-info').innerHTML = '<b style="color:var(--down)">Falta TRACK_RIOT_KEY en el servidor</b>: agrégala en Render → Environment para que funcione.';
+      document.getElementById('tr-count').textContent = D.accounts.length;
+      const userOpts = sel => `<option value="">— sin jugador —</option>` + D.users.map(u => `<option value="${u.id}" ${u.id === sel ? 'selected' : ''}>${e4(u.nickname)}</option>`).join('');
+      document.getElementById('tr-list').innerHTML = !D.accounts.length ? '<div style="color:var(--muted);font-size:13px">Todavía no agregas cuentas.</div>' : D.accounts.map(a => { const s = a.stats;
+        const st = s ? `${s.g} partidas · <b style="color:${s.w / s.g >= .5 ? 'var(--up)' : 'var(--down)'}">${Math.round(s.w / s.g * 100)}%</b> · KDA ${((s.k + s.a) / Math.max(1, s.d)).toFixed(2)} · ${(s.cs / Math.max(1, s.dur / 60)).toFixed(1)} CS/min · última ${ago(s.last_game ? Number(s.last_game) : null)}` : '<span style="color:var(--muted)">sin partidas aún</span>';
+        return `<div style="border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center">
+            <div><a href="${opgg(a.riotid)}" target="_blank" rel="noopener" style="font-weight:800">${e4(a.riotid)}</a> <span style="color:var(--muted);font-size:12px">nv. ${a.level || '?'}</span>
+              ${a.nickname ? `<span class="badge on" style="margin-left:6px">${e4(a.nickname)}</span>` : ''}${a.note ? `<div style="color:var(--muted);font-size:12px;margin-top:2px">${e4(a.note)}</div>` : ''}</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-trm="${a.id}">${open === a.id ? 'Ocultar partidas' : 'Ver partidas'}</button>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-trr="${a.id}">Actualizar</button>
+              <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px" data-tre="${a.id}">Editar</button>
+              <button class="btn btn-no" style="padding:5px 10px;font-size:12px" data-trd="${a.id}">Quitar</button></div></div>
+          <div style="font-size:13px;margin-top:8px">Solo/Dúo: ${rk(a.rank && a.rank.solo)} &nbsp;·&nbsp; Flex: ${rk(a.rank && a.rank.flex)}</div>
+          <div style="font-size:13px;margin-top:4px">${st}</div>
+          <div style="font-size:11.5px;color:${a.last_error ? 'var(--down)' : 'var(--muted)'};margin-top:4px">Revisada ${ago(a.last_check)}${a.last_error ? ' · error: ' + e4(a.last_error) : ''}</div>
+          <div id="tr-edit-${a.id}" style="display:none;margin-top:8px" class="drop-row"><select data-tru="${a.id}">${userOpts(a.user_id)}</select><input type="text" data-trn="${a.id}" value="${e4(a.note || '')}" placeholder="Nota"><button class="btn btn-accent" style="padding:6px 12px" data-trs="${a.id}">Guardar</button></div>
+          <div id="tr-m-${a.id}"></div></div>`; }).join('');
+      bind(); if (open) showMatches(open);
+    }
+    async function showMatches(id){
+      const box = document.getElementById('tr-m-' + id); if (!box) return;
+      let ms; try { ms = await SQC.api('/track/accounts/' + id + '/matches'); } catch (e) { box.textContent = e.message; return; }
+      const POS = { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Sup' };
+      box.innerHTML = !ms.length ? '<div style="color:var(--muted);font-size:12.5px;margin-top:8px">Sin partidas que cuenten todavía.</div>'
+        : `<div class="scrollbox" style="margin-top:10px"><table style="width:100%;border-collapse:collapse;font-size:12.5px">` + ms.map(m => `<tr style="border-top:1px solid var(--line)">
+          <td style="padding:5px 4px;color:${m.remake ? 'var(--muted)' : m.win ? 'var(--up)' : 'var(--down)'};font-weight:800">${m.remake ? 'Remake' : m.win ? 'V' : 'D'}</td>
+          <td style="padding:5px 4px">${e4(m.champ)}</td><td style="padding:5px 4px;color:var(--muted)">${POS[m.pos] || ''}</td>
+          <td style="padding:5px 4px">${m.k}/${m.d}/${m.a}</td><td style="padding:5px 4px">${(m.cs / Math.max(1, m.dur / 60)).toFixed(1)} CS/m</td>
+          <td style="padding:5px 4px">${m.kp}% KP</td><td style="padding:5px 4px;color:var(--muted)">${e4((D.queues || {})[m.queue] || m.queue)}</td>
+          <td style="padding:5px 4px;color:var(--muted)">${Math.floor(m.dur / 60)}m</td><td style="padding:5px 4px;color:var(--muted)">${new Date(Number(m.game_end)).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</td></tr>`).join('') + `</table></div>`;
+    }
+    function bind(){
+      const on = (sel, fn) => document.querySelectorAll(sel).forEach(b => b.onclick = () => fn(b));
+      on('[data-trm]', b => { const id = +b.dataset.trm; open = open === id ? null : id; render(); });
+      on('[data-tre]', b => { const el = document.getElementById('tr-edit-' + b.dataset.tre); el.style.display = el.style.display === 'none' ? '' : 'none'; });
+      on('[data-trs]', async b => { const id = b.dataset.trs;
+        try { await SQC.api('/track/accounts/' + id, { method:'POST', body:{ user_id: document.querySelector(`[data-tru="${id}"]`).value, note: document.querySelector(`[data-trn="${id}"]`).value } }); toast('Guardado'); render(); } catch (e) { toast(e.message); } });
+      on('[data-trr]', async b => { b.disabled = true; b.textContent = 'Actualizando…';
+        try { const r = await SQC.api('/track/accounts/' + b.dataset.trr, { method:'POST', body:{ action:'refresh' } }); toast(r.error ? 'Error: ' + r.error : `Listo · ${r.added || 0} partida(s) nueva(s)`); } catch (e) { toast(e.message); } render(); });
+      on('[data-trd]', async b => { if (!confirm('¿Quitar esta cuenta y sus partidas guardadas?')) return;
+        try { await SQC.api('/track/accounts/' + b.dataset.trd, { method:'POST', body:{ action:'delete' } }); toast('Cuenta quitada'); if (open === +b.dataset.trd) open = null; render(); } catch (e) { toast(e.message); } });
+    }
+    document.getElementById('tr-add').onclick = async () => {
+      const b = document.getElementById('tr-add'); b.disabled = true;
+      try { await SQC.api('/track/accounts', { method:'POST', body:{ riotid: document.getElementById('tr-rid').value, user_id: document.getElementById('tr-user').value, note: document.getElementById('tr-note').value } });
+        toast('Cuenta agregada · bajando sus partidas…'); document.getElementById('tr-rid').value = ''; document.getElementById('tr-note').value = ''; render(); setTimeout(render, 45000); }
+      catch (e) { toast(e.message); } b.disabled = false;
+    };
+    render();
   })();
 
   // ---- Capitanes de equipo ----

@@ -381,6 +381,35 @@ async function init(){
     );
     ALTER TABLE team_games ADD COLUMN IF NOT EXISTS game_no SMALLINT;   -- game 1..5 de la serie (scrim o torneo)
     ALTER TABLE team_games ADD COLUMN IF NOT EXISTS roles JSONB;   -- roles fijados a mano por el capitán {pid: ROL}
+    -- Cuentas de prueba (solo superadmin): se trackean con su propia API key (TRACK_RIOT_KEY), aparte del ranking.
+    CREATE TABLE IF NOT EXISTS track_accounts (
+      id         SERIAL PRIMARY KEY,
+      riotid     TEXT NOT NULL,
+      puuid      TEXT UNIQUE NOT NULL,
+      user_id    INTEGER,                 -- jugador existente al que pertenece (opcional)
+      note       TEXT,
+      rank       JSONB,                   -- {solo:{tier,div,lp,w,l}, flex:{...}}
+      level      INTEGER,
+      icon       INTEGER,
+      last_check TIMESTAMPTZ,
+      last_error TEXT,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    CREATE TABLE IF NOT EXISTS track_matches (
+      match_id   TEXT NOT NULL,
+      puuid      TEXT NOT NULL,
+      queue      INTEGER,
+      counted    BOOLEAN DEFAULT false,   -- grieta con MMR (normales, rankeds, quickplay); el resto queda solo para no volver a pedirla
+      game_end   BIGINT,
+      dur        INTEGER,
+      win        BOOLEAN,
+      remake     BOOLEAN DEFAULT false,
+      champ      TEXT,
+      pos        TEXT,
+      k INTEGER, d INTEGER, a INTEGER, cs INTEGER, gold INTEGER, dmg INTEGER, vis INTEGER, lvl INTEGER, kp INTEGER,
+      PRIMARY KEY (match_id, puuid)
+    );
+    CREATE INDEX IF NOT EXISTS track_matches_puuid ON track_matches (puuid, game_end DESC);
     -- Herramientas → Links: enlaces útiles (generales o de un campeón) que agrega la org.
     CREATE TABLE IF NOT EXISTS links (
       id         SERIAL PRIMARY KEY,
