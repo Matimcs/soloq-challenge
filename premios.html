@@ -123,7 +123,7 @@
     <div class="box" style="margin-top:6px">
       <h2>📌 Cómo funciona</h2>
       <ul class="rule-list">
-        <li><b>Dos divisiones</b> según el rango más alto que haya tenido cada jugador: <b>Alta</b> (Diamante o más) y <b>Baja</b> (Esmeralda o menos), para que nadie compita contra alguien muy por encima de su nivel.</li>
+        <li><b>Dos divisiones</b> según el rango más alto que haya tenido cada jugador: <b>High Elo</b> (Diamante o más) y <b>Low Elo</b> (Esmeralda o menos), para que nadie compita contra alguien muy por encima de su nivel.</li>
         <li>El reparto es por <b>porcentajes</b>: si entra más gente, todos los premios crecen.</li>
         <li><b>Propuesta preliminar:</b> los premios y categorías pueden ajustarse antes del inicio.</li>
       </ul>
@@ -145,7 +145,7 @@
     { t: '⭐ Premios especiales', items: [
       ['El Grindeador', 3000, 'Más partidas jugadas (sin pasarse del cupo)'], ['One Trick King', 3000, 'Más partidas con un mismo campeón'],
       ['Main Character', 3000, 'Mejor winrate (mín. 50 partidas)'], ['Rocky Balboa', 3000, 'Mayor remontada de LP desde su punto más bajo'],
-      ['Agente del Caos', 3000, 'Racha de derrotas más larga 😅'], ['Rey de las Blue Shells 🛡', 3000, 'Más Blue Shells lanzadas que impactaron'],
+      ['Imparable 🔥', 3000, 'Racha de victorias más larga'], ['Rey de las Blue Shells 🛡', 3000, 'Más Blue Shells lanzadas que impactaron'],
       ['El Cumplidor', 3000, 'Más castigos de Blue Shell cumplidos'], ['Pentakill Hunter', 3000, 'Más pentakills (o cuadrakills si no hay)'] ] },
     { t: '📊 Récords en una partida', items: [['Más kills', 1000], ['Más asistencias', 1000], ['Más daño a campeones', 1000], ['Más visión', 1000], ['Mejor KDA', 1000], ['Victoria más larga', 1000]] },
   ];
@@ -163,8 +163,8 @@
       const tot = g.div ? g.items.reduce((s, x) => s + x.a[1] + x.b[1], 0) : g.items.reduce((s, x) => s + x[1], 0);
       const head = `<h3>${g.t}<span>${clp(amt(pot, tot))} · ${pct(tot)}</span></h3>`;
       if (g.div) return `<div class="box grp">${head}<div class="div2">
-        <div class="col"><h4>División Alta</h4>${g.items.map(x => `<div class="row"><span>${x.a[0]}</span><b>${clp(amt(pot, x.a[1]))}</b></div>`).join('')}</div>
-        <div class="col"><h4>División Baja</h4>${g.items.map(x => `<div class="row"><span>${x.b[0]}</span><b>${clp(amt(pot, x.b[1]))}</b></div>`).join('')}</div></div></div>`;
+        <div class="col"><h4>High Elo</h4>${g.items.map(x => `<div class="row"><span>${x.a[0]}</span><b>${clp(amt(pot, x.a[1]))}</b></div>`).join('')}</div>
+        <div class="col"><h4>Low Elo</h4>${g.items.map(x => `<div class="row"><span>${x.b[0]}</span><b>${clp(amt(pot, x.b[1]))}</b></div>`).join('')}</div></div></div>`;
       return `<div class="box grp">${head}<div class="rows">${g.items.map(x => `<div class="row"><span>${x[0]}${x[2] ? `<small>${x[2]}</small>` : ''}</span><b>${clp(amt(pot, x[1]))}</b></div>`).join('')}</div></div>`;
     }).join('');
   }
