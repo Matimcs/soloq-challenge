@@ -4678,11 +4678,13 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
     // un jugador de la org se preinscribe una sola vez (con otro correo no puede volver a tomarlo)
     if (await q1('SELECT 1 FROM preinscriptions WHERE org_user_id=$1 AND email<>$2', [orgUid, email])) return res.status(400).json({ error: 'Ese jugador de la organización ya está preinscrito. Si eres tú y quieres corregir algo, usa el mismo correo de la primera vez.' }); }
   const source = !org && PRE.sources.includes(b.source) ? b.source : null;
-  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+  const extendUc = org && ['si', 'no', 'igual'].includes(b.extend_uc) ? b.extend_uc : null;
+  if (org && !extendUc) return res.status(400).json({ error: 'Responde si extenderías la invitación a la comunidad UC' });
+  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id, extend_uc)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
            ON CONFLICT (email) DO UPDATE SET name=$2, discord=$3, faculty=$4, career=$5, interest=$6, account_way=$7, fee=$8, role=$9, riotid=$10,
-             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, org_member=$16, org_user_id=$17, updated_at=now()`,
-    [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip, org, orgUid]);
+             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, org_member=$16, org_user_id=$17, extend_uc=$18, updated_at=now()`,
+    [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip, org, orgUid, extendUc]);
   res.json({ ok: true });
 }));
 // Contador público: cuántos se han preinscrito (los que dijeron Sí o Tal vez; el "No" no cuenta como preinscrito)
@@ -4704,7 +4706,7 @@ app.get('/api/preinscripcion/options', wrap(async (req, res) => {
 app.get('/api/admin/preinscripciones', auth, requireAdmin, wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
   res.json(await q(`SELECT p.id, p.email, p.name, p.discord, p.faculty, p.career, p.interest, p.account_way, p.fee, p.role, p.riotid, p.peak_rank, p.source, p.comments, p.contact_ok,
-                      p.org_member, p.org_user_id, u.nickname AS org_nick, p.created_at, p.updated_at
+                      p.org_member, p.org_user_id, u.nickname AS org_nick, p.extend_uc, p.created_at, p.updated_at
                     FROM preinscriptions p LEFT JOIN users u ON u.id = p.org_user_id ORDER BY p.created_at DESC`));
 }));
 app.post('/api/admin/preinscripciones/:id/delete', auth, requireAdmin, wrap(async (req, res) => {

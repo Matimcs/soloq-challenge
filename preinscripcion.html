@@ -124,6 +124,8 @@
         <div class="f"><div class="q">¿Eres jugador de la organización? <span class="req">*</span></div>
           <div class="opts"><label class="opt"><input type="radio" name="org_member" value="si"><span>Sí</span></label><label class="opt"><input type="radio" name="org_member" value="no"><span>No</span></label></div></div>
         <div class="f" id="org-pick" style="display:none"><label for="org_user_id">¿Qué jugador eres? <span class="req">*</span></label><select id="org_user_id" name="org_user_id"><option value="">— elige —</option></select></div>
+        <div class="f" id="org-uc" style="display:none"><div class="q">¿Crees que se debería extender la invitación a la comunidad de la Universidad Católica? <span class="req">*</span> <span class="h">(solo para la organización)</span></div>
+          <div class="opts"><label class="opt"><input type="radio" name="extend_uc" value="si"><span>Sí</span></label><label class="opt"><input type="radio" name="extend_uc" value="no"><span>No</span></label><label class="opt"><input type="radio" name="extend_uc" value="igual"><span>Me da igual</span></label></div></div>
         <div class="f"><label for="name">Nombre completo <span class="req">*</span></label><input type="text" id="name" name="name" maxlength="100" autocomplete="name"></div>
         <div class="two">
           <div class="f"><label for="email">Correo <span class="req">*</span></label><input type="email" id="email" name="email" maxlength="120" autocomplete="email"></div>
@@ -214,7 +216,7 @@
       if (![...$('org_user_id').options].some(x => x.value == o.me.id)) $('org_user_id').insertAdjacentHTML('beforeend', `<option value="${o.me.id}">${escH(o.me.nick)}</option>`);
       $('org_user_id').value = String(o.me.id); $('org_user_id').disabled = true;
       document.querySelectorAll('input[name="org_member"]').forEach(x => { x.checked = x.value === 'si'; x.disabled = true; });
-      $('org-pick').style.display = ''; $('source-f').style.display = 'none';
+      $('org-pick').style.display = ''; $('org-uc').style.display = ''; $('source-f').style.display = 'none';
       $('org-pick').insertAdjacentHTML('beforeend', `<div class="h">Detectado por tu sesión: eres <b style="color:var(--text)">${escH(o.me.nick)}</b>.${o.me.already ? ' Ya estás preinscrito: si envías de nuevo con el mismo correo, se actualiza.' : ''}</div>`);
       const f = $('pre'); if (!f.elements.discord.value) f.elements.discord.value = o.me.discord; if (!f.elements.email.value) f.elements.email.value = o.me.email;
     }
@@ -222,14 +224,15 @@
   // De la organización: elige quién es y no se pregunta cómo se enteró
   document.querySelectorAll('input[name="org_member"]').forEach(x => x.addEventListener('change', () => {
     const org = document.querySelector('input[name="org_member"]:checked').value === 'si';
-    $('org-pick').style.display = org ? '' : 'none'; $('source-f').style.display = org ? 'none' : '';
+    $('org-pick').style.display = org ? '' : 'none'; $('org-uc').style.display = org ? '' : 'none'; $('source-f').style.display = org ? 'none' : '';
   }));
   $('pre').addEventListener('submit', async e => {
     e.preventDefault();
     const f = e.target, v = n => { const el = f.elements[n]; return el ? (el.value || '').trim() : ''; }, r = n => { const el = f.querySelector(`input[name="${n}"]:checked`); return el ? el.value : ''; };
     const org = r('org_member');
     if (!org){ $('err').textContent = 'Responde si eres jugador de la organización'; return; }
-    const body = { org_member: org === 'si', org_user_id: org === 'si' ? v('org_user_id') : null, interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
+    if (org === 'si' && !r('extend_uc')){ $('err').textContent = 'Responde si extenderías la invitación a la comunidad UC'; return; }
+    const body = { org_member: org === 'si', org_user_id: org === 'si' ? v('org_user_id') : null, extend_uc: org === 'si' ? r('extend_uc') : null, interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
       account_way: r('account_way'), role: v('role'), peak_rank: v('peak_rank'), riotid: v('riotid'), fee: r('fee'),
       rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: org === 'si' ? '' : v('source'), comments: v('comments'), website: v('website') };
     const btn = $('send'); btn.disabled = true; $('err').textContent = '';
