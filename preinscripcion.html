@@ -158,6 +158,18 @@
       </div>
 
       <div class="box">
+        <h2>📅 ¿Cuándo empezamos?</h2>
+        <p style="margin-bottom:10px">La fecha de inicio no está definida. Ten en cuenta:</p>
+        <ul class="rule-list" style="margin-bottom:14px">
+          <li><b>Enero:</b> puede que no alcances a subir la cuenta a nivel 30 a tiempo.</li>
+          <li><b>Enero y febrero:</b> mucha gente sale de vacaciones.</li>
+          <li><b>Marzo:</b> la gente vuelve a la universidad y al trabajo.</li>
+        </ul>
+        <div class="f" style="margin-bottom:0"><div class="q">¿Qué mes prefieres para que empiece el challenge? <span class="req">*</span></div>
+          <div class="opts"><label class="opt"><input type="radio" name="start_month" value="enero"><span>Enero</span></label><label class="opt"><input type="radio" name="start_month" value="febrero"><span>Febrero</span></label><label class="opt"><input type="radio" name="start_month" value="marzo"><span>Marzo</span></label><label class="opt"><input type="radio" name="start_month" value="despues"><span>Después</span></label></div></div>
+      </div>
+
+      <div class="box">
         <h2>💰 Entrada y premios</h2>
         <p style="margin-bottom:12px">Los premios salen de las entradas: <b>mientras mayor la entrada y más participantes, mayor el pozo de premios</b>. Con una entrada más alta los premios para los primeros lugares serían bastante mejores.</p>
         <a href="premios" target="_blank" rel="noopener" class="sim-btn">💰 Simula los premios <span>(se abre en otra pestaña, no pierdes lo que llevas)</span></a>
@@ -237,7 +249,7 @@
     if (!org){ $('err').textContent = 'Responde si eres jugador de la organización'; return; }
     if (org === 'si' && !r('extend_uc')){ $('err').textContent = 'Responde si extenderías la invitación a la comunidad UC'; return; }
     const body = { org_member: org === 'si', org_user_id: org === 'si' ? v('org_user_id') : null, extend_uc: org === 'si' ? r('extend_uc') : null, interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
-      account_way: r('account_way'), role: v('role'), peak_rank: v('peak_rank'), riotid: v('riotid'), fee: r('fee'),
+      account_way: r('account_way'), role: v('role'), peak_rank: v('peak_rank'), start_month: r('start_month'), riotid: v('riotid'), fee: r('fee'),
       rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: org === 'si' ? '' : v('source'), comments: v('comments'), website: v('website') };
     const btn = $('send'); btn.disabled = true; $('err').textContent = '';
     try {

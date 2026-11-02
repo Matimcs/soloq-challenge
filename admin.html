@@ -663,7 +663,7 @@
   (async function(){
     const e5 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const L = {
-      interest: { si:'Sí', talvez:'Tal vez', no:'No' }, org_member: { true:'Sí', false:'No' }, extend_uc: { si:'Sí', no:'No', nose:'No sé', igual:'Me da igual' }, account_way: { grinding:'Grinding', compra:'Compra', nose:'Aún no sabe' },
+      interest: { si:'Sí', talvez:'Tal vez', no:'No' }, org_member: { true:'Sí', false:'No' }, extend_uc: { si:'Sí', no:'No', nose:'No sé', igual:'Me da igual' }, start_month: { enero:'Enero', febrero:'Febrero', marzo:'Marzo', despues:'Después' }, account_way: { grinding:'Grinding', compra:'Compra', nose:'Aún no sabe' },
       role: { TOP:'Top', JUNGLE:'Jungla', MIDDLE:'Mid', BOTTOM:'ADC', UTILITY:'Support', FILL:'Fill' },
       peak_rank: { UNRANKED:'Sin ranked', IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' },
       fee: { 0:'$0', 3000:'$3.000', 5000:'$5.000', 10000:'$10.000' },
@@ -680,7 +680,7 @@
           + (org.length ? Object.entries(c).sort((a, b) => b[1] - a[1]).map(([v, n]) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>${e5(v)}</span><b>${n} <span style="color:var(--muted);font-weight:600">(${Math.round(n / org.length * 100)}%)</span></b></div>`).join('') : '<div style="color:var(--muted);font-size:13px">—</div>') + `</div>`; };
       const card = (t, k) => `<div style="background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px"><div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">${t}</div>`
         + (rows.length ? tally(k).map(([v, n]) => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:2px 0"><span>${e5(v)}</span><b>${n} <span style="color:var(--muted);font-weight:600">(${Math.round(n / rows.length * 100)}%)</span></b></div>`).join('') : '<div style="color:var(--muted);font-size:13px">—</div>') + `</div>`;
-      $('pre-sum').innerHTML = card('¿Jugaría?', 'interest') + card('De la organización', 'org_member') + cardOrg('Org: ¿invitar a la comunidad UC?', 'extend_uc') + card('Entrada que pagaría', 'fee') + card('Cómo conseguiría la cuenta', 'account_way') + card('Rol', 'role') + card('Rango más alto', 'peak_rank') + card('Facultad', 'faculty') + card('Cómo se enteró', 'source');
+      $('pre-sum').innerHTML = card('¿Jugaría?', 'interest') + card('De la organización', 'org_member') + cardOrg('Org: ¿invitar a la comunidad UC?', 'extend_uc') + card('Mes de inicio preferido', 'start_month') + card('Entrada que pagaría', 'fee') + card('Cómo conseguiría la cuenta', 'account_way') + card('Rol', 'role') + card('Rango más alto', 'peak_rank') + card('Facultad', 'faculty') + card('Cómo se enteró', 'source');
       const k = qy.toLowerCase(), list = !k ? rows : rows.filter(r => [r.name, r.email, r.discord, r.faculty, r.career, r.riotid].some(x => String(x || '').toLowerCase().includes(k)));
       $('pre-list').innerHTML = !list.length ? '<div style="color:var(--muted);font-size:13px">Sin respuestas.</div>' : `<div class="scrollbox" style="max-height:600px;overflow-x:auto"><table style="width:100%;min-width:860px;border-collapse:collapse;font-size:12.5px">
         <tr style="color:var(--muted);text-align:left"><th style="padding:6px">Nombre</th><th>Contacto</th><th>Facultad · carrera</th><th>¿Juega?</th><th>Entrada</th><th>Cuenta</th><th>Rol · rango</th><th>Fecha</th><th></th></tr>`
@@ -688,7 +688,7 @@
           <td style="padding:7px 6px"><b>${e5(r.name)}</b>${r.org_member ? `<div><span class="badge on">ORG · ${e5(r.org_nick || '?')}</span>${r.extend_uc ? ` <span style="color:var(--muted);font-size:11.5px">UC: ${lab('extend_uc', r.extend_uc)}</span>` : ''}</div>` : ''}${r.comments ? `<div style="color:var(--muted);margin-top:3px;max-width:240px">💬 ${e5(r.comments)}</div>` : ''}</td>
           <td style="padding:7px 6px">${e5(r.email)}<div style="color:var(--muted)">${e5(r.discord)}</div>${r.contact_ok ? '' : '<div style="color:var(--down)">no quiere contacto</div>'}</td>
           <td style="padding:7px 6px">${e5(r.faculty)}<div style="color:var(--muted)">${e5(r.career)}</div></td>
-          <td style="padding:7px 6px">${lab('interest', r.interest)}</td><td style="padding:7px 6px">${lab('fee', r.fee)}</td>
+          <td style="padding:7px 6px">${lab('interest', r.interest)}${r.start_month ? `<div style="color:var(--muted)">📅 ${lab('start_month', r.start_month)}</div>` : ''}</td><td style="padding:7px 6px">${lab('fee', r.fee)}</td>
           <td style="padding:7px 6px">${lab('account_way', r.account_way)}${r.riotid ? `<div style="color:var(--muted)">${e5(r.riotid)}</div>` : ''}</td>
           <td style="padding:7px 6px">${lab('role', r.role)}<div style="color:var(--muted)">${lab('peak_rank', r.peak_rank)}</div></td>
           <td style="padding:7px 6px;color:var(--muted)">${fdate(r.created_at)}</td>
@@ -698,7 +698,7 @@
     }
     $('pre-q').oninput = e => { qy = e.target.value; render(); };
     $('pre-csv').onclick = () => {
-      const cols = [['name','Nombre'],['email','Correo'],['discord','Discord'],['faculty','Facultad'],['career','Carrera'],['interest','¿Jugaría?'],['fee','Entrada'],['account_way','Cuenta'],['riotid','Cuenta actual'],['role','Rol'],['peak_rank','Rango más alto'],['org_member','De la organización'],['org_nick','Jugador org'],['extend_uc','Org: invitar a la UC'],['source','Cómo se enteró'],['contact_ok','Acepta contacto'],['comments','Comentarios'],['created_at','Fecha']];
+      const cols = [['name','Nombre'],['email','Correo'],['discord','Discord'],['faculty','Facultad'],['career','Carrera'],['interest','¿Jugaría?'],['fee','Entrada'],['account_way','Cuenta'],['riotid','Cuenta actual'],['role','Rol'],['peak_rank','Rango más alto'],['start_month','Mes de inicio'],['org_member','De la organización'],['org_nick','Jugador org'],['extend_uc','Org: invitar a la UC'],['source','Cómo se enteró'],['contact_ok','Acepta contacto'],['comments','Comentarios'],['created_at','Fecha']];
       const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
       const csv = '\ufeff' + cols.map(c => cell(c[1])).join(';') + '\r\n' + rows.map(r => cols.map(([k]) => cell(k === 'contact_ok' ? (r[k] ? 'Sí' : 'No') : k === 'created_at' ? fdate(r[k]) : lab(k, r[k]))).join(';')).join('\r\n');
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); a.download = 'preinscripciones.csv'; a.click();
