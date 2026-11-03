@@ -35,10 +35,19 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
   const superOnly = (req, res, next) => isSuper(req.user && req.user.riotid) ? next() : res.status(403).json({ error: 'Solo superadmin' });
 
   // Baja las partidas nuevas de una cuenta (la primera vez, las últimas FIRST_COUNT) a track_matches. Devuelve cuántas cuentan.
-  async function syncMatches(puuid, first){
+  // full = todo el historial (cuenta recién inscrita); si no, solo las partidas desde la última guardada.
+  async function syncMatches(puuid, first, full){
       const lastEnd = (await q1('SELECT max(game_end) m FROM track_matches WHERE puuid=$1', [puuid])).m;
-      const qs = first || !lastEnd ? `count=${FIRST_COUNT}` : `startTime=${Math.floor(Number(lastEnd) / 1000) + 1}&count=100`;
-      const ids = await riot(`${REGIONAL}/lol/match/v5/matches/by-puuid/${puuid}/ids?${qs}`) || [];
+      let ids = [];
+      if (full){
+        for (let start = 0; start < 300; start += 100){   // hasta 300 partidas: cubre de sobra subir una cuenta nueva de 1 a 30
+          const page = await riot(`${REGIONAL}/lol/match/v5/matches/by-puuid/${puuid}/ids?start=${start}&count=100`) || [];
+          ids.push(...page); if (page.length < 100) break;
+        }
+      } else {
+        const qs = first || !lastEnd ? `count=${FIRST_COUNT}` : `startTime=${Math.floor(Number(lastEnd) / 1000) + 1}&count=100`;
+        ids = await riot(`${REGIONAL}/lol/match/v5/matches/by-puuid/${puuid}/ids?${qs}`) || [];
+      }
       const have = new Set((await q('SELECT match_id FROM track_matches WHERE puuid=$1 AND match_id = ANY($2)', [puuid, ids])).map(r => r.match_id));
       let added = 0;
       const acc = { puuid };
@@ -106,7 +115,7 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
   // ================= CUENTAS DEL SOLOQ CHALLENGE (página pública /cuentas) =================
   // Cada participante inscribe UNA cuenta. Se revisa su Riot ID (por si cambió el nombre/tag), nivel y rankeds de esta season.
   const TAG = 'SQUCH';   // exacto, con mayúsculas
-  async function refreshChallenge(acc){
+  async function refreshChallenge(acc, opts = {}){
     try {
       const a = await riot(`${REGIONAL}/riot/account/v1/accounts/by-puuid/${acc.puuid}`);
       const sum = await riot(`${PLATFORM}/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
@@ -121,7 +130,7 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
       }
       await q('UPDATE challenge_accounts SET game_name=coalesce($2, game_name), tag_line=coalesce($3, tag_line), level=coalesce($4, level), icon=coalesce($5, icon), ranked=$6::jsonb, lp_log=$7::jsonb, checked_at=now() WHERE id=$1',
         [acc.id, a && a.gameName, a && a.tagLine, sum && sum.summonerLevel, sum && sum.profileIconId, JSON.stringify({ solo, flex: pick('RANKED_FLEX_SR') }), JSON.stringify(log)]);
-      await syncMatches(acc.puuid, !acc.checked_at);   // partidas nuevas (para el MMR estimado)
+      if (!opts.skipMatches) await syncMatches(acc.puuid, false, false);   // solo las partidas nuevas desde la última revisión
     } catch (e) { console.error('cuentas:', e.message); }
   }
   let chRunning = false;
@@ -178,8 +187,9 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
       row = await q1(`INSERT INTO challenge_accounts (puuid, game_name, tag_line, user_id, ext_id, owner_name, claim, ip) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
         [acc.puuid, acc.gameName, acc.tagLine, id.uid || null, id.uid ? null : (id.xid || null), id.uid ? null : name, claim || null, ip]);
     }
-    await refreshChallenge(row);
-    estimate(row.puuid).catch(() => {});   // el MMR estimado se calcula en segundo plano
+    await refreshChallenge(row, { skipMatches: true });   // nivel, tag y rankeds al tiro
+    // cuenta nueva: se revisa TODO su historial en segundo plano y después se calcula el MMR estimado
+    syncMatches(row.puuid, true, true).then(() => estimate(row.puuid)).catch(e => console.error('cuentas historial:', e.message));
     res.json({ ok: true, changed: !!mine, tagOk: acc.tagLine === TAG, riotid: acc.gameName + '#' + acc.tagLine });
   }));
   app.post('/api/cuentas/:id/delete', wrap(async (req, res) => {
