@@ -150,12 +150,15 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
                           LEFT JOIN users u ON u.id = c.user_id LEFT JOIN ext_users x ON x.id = c.ext_id ORDER BY c.level DESC NULLS LAST, c.created_at`);
     const me = id.uid ? await q1('SELECT nickname FROM users WHERE id=$1', [id.uid]) : null;
     const est = await estimatesV2(rows.map(r => r.puuid));
+    // winrate: partidas de la Grieta que cuentan (normales y rankeds), sin remakes
+    const wr = {}; (await q(`SELECT puuid, count(*)::int g, sum(CASE WHEN win THEN 1 ELSE 0 END)::int w FROM track_matches
+                            WHERE counted AND NOT remake AND puuid = ANY($1) GROUP BY puuid`, [rows.map(r => r.puuid)])).forEach(x => { wr[x.puuid] = { g: x.g, w: x.w }; });
     const lpOf = log => { const w = (log || []).filter(x => x.r === 'W'), l = (log || []).filter(x => x.r === 'L'), avg = a => a.length ? Math.round(a.reduce((s, x) => s + Math.abs(x.d), 0) / a.length) : null;
       return w.length + l.length ? { gain: avg(w), loss: avg(l), n: w.length + l.length } : null; };
     res.json({ tag: TAG, me: me ? { org: true, nick: me.nickname } : id.xid ? { org: false } : null,
       accounts: rows.map(r => { const rk = r.ranked || {}, games = ['solo', 'flex'].reduce((t, k) => t + (rk[k] ? rk[k].w + rk[k].l : 0), 0);
         return { id: r.id, riotid: r.game_name + '#' + r.tag_line, level: r.level, icon: r.icon, owner: r.org_nick || r.ext_nick || r.owner_name || '?', org: !!r.user_id,
-          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at, mmr: est[r.puuid] || null, lp: lpOf(r.lp_log) }; }) });
+          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at, mmr: est[r.puuid] || null, lp: lpOf(r.lp_log), wr: wr[r.puuid] || null }; }) });
   }));
   app.post('/api/cuentas', wrap(async (req, res) => {
     if (tooMany(req, 'cuentas', 6, 3600e3)) return res.status(429).json({ error: 'Demasiados intentos. Prueba en un rato.' });
