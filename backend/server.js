@@ -109,7 +109,9 @@ const MAX_SHELLS = 3;
 function rollShell(){ const t = SHELLS.reduce((a,s)=>a+s.w,0); let r = Math.random()*t; for (const s of SHELLS){ if ((r-=s.w)<=0) return s.name; } return SHELLS[0].name; }
 function reverseChance(pos){ return (pos && pos<=5) ? pos : 15; }
 function ladderPos(riotid){
-  const i = (liveSnapshot().players||[]).findIndex(p => p.rid === riotid); return i >= 0 ? i+1 : null;
+  // sin importar mayúsculas ni espacios: el ranking puede tener "vishh#LAS" y el registro "Vishh#LAS"
+  const k = String(riotid || '').toLowerCase().replace(/\s+/g, '');
+  const i = (liveSnapshot().players||[]).findIndex(p => String(p.rid || '').toLowerCase().replace(/\s+/g, '') === k); return i >= 0 ? i+1 : null;
 }
 
 // Lista de campeones (Data Dragon): para validar los del registro y sortear el "Campeón aleatorio".
