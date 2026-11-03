@@ -18,6 +18,8 @@ const { autoUpdater } = require('electron-updater');
 // ---- Una sola instancia ----
 // Si ya hay un overlay corriendo, esta segunda instancia se cierra al instante y le
 // pide a la primera que muestre el panel (showAll). Evita popups/atajos duplicados.
+// Solo para pruebas: SQC_USERDATA abre una copia con su propia carpeta de datos (no choca con la instalada).
+if (process.env.SQC_USERDATA) app.setPath('userData', process.env.SQC_USERDATA);
 const hasLock = app.requestSingleInstanceLock();
 if (!hasLock){ app.quit(); }
 else {
@@ -197,7 +199,31 @@ function createWindows(){
     if (k && k !== 1){ try { w.webContents.setZoomFactor(k); } catch {} const b = w.getBounds(); w.setBounds({ x:b.x, y:b.y, width: Math.round(baseW * k), height: b.height }); }
   });
   applySavedZoom(win, 340); applySavedZoom(shellWin, 278);
-  const BW = 1200, BH = 780;
+  [win, shellWin].forEach(trackMoves);   // recuerda dónde los dejaste
+  // El panel, la ruleta, los mensajes, el audio y el aviso de actualización ya NO se crean al arrancar:
+  // cada ventana es un proceso de Chromium (~60-180 MB). Se crean al necesitarlas y se cierran solas
+  // tras un rato ocultas (ver lazyWin/retireWin) → mucho menos RAM con el LoL cerrado.
+}
+// ---- Ventanas que se crean al necesitarlas ----
+const LAZY = {};   // key -> { ready: Promise<BrowserWindow>, t: timer de cierre }
+function lazyWin(key, make, onClosed){
+  const c = LAZY[key];
+  if (c && c.win && !c.win.isDestroyed()){ clearTimeout(c.t); return c.ready; }
+  const w = make();
+  if (settings.opacity != null && key !== 'audio') { try { w.setOpacity(settings.opacity); } catch {} }
+  const ready = new Promise(res => w.webContents.once('did-finish-load', () => res(w)));
+  LAZY[key] = { win: w, ready, t: null };
+  w.on('closed', () => { if (LAZY[key] && LAZY[key].win === w) delete LAZY[key]; onClosed(); });
+  return ready;
+}
+// Cierra la ventana si sigue oculta después de `ms` (se vuelve a crear la próxima vez que haga falta).
+function retireWin(key, ms){
+  const c = LAZY[key]; if (!c) return; clearTimeout(c.t);
+  c.t = setTimeout(() => { const w = c.win; if (w && !w.isDestroyed() && !w.isVisible()) w.destroy(); }, ms);
+}
+function ensureBig(){
+  return lazyWin('big', () => {
+  const d = defaults(), BW = 1200, BH = 780;
   // El panel es ENFOCABLE (a diferencia de los overlays chicos): así se puede escribir en
   // los campos de la web (login, tickets, etc.).
   const bp = posFor('big', Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2));
@@ -211,33 +237,51 @@ function createWindows(){
       event.preventDefault(); hideAll();
     }
   });
-  [win, shellWin, bigWin].forEach(trackMoves);   // recuerda dónde los dejaste
+  trackMoves(bigWin);
+  return bigWin; }, () => { bigWin = null; });
+}
+function ensureBs(){
+  return lazyWin('bs', () => {
+  const d = defaults();
   // Ventana de evento Blue Shell (ruleta fuera de partida / notificación en partida)
   bsWin = baseWin(720, 440, Math.round(d.wa.x + (d.wa.width - 720) / 2), Math.round(d.wa.y + (d.wa.height - 440) / 2), false);
   bsWin._posKey = 'bs'; bsWin.setResizable(true);   // ruleta movible + redimensionable (mín. lo limita el grip)
   bsWin.setAlwaysOnTop(true, 'screen-saver'); bsWin.loadFile(path.join(__dirname, 'bs-event.html'));
+  return bsWin; }, () => { bsWin = null; });
+}
+function ensureMsg(){
+  return lazyWin('msg', () => {
+  const d = defaults();
   // Notificación de mensaje del admin (abajo-centro): texto y/o voz.
   const MW = 460, MH = 104;
   msgWin = baseWin(MW, MH, Math.round(d.wa.x + (d.wa.width - MW) / 2), d.wa.y + d.wa.height - MH - 46, false);
   msgWin.setAlwaysOnTop(true, 'screen-saver'); msgWin.loadFile(path.join(__dirname, 'message.html'));
+  return msgWin; }, () => { msgWin = null; });
+}
+function ensureAudio(){
+  return lazyWin('audio', () => {
   // Ventana OCULTA que solo reproduce audio (voz adjunta a Blue Shells) — sin UI.
   audioWin = new BrowserWindow({ show:false, width:200, height:120, frame:false, skipTaskbar:true, focusable:false,
     webPreferences:{ nodeIntegration:true, contextIsolation:false } });
   audioWin.loadFile(path.join(__dirname, 'audio.html'));
+  return audioWin; }, () => { audioWin = null; });
+}
+function ensureUpd(){
+  return lazyWin('upd', () => {
+  const d = defaults();
   // Ventana VISIBLE de actualización (abajo-derecha): muestra el progreso del auto-update.
   const UW = 320, UH = 100;
   updWin = baseWin(UW, UH, d.wa.x + d.wa.width - UW - 16, d.wa.y + d.wa.height - UH - 46, false);
   updWin.setAlwaysOnTop(true, 'screen-saver'); updWin.loadFile(path.join(__dirname, 'update.html'));
+  return updWin; }, () => { updWin = null; });
 }
 // Muestra/actualiza la ventana de actualización. text = línea de estado; pct = % (o null = sin barra);
 // clickable=true hace la tarjeta clicable (fallback de instalación manual).
 function showUpd(text, pct, clickable){
-  if (!updWin || updWin.isDestroyed()) return;
   if (lastInGame && !updManual && !clickable) return;   // no molestar con avisos de update durante la partida
-  if (!updWin.isVisible()) updWin.showInactive();
-  updWin.webContents.send('upd', { text, pct, clickable: !!clickable });
+  ensureUpd().then(w => { if (w.isDestroyed()) return; if (!w.isVisible()) w.showInactive(); w.webContents.send('upd', { text, pct, clickable: !!clickable }); }).catch(() => {});
 }
-function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); }
+function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); retireWin('upd', 30000); }
 // Chequeo de actualización. manual=true (desde la bandeja) muestra también "ya estás al día"
 // o el error; el automático solo aparece si hay algo que descargar.
 let updManual = false;
@@ -266,7 +310,8 @@ function tryInstall(){
 // Instalación MANUAL (desde el clic en la tarjeta): abre el instalador visible para que el usuario lo complete.
 ipcMain.on('upd-install', () => { try { autoUpdater.quitAndInstall(false, true); } catch (e){ dlog('manual install: ' + (e && e.message)); } });
 function playVoice(dataUrl){
-  if (audioWin && !audioWin.isDestroyed()) audioWin.webContents.send('play-audio', { audio: dataUrl, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
+  ensureAudio().then(w => { if (!w.isDestroyed()) w.webContents.send('play-audio', { audio: dataUrl, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 }); }).catch(() => {});
+  retireWin('audio', 3 * 60000);   // se cierra 3 min después (de sobra para terminar de sonar)
 }
 
 // Ícono en la bandeja (íconos ocultos) con menú para cerrar el overlay.
@@ -313,7 +358,7 @@ ipcMain.on('pos-reset', () => {
   const d = defaults();
   if (win)      { win.setBounds({ x:d.smallX, y:d.smallY, width:340, height:130 }); try{ win.webContents.setZoomFactor(1); }catch{} }
   if (shellWin) { shellWin.setBounds({ x:d.shellX, y:d.shellY, width:278, height:150 }); try{ shellWin.webContents.setZoomFactor(1); }catch{} }
-  if (bsWin)    { bsWin.setBounds({ x:Math.round(d.wa.x + (d.wa.width - 540)/2), y:d.wa.y + 130, width:540, height:156 }); }
+  if (bsWin && !bsWin.isDestroyed()) { bsWin.setBounds({ x:Math.round(d.wa.x + (d.wa.width - 540)/2), y:d.wa.y + 130, width:540, height:156 }); }
   saveSettings();
 });
 // Redimensionar la tarjeta/popup por su grip: ajusta el zoom del contenido (la altura se
@@ -330,8 +375,8 @@ ipcMain.on('zoom-delta', (e, dz) => {
 });
 
 // ---- Aplicar settings ----
-function applyOpacity(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setOpacity(settings.opacity); }); }
-function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
+function applyOpacity(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w && !w.isDestroyed()) w.setOpacity(settings.opacity); }); }
+function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w => { if (w && !w.isDestroyed()) w.setAlwaysOnTop(settings.alwaysOnTop, 'screen-saver'); }); }
 // Candado: cuando está bloqueado, la tarjeta de standing y el popup de Blue Shells son
 // "click-through" (el mouse los atraviesa hacia el juego), así no los mueves sin querer al
 // jugar. Al desbloquear (ajustes) vuelven a ser arrastrables para reposicionarlos.
@@ -368,15 +413,16 @@ function showAll(){
   forceShow(win, 'small', d.smallX, d.smallY);   smallShown = true;
   forceShow(shellWin, 'shell', d.shellX, d.shellY); shellShown = true;
   applyVis();
-  if (bigWin && !bigWin.isDestroyed()){ bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.show(); bigWin.moveTop(); bigWin.focus(); }
+  ensureBig().then(w => { if (w.isDestroyed() || !forceShowAll) return; w.setAlwaysOnTop(true, 'screen-saver'); w.show(); w.moveTop(); w.focus(); }).catch(() => {});
 }
 // Cerrar todo el overlay (respeta de nuevo la config: fuera de partida vuelve a ocultarse).
 function hideAll(){
   forceShowAll = false;
   if (bigWin && !bigWin.isDestroyed()) bigWin.hide();
+  retireWin('big', 2 * 60000);   // el panel (que carga la web entera) se cierra si no lo vuelves a abrir en 2 min
   applyVis();
 }
-function toggleAll(){ (forceShowAll || (bigWin && bigWin.isVisible())) ? hideAll() : showAll(); }
+function toggleAll(){ (forceShowAll || (bigWin && !bigWin.isDestroyed() && bigWin.isVisible())) ? hideAll() : showAll(); }
 
 // ---- Modo POSICIONAR overlays: muestra la tarjeta, el popup de shells y el carrusel con un
 // ejemplo, desbloqueados, para moverlos y redimensionarlos. Una barra flotante cierra/repone.
@@ -409,13 +455,13 @@ function enterPositioning(){
     const p = posFor('shell', d.shellX, d.shellY); shellWin.setPosition(p.x, p.y);
     shellWin.webContents.send('position', true); shellShown = true; makeDraggable(shellWin);
   }
-  if (bsWin){
+  ensureBs().then(bw => { if (!positioning || bw.isDestroyed()) return;
     const d = defaults(), sp = (settings.pos && settings.pos.bs) || {};
     const W = Number.isFinite(sp.w) && sp.w > 200 ? sp.w : 540, H = Number.isFinite(sp.h) && sp.h > 120 ? sp.h : 156;
     const p = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), d.wa.y + 130);
-    bsWin.setBounds({ x: p.x, y: p.y, width: W, height: H });
-    bsWin.webContents.send('bs-sample'); makeDraggable(bsWin);
-  }
+    bw.setBounds({ x: p.x, y: p.y, width: W, height: H });
+    bw.webContents.send('bs-sample'); makeDraggable(bw);
+  }).catch(() => {});
   if (posWin && !posWin.isDestroyed()) posWin.close();
   posWin = baseWin(440, 72, Math.round(d.wa.x + (d.wa.width - 440) / 2), d.wa.y + 16, true, true, false);
   posWin.setAlwaysOnTop(true, 'screen-saver'); posWin.loadFile(path.join(__dirname, 'position-bar.html'));
@@ -427,7 +473,7 @@ function exitPositioning(){
   [win, shellWin, bsWin].forEach(w => { if (w && !w.isDestroyed()) { try { w.setFocusable(false); } catch {} } });
   if (win) win.webContents.send('position', false);
   if (shellWin) shellWin.webContents.send('position', false);
-  if (bsWin && !bsWin.isDestroyed()){ bsWin.webContents.send('bs-hide'); bsWin.hide(); }
+  if (bsWin && !bsWin.isDestroyed()){ bsWin.webContents.send('bs-hide'); bsWin.hide(); retireWin('bs', 60000); }
   if (posWin && !posWin.isDestroyed()) posWin.close();
   posWin = null;
   settings.onboarded = true; saveSettings();   // ya acomodó: no volver a auto-abrir el modo posicionar
@@ -455,7 +501,7 @@ ipcMain.on('reset-pos', () => {
   settings.pos = {};   // olvida las posiciones recordadas
   if (win){ win.setPosition(d.smallX, d.smallY); if (!smallShown){ settings.smallVisible = true; } }
   if (shellWin){ shellWin.setPosition(d.shellX, d.shellY); if (!shellShown){ settings.shellVisible = true; } }
-  if (bigWin){ const BW=1200, BH=780; bigWin.setPosition(Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2)); }
+  if (bigWin && !bigWin.isDestroyed()){ const BW=1200, BH=780; bigWin.setPosition(Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2)); }
   saveSettings(); applyVis();
 });
 ipcMain.handle('get-settings', () => settings);
@@ -670,9 +716,10 @@ async function poll(){
 }
 
 // ---- Blue Shells recibidas: ruleta (fuera de partida) / notificación (en partida) ----
-ipcMain.on('bs-done', () => { if (bsWin && !bsWin.isDestroyed()) bsWin.hide(); });
-function showBlueShellEvent(s){
-  if (!bsWin || bsWin.isDestroyed()){ dlog('showBlueShellEvent: bsWin no disponible'); return; }
+ipcMain.on('bs-done', () => { if (bsWin && !bsWin.isDestroyed()) bsWin.hide(); retireWin('bs', 60000); });
+async function showBlueShellEvent(s){
+  let bsWin; try { bsWin = await ensureBs(); } catch (e) { dlog('showBlueShellEvent: no se pudo abrir la ventana'); return; }
+  if (bsWin.isDestroyed()) return;
   const d = defaults();
   const mode = 'roulette';   // el carrusel ahora también aparece EN partida (antes era una notif chica)
   dlog(`showBlueShellEvent: ${s.from} → ${s.castigo} (${mode})`);
@@ -696,7 +743,6 @@ function showBlueShellEvent(s){
   if (s.audio) setTimeout(() => playVoice(s.audio), mode === 'roulette' ? 4300 : 500);
 }
 async function pollShells(){
-  if (!bsWin) return;
   if (!myRidForShells){ dlog('pollShells: sin myRid (¿LoL abierto en tu cuenta registrada?)'); return; }
   try {
     const r = await fetch(`${BACKEND}/api/overlay/shells?riotid=${encodeURIComponent(myRidForShells)}`);
@@ -716,9 +762,10 @@ async function pollShells(){
 }
 
 // ---- Mensajes del admin (texto y/o voz) -> notificación abajo-centro ----
-ipcMain.on('msg-done', () => { if (msgWin && !msgWin.isDestroyed()) msgWin.hide(); });
-function showAdminMessage(m){
-  if (!msgWin || msgWin.isDestroyed()) return;
+ipcMain.on('msg-done', () => { if (msgWin && !msgWin.isDestroyed()) msgWin.hide(); retireWin('msg', 60000); });
+async function showAdminMessage(m){
+  let msgWin; try { msgWin = await ensureMsg(); } catch (e) { return; }
+  if (msgWin.isDestroyed()) return;
   const d = defaults();
   const MW = 460, MH = 104;
   msgWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - MW) / 2), y: d.wa.y + d.wa.height - MH - 46, width: MW, height: MH });
@@ -727,7 +774,7 @@ function showAdminMessage(m){
   dlog('admin-msg mostrado: ' + (m.text ? m.text.slice(0, 40) : '(voz)'));
 }
 async function pollMessages(){
-  if (!msgWin || !myRidForShells) return;
+  if (!myRidForShells) return;
   try {
     const r = await fetch(`${BACKEND}/api/overlay/messages?riotid=${encodeURIComponent(myRidForShells)}`);
     if (!r.ok) return;
