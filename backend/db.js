@@ -439,6 +439,23 @@ async function init(){
     ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS others JSONB;          -- [puuid, ...] de los otros 9
     ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS lobby_avg INTEGER;     -- promedio absoluto de los que tienen rango
     ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS lobby_n INTEGER;       -- cuántos de los 9 tenían rango
+    -- Cuentas del SoloQ Challenge (página pública /cuentas): una por persona; se sigue su nivel, tag y rankeds.
+    CREATE TABLE IF NOT EXISTS challenge_accounts (
+      id         SERIAL PRIMARY KEY,
+      puuid      TEXT UNIQUE NOT NULL,
+      game_name  TEXT NOT NULL,
+      tag_line   TEXT NOT NULL,                 -- con mayúsculas tal como está en Riot (debe ser exactamente SQUCH)
+      level      INTEGER,
+      icon       INTEGER,
+      ranked     JSONB,                         -- {solo:{w,l,tier,div,lp}, flex:{...}} de esta season
+      user_id    INTEGER UNIQUE,                -- jugador de la org (con sesión)
+      ext_id     INTEGER UNIQUE,                -- usuario externo (con sesión)
+      owner_name TEXT,                          -- nombre que escribió (sin sesión de la org)
+      claim      TEXT,                          -- token del navegador de quien la inscribió (para reconocerla y quitarla)
+      ip         TEXT,
+      created_at TIMESTAMPTZ DEFAULT now(),
+      checked_at TIMESTAMPTZ
+    );
     CREATE TABLE IF NOT EXISTS track_rank_cache (                            -- rango Solo/Dúo por puuid (se refresca cada 3 días)
       puuid      TEXT PRIMARY KEY,
       abs        INTEGER,                   -- null = sin rango

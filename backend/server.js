@@ -4724,7 +4724,10 @@ app.post('/api/admin/preinscripciones/:id/delete', auth, requireAdmin, wrap(asyn
 }));
 
 // Cuentas de prueba (solo superadmin), con su propia API key: ver track.js
-require('./track')(app, { q, q1, wrap, auth, isSuper: rkIsSuper });
+// identidad de quien llama (para "una cuenta por persona"): uid = jugador de la org, xid = usuario externo
+const reqIdentity = req => { const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return {}; try { const p = jwt.verify(t, JWT_SECRET); return { uid: p.uid || null, xid: p.xid || null }; } catch { return {}; } };
+require('./track')(app, { q, q1, wrap, auth, isSuper: rkIsSuper, reqIdentity, reqIsAdmin, tooMany });
 
 init()
   .then(() => app.listen(PORT, () => {

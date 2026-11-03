@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<script src="auth-fetch.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Cuentas</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185; --gold:#ffd24a; --blue:#4aa3ff; --purple:#c084fc;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1100px 550px at 50% -200px, rgba(233,255,31,.05), transparent 60%), var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; }
+  a{ color:inherit; text-decoration:none; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:0 20px; }
+  header{ border-bottom:1px solid var(--line); }
+  .nav{ display:flex; align-items:center; gap:14px; height:64px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; }
+  .brand b span{ color:var(--accent); }
+  .link{ color:var(--muted); font-size:14px; font-weight:500; } .link:hover{ color:var(--text); }
+  .nav-spacer{ flex:1; }
+  .me{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; } .me img{ width:26px; height:26px; border-radius:7px; object-fit:cover; }
+  .btn{ font-family:var(--font); cursor:pointer; border:none; border-radius:9px; padding:8px 13px; font-size:13px; font-weight:700; }
+  .btn-ghost{ background:rgba(255,255,255,.06); color:var(--text); border:1px solid var(--line-2); }
+
+  h1{ font-size:30px; letter-spacing:-.02em; margin:26px 0 4px; }
+  .sub{ color:var(--muted); font-size:14px; margin-bottom:22px; }
+  .box{ background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px 20px; margin-bottom:18px; }
+  .box h2{ font-size:16px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  .box p{ font-size:13.5px; color:var(--muted); line-height:1.55; }
+  .box p b{ color:var(--text); }
+
+  .get-list,.rule-list{ list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:9px 22px; }
+  .rule-list{ grid-template-columns:1fr; }
+  .get-list li,.rule-list li{ position:relative; padding-left:22px; font-size:13.5px; color:var(--muted); line-height:1.45; }
+  .get-list li::before{ content:'🛡'; position:absolute; left:0; top:0; font-size:11px; }
+  .rule-list li::before{ content:'›'; position:absolute; left:4px; top:-1px; color:var(--accent); font-weight:800; }
+  .get-list li b,.rule-list li b{ color:var(--text); font-weight:700; }
+
+  .castigos{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px; }
+  .cast{ display:flex; align-items:center; gap:11px; padding:10px 12px; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
+  .cast img{ width:40px; height:40px; object-fit:contain; flex-shrink:0; }
+  .cast .ci{ flex:1; min-width:0; }
+  .cast .cn{ font-size:12.5px; font-weight:600; line-height:1.25; }
+  .cast .cp{ font-size:12px; font-weight:800; color:var(--accent); margin-top:2px; }
+
+  .rev-table{ width:100%; border-collapse:collapse; margin-top:6px; }
+  .rev-table td{ padding:7px 10px; font-size:13px; border-bottom:1px solid var(--line); }
+  .rev-table td:last-child{ text-align:right; font-weight:800; color:var(--gold); font-variant-numeric:tabular-nums; }
+  .note{ font-size:11px; color:var(--muted-2); text-align:center; margin:22px 0 30px; }
+  @media (max-width:760px){ .get-list{ grid-template-columns:1fr; } }
+  .wrap.narrow{ max-width:860px; }
+  .warn{ background:rgba(255,210,74,.07); border:1px solid rgba(255,210,74,.35); border-radius:14px; padding:14px 16px; margin-bottom:18px; font-size:13.5px; line-height:1.55; color:var(--muted); }
+  .warn b{ color:var(--text); } .warn code{ font-family:ui-monospace,Consolas,monospace; background:rgba(255,255,255,.07); border-radius:5px; padding:1px 6px; color:var(--text); }
+  .ok{ color:var(--up); } .bad{ color:var(--down); }
+  .form{ display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; } @media (max-width:640px){ .form{ grid-template-columns:1fr; } }
+  .form label{ display:block; font-size:12px; font-weight:800; color:var(--muted); margin-bottom:6px; }
+  .form input{ width:100%; font-family:var(--font); font-size:14px; color:var(--text); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; outline:none; }
+  .form input:focus{ border-color:var(--accent); }
+  .go{ font-family:var(--font); cursor:pointer; border:0; border-radius:10px; padding:11px 18px; font-size:14px; font-weight:800; background:var(--accent); color:#000; white-space:nowrap; }
+  .go:disabled{ opacity:.6; cursor:wait; }
+  .msg{ font-size:13px; font-weight:700; margin-top:10px; min-height:18px; }
+  .list{ display:flex; flex-direction:column; gap:8px; }
+  .acc{ display:grid; grid-template-columns:34px 44px 1fr auto; gap:12px; align-items:center; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px 14px; }
+  .acc.me{ border-color:var(--accent); background:linear-gradient(90deg, rgba(233,255,31,.08), rgba(233,255,31,0) 60%), var(--panel); box-shadow:0 0 0 1px rgba(233,255,31,.25); }
+  .acc .pos{ font-size:15px; font-weight:800; color:var(--muted); text-align:center; font-variant-numeric:tabular-nums; }
+  .acc img{ width:44px; height:44px; border-radius:10px; background:var(--panel-2); }
+  .acc .rid{ font-size:15px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .acc .rid .tg{ color:var(--muted); font-weight:700; }
+  .acc .own{ font-size:12.5px; color:var(--muted); margin-top:2px; } .acc .flags{ display:flex; gap:6px; flex-wrap:wrap; margin-top:5px; }
+  .flag{ font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:6px; } .flag.bad{ background:rgba(251,113,133,.14); color:var(--down); } .flag.okk{ background:rgba(52,211,153,.12); color:var(--up); } .flag.me{ background:var(--accent); color:#000; }
+  .lvl{ text-align:right; } .lvl b{ display:block; font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; } .lvl span{ font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
+  .rm{ font-family:var(--font); cursor:pointer; background:none; border:1px solid var(--line-2); color:var(--muted); border-radius:8px; padding:3px 9px; font-size:11px; font-weight:700; margin-top:6px; }
+  .bar{ height:4px; border-radius:2px; background:rgba(255,255,255,.07); margin-top:6px; overflow:hidden; width:120px; margin-left:auto; } .bar i{ display:block; height:100%; background:var(--accent); }
+</style>
+<link rel="stylesheet" href="nav.css?v=3">
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <header><div class="wrap nav">
+    <div class="nav-left">
+      <a class="brand" href="index.html"><img src="overlay/assets/logo.png" alt="SoloQ Challenge"></a>
+    </div>
+    <nav class="nav-pill">
+      <a href="index.html">Ranking</a>
+      <a href="index.html#live">Live Games <span class="nav-badge" id="nav-live-count" style="display:none">0</span></a>
+      <a href="encuentros.html">Encuentros <span class="nav-badge" id="nav-enc-count" style="display:none">0</span></a>
+      <a href="estadisticas.html">Estadísticas</a>
+      <a href="herramientas.html">Herramientas</a>
+      <a href="ranked.html" id="nav-ranked">Ranked</a>
+      <a href="torneos.html">Torneos</a>
+      <a href="normas.html">Normas</a>
+      <a href="blueshell.html" id="nav-blueshell" style="display:none">Blue Shells</a>
+      <a href="ticket.html" id="nav-ticket" style="display:none">Tickets</a>
+      <a href="admin.html" id="nav-admin" style="display:none">Admin</a>
+    </nav>
+    <script>/* Revela pestañas de sesión al instante (sin parpadeo), antes de pintar. */(function(){try{if(!localStorage.getItem('sqc_token'))return;var u=JSON.parse(localStorage.getItem('sqc_user')||'null');if(!u)return;var s=function(id){var e=document.getElementById(id);if(e)e.style.display='';};if(u.isAdmin)s('nav-admin');}catch(e){}})();</script>
+    <div class="nav-right">
+      <a class="login-pill" href="cuenta.html" id="nav-account">Iniciar sesión</a>
+      <button class="logout-link" id="logout" style="display:none">Salir</button>
+    </div>
+  </div></header>
+
+  <main class="wrap narrow">
+    <h1>Cuentas del SoloQ Challenge</h1>
+    <div class="sub">Inscribe la cuenta con la que vas a jugar el challenge y mira cómo van todos subiendo de nivel. Una cuenta por persona.</div>
+
+    <div class="warn">
+      ⚠️ <b>El tag tiene que ser exactamente <code>#SQUCH</code>, en mayúsculas.</b> Por ejemplo <code>TuNombre#SQUCH</code>. Cuentas con <code>#squch</code>, <code>#SQUch</code> u otra variante <b>no son válidas</b>, y Riot solo deja cambiar el nombre y el tag <b>cada 3 meses</b>, así que revísalo bien.<br>
+      Recuerda también que la cuenta <b>nunca puede haber jugado clasificatorias</b>. Aquí te avisamos si detectamos alguno de estos problemas.
+    </div>
+
+    <div class="box">
+      <h2 id="f-title">📝 Inscribe tu cuenta</h2>
+      <div class="form">
+        <div><label for="rid">Riot ID de la cuenta del challenge</label><input id="rid" placeholder="TuNombre#SQUCH" maxlength="22" autocomplete="off"></div>
+        <div id="name-f"><label for="nm">Tu nombre</label><input id="nm" placeholder="Cómo te conocen" maxlength="40"></div>
+        <button class="go" id="go">Inscribir</button>
+      </div>
+      <div class="msg" id="msg"></div>
+    </div>
+
+    <div class="box">
+      <h2>📈 Cómo van las cuentas <span style="color:var(--muted);font-size:13px;font-weight:600" id="cnt"></span></h2>
+      <div class="list" id="list"><div style="color:var(--muted);font-size:13px">Cargando…</div></div>
+      <div class="note" style="margin:14px 0 0">Ordenadas por nivel. Se actualizan solas cada 15 minutos.</div>
+    </div>
+  </main>
+
+<script src="api.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const tok = (() => { try { return localStorage.getItem('sqc_token'); } catch (e) { return null; } })();
+  // token de este navegador: identifica tu cuenta si no tienes sesión de la org
+  const claim = (() => { try { let c = localStorage.getItem('sqc_claim'); if (!c){ c = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem('sqc_claim', c); } return c; } catch (e) { return ''; } })();
+  const H = () => ({ 'Content-Type': 'application/json', 'X-Claim': claim, ...(tok ? { Authorization: 'Bearer ' + tok } : {}) });
+  let D = null, DD = '15.1.1';
+  fetch('https://ddragon.leagueoflegends.com/api/versions.json').then(r => r.json()).then(v => { DD = v[0]; if (D) render(); }).catch(() => {});
+  async function load(){
+    try { D = await (await fetch('/api/cuentas', { headers: H(), cache: 'no-store' })).json(); render(); }
+    catch (e) { $('list').innerHTML = '<div style="color:var(--muted)">No se pudo cargar la lista.</div>'; }
+  }
+  function render(){
+    const accs = D.accounts || [], mine = accs.find(a => a.mine);
+    // con sesión de la org la cuenta se asigna sola; sin ella, se pide el nombre
+    $('name-f').style.display = D.me && D.me.org ? 'none' : '';
+    $('f-title').textContent = mine ? '🔄 Cambiar tu cuenta' : '📝 Inscribe tu cuenta';
+    $('go').textContent = mine ? 'Cambiar cuenta' : 'Inscribir';
+    if (D.me && D.me.org && !$('msg').dataset.set) $('msg').innerHTML = `<span style="color:var(--muted)">Con tu sesión, la cuenta queda a nombre de <b style="color:var(--text)">${esc(D.me.nick)}</b>.</span>`;
+    if (mine && !$('rid').value) $('rid').placeholder = mine.riotid;
+    $('cnt').textContent = accs.length ? `· ${accs.length} inscrita${accs.length === 1 ? '' : 's'}` : '';
+    const max = Math.max(30, ...accs.map(a => a.level || 0));
+    $('list').innerHTML = !accs.length ? '<div style="color:var(--muted);font-size:13px">Todavía nadie inscribe su cuenta. ¡Sé el primero!</div>' : accs.map((a, i) => {
+      const [n, t] = a.riotid.split('#');
+      const flags = [a.mine ? '<span class="flag me">TÚ</span>' : '',
+        a.tagOk ? '<span class="flag okk">#SQUCH ✓</span>' : `<span class="flag bad">⚠ tag incorrecto (#${esc(t)})</span>`,
+        a.rankedGames ? `<span class="flag bad">⚠ ${a.rankedGames} partida${a.rankedGames === 1 ? '' : 's'} clasificatoria${a.rankedGames === 1 ? '' : 's'}</span>` : ''].join('');
+      return `<div class="acc ${a.mine ? 'me' : ''}">
+        <div class="pos">${i + 1}</div>
+        <img src="${a.icon != null ? `https://ddragon.leagueoflegends.com/cdn/${DD}/img/profileicon/${a.icon}.png` : 'overlay/assets/logo.png'}" alt="" onerror="this.style.visibility='hidden'">
+        <div style="min-width:0"><div class="rid">${esc(n)}<span class="tg">#${esc(t)}</span></div><div class="own">${esc(a.owner)}${a.org ? ' · organización' : ''}</div><div class="flags">${flags}</div></div>
+        <div class="lvl"><b>${a.level == null ? '…' : a.level}</b><span>nivel</span><div class="bar"><i style="width:${Math.min(100, (a.level || 0) / 30 * 100)}%"></i></div>
+          ${a.mine ? `<button class="rm" data-rm="${a.id}">Quitar</button>` : ''}</div></div>`; }).join('');
+    document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+      if (!confirm('¿Quitar tu cuenta de la lista?')) return;
+      const r = await fetch('/api/cuentas/' + b.dataset.rm + '/delete', { method: 'POST', headers: H(), body: JSON.stringify({ claim }) });
+      const d = await r.json().catch(() => ({})); if (!r.ok) alert(d.error || 'No se pudo quitar'); load(); });
+  }
+  $('go').onclick = async () => {
+    const msg = $('msg'), btn = $('go'), rid = $('rid').value.trim();
+    msg.dataset.set = '1'; msg.className = 'msg'; msg.textContent = '';
+    if (!/^.+#.+$/.test(rid)){ msg.className = 'msg bad'; msg.textContent = 'Escribe el Riot ID completo: Nombre#TAG'; return; }
+    btn.disabled = true; msg.innerHTML = '<span style="color:var(--muted)">Consultando a Riot…</span>';
+    try {
+      const r = await fetch('/api/cuentas', { method: 'POST', headers: H(), body: JSON.stringify({ riotid: rid, name: $('nm').value, claim }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'No se pudo inscribir');
+      msg.className = 'msg ' + (d.tagOk ? 'ok' : 'bad');
+      msg.textContent = (d.changed ? '✓ Cuenta cambiada a ' : '✓ Inscrita: ') + d.riotid + (d.tagOk ? '' : ' — ⚠ el tag no es #SQUCH exacto: cámbialo en Riot antes del inicio.');
+      $('rid').value = ''; load();
+    } catch (e) { msg.className = 'msg bad'; msg.textContent = e.message; }
+    btn.disabled = false;
+  };
+  $('rid').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
+  load(); setInterval(load, 60000);
+  SQC.preNav(); SQC.mountNav();
+</script>
+</body>
+</html>

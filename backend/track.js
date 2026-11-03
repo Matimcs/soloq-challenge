@@ -31,7 +31,7 @@ async function riot(url){
   throw new Error('Riot 429 (límite de llamadas)');
 }
 
-module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper }){
+module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdentity, reqIsAdmin, tooMany }){
   const superOnly = (req, res, next) => isSuper(req.user && req.user.riotid) ? next() : res.status(403).json({ error: 'Solo superadmin' });
 
   async function checkAccount(acc, { first } = {}){
@@ -98,6 +98,79 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper }){
         [m.match_id, m.puuid, vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : null, vals.length]);
     }
   }
+  // ================= CUENTAS DEL SOLOQ CHALLENGE (página pública /cuentas) =================
+  // Cada participante inscribe UNA cuenta. Se revisa su Riot ID (por si cambió el nombre/tag), nivel y rankeds de esta season.
+  const TAG = 'SQUCH';   // exacto, con mayúsculas
+  async function refreshChallenge(acc){
+    try {
+      const a = await riot(`${REGIONAL}/riot/account/v1/accounts/by-puuid/${acc.puuid}`);
+      const sum = await riot(`${PLATFORM}/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
+      const ent = await riot(`${PLATFORM}/lol/league/v4/entries/by-puuid/${acc.puuid}`) || [];
+      const pick = t => { const e = ent.find(x => x.queueType === t); return e ? { w: e.wins, l: e.losses, tier: e.tier, div: e.rank, lp: e.leaguePoints } : null; };
+      await q('UPDATE challenge_accounts SET game_name=coalesce($2, game_name), tag_line=coalesce($3, tag_line), level=coalesce($4, level), icon=coalesce($5, icon), ranked=$6::jsonb, checked_at=now() WHERE id=$1',
+        [acc.id, a && a.gameName, a && a.tagLine, sum && sum.summonerLevel, sum && sum.profileIconId, JSON.stringify({ solo: pick('RANKED_SOLO_5x5'), flex: pick('RANKED_FLEX_SR') })]);
+    } catch (e) { console.error('cuentas:', e.message); }
+  }
+  let chRunning = false;
+  async function pollChallenge(){
+    if (chRunning || !KEY()) return; chRunning = true;
+    try { for (const acc of await q('SELECT * FROM challenge_accounts ORDER BY checked_at NULLS FIRST')) await refreshChallenge(acc); }
+    finally { chRunning = false; }
+  }
+  if (!process.env.NO_RUNNER && KEY()){ setTimeout(pollChallenge, 90000); setInterval(pollChallenge, 15 * 60 * 1000); }
+
+  const isMine = (r, id, claim) => (id.uid && r.user_id === id.uid) || (id.xid && r.ext_id === id.xid) || (!!claim && r.claim === claim);
+  app.get('/api/cuentas', wrap(async (req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    const id = reqIdentity(req), claim = String(req.headers['x-claim'] || '').slice(0, 64);
+    const rows = await q(`SELECT c.*, u.nickname AS org_nick, x.nickname AS ext_nick FROM challenge_accounts c
+                          LEFT JOIN users u ON u.id = c.user_id LEFT JOIN ext_users x ON x.id = c.ext_id ORDER BY c.level DESC NULLS LAST, c.created_at`);
+    const me = id.uid ? await q1('SELECT nickname FROM users WHERE id=$1', [id.uid]) : null;
+    res.json({ tag: TAG, me: me ? { org: true, nick: me.nickname } : id.xid ? { org: false } : null,
+      accounts: rows.map(r => { const rk = r.ranked || {}, games = ['solo', 'flex'].reduce((t, k) => t + (rk[k] ? rk[k].w + rk[k].l : 0), 0);
+        return { id: r.id, riotid: r.game_name + '#' + r.tag_line, level: r.level, icon: r.icon, owner: r.org_nick || r.ext_nick || r.owner_name || '?', org: !!r.user_id,
+          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at }; }) });
+  }));
+  app.post('/api/cuentas', wrap(async (req, res) => {
+    if (tooMany(req, 'cuentas', 6, 3600e3)) return res.status(429).json({ error: 'Demasiados intentos. Prueba en un rato.' });
+    if (!KEY()) return res.status(503).json({ error: 'La revisión de cuentas no está disponible ahora' });
+    const b = req.body || {}, id = reqIdentity(req), claim = String(b.claim || '').slice(0, 64);
+    const m = String(b.riotid || '').trim().match(/^(.{3,16})#(.{3,5})$/);
+    if (!m) return res.status(400).json({ error: 'Escribe tu Riot ID completo: Nombre#TAG' });
+    let name = null;
+    if (!id.uid){ name = String(b.name || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+      if (name.length < 3) return res.status(400).json({ error: 'Escribe tu nombre (mínimo 3 letras)' }); }
+    // una por persona: si ya tiene una, la nueva la REEMPLAZA (cambiar de cuenta)
+    const mine = id.uid ? await q1('SELECT * FROM challenge_accounts WHERE user_id=$1', [id.uid])
+      : id.xid ? await q1('SELECT * FROM challenge_accounts WHERE ext_id=$1', [id.xid])
+      : claim ? await q1('SELECT * FROM challenge_accounts WHERE claim=$1 AND user_id IS NULL AND ext_id IS NULL', [claim]) : null;
+    if (name && await q1('SELECT 1 FROM challenge_accounts WHERE lower(owner_name)=lower($1) AND id<>$2', [name, mine ? mine.id : 0]))
+      return res.status(400).json({ error: 'Ya hay una cuenta inscrita con ese nombre. Si eres tú, cámbiala desde el navegador donde la inscribiste.' });
+    let acc;
+    try { acc = await riot(`${REGIONAL}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(m[1].trim())}/${encodeURIComponent(m[2].trim())}`); }
+    catch (e){ return res.status(502).json({ error: 'No se pudo consultar a Riot. Intenta de nuevo.' }); }
+    if (!acc || !acc.puuid) return res.status(404).json({ error: 'Esa cuenta no existe en Riot. Revisa el nombre y el tag.' });
+    const taken = await q1('SELECT id FROM challenge_accounts WHERE puuid=$1', [acc.puuid]);
+    if (taken && !(mine && taken.id === mine.id)) return res.status(400).json({ error: 'Esa cuenta ya está inscrita por otra persona.' });
+    const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
+    let row;
+    if (mine){   // cambiar de cuenta: se reemplaza la anterior
+      row = await q1(`UPDATE challenge_accounts SET puuid=$2, game_name=$3, tag_line=$4, owner_name=$5, level=NULL, icon=NULL, ranked=NULL, checked_at=NULL, ip=$6, created_at=now()
+                      WHERE id=$1 RETURNING *`, [mine.id, acc.puuid, acc.gameName, acc.tagLine, id.uid ? null : name, ip]);
+    } else {
+      row = await q1(`INSERT INTO challenge_accounts (puuid, game_name, tag_line, user_id, ext_id, owner_name, claim, ip) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [acc.puuid, acc.gameName, acc.tagLine, id.uid || null, id.uid ? null : (id.xid || null), id.uid ? null : name, claim || null, ip]);
+    }
+    await refreshChallenge(row);
+    res.json({ ok: true, changed: !!mine, tagOk: acc.tagLine === TAG, riotid: acc.gameName + '#' + acc.tagLine });
+  }));
+  app.post('/api/cuentas/:id/delete', wrap(async (req, res) => {
+    const r = await q1('SELECT * FROM challenge_accounts WHERE id=$1', [Number(req.params.id)]); if (!r) return res.status(404).json({ error: 'No existe' });
+    const id = reqIdentity(req), claim = String((req.body || {}).claim || '').slice(0, 64);
+    if (!isMine(r, id, claim) && !(await reqIsAdmin(req))) return res.status(403).json({ error: 'Solo puedes quitar tu propia cuenta' });
+    await q('DELETE FROM challenge_accounts WHERE id=$1', [r.id]); res.json({ ok: true });
+  }));
+
   let running = false;
   async function pollAll(){
     if (running || !KEY()) return; running = true;
