@@ -456,6 +456,7 @@ async function init(){
       created_at TIMESTAMPTZ DEFAULT now(),
       checked_at TIMESTAMPTZ
     );
+    ALTER TABLE challenge_accounts ADD COLUMN IF NOT EXISTS lp_log JSONB;   -- últimos cambios de PL en Solo/Dúo: [{r:'W'|'L', d:+/-PL}]
     CREATE TABLE IF NOT EXISTS track_rank_cache (                            -- rango Solo/Dúo por puuid (se refresca cada 3 días)
       puuid      TEXT PRIMARY KEY,
       abs        INTEGER,                   -- null = sin rango

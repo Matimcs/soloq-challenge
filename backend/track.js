@@ -34,18 +34,14 @@ async function riot(url){
 module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdentity, reqIsAdmin, tooMany }){
   const superOnly = (req, res, next) => isSuper(req.user && req.user.riotid) ? next() : res.status(403).json({ error: 'Solo superadmin' });
 
-  async function checkAccount(acc, { first } = {}){
-    try {
-      const sum = await riot(`${PLATFORM}/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
-      const ent = await riot(`${PLATFORM}/lol/league/v4/entries/by-puuid/${acc.puuid}`) || [];
-      const pick = t => { const e = ent.find(x => x.queueType === t); return e ? { tier: e.tier, div: e.rank, lp: e.leaguePoints, w: e.wins, l: e.losses } : null; };
-      const rank = { solo: pick('RANKED_SOLO_5x5'), flex: pick('RANKED_FLEX_SR') };
-      // partidas nuevas desde la última revisada (la primera vez, las últimas FIRST_COUNT)
-      const lastEnd = (await q1('SELECT max(game_end) m FROM track_matches WHERE puuid=$1', [acc.puuid])).m;
+  // Baja las partidas nuevas de una cuenta (la primera vez, las últimas FIRST_COUNT) a track_matches. Devuelve cuántas cuentan.
+  async function syncMatches(puuid, first){
+      const lastEnd = (await q1('SELECT max(game_end) m FROM track_matches WHERE puuid=$1', [puuid])).m;
       const qs = first || !lastEnd ? `count=${FIRST_COUNT}` : `startTime=${Math.floor(Number(lastEnd) / 1000) + 1}&count=100`;
-      const ids = await riot(`${REGIONAL}/lol/match/v5/matches/by-puuid/${acc.puuid}/ids?${qs}`) || [];
-      const have = new Set((await q('SELECT match_id FROM track_matches WHERE puuid=$1 AND match_id = ANY($2)', [acc.puuid, ids])).map(r => r.match_id));
+      const ids = await riot(`${REGIONAL}/lol/match/v5/matches/by-puuid/${puuid}/ids?${qs}`) || [];
+      const have = new Set((await q('SELECT match_id FROM track_matches WHERE puuid=$1 AND match_id = ANY($2)', [puuid, ids])).map(r => r.match_id));
       let added = 0;
+      const acc = { puuid };
       for (const id of ids.filter(x => !have.has(x))){
         const m = await riot(`${REGIONAL}/lol/match/v5/matches/${id}`); if (!m || !m.info) continue;
         const inf = m.info, p = (inf.participants || []).find(x => x.puuid === acc.puuid); if (!p) continue;
@@ -60,6 +56,15 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
            tk ? Math.round(((p.kills || 0) + (p.assists || 0)) / tk * 100) : 0, JSON.stringify(others)]);
         if (counted) added++;
       }
+      return added;
+  }
+  async function checkAccount(acc, { first } = {}){
+    try {
+      const sum = await riot(`${PLATFORM}/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
+      const ent = await riot(`${PLATFORM}/lol/league/v4/entries/by-puuid/${acc.puuid}`) || [];
+      const pick = t => { const e = ent.find(x => x.queueType === t); return e ? { tier: e.tier, div: e.rank, lp: e.leaguePoints, w: e.wins, l: e.losses } : null; };
+      const rank = { solo: pick('RANKED_SOLO_5x5'), flex: pick('RANKED_FLEX_SR') };
+      const added = await syncMatches(acc.puuid, first);
       await q('UPDATE track_accounts SET rank=$2::jsonb, level=$3, icon=$4, last_check=now(), last_error=NULL WHERE id=$1',
         [acc.id, JSON.stringify(rank), sum ? sum.summonerLevel : acc.level, sum ? sum.profileIconId : acc.icon]);
       return { added };
@@ -107,14 +112,23 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
       const sum = await riot(`${PLATFORM}/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`);
       const ent = await riot(`${PLATFORM}/lol/league/v4/entries/by-puuid/${acc.puuid}`) || [];
       const pick = t => { const e = ent.find(x => x.queueType === t); return e ? { w: e.wins, l: e.losses, tier: e.tier, div: e.rank, lp: e.leaguePoints } : null; };
-      await q('UPDATE challenge_accounts SET game_name=coalesce($2, game_name), tag_line=coalesce($3, tag_line), level=coalesce($4, level), icon=coalesce($5, icon), ranked=$6::jsonb, checked_at=now() WHERE id=$1',
-        [acc.id, a && a.gameName, a && a.tagLine, sum && sum.summonerLevel, sum && sum.profileIconId, JSON.stringify({ solo: pick('RANKED_SOLO_5x5'), flex: pick('RANKED_FLEX_SR') })]);
+      const solo = pick('RANKED_SOLO_5x5'), old = acc.ranked && acc.ranked.solo;
+      // si entre dos revisiones hubo justo 1 partida de Solo/Dúo, se anota cuántos PL ganó o perdió
+      let log = Array.isArray(acc.lp_log) ? acc.lp_log : [];
+      if (old && solo && (solo.w - old.w) + (solo.l - old.l) === 1){
+        const absOf = r => toAbs({ tier: r.tier, rank: r.div, leaguePoints: r.lp });
+        log = [{ r: solo.w > old.w ? 'W' : 'L', d: absOf(solo) - absOf(old) }, ...log].slice(0, 20);
+      }
+      await q('UPDATE challenge_accounts SET game_name=coalesce($2, game_name), tag_line=coalesce($3, tag_line), level=coalesce($4, level), icon=coalesce($5, icon), ranked=$6::jsonb, lp_log=$7::jsonb, checked_at=now() WHERE id=$1',
+        [acc.id, a && a.gameName, a && a.tagLine, sum && sum.summonerLevel, sum && sum.profileIconId, JSON.stringify({ solo, flex: pick('RANKED_FLEX_SR') }), JSON.stringify(log)]);
+      await syncMatches(acc.puuid, !acc.checked_at);   // partidas nuevas (para el MMR estimado)
     } catch (e) { console.error('cuentas:', e.message); }
   }
   let chRunning = false;
   async function pollChallenge(){
     if (chRunning || !KEY()) return; chRunning = true;
-    try { for (const acc of await q('SELECT * FROM challenge_accounts ORDER BY checked_at NULLS FIRST')) await refreshChallenge(acc); }
+    try { for (const acc of await q('SELECT * FROM challenge_accounts ORDER BY checked_at NULLS FIRST')) await refreshChallenge(acc); await estimate(); }
+    catch (e) { console.error('cuentas:', e.message); }
     finally { chRunning = false; }
   }
   if (!process.env.NO_RUNNER && KEY()){ setTimeout(pollChallenge, 90000); setInterval(pollChallenge, 15 * 60 * 1000); }
@@ -126,10 +140,13 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
     const rows = await q(`SELECT c.*, u.nickname AS org_nick, x.nickname AS ext_nick FROM challenge_accounts c
                           LEFT JOIN users u ON u.id = c.user_id LEFT JOIN ext_users x ON x.id = c.ext_id ORDER BY c.level DESC NULLS LAST, c.created_at`);
     const me = id.uid ? await q1('SELECT nickname FROM users WHERE id=$1', [id.uid]) : null;
+    const est = await estimatesV2(rows.map(r => r.puuid));
+    const lpOf = log => { const w = (log || []).filter(x => x.r === 'W'), l = (log || []).filter(x => x.r === 'L'), avg = a => a.length ? Math.round(a.reduce((s, x) => s + Math.abs(x.d), 0) / a.length) : null;
+      return w.length + l.length ? { gain: avg(w), loss: avg(l), n: w.length + l.length } : null; };
     res.json({ tag: TAG, me: me ? { org: true, nick: me.nickname } : id.xid ? { org: false } : null,
       accounts: rows.map(r => { const rk = r.ranked || {}, games = ['solo', 'flex'].reduce((t, k) => t + (rk[k] ? rk[k].w + rk[k].l : 0), 0);
         return { id: r.id, riotid: r.game_name + '#' + r.tag_line, level: r.level, icon: r.icon, owner: r.org_nick || r.ext_nick || r.owner_name || '?', org: !!r.user_id,
-          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at }; }) });
+          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at, mmr: est[r.puuid] || null, lp: lpOf(r.lp_log) }; }) });
   }));
   app.post('/api/cuentas', wrap(async (req, res) => {
     if (tooMany(req, 'cuentas', 6, 3600e3)) return res.status(429).json({ error: 'Demasiados intentos. Prueba en un rato.' });
@@ -155,13 +172,14 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
     const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim();
     let row;
     if (mine){   // cambiar de cuenta: se reemplaza la anterior
-      row = await q1(`UPDATE challenge_accounts SET puuid=$2, game_name=$3, tag_line=$4, owner_name=$5, level=NULL, icon=NULL, ranked=NULL, checked_at=NULL, ip=$6, created_at=now()
+      row = await q1(`UPDATE challenge_accounts SET puuid=$2, game_name=$3, tag_line=$4, owner_name=$5, level=NULL, icon=NULL, ranked=NULL, lp_log=NULL, checked_at=NULL, ip=$6, created_at=now()
                       WHERE id=$1 RETURNING *`, [mine.id, acc.puuid, acc.gameName, acc.tagLine, id.uid ? null : name, ip]);
     } else {
       row = await q1(`INSERT INTO challenge_accounts (puuid, game_name, tag_line, user_id, ext_id, owner_name, claim, ip) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
         [acc.puuid, acc.gameName, acc.tagLine, id.uid || null, id.uid ? null : (id.xid || null), id.uid ? null : name, claim || null, ip]);
     }
     await refreshChallenge(row);
+    estimate(row.puuid).catch(() => {});   // el MMR estimado se calcula en segundo plano
     res.json({ ok: true, changed: !!mine, tagOk: acc.tagLine === TAG, riotid: acc.gameName + '#' + acc.tagLine });
   }));
   app.post('/api/cuentas/:id/delete', wrap(async (req, res) => {
@@ -177,6 +195,36 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
     try { for (const acc of await q('SELECT * FROM track_accounts ORDER BY last_check NULLS FIRST')) await checkAccount(acc); await estimate(); }
     catch (e) { console.error('track:', e.message); }
     finally { running = false; }
+  }
+  // ---- MMR estimado v2 (por cola, con más peso a lo reciente y nivel de confianza) ----
+  // Cada cola tiene su propio MMR: normales (reclutamiento, a ciegas, quickplay, swiftplay) y rankeds (Solo/Dúo, Flex).
+  // En cuentas nuevas el MMR se mueve rápido → se usan las últimas 10 partidas con peso 0.85^i (la más nueva pesa más).
+  const GROUP = q => [420, 440].includes(q) ? 'ranked' : 'normal';
+  async function estimatesV2(puuids){
+    if (!puuids.length) return {};
+    const rows = await q(`SELECT puuid, queue, lobby_avg, lobby_n FROM track_matches WHERE counted AND NOT remake AND puuid = ANY($1) ORDER BY puuid, game_end DESC`, [puuids]);
+    const by = {};
+    for (const r of rows){
+      const g = GROUP(r.queue), b = (by[r.puuid] = by[r.puuid] || { normal: { v: [], pend: 0, games: 0 }, ranked: { v: [], pend: 0, games: 0 } })[g];
+      b.games++;
+      if (r.lobby_n == null){ if (b.games <= 10) b.pend++; continue; }
+      if (r.lobby_avg != null && r.lobby_n >= 3 && b.v.length < 10) b.v.push(r.lobby_avg);
+    }
+    const out = {};
+    for (const [pu, gs] of Object.entries(by)){
+      const res = {};
+      for (const g of ['normal', 'ranked']){ const b = gs[g]; if (!b.games){ res[g] = null; continue; }
+        if (!b.v.length){ res[g] = { abs: null, n: 0, pending: b.pend, games: b.games }; continue; }
+        let w = 0, sum = 0; b.v.forEach((v, i) => { const wi = Math.pow(0.85, i); w += wi; sum += v * wi; });
+        const half = Math.floor(b.v.length / 2), avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+        res[g] = { abs: Math.round(sum / w), n: b.v.length, pending: b.pend, games: b.games,
+          conf: b.v.length >= 8 ? 'alta' : b.v.length >= 4 ? 'media' : 'baja',
+          trend: b.v.length >= 6 ? Math.round(avg(b.v.slice(0, half)) - avg(b.v.slice(half))) : null };
+      }
+      res.main = res.ranked && res.ranked.games >= 5 ? 'ranked' : res.normal ? 'normal' : res.ranked ? 'ranked' : null;
+      out[pu] = res;
+    }
+    return out;
   }
   // Estimación por cuenta: promedio de las últimas partidas con datos, con más peso a las recientes; tendencia = últimas 10 vs las 10 anteriores
   async function estimates(){

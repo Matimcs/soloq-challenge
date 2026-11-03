@@ -75,6 +75,7 @@
   .flag{ font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:6px; } .flag.bad{ background:rgba(251,113,133,.14); color:var(--down); } .flag.okk{ background:rgba(52,211,153,.12); color:var(--up); } .flag.me{ background:var(--accent); color:#000; }
   .lvl{ text-align:right; } .lvl b{ display:block; font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; } .lvl span{ font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; }
   .rm{ font-family:var(--font); cursor:pointer; background:none; border:1px solid var(--line-2); color:var(--muted); border-radius:8px; padding:3px 9px; font-size:11px; font-weight:700; margin-top:6px; }
+  .mmr{ font-size:12.5px; color:var(--muted); margin-top:5px; line-height:1.5; } .mmr b{ color:var(--accent); } .mmr .up{ color:var(--up); } .mmr .dn{ color:var(--down); }
   .bar{ height:4px; border-radius:2px; background:rgba(255,255,255,.07); margin-top:6px; overflow:hidden; width:120px; margin-left:auto; } .bar i{ display:block; height:100%; background:var(--accent); }
 </style>
 <link rel="stylesheet" href="nav.css?v=3">
@@ -127,7 +128,8 @@
     <div class="box">
       <h2>📈 Cómo van las cuentas <span style="color:var(--muted);font-size:13px;font-weight:600" id="cnt"></span></h2>
       <div class="list" id="list"><div style="color:var(--muted);font-size:13px">Cargando…</div></div>
-      <div class="note" style="margin:14px 0 0">Ordenadas por nivel. Se actualizan solas cada 15 minutos.</div>
+      <div class="note" style="margin:14px 0 0;line-height:1.5">Ordenadas por nivel. Se actualizan solas cada 15 minutos.<br>
+        🧮 <b>MMR estimado:</b> Riot no publica el MMR. Lo estimamos con el rango Solo/Dúo actual de los otros 9 jugadores de sus últimas 10 partidas, por separado para normales y rankeds (cada cola tiene su propio MMR) y con más peso a las más nuevas. Ya en ranked, también comparamos los PL que gana y pierde.</div>
     </div>
   </main>
 
@@ -139,6 +141,20 @@
   // token de este navegador: identifica tu cuenta si no tienes sesión de la org
   const claim = (() => { try { let c = localStorage.getItem('sqc_claim'); if (!c){ c = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''); localStorage.setItem('sqc_claim', c); } return c; } catch (e) { return ''; } })();
   const H = () => ({ 'Content-Type': 'application/json', 'X-Claim': claim, ...(tok ? { Authorization: 'Bearer ' + tok } : {}) });
+  // escala absoluta → "Oro II" (Master+ desde 2800)
+  const T_ES = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante' }, T_K = Object.keys(T_ES), D_K = ['IV','III','II','I'];
+  const absLbl = v => { if (v >= 2800) return 'Maestro+'; const t = Math.max(0, Math.min(6, Math.floor(v / 400))), d = Math.max(0, Math.min(3, Math.floor((v - t * 400) / 100))); return T_ES[T_K[t]] + ' ' + D_K[d]; };
+  function mmrHtml(a){
+    const m = a.mmr; if (!m || !m.main) return '';
+    const g = m[m.main], q = m.main === 'ranked' ? 'rankeds' : 'normales';
+    if (!g || g.abs == null) return `<div class="mmr">🧮 MMR estimado: calculando…</div>`;
+    const tr = g.trend == null ? '' : Math.abs(g.trend) < 40 ? ' · estable' : g.trend > 0 ? ' · <span class="up">↑ subiendo</span>' : ' · <span class="dn">↓ bajando</span>';
+    let h = `🧮 MMR estimado en ${q}: <b>≈ ${absLbl(g.abs)}</b> <span title="Según cuántas de sus últimas 10 partidas tienen datos">(confianza ${g.conf}, ${g.n} partida${g.n === 1 ? '' : 's'})</span>${tr}`;
+    if (m.main === 'normal' && !a.rankedGames) h += `<br>🎯 Llegaría a ranked con MMR de ≈ <b>${absLbl(g.abs)}</b> <span title="Según la comunidad, si la cuenta nunca jugó ranked, el MMR de normales influye en el MMR con que empieza en ranked">(estimación según foros)</span>`;
+    if (a.lp && a.lp.gain != null && a.lp.loss != null){ const diff = a.lp.gain - a.lp.loss;
+      h += `<br>📊 PL en Solo/Dúo: +${a.lp.gain} por victoria / −${a.lp.loss} por derrota → ${diff >= 3 ? '<span class="up">MMR sobre su rango</span>' : diff <= -3 ? '<span class="dn">MMR bajo su rango</span>' : 'MMR parecido a su rango'}`; }
+    return `<div class="mmr">${h}</div>`;
+  }
   let D = null, DD = '15.1.1';
   fetch('https://ddragon.leagueoflegends.com/api/versions.json').then(r => r.json()).then(v => { DD = v[0]; if (D) render(); }).catch(() => {});
   async function load(){
@@ -163,7 +179,7 @@
       return `<div class="acc ${a.mine ? 'me' : ''}">
         <div class="pos">${i + 1}</div>
         <img src="${a.icon != null ? `https://ddragon.leagueoflegends.com/cdn/${DD}/img/profileicon/${a.icon}.png` : 'overlay/assets/logo.png'}" alt="" onerror="this.style.visibility='hidden'">
-        <div style="min-width:0"><div class="rid">${esc(n)}<span class="tg">#${esc(t)}</span></div><div class="own">${esc(a.owner)}${a.org ? ' · organización' : ''}</div><div class="flags">${flags}</div></div>
+        <div style="min-width:0"><div class="rid">${esc(n)}<span class="tg">#${esc(t)}</span></div><div class="own">${esc(a.owner)}${a.org ? ' · organización' : ''}</div><div class="flags">${flags}</div>${mmrHtml(a)}</div>
         <div class="lvl"><b>${a.level == null ? '…' : a.level}</b><span>nivel</span><div class="bar"><i style="width:${Math.min(100, (a.level || 0) / 30 * 100)}%"></i></div>
           ${a.mine ? `<button class="rm" data-rm="${a.id}">Quitar</button>` : ''}</div></div>`; }).join('');
     document.querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
