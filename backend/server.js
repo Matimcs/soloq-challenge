@@ -1869,12 +1869,18 @@ app.post('/api/admin/smurf-unlink', auth, requireAdmin, wrap(async (req,res) => 
   loadSmurfSet().catch(() => {}); res.json({ ok:true });
 }));
 
+// Dueño de una cuenta: su main o cualquiera de sus smurfs, sin importar mayúsculas ni espacios.
+async function userByAnyRid(riotid, cols){
+  const k = "lower(regexp_replace(%s, '[[:space:]]', '', 'g')) = lower(regexp_replace($1, '[[:space:]]', '', 'g'))";
+  return await q1(`SELECT ${cols} FROM users u WHERE ${k.replace('%s', 'u.riotid')}`, [riotid])
+      || await q1(`SELECT ${cols} FROM smurfs s JOIN users u ON u.id = s.user_id WHERE ${k.replace('%s', 's.riotid')}`, [riotid]);
+}
 // Promover o quitar admin a un jugador registrado (solo admin).
 app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
   const riotid = ((req.body && req.body.riotid) || '').trim();
   const makeAdmin = !!(req.body && req.body.admin);
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
-  const u = await q1('SELECT id, is_admin FROM users WHERE riotid=$1', [riotid]);
+  const u = await userByAnyRid(riotid, 'u.id, u.is_admin');
   if (!u) return res.status(400).json({ error:'Ese jugador no tiene cuenta registrada' });
   if (!makeAdmin && u.id === req.user.id) return res.status(400).json({ error:'No puedes quitarte el admin a ti mismo' });
   await q('UPDATE users SET is_admin=$1 WHERE id=$2', [makeAdmin, u.id]);
@@ -1887,8 +1893,8 @@ app.post('/api/admin/set-admin', auth, requireAdmin, wrap(async (req,res) => {
 app.post('/api/admin/reset-password', auth, requireAdmin, wrap(async (req,res) => {
   const riotid = ((req.body && req.body.riotid) || '').trim();
   if (!riotid) return res.status(400).json({ error:'Falta riotid' });
-  // sin importar mayúsculas ni espacios ("Henry Miller #379" == "henrymiller#379")
-  const u = await q1("SELECT id, email, nickname FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = lower(regexp_replace($1, '[[:space:]]', '', 'g'))", [riotid]);
+  // sin importar mayúsculas ni espacios ("Henry Miller #379" == "henrymiller#379"), y también desde una smurf
+  const u = await userByAnyRid(riotid, 'u.id, u.email, u.nickname');
   if (!u) return res.status(400).json({ error:'Ese jugador no tiene cuenta registrada' });
   const temp = Math.random().toString(36).slice(2, 6) + Math.random().toString(36).slice(2, 6);
   await q('UPDATE users SET password_hash=$1 WHERE id=$2', [await bcrypt.hash(temp, 10), u.id]);
