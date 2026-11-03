@@ -4054,30 +4054,30 @@ function sbBid(st, c, amount){
   if (!Number.isFinite(amt) || amt < min) return `La puja mínima es $${min}`;
   if (amt > left) return `Solo te quedan $${left}`;
   L.price = amt; L.leader = c; L.bids.unshift({ c, amt, stage: L.stage || null }); L.bids = L.bids.slice(0, 12); L.firstOfStage = false;
-  if (!L.stage || L.stage >= 4) L.deadline = Math.max(L.deadline, Date.now() + SB_BID_MS);
+  if (!L.stage || L.stage >= 3) L.deadline = Math.max(L.deadline, Date.now() + SB_BID_MS);   // pista 3 = la última: se cierra con el tiempo
   else if (L.stageEnd - Date.now() < SB_CLUE_MIN_MS) L.stageEnd = Date.now() + SB_CLUE_MIN_MS;   // puja en los últimos segundos de una pista: la pista vuelve a 5 s
   return null;
 }
 // Se acabó la cuenta regresiva del jugador en juego → se cierra solo.
-// Modo pistas: pasa a la siguiente pista; tras la 3ª se revela el nombre y empieza la cuenta regresiva normal.
+// Modo pistas: pasa a la siguiente pista. La 3ª es la última: cuando se acaba su tiempo se adjudica (y ahí se revela el nombre).
 function sbClueNext(st){
-  const L = st.lot; if (!L || !L.stage || L.stage >= 4) return false;
+  const L = st.lot; if (!L || !L.stage || L.stage >= 3) return false;
   L.stage++; const now = Date.now();
   L.carry = L.leader != null ? L.price : null; L.firstOfStage = L.carry != null;
-  // puja final (modo pistas): parte con 10 s; si no, la siguiente pista dura lo configurado
-  if (L.stage >= 4){ L.stageEnd = null; L.deadline = now + SB_FINAL_MS; } else L.stageEnd = now + sbClueMs(st);
+  // pista 3 (la última): su tiempo es la cuenta regresiva final; las anteriores duran lo configurado
+  if (L.stage >= 3){ L.stageEnd = null; L.deadline = now + sbClueMs(st); } else L.stageEnd = now + sbClueMs(st);
   return true;
 }
 function sbTick(st){
   if (st.status === 'auction' && !st.lot && st.autoNextAt && Date.now() >= st.autoNextAt){ st.autoNextAt = null; sbNext(st); return true; }
   if (st.status !== 'auction' || !st.lot) return false;
-  if (st.lot.stage && st.lot.stage < 4){ if (Date.now() >= st.lot.stageEnd){ sbClueNext(st); return true; } return false; }
+  if (st.lot.stage && st.lot.stage < 3){ if (Date.now() >= st.lot.stageEnd){ sbClueNext(st); return true; } return false; }
   if (Date.now() < st.lot.deadline + SB_GRACE_MS) return false;
   sbClose(st, 'puja'); return true;
 }
 function sbView(st, uid){
   const me = st.caps.findIndex(c => c && c.uid === uid);
-  const L = st.lot, now = Date.now(), mystery = !!(L && L.stage), cluing = !!(L && L.stage && L.stage < 4);
+  const L = st.lot, now = Date.now(), mystery = !!(L && L.stage), cluing = !!(L && L.stage && L.stage < 3);
   const reveal = i => st.status !== 'auction' || st.sold[i] || (st.seen && st.seen[i] && !(mystery && L.i === i));
   const pl = i => { const { clue, ...p } = st.pool[i]; return { ...p, i, price: st.sold[i] ? st.sold[i].price : null }; };
   // Modo censura (solo mientras dura la subasta): los jugadores comprados por OTROS capitanes van ocultos en
@@ -4161,7 +4161,11 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
     const team = Math.min(st.caps.length >= SB_MAX_CAPS_IN ? 5 : SB_TEAM, Math.floor(cands.length / st.caps.length));   // con 6 capitanes: sin suplente
     if (team < 5){ st.starting = false; return res.status(400).json({ error: `No alcanzan los jugadores: hay ${cands.length} para ${st.caps.length} capitanes (se necesitan ${st.caps.length * 5})` }); }
     sbFresh(st); st.teamSize = team;
-    st.pool = fvShuffle(cands).slice(0, Math.min(cands.length, team * st.caps.length + 3)); st.order = st.pool.map((_, i) => i); st.queue = st.order.slice();
+    // Con "los capitanes también salen a subasta", los capitanes entran SIEMPRE; el resto de la lista se completa al azar.
+    const capKeys = new Set(capsInPool ? st.caps.map(c => nrSb(c.rid)).filter(Boolean) : []);
+    const capCands = cands.filter(c => capKeys.has(nrSb(c.rid))), rest = fvShuffle(cands.filter(c => !capKeys.has(nrSb(c.rid))));
+    st.pool = fvShuffle([...capCands, ...rest.slice(0, Math.max(0, Math.min(cands.length, team * st.caps.length + 3) - capCands.length))]);
+    st.order = st.pool.map((_, i) => i); st.queue = st.order.slice();
     if (st.settings && st.settings.clues){ const res = await clueResolver();
       // las pistas salen SOLO de la cuenta más alta del jugador (opgg = su mejor cuenta según el ranking)
       for (const p of st.pool){ try { p.clue = await clueGame(res.one(p.opgg || p.rid)); } catch { p.clue = null; } } }
@@ -4182,11 +4186,11 @@ app.post('/api/subasta/host', auth, wrap(async (req, res) => {
     if (st.lot) return res.status(400).json({ error: 'Todavía hay un jugador en subasta' });
     sbNext(st);
   } else if (act === 'clue'){
-    if (!st.lot || !st.lot.stage || st.lot.stage >= 4) return res.status(400).json({ error: 'No hay pistas por mostrar' });
+    if (!st.lot || !st.lot.stage || st.lot.stage >= 3) return res.status(400).json({ error: 'No hay más pistas: esta es la última' });
     sbClueNext(st);
   } else if (act === 'hammer'){
     if (!st.lot) return res.status(400).json({ error: 'No hay ningún jugador en subasta' });
-    if (st.lot.stage && st.lot.stage < 4) return res.status(400).json({ error: 'Primero revela al jugador' });
+    if (st.lot.stage && st.lot.stage < 3) return res.status(400).json({ error: 'Espera la última pista' });
     sbClose(st, 'adjudicado');
   } else return res.status(400).json({ error: 'Acción inválida' });
   await sbSave(st); res.json(sbView(st, req.user.id));

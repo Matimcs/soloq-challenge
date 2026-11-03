@@ -1469,9 +1469,29 @@
     if (history.replaceState) history.replaceState(null, '', location.pathname + (code ? '?subasta=' + encodeURIComponent(code) : '') + '#sb'); }
   // Sincronía: nunca dos lecturas a la vez, y una respuesta más vieja (versión menor) no pisa a una más nueva.
   let sbLoading = false;
+  // Sonidos de la subasta: sale un jugador, cambia la pista, alguien puja (otro sonido si te superan) y se adjudica.
+  function sbSounds(prev, st){
+    if (!prev || prev.code !== st.code || typeof SFX === 'undefined') return;
+    const me = st.me, P = prev.lot, L = st.lot;
+    if (prev.status !== 'done' && st.status === 'done'){ SFX.done(); return; }
+    if (P && !L){   // se cerró el jugador en juego
+      const last = (st.log || [])[0];
+      if (last && last.cap != null && me != null && last.cap === me) SFX.win(); else if (last && last.cap != null) SFX.lock(); else SFX.cancel();
+      return; }
+    if (!P && L){ SFX.phase(); return; }   // salió un jugador nuevo
+    if (!P || !L) return;
+    if ((L.stage || 0) !== (P.stage || 0)) SFX.notify();   // pasó a la siguiente pista
+    const b0 = (L.bids || [])[0], p0 = (P.bids || [])[0];
+    if (b0 && (!p0 || b0.c !== p0.c || b0.amt !== p0.amt)){
+      if (me != null && b0.c === me) SFX.accept();                       // tu puja
+      else if (me != null && P.leader === me) SFX.cancel();               // te superaron
+      else SFX.queue();                                                   // puja de otro
+    }
+  }
   function sbApply(st, force){
     if (SBC.st && SBC.st.code === st.code && (st.v || 0) < (SBC.st.v || 0)) return;   // llegó tarde: se descarta
     const sig = JSON.stringify({ ...st, now: 0, lot: st.lot && { ...st.lot, left: 0 } });
+    try { sbSounds(SBC.st, st); } catch (e) {}
     SBC.st = st; if (force || sig !== SBC.sig){ SBC.sig = sig; sbRender(); }
   }
   async function sbLoad(force){
@@ -1542,26 +1562,26 @@
     if (!meCap) ctrl = `<div class="fv-note">Solo miras.</div>`;
     else if (meCap.need <= 0) ctrl = `<div class="sb-wait">Ya completaste tu equipo.</div>`;
     else if (out) ctrl = `<div class="sb-wait">Te retiraste de este jugador.</div>`;
-    else if (L.leader === st.me) ctrl = `${L.nextMin != null ? `<div class="sb-prem next">Si nadie te supera antes de ${L.stage >= 3 ? 'la puja final' : 'la pista ' + (L.stage + 1)}, para quitártelo tendrán que poner mínimo <b>${sbMoney(L.nextMin)}</b>.</div>` : ''}<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
+    else if (L.leader === st.me) ctrl = `${L.nextMin != null ? `<div class="sb-prem next">Si nadie te supera antes de la pista ${L.stage + 1}, para quitártelo tendrán que poner mínimo <b>${sbMoney(L.nextMin)}</b>.</div>` : ''}<div class="sb-wait">✓ <b>Vas ganando</b> con ${sbMoney(L.price)}. Si nadie sube antes de que termine el tiempo, es tuyo.</div>`;
     else ctrl = `${p && (p.rid || '').toLowerCase() === (meCap.rid || '').toLowerCase() ? '<div class="sb-wait">¡Eres tú! Puedes pujar por ti mismo si quieres jugar en tu propio equipo.</div>' : ''}${SBC.sending ? `<div class="sb-wait">Enviando puja de ${sbMoney(SBC.sending)}…</div>` : ''}<div class="sb-btns">
         ${[0, 40, 90].map(x => min + x).filter(v => v <= meCap.left).map(v => `<button class="fv-btn pri" data-bid="${v}">Pujar ${sbMoney(v)}</button>`).join('')}
         ${meCap.need === 1 && meCap.left >= min ? `<button class="fv-btn sb-allin" data-bid="${meCap.left}" title="Te falta un solo jugador: apuesta todo lo que te queda">All in · ${sbMoney(meCap.left)}</button>` : ''}
         <span class="sb-custom"><input type="number" id="sb-amt" min="${min}" max="${meCap.left}" step="10" placeholder="Otro monto" value="${esc(SBC.amt)}"><button class="fv-btn" id="sb-bidc">Pujar</button></span>
         <button class="fv-btn sb-drop" id="sb-out" title="No vuelves a pujar por este jugador">Me retiro</button></div>
-        ${L.nextMin != null && L.leader !== st.me ? `<div class="sb-prem next">Si nadie supera los ${sbMoney(L.price)} de ${esc(st.caps[L.leader].nick)} antes de ${L.stage >= 3 ? 'la puja final' : 'la pista ' + (L.stage + 1)}, ahí la primera puja tendrá que ser de mínimo <b>${sbMoney(L.nextMin)}</b> (+${st.cluePct}%).</div>` : ''}
+        ${L.nextMin != null && L.leader !== st.me ? `<div class="sb-prem next">Si nadie supera los ${sbMoney(L.price)} de ${esc(st.caps[L.leader].nick)} antes de la pista ${L.stage + 1}, ahí la primera puja tendrá que ser de mínimo <b>${sbMoney(L.nextMin)}</b> (+${st.cluePct}%).</div>` : ''}
         ${L.carry != null ? `<div class="sb-prem">Nueva fase: la primera puja debe superar en ${st.cluePct}% los ${sbMoney(L.carry)} de ${esc(st.caps[L.leader].nick)} → mínimo <b>${sbMoney(min)}</b></div>` : ''}
         ${min > meCap.left ? `<div class="fv-note">No te alcanza para subir (te quedan ${sbMoney(meCap.left)}).</div>` : ''}`;
     return `<div class="card sb-lot">
-      <div class="sb-loth"><span class="lbl">${mystery ? 'JUGADOR MISTERIOSO · ' + (L.stage >= 4 ? 'PUJA FINAL' : 'PISTA ' + L.stage + '/3') : 'EN SUBASTA' + (L.again ? ' · VUELVE A SALIR' : '')}</span>${mystery && L.stage < 4 ? `<span class="sb-cluet">Siguiente pista en <b class="sb-clock" data-left="${L.stageLeft}" data-at="${Date.now()}">${Math.ceil(L.stageLeft / 1000)}</b></span>` : `<span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span>`}</div>
-      ${mystery ? `<div class="sb-player"><div class="sb-myst">?</div><div class="nf"><div class="nm">¿Quién será?</div><div class="ps">${L.stage >= 4 ? 'Última oportunidad: el nombre se revela cuando se cierre la puja.' : 'El nombre se revela al cerrar la puja. Ya puedes pujar.'}</div></div></div>`
+      <div class="sb-loth"><span class="lbl">${mystery ? 'JUGADOR MISTERIOSO · PISTA ' + L.stage + '/3' + (L.stage >= 3 ? ' · ÚLTIMA' : '') : 'EN SUBASTA' + (L.again ? ' · VUELVE A SALIR' : '')}</span>${mystery && L.stage < 3 ? `<span class="sb-cluet">Siguiente pista en <b class="sb-clock" data-left="${L.stageLeft}" data-at="${Date.now()}">${Math.ceil(L.stageLeft / 1000)}</b></span>` : `<span class="sb-clock" data-left="${L.left}" data-at="${Date.now()}">${Math.ceil(L.left / 1000)}</span>`}</div>
+      ${mystery ? `<div class="sb-player"><div class="sb-myst">?</div><div class="nf"><div class="nm">¿Quién será?</div><div class="ps">${L.stage >= 3 ? 'Última pista: cuando se acabe el tiempo se adjudica y se revela el nombre.' : 'El nombre se revela al cerrar la puja. Ya puedes pujar.'}</div></div></div>`
         : `<div class="sb-player">${sbIco(p.role)}<div class="nf"><div class="nm">${esc(p.nick)}</div><div class="ps">${sbRoleTxt(p)}${p.team ? ' · ' + esc(p.team) : ''} · ${sbRank(p)}</div></div>
         <a class="fv-btn sm" href="${rkOpgg(p.opgg)}" target="_blank" rel="noopener">OP.GG</a></div>`}
       ${cl ? sbCluesHtml(cl, L.stage) : ''}
       <div class="sb-price"><small>${L.leader == null ? (L.free ? 'Nadie lo ha querido: si nadie puja, va gratis al que más jugadores necesita' : 'Nadie ha pujado · si nadie puja, vuelve al final') : 'Puja más alta · ' + esc(st.caps[L.leader].nick)}</small><b>${sbMoney(L.price)}</b></div>
-      ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}${b.stage ? ' · ' + (b.stage >= 4 ? 'puja final' : 'pista ' + b.stage) : ''}</span>`).join('')}</div>` : ''}
+      ${L.bids.length ? `<div class="sb-bids">${L.bids.map(b => `<span>${esc(st.caps[b.c].nick)} ${sbMoney(b.amt)}${b.stage ? ' · pista ' + Math.min(3, b.stage) : ''}</span>`).join('')}</div>` : ''}
       ${(L.out || []).length ? `<div class="sb-outs">Se retiraron: ${L.out.map(k => esc(st.caps[k].nick)).join(', ')}</div>` : ''}
       <div class="fv-err">${esc(SBC.err)}</div>${ctrl}
-      ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span>${mystery && L.stage < 4 ? `<button class="fv-btn sm pri" id="sb-clue">${L.stage >= 3 ? 'Ir a la puja final' : 'Siguiente pista'}</button>` : `<button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button>`}</div>` : ''}</div>`;
+      ${st.isHost ? `<div class="sb-hostctl"><span>Anfitrión</span>${mystery && L.stage < 3 ? `<button class="fv-btn sm pri" id="sb-clue">Siguiente pista</button>` : `<button class="fv-btn sm" id="sb-hammer">${L.leader == null ? 'Cerrar sin venta' : 'Adjudicar ya a ' + esc(st.caps[L.leader].nick)}</button>`}</div>` : ''}</div>`;
   }
   // Las pistas que ya salieron (y, revelado el nombre, cuál de los 5 de la partida era).
   function sbCluesHtml(cl, stage){
@@ -1692,8 +1712,10 @@
     }
     const hostBar = st.isHost ? `<div class="sb-host"><span>Anfitrión</span>${st.status !== 'lobby' ? `<button class="fv-btn sm" id="sb-reset">↺ Reiniciar subasta</button>` : ''}<button class="fv-btn sm sb-drop" id="sb-close">Cerrar subasta</button></div>` : '';
     const hadFocus = document.activeElement && document.activeElement.id === 'sb-amt';   // escribir un monto no se interrumpe al redibujar
-    box.innerHTML = hostBar + body;
+    const sfxBtn = `<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="fv-btn sm" id="sb-sfx" title="${SFX.muted ? 'Activar sonidos' : 'Silenciar sonidos'}">${SFX.muted ? '🔇 Sonidos' : '🔊 Sonidos'}</button></div>`;
+    box.innerHTML = sfxBtn + hostBar + body;
     const on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+    on('sb-sfx', () => { SFX.toggle(); sbRender(); });
     on('sb-close', () => { if (confirm('¿Cerrar la subasta? Se borra la sala y el enlace deja de funcionar.')) sbAct('close'); });
     on('sb-join', () => sbAct('join')); on('sb-leave', () => sbAct('leave'));
     box.querySelectorAll('[data-kick]').forEach(b => b.onclick = () => sbAct('leave', { k: +b.dataset.kick }));
@@ -1735,7 +1757,9 @@
     on('sb-vote', () => sbAct('vote', { order: SBC.vorder }));
     sbClock();
   }
-  function sbClock(){ document.querySelectorAll('#p-sb .sb-clock').forEach(el => { const s = Math.max(0, Math.ceil((+el.dataset.left - (Date.now() - +el.dataset.at)) / 1000)); el.textContent = s + ' s'; el.classList.toggle('low', s <= 5); }); }
+  function sbClock(){ document.querySelectorAll('#p-sb .sb-clock').forEach(el => { const s = Math.max(0, Math.ceil((+el.dataset.left - (Date.now() - +el.dataset.at)) / 1000)); el.textContent = s + ' s'; el.classList.toggle('low', s <= 5);
+      // tic-tac en los últimos 3 s de la puja (solo en el reloj del jugador en subasta, y solo una vez por segundo)
+      if (el.closest('.sb-lot') && !el.closest('.sb-reveal') && CUR_TAB === 'sb' && s > 0 && s <= 3 && typeof SFX !== 'undefined'){ const k = (SBC.st && SBC.st.v) + '|' + s; if (SBC.tick !== k){ SBC.tick = k; s === 1 ? SFX.tickLast() : SFX.tick(); } } }); }
   setInterval(sbClock, 250);
   // refresco cada 1 s (no mientras escribes un monto o eliges en el reparto, para no cortarte)
   setInterval(() => { if (CUR_TAB === 'sb' && !document.hidden && SBC.room && rkLogged() && !(document.activeElement && document.activeElement.matches && document.activeElement.matches('#p-sb select'))) sbLoad(false); }, 1000);
