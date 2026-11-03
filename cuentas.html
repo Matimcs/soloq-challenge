@@ -121,7 +121,8 @@
     <div class="box">
       <h2 id="f-title">📝 Inscribe tu cuenta</h2>
       <div class="form">
-        <div><label for="rid">Riot ID de la cuenta del challenge</label><input id="rid" placeholder="TuNombre#SQUCH" maxlength="22" autocomplete="off"></div>
+        <div id="for-f" style="display:none;grid-column:1 / -1"><label for="for">Inscribir para <span style="color:var(--muted);font-weight:600">(solo admins)</span></label><select id="for" style="width:100%;font-family:var(--font);font-size:14px;color:var(--text);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:10px 12px"></select></div>
+        <div><label for="rid">Riot ID de la cuenta del challenge</label><input id="rid" placeholder="TuNombre#SQUCH" maxlength="30" autocomplete="off"></div>
         <div id="name-f"><label for="nm">Tu nombre</label><input id="nm" placeholder="Cómo te conocen" maxlength="40"></div>
         <button class="go" id="go">Inscribir</button>
       </div>
@@ -169,11 +170,17 @@
   }
   function render(){
     const accs = D.accounts || [], mine = accs.find(a => a.mine);
-    // con sesión de la org la cuenta se asigna sola; sin ella, se pide el nombre
-    $('name-f').style.display = D.me && D.me.org ? 'none' : '';
-    $('f-title').textContent = mine ? '🔄 Cambiar tu cuenta' : '📝 Inscribe tu cuenta';
-    $('go').textContent = mine ? 'Cambiar cuenta' : 'Inscribir';
-    if (D.me && D.me.org && !$('msg').dataset.set) $('msg').innerHTML = `<span style="color:var(--muted)">Con tu sesión, la cuenta queda a nombre de <b style="color:var(--text)">${esc(D.me.nick)}</b>.</span>`;
+    // admins: elegir para quién se inscribe (tú, un jugador de la org u otra persona)
+    if (D.players && !$('for').options.length){
+      $('for').innerHTML = `<option value="me">Para mí (${esc(D.me.nick)})</option>` + D.players.filter(p => p.nick !== D.me.nick).map(p => `<option value="${p.id}">${esc(p.nick)}</option>`).join('') + '<option value="other">Otra persona (escribir nombre)…</option>';
+      $('for-f').style.display = ''; $('for').onchange = render; }
+    const forSel = D.players ? $('for').value : 'me', forMe = forSel === 'me';
+    // con sesión de la org la cuenta se asigna sola; sin ella (o si un admin la inscribe para "otra persona"), se pide el nombre
+    $('name-f').style.display = (D.me && D.me.org && forSel !== 'other') ? 'none' : '';
+    $('f-title').textContent = mine && forMe ? '🔄 Cambiar tu cuenta' : '📝 Inscribe tu cuenta';
+    $('go').textContent = mine && forMe ? 'Cambiar cuenta' : 'Inscribir';
+    if (D.me && D.me.org && !$('msg').dataset.set){ const who = forMe ? D.me.nick : forSel === 'other' ? null : ($('for').selectedOptions[0] || {}).text;
+      $('msg').innerHTML = who ? `<span style="color:var(--muted)">La cuenta queda a nombre de <b style="color:var(--text)">${esc(who)}</b>${forMe ? '' : ' (si ya tenía una, se reemplaza)'}.</span>` : ''; }
     if (mine && !$('rid').value) $('rid').placeholder = mine.riotid;
     $('cnt').textContent = accs.length ? `· ${accs.length} inscrita${accs.length === 1 ? '' : 's'}` : '';
     const max = Math.max(30, ...accs.map(a => a.level || 0));
@@ -199,7 +206,9 @@
     if (!/^.+#.+$/.test(rid)){ msg.className = 'msg bad'; msg.textContent = 'Escribe el Riot ID completo: Nombre#TAG'; return; }
     btn.disabled = true; msg.innerHTML = '<span style="color:var(--muted)">Consultando a Riot…</span>';
     try {
-      const r = await fetch('/api/cuentas', { method: 'POST', headers: H(), body: JSON.stringify({ riotid: rid, name: $('nm').value, claim }) });
+      const forSel = D && D.players ? $('for').value : 'me';
+      const r = await fetch('/api/cuentas', { method: 'POST', headers: H(), body: JSON.stringify({ riotid: rid, name: $('nm').value, claim,
+        for_user: forSel !== 'me' && forSel !== 'other' ? forSel : undefined, for_other: forSel === 'other' || undefined }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'No se pudo inscribir');
       msg.className = 'msg ' + (d.tagOk ? 'ok' : 'bad');

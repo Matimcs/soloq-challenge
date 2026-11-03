@@ -155,7 +155,9 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
                             WHERE counted AND NOT remake AND puuid = ANY($1) GROUP BY puuid`, [rows.map(r => r.puuid)])).forEach(x => { wr[x.puuid] = { g: x.g, w: x.w }; });
     const lpOf = log => { const w = (log || []).filter(x => x.r === 'W'), l = (log || []).filter(x => x.r === 'L'), avg = a => a.length ? Math.round(a.reduce((s, x) => s + Math.abs(x.d), 0) / a.length) : null;
       return w.length + l.length ? { gain: avg(w), loss: avg(l), n: w.length + l.length } : null; };
+    const admin = id.uid ? await reqIsAdmin(req) : false;
     res.json({ tag: TAG, me: me ? { org: true, nick: me.nickname } : id.xid ? { org: false } : null,
+      players: admin ? (await q("SELECT id, nickname FROM users WHERE coalesce(nickname,'')<>'' ORDER BY lower(nickname)")).map(u => ({ id: u.id, nick: u.nickname })) : undefined,
       accounts: rows.map(r => { const rk = r.ranked || {}, games = ['solo', 'flex'].reduce((t, k) => t + (rk[k] ? rk[k].w + rk[k].l : 0), 0);
         return { id: r.id, riotid: r.game_name + '#' + r.tag_line, level: r.level, icon: r.icon, owner: r.org_nick || r.ext_nick || r.owner_name || '?', org: !!r.user_id,
           tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at, mmr: est[r.puuid] || null, lp: lpOf(r.lp_log), wr: wr[r.puuid] || null }; }) });
@@ -163,8 +165,14 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
   app.post('/api/cuentas', wrap(async (req, res) => {
     if (tooMany(req, 'cuentas', 6, 3600e3)) return res.status(429).json({ error: 'Demasiados intentos. Prueba en un rato.' });
     if (!KEY()) return res.status(503).json({ error: 'La revisión de cuentas no está disponible ahora' });
-    const b = req.body || {}, id = reqIdentity(req), claim = String(b.claim || '').slice(0, 64);
-    const m = String(b.riotid || '').trim().match(/^(.{3,16})#(.{3,5})$/);
+    const b = req.body || {}; let id = reqIdentity(req), claim = String(b.claim || '').slice(0, 64);
+    // Un admin puede inscribirla para otro: un jugador de la org (for_user) u otra persona por nombre (for_other)
+    if ((b.for_user || b.for_other) && id.uid && await reqIsAdmin(req)){
+      if (b.for_user){ const u = await q1('SELECT id FROM users WHERE id=$1', [Number(b.for_user)]); if (!u) return res.status(400).json({ error: 'Ese jugador no existe' }); id = { uid: u.id }; }
+      else { id = {}; claim = 'adm-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }   // queda suelta: no se asocia a tu navegador
+    }
+    // Riot ID: se aceptan espacios alrededor del # (se limpian); nombre de 3 a 16 y tag de 2 a 5, como en Riot
+    const m = String(b.riotid || '').trim().replace(/\s*#\s*/, '#').match(/^(.{3,16})#(.{2,5})$/);
     if (!m) return res.status(400).json({ error: 'Escribe tu Riot ID completo: Nombre#TAG' });
     let name = null;
     if (!id.uid){ name = String(b.name || '').trim().replace(/\s+/g, ' ').slice(0, 40);
