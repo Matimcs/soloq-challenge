@@ -278,14 +278,14 @@ function ensureUpd(){
 // Muestra/actualiza la ventana de actualización. text = línea de estado; pct = % (o null = sin barra);
 // clickable=true hace la tarjeta clicable (fallback de instalación manual).
 function showUpd(text, pct, clickable){
-  if (lastInGame && !updManual && !clickable) return;   // no molestar con avisos de update durante la partida
+  if (busyInGame && !updManual && !clickable) return;   // no molestar con avisos de update en selección de campeones ni en partida (cualquier cola)
   ensureUpd().then(w => { if (w.isDestroyed()) return; if (!w.isVisible()) w.showInactive(); w.webContents.send('upd', { text, pct, clickable: !!clickable }); }).catch(() => {});
 }
 function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); retireWin('upd', 30000); }
 // Chequeo de actualización. manual=true (desde la bandeja) muestra también "ya estás al día"
 // o el error; el automático solo aparece si hay algo que descargar.
 let updManual = false;
-function checkUpdates(manual){ if (!app.isPackaged) return; updManual = !!manual; try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
+function checkUpdates(manual){ if (!app.isPackaged) return; if (!manual && busyInGame) return; updManual = !!manual; try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
 // Instala la actualización SIN abrir el instalador (modo silencioso) y relanza la app sola.
 // No interrumpe si estás en partida: espera a que termines (lo reintenta el interval).
 let updateReady = false, pendingVer = null;
@@ -296,7 +296,7 @@ function offerManualInstall(v){
   showUpd('Actualización ' + (v ? 'v' + v : '') + ' lista — haz clic aquí para instalarla', null, true);
 }
 function tryInstall(){
-  if (!updateReady || lastInGame) return;   // en partida: se instalará al terminar (o al cerrar la app)
+  if (!updateReady || busyInGame) return;   // en selección o en partida (cualquier cola): se instala al terminar (o al cerrar la app)
   updateReady = false;
   // Recuerda qué versión intentamos auto-instalar; si al reiniciar seguimos en la vieja, no reintentamos
   // en loop (lo detecta update-downloaded) sino que ofrecemos instalación manual.
@@ -385,6 +385,9 @@ function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w =>
 // falta: las tarjetas son solo informativas (no necesitan hover). Bloqueado = click-through puro.
 function applyLock(){ if (positioning) return; [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
+// busyInGame: en selección de campeones o en partida de CUALQUIER cola (normales, swiftplay, ARAM, rankeds, personalizadas…).
+// lastInGame sigue siendo solo SoloQ/práctica (decide si se muestran las tarjetas); busyInGame protege las actualizaciones.
+let busyInGame = false;
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
 let forceShowAll = false;
@@ -670,6 +673,7 @@ async function poll(){
       });
 
       lastInGame = inSoloQ;
+      busyInGame = ['ChampSelect', 'GameStart', 'InProgress', 'Reconnect'].includes(phase);
       reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
 
       // ¿Terminó una partida personalizada? → manda el resultado (una vez por partida)
@@ -708,8 +712,8 @@ async function poll(){
           }
         } catch {}
       }
-    } else { lastInGame = false; }
-  } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; }
+    } else { lastInGame = false; busyInGame = false; }
+  } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; busyInGame = false; }
 
   applyVis();
   [win, shellWin, bigWin].forEach(w => { if (w && !w.isDestroyed()) w.webContents.send('data', payload); });
