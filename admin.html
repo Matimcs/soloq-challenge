@@ -140,7 +140,7 @@
           <input type="text" id="tr-note" placeholder="Nota (opcional): para qué es la cuenta" maxlength="200">
           <button class="btn btn-accent" id="tr-add">Agregar</button>
         </div>
-        <div style="color:var(--muted);font-size:12px;margin-top:8px" id="tr-info">Se revisan cada 5 min con su propia API key. Cuentan las partidas de la Grieta que mueven MMR: normales, rankeds, quickplay y swiftplay (sin ARAM, eventos ni personalizadas). Al agregar una cuenta se bajan sus últimas 40 partidas.</div>
+        <div style="color:var(--muted);font-size:12px;margin-top:8px" id="tr-info">Se revisan cada 5 min con su propia API key. Cuentan las partidas de la Grieta que mueven MMR: normales, rankeds, quickplay y swiftplay (sin ARAM, eventos ni personalizadas). Al agregar una cuenta se bajan sus últimas 40 partidas. El <b>MMR estimado</b> es el promedio del rango Solo/Dúo <b>actual</b> de los otros 9 jugadores de sus últimas 20 partidas; se calcula de a poco (unos minutos por cuenta).</div>
       </div>
       <div class="box">
         <h2>Cuentas <span class="n" id="tr-count"></span></h2>
@@ -715,6 +715,14 @@
     const e4 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
     const TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger' };
     const rk = r => !r ? '<span style="color:var(--muted)">sin rango</span>' : `${TIER[r.tier] || r.tier}${/MASTER|CHALLENGER/.test(r.tier) ? '' : ' ' + r.div} · ${r.lp} LP <span style="color:var(--muted)">(${r.w}V ${r.l}D)</span>`;
+    // escala absoluta → "Oro II · 40 LP" (Master+ desde 2800)
+    const ABS_T = ['IRON','BRONZE','SILVER','GOLD','PLATINUM','EMERALD','DIAMOND'], ABS_D = ['IV','III','II','I'];
+    const absLbl = v => { if (v == null) return '–'; if (v >= 2800) return `Maestro+ · ${v - 2800} LP`; const t = Math.max(0, Math.min(6, Math.floor(v / 400))), d = Math.floor((v - t * 400) / 100), lp = v - t * 400 - d * 100;
+      return `${TIER[ABS_T[t]] || ABS_T[t]} ${ABS_D[Math.max(0, Math.min(3, d))]}${lp ? ' · ' + lp + ' LP' : ''}`; };
+    const estHtml = e => { if (!e) return '<span style="color:var(--muted)">sin partidas aún</span>';
+      if (e.abs == null) return `<span style="color:var(--muted)">calculando…${e.pending ? ` (${e.pending} partidas en cola)` : ''}</span>`;
+      const tr = e.trend == null ? '' : Math.abs(e.trend) < 40 ? ' <span style="color:var(--muted)">→ estable</span>' : e.trend > 0 ? ` <span style="color:var(--up)">↑ subiendo (+${e.trend})</span>` : ` <span style="color:var(--down)">↓ bajando (${e.trend})</span>`;
+      return `<b style="color:var(--accent)">≈ ${absLbl(e.abs)}</b> <span style="color:var(--muted)">(${e.n} partidas${e.pending ? `, ${e.pending} por calcular` : ''})</span>${tr}`; };
     const ago = t => { if (!t) return '–'; const m = Math.round((Date.now() - new Date(t).getTime()) / 60000); return m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`; };
     const opgg = rid => 'https://op.gg/es/lol/summoners/las/' + encodeURIComponent(String(rid).replace('#', '-'));
     let D = null, open = null;
@@ -739,6 +747,7 @@
               <button class="btn btn-no" style="padding:5px 10px;font-size:12px" data-trd="${a.id}">Quitar</button></div></div>
           <div style="font-size:13px;margin-top:8px">Solo/Dúo: ${rk(a.rank && a.rank.solo)} &nbsp;·&nbsp; Flex: ${rk(a.rank && a.rank.flex)}</div>
           <div style="font-size:13px;margin-top:4px">${st}</div>
+          <div style="font-size:13px;margin-top:4px" title="Promedio del rango Solo/Dúo actual de los otros 9 jugadores de sus últimas 20 partidas (más peso a las recientes)">🧮 MMR estimado: ${estHtml(a.est)}</div>
           <div style="font-size:11.5px;color:${a.last_error ? 'var(--down)' : 'var(--muted)'};margin-top:4px">Revisada ${ago(a.last_check)}${a.last_error ? ' · error: ' + e4(a.last_error) : ''}</div>
           <div id="tr-edit-${a.id}" style="display:none;margin-top:8px" class="drop-row"><select data-tru="${a.id}">${userOpts(a.user_id)}</select><input type="text" data-trn="${a.id}" value="${e4(a.note || '')}" placeholder="Nota"><button class="btn btn-accent" style="padding:6px 12px" data-trs="${a.id}">Guardar</button></div>
           <div id="tr-m-${a.id}"></div></div>`; }).join('');
@@ -753,7 +762,7 @@
           <td style="padding:5px 4px;color:${m.remake ? 'var(--muted)' : m.win ? 'var(--up)' : 'var(--down)'};font-weight:800">${m.remake ? 'Remake' : m.win ? 'V' : 'D'}</td>
           <td style="padding:5px 4px">${e4(m.champ)}</td><td style="padding:5px 4px;color:var(--muted)">${POS[m.pos] || ''}</td>
           <td style="padding:5px 4px">${m.k}/${m.d}/${m.a}</td><td style="padding:5px 4px">${(m.cs / Math.max(1, m.dur / 60)).toFixed(1)} CS/m</td>
-          <td style="padding:5px 4px">${m.kp}% KP</td><td style="padding:5px 4px;color:var(--muted)">${e4((D.queues || {})[m.queue] || m.queue)}</td>
+          <td style="padding:5px 4px">${m.kp}% KP</td><td style="padding:5px 4px;color:var(--accent)" title="Rango promedio de los otros jugadores con rango (${m.lobby_n == null ? 'sin calcular' : m.lobby_n + ' de 9'})">${m.lobby_n == null ? '<span style="color:var(--muted)">…</span>' : m.lobby_avg == null ? '<span style="color:var(--muted)">sin rango</span>' : 'sala ≈ ' + absLbl(m.lobby_avg)}</td><td style="padding:5px 4px;color:var(--muted)">${e4((D.queues || {})[m.queue] || m.queue)}</td>
           <td style="padding:5px 4px;color:var(--muted)">${Math.floor(m.dur / 60)}m</td><td style="padding:5px 4px;color:var(--muted)">${new Date(Number(m.game_end)).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</td></tr>`).join('') + `</table></div>`;
     }
     function bind(){

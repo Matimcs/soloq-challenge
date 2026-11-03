@@ -435,6 +435,15 @@ async function init(){
       PRIMARY KEY (match_id, puuid)
     );
     CREATE INDEX IF NOT EXISTS track_matches_puuid ON track_matches (puuid, game_end DESC);
+    -- MMR estimado: los otros 9 jugadores de cada partida y el promedio de su rango Solo/Dúo (escala absoluta)
+    ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS others JSONB;          -- [puuid, ...] de los otros 9
+    ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS lobby_avg INTEGER;     -- promedio absoluto de los que tienen rango
+    ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS lobby_n INTEGER;       -- cuántos de los 9 tenían rango
+    CREATE TABLE IF NOT EXISTS track_rank_cache (                            -- rango Solo/Dúo por puuid (se refresca cada 3 días)
+      puuid      TEXT PRIMARY KEY,
+      abs        INTEGER,                   -- null = sin rango
+      checked_at TIMESTAMPTZ DEFAULT now()
+    );
     -- Herramientas → Links: enlaces útiles (generales o de un campeón) que agrega la org.
     CREATE TABLE IF NOT EXISTS links (
       id         SERIAL PRIMARY KEY,
