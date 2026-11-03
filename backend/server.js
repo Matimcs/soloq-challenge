@@ -134,7 +134,7 @@ app.use(express.json({ limit: '8mb' }));
 app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.header('Access-Control-Allow-Headers','Content-Type,Authorization'); res.header('Access-Control-Allow-Methods','GET,POST,OPTIONS'); if(req.method==='OPTIONS') return res.sendStatus(204); next(); });
 
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
-const sign = u => jwt.sign({ uid: u.id }, JWT_SECRET, { expiresIn: '30d' });
+const sign = u => jwt.sign({ uid: u.id, tv: u.token_version || 0 }, JWT_SECRET, { expiresIn: '30d' });
 const TEAMS = new Set(['Exilium', 'Tide', 'Zenith', 'Hundred Blossom']);
 const ROLES = new Set(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT']);   // rol dentro del equipo (puede diferir del de SoloQ)
 // El nombre real de los jugadores solo lo ven los admins: las rutas públicas lo omiten salvo que pida un admin.
@@ -187,16 +187,16 @@ async function orgOnly(req, res, next){
   if (await reqOrg(req)){ res.set('CDN-Cache-Control', 'no-store'); return next(); }
   res.status(403).json({ error:'Solo para jugadores de la organización', orgOnly: true });
 }
-const signExt = x => jwt.sign({ xid: x.id }, JWT_SECRET, { expiresIn: '30d' });
+const signExt = x => jwt.sign({ xid: x.id, tv: x.token_version || 0 }, JWT_SECRET, { expiresIn: '30d' });
 const publicExt = x => ({ id: 'x' + x.id, external: true, email: x.email, nickname: x.nickname, riotid: x.riotid, realname: x.realname, university: x.university, avatar: x.avatar });
 const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, team:u.team || null, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (!t) return res.status(401).json({ error:'No autenticado' });
-  try { const { uid, xid } = jwt.verify(t, JWT_SECRET);
+  try { const { uid, xid, tv } = jwt.verify(t, JWT_SECRET);
     if (xid && !uid) return res.status(403).json({ error:'Esto es solo para jugadores de la organización' });
     const u = await q1('SELECT * FROM users WHERE id=$1', [uid]);
-    if (!u) return res.status(401).json({ error:'Sesión inválida' }); req.user = u; next(); }
+    if (!u || (tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error:'Sesión inválida' }); req.user = u; next(); }
   catch { return res.status(401).json({ error:'Sesión inválida' }); }
 }
 const requireAdmin = (req,res,next) => req.user.is_admin ? next() : res.status(403).json({ error:'Solo admin' });
@@ -283,6 +283,53 @@ app.post('/api/login', wrap(async (req,res) => {
   if (x && await bcrypt.compare(password||'', x.password_hash)) return res.json({ token: signExt(x), user: publicExt(x) });
   res.status(401).json({ error:'Email o contraseña incorrectos' });
 }));
+// ---- Recuperar contraseña por correo (Resend: RESEND_API_KEY) ----
+// Siempre responde lo mismo, exista o no el correo (así no se puede averiguar quién está registrado).
+const RESET_TTL_MIN = 60, SITE_URL = process.env.SITE_URL || 'https://www.soloquchile.cl';
+const hashToken = t => crypto.createHash('sha256').update(String(t)).digest('hex');
+async function sendMail(to, subject, html){
+  if (!process.env.RESEND_API_KEY) throw new Error('Falta RESEND_API_KEY');
+  const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: 'Bearer ' + process.env.RESEND_API_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: process.env.MAIL_FROM || 'SoloQ Challenge <noreply@soloquchile.cl>', to: [to], subject, html }) });
+  if (!r.ok) throw new Error('Resend ' + r.status + ' ' + (await r.text()).slice(0, 200));
+}
+app.post('/api/forgot', wrap(async (req, res) => {
+  if (tooMany(req, 'forgot', 5, 60 * 60000)) return res.status(429).json({ error:'Demasiados intentos. Espera un rato.' });
+  const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error:'Escribe un correo válido' });
+  const ok = { ok: true, msg: 'Si ese correo está registrado, te llegará un enlace para crear una contraseña nueva. Revisa también spam.' };
+  const u = await q1('SELECT id, nickname FROM users WHERE lower(email)=$1', [email]);
+  const x = !u && await q1('SELECT id, nickname FROM ext_users WHERE lower(email)=$1', [email]);
+  const acc = u || x; if (!acc) return res.json(ok);
+  // máximo 3 enlaces por cuenta cada hora (además del límite por conexión)
+  const recent = await q1(`SELECT count(*)::int n FROM password_resets WHERE kind=$1 AND account_id=$2 AND created_at > now() - interval '1 hour'`, [u ? 'u' : 'x', acc.id]);
+  if (recent && recent.n >= 3) return res.json(ok);
+  const token = crypto.randomBytes(32).toString('hex');
+  await q(`INSERT INTO password_resets (token_hash, kind, account_id, expires_at) VALUES ($1,$2,$3, now() + interval '${RESET_TTL_MIN} minutes')`, [hashToken(token), u ? 'u' : 'x', acc.id]);
+  const link = SITE_URL + '/restablecer?t=' + token;
+  const nick = String(acc.nickname || '').replace(/[<>&"]/g, '');
+  try {
+    await sendMail(email, 'Restablece tu contraseña · SoloQ Challenge', `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;background:#0b0b0b;color:#fff;border-radius:12px">
+      <h2 style="color:#e9ff1f;margin:0 0 12px">SoloQ Challenge</h2>
+      <p>Hola${nick ? ' ' + nick : ''}, pediste crear una contraseña nueva.</p>
+      <p style="margin:22px 0"><a href="${link}" style="background:#e9ff1f;color:#000;font-weight:bold;padding:12px 20px;border-radius:8px;text-decoration:none">Crear contraseña nueva</a></p>
+      <p style="color:#aaa;font-size:13px">El enlace sirve una sola vez y vence en ${RESET_TTL_MIN} minutos. Si no fuiste tú, ignora este correo: tu contraseña no cambia.</p></div>`);
+  } catch (e) { console.error('forgot:', e.message); }
+  res.json(ok);
+}));
+app.post('/api/reset', wrap(async (req, res) => {
+  if (tooMany(req, 'reset', 10, 60 * 60000)) return res.status(429).json({ error:'Demasiados intentos. Espera un rato.' });
+  const b = req.body || {}, pass = String(b.password || '');
+  if (pass.length < 6) return res.status(400).json({ error:'La contraseña debe tener al menos 6 caracteres' });
+  const r = await q1(`UPDATE password_resets SET used_at=now() WHERE token_hash=$1 AND used_at IS NULL AND expires_at > now() RETURNING kind, account_id`, [hashToken(b.token || '')]);
+  if (!r) return res.status(400).json({ error:'El enlace no es válido o ya venció. Pide uno nuevo.' });
+  const table = r.kind === 'u' ? 'users' : 'ext_users';
+  // nueva contraseña + sube la versión de sesión (se cierran las sesiones abiertas) + se anulan otros enlaces pendientes
+  const acc = await q1(`UPDATE ${table} SET password_hash=$2, token_version=coalesce(token_version,0)+1 WHERE id=$1 RETURNING *`, [r.account_id, await bcrypt.hash(pass, 10)]);
+  await q(`UPDATE password_resets SET used_at=now() WHERE kind=$1 AND account_id=$2 AND used_at IS NULL`, [r.kind, r.account_id]);
+  if (!acc) return res.status(400).json({ error:'La cuenta ya no existe' });
+  res.json(r.kind === 'u' ? { token: sign(acc), user: publicUser(acc) } : { token: signExt(acc), user: publicExt(acc) });
+}));
 // Registro de EXTERNOS (fuera de la organización): Riot ID obligatorio; universidad (o "sin universidad"),
 // nombre e imagen opcionales. No entran al ranking ni ven lo sensible.
 app.post('/api/register-external', wrap(async (req,res) => {
@@ -304,9 +351,9 @@ app.post('/api/register-external', wrap(async (req,res) => {
 app.get('/api/me', wrap(async (req,res) => {
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
   let p = null; try { p = t && jwt.verify(t, JWT_SECRET); } catch {}
-  if (p && p.xid && !p.uid){ const x = await q1('SELECT * FROM ext_users WHERE id=$1', [p.xid]); return x ? res.json({ user: publicExt(x) }) : res.status(401).json({ error:'Sesión inválida' }); }
+  if (p && p.xid && !p.uid){ const x = await q1('SELECT * FROM ext_users WHERE id=$1', [p.xid]); return x && (p.tv || 0) === (x.token_version || 0) ? res.json({ user: publicExt(x) }) : res.status(401).json({ error:'Sesión inválida' }); }
   const u = p && p.uid && await q1('SELECT * FROM users WHERE id=$1', [p.uid]);
-  if (!u) return res.status(401).json({ error: t ? 'Sesión inválida' : 'No autenticado' });
+  if (!u || (p.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: t ? 'Sesión inválida' : 'No autenticado' });
   res.json({ user: publicUser(u) });
 }));
 

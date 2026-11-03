@@ -163,8 +163,16 @@
       <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" required placeholder="tu@correo.com"></div>
       <div class="field"><label>Contraseña <span class="req">*</span></label><input type="password" name="password" required></div>
       <button type="submit" class="submit">Entrar</button>
+      <div class="alt"><a href="#" id="forgot-link">¿Olvidaste tu contraseña?</a></div>
       <div class="alt">¿No tienes cuenta? <a href="#" class="switch" data-mode="signup">Regístrate</a></div>
       <div class="msg" id="msg-login"></div>
+    </form>
+    <form id="form-forgot" style="display:none">
+      <div class="alt" style="text-align:left;margin:0 0 12px">Escribe el correo de tu cuenta y te mandamos un enlace para crear una contraseña nueva.</div>
+      <div class="field"><label>Email <span class="req">*</span></label><input type="email" name="email" required placeholder="tu@correo.com"></div>
+      <button type="submit" class="submit">Enviar enlace</button>
+      <div class="alt"><a href="#" id="forgot-back">← Volver a iniciar sesión</a></div>
+      <div class="msg" id="msg-forgot"></div>
     </form>
   </div>
 
@@ -282,6 +290,16 @@
       msg.className = 'msg ok'; msg.textContent = `¡Cuenta creada, ${res.user.nickname}! Redirigiendo…`;
       setTimeout(() => { window.location.href = 'index.html'; }, 600);
     } catch (err) { msg.className = 'msg err'; msg.textContent = err.message; }
+  });
+  // ¿Olvidaste tu contraseña? → se manda un enlace al correo
+  $('forgot-link').onclick = e => { e.preventDefault(); $('form-login').style.display = 'none'; $('form-forgot').style.display = '';
+    const em = $('form-login').elements.email.value; if (em) $('form-forgot').elements.email.value = em; };
+  $('forgot-back').onclick = e => { e.preventDefault(); $('form-forgot').style.display = 'none'; $('form-login').style.display = ''; };
+  $('form-forgot').addEventListener('submit', async e => {
+    e.preventDefault(); const msg = $('msg-forgot'), btn = e.target.querySelector('button[type=submit]'); btn.disabled = true;
+    try { const r = await SQC.api('/forgot', { method:'POST', body:{ email: e.target.elements.email.value } }); msg.className = 'msg ok'; msg.textContent = r.msg; }
+    catch (err) { msg.className = 'msg err'; msg.textContent = err.message; }
+    btn.disabled = false;
   });
   $('form-login').addEventListener('submit', async e => {
     e.preventDefault();

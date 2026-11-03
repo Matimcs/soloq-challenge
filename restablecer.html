@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+<head>
+<script src="auth-fetch.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SoloQ Challenge — Nueva contraseña</title>
+<style>
+  @import url('https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap');
+  :root{
+    --bg:#0b0b0b; --panel:#0b0c10; --panel-2:#121319; --line:rgba(255,255,255,.08); --line-2:rgba(255,255,255,.14);
+    --text:#fff; --muted:rgba(255,255,255,.55); --muted-2:rgba(255,255,255,.38);
+    --accent:#e9ff1f; --up:#34d399; --down:#fb7185;
+    --font:'General Sans',ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; }
+  body{ background:radial-gradient(1000px 500px at 50% -200px, rgba(233,255,31,.06), transparent 60%), var(--bg);
+    color:var(--text); font-family:var(--font); min-height:100vh; display:grid; place-items:center; padding:32px 16px; }
+  a{ color:var(--accent); text-decoration:none; }
+
+  .card{ width:100%; max-width:560px; background:var(--panel); border:1px solid var(--line); border-radius:18px; overflow:hidden; }
+  .head{ padding:22px 26px 0; }
+  .brand{ display:flex; align-items:center; gap:10px; font-weight:600; }
+  .brand .mark{ width:26px; height:26px; border-radius:7px; background:var(--accent); color:#000; display:grid; place-items:center; font-weight:800; box-shadow:0 0 20px rgba(233,255,31,.35); }
+  .brand b span{ color:var(--accent); }
+  .tabs{ display:flex; gap:6px; margin-top:20px; border-bottom:1px solid var(--line); }
+  .tab{ font-family:var(--font); cursor:pointer; background:none; border:none; color:var(--muted); font-size:14px; font-weight:600; padding:12px 16px; border-bottom:2px solid transparent; }
+  .tab.active{ color:var(--text); border-bottom-color:var(--accent); }
+
+  form{ padding:22px 26px 26px; }
+  .sec{ font-size:11px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin:18px 0 10px; }
+  .sec:first-child{ margin-top:0; }
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field{ margin-bottom:12px; }
+  label{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:500; }
+  label .req{ color:var(--accent); }
+  input,select{ width:100%; font-family:var(--font); font-size:14px; color:var(--text);
+    background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; outline:none; }
+  input:focus,select:focus{ border-color:var(--accent); }
+  input::placeholder{ color:var(--muted-2); }
+  .hint{ font-size:11px; color:var(--muted-2); margin-top:4px; }
+
+  .note{ font-size:12.5px; line-height:1.5; color:var(--muted); background:var(--panel-2); border:1px solid var(--line-2); border-radius:10px; padding:10px 12px; margin-bottom:6px; } .note a{ color:var(--accent); font-weight:700; }
+  .avatar-row{ display:flex; align-items:center; gap:14px; }
+  .avatar-prev{ width:56px; height:56px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line-2); object-fit:cover; display:grid; place-items:center; color:var(--muted-2); font-size:11px; }
+  .file-btn{ font-family:var(--font); cursor:pointer; background:rgba(255,255,255,.06); border:1px solid var(--line-2); color:var(--text); font-size:12px; font-weight:600; padding:9px 14px; border-radius:9px; }
+
+  .check{ display:flex; align-items:flex-start; gap:9px; font-size:12.5px; color:var(--muted); margin:14px 0 4px; }
+  .check input{ width:16px; height:16px; margin-top:1px; accent-color:var(--accent); }
+
+  .submit{ width:100%; font-family:var(--font); cursor:pointer; background:var(--accent); color:#000; border:none; border-radius:11px; padding:13px; font-size:15px; font-weight:700; margin-top:16px; }
+  .submit:hover{ filter:brightness(1.05); }
+  .alt{ text-align:center; font-size:13px; color:var(--muted); margin-top:14px; }
+  .msg{ font-size:13px; padding:10px 12px; border-radius:9px; margin-top:14px; display:none; }
+  .msg.ok{ display:block; background:rgba(52,211,153,.12); border:1px solid rgba(52,211,153,.4); color:var(--up); }
+  .msg.err{ display:block; background:rgba(251,113,133,.12); border:1px solid rgba(251,113,133,.4); color:var(--down); }
+  .opt-tag{ color:var(--muted-2); font-weight:400; }
+</style>
+<link rel="icon" type="image/png" href="overlay/assets/logo.png">
+</head>
+<body>
+  <div class="wrap" style="max-width:440px;margin:60px auto;padding:0 16px">
+    <h1 style="margin-bottom:6px">Nueva contraseña</h1>
+    <div class="alt" style="text-align:left;margin:0 0 18px">Elige tu nueva contraseña. Al guardarla se cierran tus sesiones abiertas en otros dispositivos.</div>
+    <form id="form-reset">
+      <div class="field"><label>Contraseña nueva <span class="req">*</span></label><input type="password" name="p1" minlength="6" required autocomplete="new-password"></div>
+      <div class="field"><label>Repítela <span class="req">*</span></label><input type="password" name="p2" minlength="6" required autocomplete="new-password"></div>
+      <button type="submit" class="submit">Guardar contraseña</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+<script src="api.js"></script>
+<script>
+  const token = new URLSearchParams(location.search).get('t') || '';
+  const f = document.getElementById('form-reset'), msg = document.getElementById('msg');
+  if (!token){ f.innerHTML = '<div class="msg err">Falta el enlace. Pide uno nuevo desde <a href="cuenta.html">Iniciar sesión</a> → ¿Olvidaste tu contraseña?</div>'; }
+  f.addEventListener('submit', async e => {
+    e.preventDefault(); msg.className = 'msg'; msg.textContent = '';
+    const p1 = f.elements.p1.value, p2 = f.elements.p2.value;
+    if (p1.length < 6){ msg.className = 'msg err'; msg.textContent = 'La contraseña debe tener al menos 6 caracteres'; return; }
+    if (p1 !== p2){ msg.className = 'msg err'; msg.textContent = 'Las contraseñas no coinciden'; return; }
+    const btn = f.querySelector('button'); btn.disabled = true;
+    try {
+      const r = await SQC.api('/reset', { method:'POST', body:{ token, password: p1 } });
+      SQC.setToken(r.token); history.replaceState(null, '', location.pathname);   // el enlace ya no sirve: se quita de la barra
+      msg.className = 'msg ok'; msg.textContent = '✓ Contraseña cambiada. Entrando…';
+      setTimeout(() => { location.href = r.user && r.user.external ? 'index.html' : 'perfil.html'; }, 900);
+    } catch (err) { msg.className = 'msg err'; msg.innerHTML = err.message + ' <a href="cuenta.html" style="color:inherit;text-decoration:underline">Pedir otro enlace</a>'; btn.disabled = false; }
+  });
+</script>
+</body>
+</html>

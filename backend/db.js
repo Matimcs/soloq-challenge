@@ -439,6 +439,18 @@ async function init(){
     ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS others JSONB;          -- [puuid, ...] de los otros 9
     ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS lobby_avg INTEGER;     -- promedio absoluto de los que tienen rango
     ALTER TABLE track_matches ADD COLUMN IF NOT EXISTS lobby_n INTEGER;       -- cuántos de los 9 tenían rango
+    -- Recuperar contraseña por correo: enlace de un solo uso (se guarda solo el hash) que vence en 1 hora
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY,
+      kind       TEXT NOT NULL,                 -- 'u' = jugador de la org, 'x' = externo
+      account_id INTEGER NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at    TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT now()
+    );
+    -- versión de sesión: al cambiar la contraseña sube y las sesiones anteriores dejan de valer
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;
+    ALTER TABLE ext_users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;
     -- Cuentas del SoloQ Challenge (página pública /cuentas): una por persona; se sigue su nivel, tag y rankeds.
     CREATE TABLE IF NOT EXISTS challenge_accounts (
       id         SERIAL PRIMARY KEY,
