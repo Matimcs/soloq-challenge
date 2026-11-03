@@ -193,7 +193,9 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
     }
     return out;
   }
-  if (!process.env.NO_RUNNER && KEY()){ setTimeout(pollAll, 60000); setInterval(pollAll, POLL_MS); }
+  // Seguimiento de cuentas de prueba APAGADO (la pestaña de Admin se quitó; sus cuentas pasaron a /cuentas).
+  // Para reactivarlo, descomentar:
+  // if (!process.env.NO_RUNNER && KEY()){ setTimeout(pollAll, 60000); setInterval(pollAll, POLL_MS); }
 
   // ---- API (solo superadmin) ----
   app.get('/api/track/accounts', auth, superOnly, wrap(async (req, res) => {
