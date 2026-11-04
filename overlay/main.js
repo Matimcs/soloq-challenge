@@ -777,6 +777,9 @@ async function showBlueShellEvent(s){
     bsWin.setBounds({ x: pos.x, y: pos.y, width: W, height: H });
   } else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
   bsWin.showInactive();
+  // Click-through: el carrusel se ve pero los clicks pasan al juego/escritorio de abajo (se cierra solo).
+  // Para moverlo o cambiarle el tamaño está "Posicionar overlays" (ahí sí se puede agarrar).
+  bsWin.setIgnoreMouseEvents(true);
   // "Campeón aleatorio" -> icono del campeón. "Clase de campeón aleatoria" -> etiqueta en español (sin icono).
   const isChamp = s.castigo === 'Campeón aleatorio';
   const champ = extraLabel(s.castigo, s.extra);

@@ -126,7 +126,7 @@
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
         SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio, champIcon: ev.champIcon, champName: ev.champ,
           title: '🛡 <b style="color:#ffd24a">' + from + '</b> te lanzó una Blue Shell', subtitle: 'De ' + from + ' para ti', onDone: done });
-        setChrome(true);
+        setChrome(false);   // sin grip: la ventana es click-through (se mueve en "Posicionar overlays")
         // Re-escala en varios momentos (el layout/imagenes tardan un frame) para que no salga cortada.
         [0, 120, 300, 700].forEach(t => setTimeout(fitBox, t));
         document.querySelectorAll('.sqcr-box img').forEach(img => { if (!img.complete) img.addEventListener('load', fitBox, { once: true }); });
