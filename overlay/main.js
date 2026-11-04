@@ -399,7 +399,7 @@ let busyInGame = false;
 // En Pantalla completa (WindowMode 0) Windows no dibuja el overlay encima del juego, y si aparece una ventana nueva
 // (Blue Shell, mensaje) el juego pierde la pantalla y se minimiza. Por eso: se avisa que use "Sin bordes", y en
 // partida las Blue Shells y mensajes se guardan y se muestran al terminar.
-let gameFullscreen = false, fsCheckedAt = 0, inGameNow = false;
+let gameFullscreen = false, fsCheckedAt = 0, inGameNow = false, polledOnce = false;
 const deferredFs = [];   // lo que llegó en partida con pantalla completa (se muestra al terminar)
 async function checkWindowMode(creds){
   if (Date.now() - fsCheckedAt < 30000) return; fsCheckedAt = Date.now();
@@ -751,6 +751,7 @@ async function poll(){
     } else { lastInGame = false; busyInGame = false; inGameNow = false; }
   } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; busyInGame = false; inGameNow = false; }
 
+  polledOnce = true;
   applyVis();
   [win, shellWin, bigWin].forEach(w => { if (w && !w.isDestroyed()) w.webContents.send('data', payload); });
 }
@@ -913,7 +914,8 @@ if (hasLock) app.whenReady().then(async () => {
     settings.onboarded = true; saveSettings();          // marca ANTES, para que ocurra a lo sumo una vez
     // Espera a que las posiciones estén restauradas (monitores listos) para NO abrir el modo
     // posicionar con los overlays fuera de pantalla al prender el PC.
-    const startOnb = () => { if (posReady) { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } } else setTimeout(startOnb, 500); };
+    // Tampoco en selección de campeón ni en partida: espera a que termine (nunca sacarte del juego).
+    const startOnb = () => { if (posReady && polledOnce && !busyInGame) { try { enterPositioning(); } catch (e) { dlog('onboarding: ' + (e && e.message)); } } else setTimeout(startOnb, 500); };
     setTimeout(startOnb, 3000);
   }
 });
