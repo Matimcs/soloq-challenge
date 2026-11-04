@@ -411,16 +411,17 @@ async function checkWindowMode(creds){
 }
 function holdForFullscreen(fn, what){
   if (!(gameFullscreen && inGameNow)) return false;
+  if (what === 'Aviso') return false;   // el aviso lo pidió el jugador con el atajo: se muestra igual
   deferredFs.push(fn); dlog(what + ': en partida con pantalla completa → se muestra al terminar'); return true;
 }
 function afterGameFullscreen(){
   if (!inGameNow && deferredFs.length) deferredFs.splice(0).forEach((fn, i) => setTimeout(fn, 1500 + i * 12000));
-  // Aviso fuera de partida (cliente / selección de campeón), máximo cada 6 horas
-  if (gameFullscreen && !inGameNow && Date.now() - (settings.fsWarnAt || 0) > 6 * 3600e3){
-    settings.fsWarnAt = Date.now(); saveSettings();
-    showAdminMessage({ who: 'Aviso del overlay', icon: '⚠️', h: 132, ms: 16000,
-      text: 'Tienes LoL en Pantalla completa: el overlay no se ve en partida y las Blue Shells pueden sacarte del juego. Cámbialo a "Sin bordes" (Opciones → Video → Modo de ventana).' });
-  }
+  // Aviso automático SOLO la primera vez que se detecta (fuera de partida). Después, solo con el atajo del panel.
+  if (gameFullscreen && !inGameNow && !settings.fsWarned){ settings.fsWarned = true; saveSettings(); warnFullscreen(); }
+}
+function warnFullscreen(){
+  showAdminMessage({ who: 'Aviso del overlay', icon: '⚠️', h: 132, ms: 16000, kind: 'Aviso',
+    text: 'Tienes LoL en Pantalla completa: el overlay no se ve en partida (las Blue Shells te llegan al terminar). Para verlo, cámbialo a "Sin bordes" (Opciones → Video → Modo de ventana).' });
 }
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
@@ -460,7 +461,11 @@ function hideAll(){
   retireWin('big', 2 * 60000);   // el panel (que carga la web entera) se cierra si no lo vuelves a abrir en 2 min
   applyVis();
 }
-function toggleAll(){ (forceShowAll || (bigWin && !bigWin.isDestroyed() && bigWin.isVisible())) ? hideAll() : showAll(); }
+function toggleAll(){
+  if (forceShowAll || (bigWin && !bigWin.isDestroyed() && bigWin.isVisible())) return hideAll();
+  showAll();
+  if (gameFullscreen) warnFullscreen();   // al abrir el panel con el atajo, recuerda que en Pantalla completa no se ve
+}
 
 // ---- Modo POSICIONAR overlays: muestra la tarjeta, el popup de shells y el carrusel con un
 // ejemplo, desbloqueados, para moverlos y redimensionarlos. Una barra flotante cierra/repone.
@@ -802,7 +807,7 @@ async function pollShells(){
 // ---- Mensajes del admin (texto y/o voz) -> notificación abajo-centro ----
 ipcMain.on('msg-done', () => { if (msgWin && !msgWin.isDestroyed()) msgWin.hide(); retireWin('msg', 60000); });
 async function showAdminMessage(m){
-  if (holdForFullscreen(() => showAdminMessage(m), 'Mensaje')) return;
+  if (holdForFullscreen(() => showAdminMessage(m), m.kind || 'Mensaje')) return;
   let msgWin; try { msgWin = await ensureMsg(); } catch (e) { return; }
   if (msgWin.isDestroyed()) return;
   const d = defaults();
