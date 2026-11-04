@@ -395,6 +395,33 @@ let smallShown = true, shellShown = true, lastInGame = false;
 // busyInGame: en selección de campeones o en partida de CUALQUIER cola (normales, swiftplay, ARAM, rankeds, personalizadas…).
 // lastInGame sigue siendo solo SoloQ/práctica (decide si se muestran las tarjetas); busyInGame protege las actualizaciones.
 let busyInGame = false;
+// ---- Modo de ventana del juego ----
+// En Pantalla completa (WindowMode 0) Windows no dibuja el overlay encima del juego, y si aparece una ventana nueva
+// (Blue Shell, mensaje) el juego pierde la pantalla y se minimiza. Por eso: se avisa que use "Sin bordes", y en
+// partida las Blue Shells y mensajes se guardan y se muestran al terminar.
+let gameFullscreen = false, fsCheckedAt = 0, inGameNow = false;
+const deferredFs = [];   // lo que llegó en partida con pantalla completa (se muestra al terminar)
+async function checkWindowMode(creds){
+  if (Date.now() - fsCheckedAt < 30000) return; fsCheckedAt = Date.now();
+  try {
+    const s = await lcu(creds, '/lol-game-settings/v1/game-settings');
+    const m = process.env.SQC_FORCE_FS ? 0 : s && s.General && s.General.WindowMode;   // 0 = pantalla completa, 1 = en ventana, 2 = sin bordes (SQC_FORCE_FS: solo pruebas)
+    if (Number.isFinite(m)){ const fs = m === 0; if (fs !== gameFullscreen) dlog('modo de ventana del juego: ' + m); gameFullscreen = fs; }
+  } catch {}
+}
+function holdForFullscreen(fn, what){
+  if (!(gameFullscreen && inGameNow)) return false;
+  deferredFs.push(fn); dlog(what + ': en partida con pantalla completa → se muestra al terminar'); return true;
+}
+function afterGameFullscreen(){
+  if (!inGameNow && deferredFs.length) deferredFs.splice(0).forEach((fn, i) => setTimeout(fn, 1500 + i * 12000));
+  // Aviso fuera de partida (cliente / selección de campeón), máximo cada 6 horas
+  if (gameFullscreen && !inGameNow && Date.now() - (settings.fsWarnAt || 0) > 6 * 3600e3){
+    settings.fsWarnAt = Date.now(); saveSettings();
+    showAdminMessage({ who: 'Aviso del overlay', icon: '⚠️', h: 132, ms: 16000,
+      text: 'Tienes LoL en Pantalla completa: el overlay no se ve en partida y las Blue Shells pueden sacarte del juego. Cámbialo a "Sin bordes" (Opciones → Video → Modo de ventana).' });
+  }
+}
 // Override manual: al hacer doble-click en la bandeja (o Alt+X) se muestra TODO aunque
 // estés fuera de partida; al cerrar (Alt+X / botón ✕) se apaga y vuelve a mandar la config.
 let forceShowAll = false;
@@ -402,8 +429,9 @@ function applyVis(){
   if (positioning) return;   // en modo posicionar los overlays quedan visibles y desbloqueados; no los toques
   // Regla fija: la tarjeta de standing y el popup de Blue Shells SOLO se ven en partida,
   // salvo que se pida mostrar todo a mano (doble-click en bandeja / Alt+X).
-  const okSmall = forceShowAll || (settings.smallVisible && lastInGame);
-  const okShell = forceShowAll || (settings.shellVisible && lastInGame);
+  // En Pantalla completa no se abren solas: ahí no se dibujan encima del juego y abrir una ventana puede minimizarlo.
+  const okSmall = forceShowAll || (settings.smallVisible && lastInGame && !gameFullscreen);
+  const okShell = forceShowAll || (settings.shellVisible && lastInGame && !gameFullscreen);
   if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? win.showInactive() : win.hide(); }
   if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
 }
@@ -680,6 +708,8 @@ async function poll(){
 
       lastInGame = inSoloQ;
       busyInGame = ['ChampSelect', 'GameStart', 'InProgress', 'Reconnect'].includes(phase);
+      inGameNow = ['GameStart', 'InProgress', 'Reconnect'].includes(phase);
+      await checkWindowMode(creds); afterGameFullscreen();
       reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
 
       // ¿Terminó una partida personalizada? → manda el resultado (una vez por partida)
@@ -718,8 +748,8 @@ async function poll(){
           }
         } catch {}
       }
-    } else { lastInGame = false; busyInGame = false; }
-  } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; busyInGame = false; }
+    } else { lastInGame = false; busyInGame = false; inGameNow = false; }
+  } catch (e) { payload = { connected: false, error: String(e.message || e), castigos: [] }; lastInGame = false; busyInGame = false; inGameNow = false; }
 
   applyVis();
   [win, shellWin, bigWin].forEach(w => { if (w && !w.isDestroyed()) w.webContents.send('data', payload); });
@@ -728,6 +758,7 @@ async function poll(){
 // ---- Blue Shells recibidas: ruleta (fuera de partida) / notificación (en partida) ----
 ipcMain.on('bs-done', () => { if (bsWin && !bsWin.isDestroyed()) bsWin.hide(); retireWin('bs', 60000); });
 async function showBlueShellEvent(s){
+  if (holdForFullscreen(() => showBlueShellEvent(s), 'Blue Shell ' + s.castigo)) return;
   let bsWin; try { bsWin = await ensureBs(); } catch (e) { dlog('showBlueShellEvent: no se pudo abrir la ventana'); return; }
   if (bsWin.isDestroyed()) return;
   const d = defaults();
@@ -770,13 +801,14 @@ async function pollShells(){
 // ---- Mensajes del admin (texto y/o voz) -> notificación abajo-centro ----
 ipcMain.on('msg-done', () => { if (msgWin && !msgWin.isDestroyed()) msgWin.hide(); retireWin('msg', 60000); });
 async function showAdminMessage(m){
+  if (holdForFullscreen(() => showAdminMessage(m), 'Mensaje')) return;
   let msgWin; try { msgWin = await ensureMsg(); } catch (e) { return; }
   if (msgWin.isDestroyed()) return;
   const d = defaults();
-  const MW = 460, MH = 104;
+  const MW = 460, MH = m.h || 104;
   msgWin.setBounds({ x: Math.round(d.wa.x + (d.wa.width - MW) / 2), y: d.wa.y + d.wa.height - MH - 46, width: MW, height: MH });
   msgWin.showInactive();
-  msgWin.webContents.send('admin-msg', { text: m.text || '', audio: m.audio || null, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
+  msgWin.webContents.send('admin-msg', { text: m.text || '', audio: m.audio || null, who: m.who, icon: m.icon, ms: m.ms, volume: settings.voiceVolume != null ? settings.voiceVolume : 0.9 });
   dlog('admin-msg mostrado: ' + (m.text ? m.text.slice(0, 40) : '(voz)'));
 }
 async function pollMessages(){

@@ -22,7 +22,7 @@
 <body>
   <div class="card in" id="card">
     <div class="spk" id="spk">🔊</div>
-    <div class="txt"><div class="who">Mensaje del admin</div><div id="msg"></div></div>
+    <div class="txt"><div class="who" id="who">Mensaje del admin</div><div id="msg"></div></div>
   </div>
 <script>
   const { ipcRenderer } = require('electron');
@@ -31,10 +31,12 @@
   ipcRenderer.on('admin-msg', (_e, m) => {
     document.getElementById('msg').textContent = m.text || (m.audio ? '🎤 Mensaje de voz' : '');
     const card = document.getElementById('card'), spk = document.getElementById('spk');
+    document.getElementById('who').textContent = m.who || 'Mensaje del admin';   // también se usa para avisos del overlay
+    spk.textContent = m.icon || '🔊';
     card.classList.remove('in'); void card.offsetWidth; card.classList.add('in');
     if (audio){ try{ audio.pause(); }catch(e){} audio=null; }
     spk.classList.remove('playing');
-    let closeMs = m.text ? 7000 : 6000;
+    let closeMs = m.ms || (m.text ? 7000 : 6000);
     if (m.audio){
       try {
         audio = new Audio(m.audio); audio.volume = (m.volume!=null) ? Math.max(0,Math.min(1,m.volume)) : 0.9;
