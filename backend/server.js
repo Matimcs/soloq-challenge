@@ -107,7 +107,8 @@ const CLASSES = ['Fighter','Tank','Mage','Assassin','Marksman','Support'];
 const CLASS_ES = { Fighter:'Luchador', Tank:'Tanque', Mage:'Mago', Assassin:'Asesino', Marksman:'Tirador', Support:'Soporte' };
 const MAX_SHELLS = 3;
 function rollShell(){ const t = SHELLS.reduce((a,s)=>a+s.w,0); let r = Math.random()*t; for (const s of SHELLS){ if ((r-=s.w)<=0) return s.name; } return SHELLS[0].name; }
-function reverseChance(pos){ return (pos && pos<=5) ? pos : 15; }
+// Rebote extra según el puesto del objetivo (además del 6% de que salga la carta Reverse): #1 1%, #2 2%… y 5% del #5 para abajo o sin puesto.
+function reverseChance(pos){ return pos ? Math.min(pos, 5) : 5; }
 function ladderPos(riotid){
   // sin importar mayúsculas ni espacios: el ranking puede tener "vishh#LAS" y el registro "Vishh#LAS"
   const k = String(riotid || '').toLowerCase().replace(/\s+/g, '');
@@ -136,7 +137,10 @@ app.use(express.json({ limit: '8mb' }));
 app.use((req,res,next)=>{ res.header('Access-Control-Allow-Origin','*'); res.header('Access-Control-Allow-Headers','Content-Type,Authorization'); res.header('Access-Control-Allow-Methods','GET,POST,OPTIONS'); if(req.method==='OPTIONS') return res.sendStatus(204); next(); });
 
 const wrap = fn => (req,res) => fn(req,res).catch(e => { console.error(e); res.status(500).json({ error:'Error del servidor' }); });
-const sign = u => jwt.sign({ uid: u.id, tv: u.token_version || 0 }, JWT_SECRET, { expiresIn: '30d' });
+// Sesiones largas (1 año) y /api/me las renueva solas: nadie queda deslogueado mientras use la web o la app.
+// Solo se invalidan al cambiar la contraseña (token_version).
+const SESSION_TTL = '365d', RENEW_AFTER_S = 24 * 3600;
+const sign = u => jwt.sign({ uid: u.id, tv: u.token_version || 0 }, JWT_SECRET, { expiresIn: SESSION_TTL });
 const TEAMS = new Set(['Exilium', 'Tide', 'Zenith', 'Hundred Blossom']);
 const ROLES = new Set(['TOP', 'JUNGLE', 'MID', 'ADC', 'SUPPORT']);   // rol dentro del equipo (puede diferir del de SoloQ)
 // El nombre real de los jugadores solo lo ven los admins: las rutas públicas lo omiten salvo que pida un admin.
@@ -189,7 +193,7 @@ async function orgOnly(req, res, next){
   if (await reqOrg(req)){ res.set('CDN-Cache-Control', 'no-store'); return next(); }
   res.status(403).json({ error:'Solo para jugadores de la organización', orgOnly: true });
 }
-const signExt = x => jwt.sign({ xid: x.id, tv: x.token_version || 0 }, JWT_SECRET, { expiresIn: '30d' });
+const signExt = x => jwt.sign({ xid: x.id, tv: x.token_version || 0 }, JWT_SECRET, { expiresIn: SESSION_TTL });
 const publicExt = x => ({ id: 'x' + x.id, external: true, email: x.email, nickname: x.nickname, riotid: x.riotid, realname: x.realname, university: x.university, avatar: x.avatar });
 const publicUser = u => ({ id:u.id, email:u.email, nickname:u.nickname, realname:u.realname, riotid:u.riotid, main:u.main, discord:u.discord, pos1:u.pos1, pos2:u.pos2, avatar:u.avatar, champ1:u.champ1, champ2:u.champ2, champ3:u.champ3, flashSlot:u.flash_slot, team:u.team || null, confirmed: !!u.confirmed, isAdmin: !!u.is_admin });
 async function auth(req,res,next){
@@ -353,10 +357,11 @@ app.post('/api/register-external', wrap(async (req,res) => {
 app.get('/api/me', wrap(async (req,res) => {
   const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
   let p = null; try { p = t && jwt.verify(t, JWT_SECRET); } catch {}
-  if (p && p.xid && !p.uid){ const x = await q1('SELECT * FROM ext_users WHERE id=$1', [p.xid]); return x && (p.tv || 0) === (x.token_version || 0) ? res.json({ user: publicExt(x) }) : res.status(401).json({ error:'Sesión inválida' }); }
+  const renew = p && p.iat && Date.now() / 1000 - p.iat > RENEW_AFTER_S;   // token de más de 1 día → se entrega uno nuevo
+  if (p && p.xid && !p.uid){ const x = await q1('SELECT * FROM ext_users WHERE id=$1', [p.xid]); return x && (p.tv || 0) === (x.token_version || 0) ? res.json({ user: publicExt(x), token: renew ? signExt(x) : undefined }) : res.status(401).json({ error:'Sesión inválida' }); }
   const u = p && p.uid && await q1('SELECT * FROM users WHERE id=$1', [p.uid]);
   if (!u || (p.tv || 0) !== (u.token_version || 0)) return res.status(401).json({ error: t ? 'Sesión inválida' : 'No autenticado' });
-  res.json({ user: publicUser(u) });
+  res.json({ user: publicUser(u), token: renew ? sign(u) : undefined });
 }));
 
 // Editar el propio perfil (los datos del registro). password opcional (en blanco = sin cambio).

@@ -3,7 +3,7 @@ window.SQC = (function(){
   const TOKEN_KEY = 'sqc_token';
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = t => localStorage.setItem(TOKEN_KEY, t);
-  const clearToken = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('sqc_admin'); localStorage.removeItem('sqc_user'); };
+  const clearToken = () => { localStorage.removeItem(TOKEN_KEY); localStorage.removeItem('sqc_admin'); localStorage.removeItem('sqc_user'); localStorage.removeItem('sqc_me'); };
 
   async function api(path, { method = 'GET', body } = {}){
     const res = await fetch('/api' + path, {
@@ -16,9 +16,23 @@ window.SQC = (function(){
     return data;
   }
   // Devuelve el usuario actual (o null si no hay sesión válida)
+  // La sesión SOLO se borra si el servidor dice que es inválida (401: contraseña cambiada, cuenta borrada).
+  // Si no hay internet o el servidor está reiniciando/despertando, se reintenta y la sesión se conserva.
   async function me(){
     if (!token()) return null;
-    try { return (await api('/me')).user; } catch { clearToken(); return null; }
+    for (let i = 0; i < 3; i++){
+      try {
+        const res = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token() } });
+        if (res.status === 401){ clearToken(); return null; }
+        if (res.ok){
+          const d = await res.json();
+          if (d && d.token) setToken(d.token);   // renovación automática: la sesión no vence mientras se use
+          if (d && d.user){ try { localStorage.setItem('sqc_me', JSON.stringify(d.user)); } catch (e) {} return d.user; }
+        }
+      } catch (e) {}
+      await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+    }
+    try { return JSON.parse(localStorage.getItem('sqc_me') || 'null'); } catch (e) { return null; }   // sin respuesta: el último perfil conocido
   }
   function logout(){ clearToken(); }
 
