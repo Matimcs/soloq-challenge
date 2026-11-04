@@ -157,8 +157,15 @@ function savePos(w){
     return b.x < a.x + a.width - 40 && b.x + b.width > a.x && b.y < a.y + a.height - 20 && b.y + b.height > a.y; });
   if (!onScreen) return;
   settings.pos = settings.pos || {};
-  settings.pos[w._posKey] = { x: b.x, y: b.y, w: b.width, h: b.height };   // w/h se usa para la ruleta (bs)
+  settings.pos[w._posKey] = { x: b.x, y: b.y, w: b.width, h: b.height, v: 2 };   // w/h se usa para la ruleta (bs); v:2 = tamaño del carrusel por rareza
   saveSettings();
+}
+// Tamaño de la ventana de la ruleta: el que dejaste con el grip, o el de por defecto.
+// Los tamaños guardados antes del carrusel por rareza (sin v:2) se ignoran: eran para una ruleta más baja y lo dejaban chico.
+function bsSize(){
+  const sp = (settings.pos && settings.pos.bs) || {};
+  if (sp.v === 2 && Number.isFinite(sp.w) && Number.isFinite(sp.h) && sp.w > 200 && sp.h > 120) return { W: sp.w, H: sp.h };
+  return { W: 620, H: 285 };
 }
 // Guarda la posición también con el evento nativo 'moved' (además del drag-end por IPC),
 // por si se pierde el mouseup al soltar sobre el juego u otra ventana. Debounced para no
@@ -459,8 +466,7 @@ function enterPositioning(){
     shellWin.webContents.send('position', true); shellShown = true; makeDraggable(shellWin);
   }
   ensureBs().then(bw => { if (!positioning || bw.isDestroyed()) return;
-    const d = defaults(), sp = (settings.pos && settings.pos.bs) || {};
-    const W = Number.isFinite(sp.w) && sp.w > 200 ? sp.w : 540, H = Number.isFinite(sp.h) && sp.h > 120 ? sp.h : 156;
+    const d = defaults(), { W, H } = bsSize();
     const p = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), d.wa.y + 130);
     bw.setBounds({ x: p.x, y: p.y, width: W, height: H });
     bw.webContents.send('bs-sample'); makeDraggable(bw);
@@ -728,12 +734,8 @@ async function showBlueShellEvent(s){
   const mode = 'roulette';   // el carrusel ahora también aparece EN partida (antes era una notif chica)
   dlog(`showBlueShellEvent: ${s.from} → ${s.castigo} (${mode})`);
   if (mode === 'roulette'){
-    // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado por defecto.
-    const sp = (settings.pos && settings.pos.bs) || {};
-    // Descarta tamaños guardados de versiones viejas (ruleta con espacio muerto): si la altura
-    // guardada es grande, usa el nuevo tamaño ceñido en vez de respetar el viejo.
-    const stale = Number.isFinite(sp.h) && sp.h > 190;
-    const W = (!stale && Number.isFinite(sp.w)) ? sp.w : 540, H = (!stale && Number.isFinite(sp.h)) ? sp.h : 156;
+    // Usa el tamaño/posición que dejaste (settings.pos.bs); si no, centrado con el tamaño por defecto.
+    const { W, H } = bsSize();
     const pos = posFor('bs', Math.round(d.wa.x + (d.wa.width - W) / 2), Math.round(d.wa.y + (d.wa.height - H) / 2));
     bsWin.setBounds({ x: pos.x, y: pos.y, width: W, height: H });
   } else { const W = 360, H = 110; bsWin.setBounds({ x: d.wa.x + d.wa.width - W - 16, y: d.wa.y + 140, width: W, height: H }); }
