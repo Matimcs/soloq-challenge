@@ -803,7 +803,7 @@ function buildHistoryRow(m, puuid){
   const dur = m.info.gameDuration || 0;
   return {
     matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
-    win: !!me.win, noLp: noLpLoss(me), voided: !!me.gameEndedInIGNBSurrender, champion: me.championName, position: me.teamPosition || '',
+    win: !!me.win, noLp: noLpLoss(me), voided: !!me.gameEndedInIGNBSurrender && !me.win, champion: me.championName, position: me.teamPosition || '',
     k: me.kills||0, d: me.deaths||0, a: me.assists||0,
     kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
     kp: teamKills ? Math.round(((me.kills||0)+(me.assists||0))/teamKills*100) : 0,

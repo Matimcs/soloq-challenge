@@ -87,7 +87,7 @@ async function initDB(){
       PRIMARY KEY (match_id, puuid)
     )`);
     console.log('✔ DB conectada (match_participants)');
-    try { (await pgPool.query('SELECT DISTINCT match_id FROM match_participants WHERE voided')).rows.forEach(r => VOID_IDS.add(r.match_id)); } catch {}
+    try { (await pgPool.query("SELECT match_id || '|' || puuid AS k FROM match_participants WHERE voided")).rows.forEach(r => VOID_IDS.add(r.k)); } catch {}
   } catch (e) { console.error('DB match_participants:', e.message); pgPool = null; }
 }
 // Derrota SIN pérdida de LP: la partida terminó por comportamiento disruptivo de un compañero
@@ -99,7 +99,10 @@ function laneStats(p){
   const jg = String(p.teamPosition || p.individualPosition || '').toUpperCase() === 'JUNGLE';
   return [num(jg ? c.jungleCsBefore10Minutes : c.laneMinionsFirst10Minutes), num(c.maxCsAdvantageOnLaneOpponent), num(c.maxLevelLeadLaneOpponent), int(c.soloKills), int(c.turretPlatesTaken)];
 }
-const VOID_IDS = new Set();   // partidas anuladas ya guardadas (se carga de la DB al iniciar)
+const VOID_IDS = new Set();   // "matchId|puuid" de las derrotas anuladas ya guardadas (se carga de la DB al iniciar)
+// Partida ANULADA (Riot la termina por conducta disruptiva): el que pierde no pierde LP → no cuenta;
+// el que gana SÍ gana LP → cuenta como victoria normal.
+const isVoidLoss = p => !!p.gameEndedInIGNBSurrender && !p.win;
 async function saveParticipants(matchId, info){
   if (!pgPool || !info || !Array.isArray(info.participants)) return;
   const end = info.gameEndTimestamp || 0;
@@ -113,7 +116,7 @@ async function saveParticipants(matchId, info){
       p.teamId || 0, !!p.win, p.kills || 0, p.deaths || 0, p.assists || 0,
       riotid ? TOURNAMENT_SET.has(riotid.toLowerCase()) : false, end,
       cs, p.goldEarned || 0, p.totalDamageDealtToChampions || 0, p.visionScore || 0,
-      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p), !!p.gameEndedInIGNBSurrender,
+      p.pentaKills || 0, !!p.firstBloodKill, p.champLevel || 0, dur, noLpLoss(p), isVoidLoss(p),
       ...laneStats(p)];
   }).filter(r => r[1]);   // requiere puuid
   if (!rows.length) return;
@@ -383,7 +386,7 @@ async function updatePlayerStats(puuid, entry){
     const remake = dur > 0 && dur < 300 || !!me.gameEndedInEarlySurrender;
     const g = { id, win: !!me.win, champ: me.championName, end: m.info.gameEndTimestamp || 0, pos: me.teamPosition || me.individualPosition || '', remake };
     if (noLpLoss(me)) g.noLp = true;   // derrota sin LP (terminada por conducta disruptiva)
-    if (me.gameEndedInIGNBSurrender) g.void = true;   // partida anulada: se muestra, no cuenta en estadísticas
+    if (isVoidLoss(me)) g.void = true;   // derrota anulada: se muestra, no cuenta (las victorias anuladas sí cuentan)
     store.games.unshift(g); fetched.push(g);
   }
   store.games = store.games.slice(0, 20);
@@ -469,7 +472,7 @@ async function updatePlayerStats(puuid, entry){
 
   // Métricas para el frontend. Las partidas ANULADAS (terminadas por conducta disruptiva) no cuentan:
   // también se marcan las ya guardadas antes de que existiera el flag (VOID_IDS viene de la DB).
-  store.games.forEach(g => { if (VOID_IDS.has(g.id)) g.void = true; });
+  store.games.forEach(g => { if (g.win) delete g.void; else if (VOID_IDS.has(g.id + '|' + puuid)) g.void = true; });
   const counted = store.games.filter(g => !g.void);
   const form = counted.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
   const formT = counted.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
