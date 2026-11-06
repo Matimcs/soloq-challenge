@@ -162,9 +162,11 @@ function savePos(w){
 }
 // Tamaño de la ventana de la ruleta: el que dejaste con el grip, o el de por defecto.
 // Los tamaños guardados antes del carrusel por rareza (sin v:2) se ignoran: eran para una ruleta más baja y lo dejaban chico.
+const BS_MAX_W = 1100, BS_MAX_H = 520;   // la ruleta nunca puede tapar toda la pantalla
 function bsSize(){
   const sp = (settings.pos && settings.pos.bs) || {};
-  if (sp.v === 2 && Number.isFinite(sp.w) && Number.isFinite(sp.h) && sp.w > 200 && sp.h > 120) return { W: sp.w, H: sp.h };
+  // tope: un tamaño gigante guardado (p. ej. por el bug del grip que la agrandaba sola) vuelve al de por defecto
+  if (sp.v === 2 && Number.isFinite(sp.w) && Number.isFinite(sp.h) && sp.w > 200 && sp.h > 120 && sp.w <= BS_MAX_W && sp.h <= BS_MAX_H) return { W: sp.w, H: sp.h };
   return { W: 620, H: 285 };
 }
 // Guarda la posición también con el evento nativo 'moved' (además del drag-end por IPC),
@@ -297,7 +299,10 @@ function checkUpdates(manual){ if (!app.isPackaged) return; if (!manual && busyI
 let updateReady = false, pendingVer = null;
 // Fallback: si la instalación silenciosa NO se aplica (la app sigue viva a los ~12 s, o al reiniciar
 // seguimos en la versión vieja), se ofrece instalación MANUAL clicable en vez de reintentar en loop.
+let offeredVer = null;   // el aviso de instalación manual sale UNA vez por sesión (antes se repetía cada 15 min)
 function offerManualInstall(v){
+  if (v && offeredVer === v) return; offeredVer = v;
+  dlog('ofrece instalación manual de ' + v + ' (la silenciosa no se aplicó)');
   updManual = true;
   showUpd('Actualización ' + (v ? 'v' + v : '') + ' lista — haz clic aquí para instalarla', null, true);
 }
@@ -354,7 +359,8 @@ ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.s
   const k = (settings.scale && w._posKey && settings.scale[w._posKey]) || 1;
   const b = w.getBounds(); w.setBounds({ x: b.x, y: b.y, width: b.width, height: Math.max(40, Math.min(1400, Math.round(h * k))) }); });
 // Redimensionado de la ruleta (grip esquina): fija ancho/alto manteniendo la posición.
-ipcMain.on('bs-resize',     (e, { w, h }) => { const win = BrowserWindow.fromWebContents(e.sender); if (!win) return; const b = win.getBounds(); win.setBounds({ x: b.x, y: b.y, width: Math.max(300, Math.round(w)), height: Math.max(130, Math.round(h)) }); });
+ipcMain.on('bs-resize',     (e, { w, h }) => { const win = BrowserWindow.fromWebContents(e.sender); if (!win) return; const b = win.getBounds();
+  win.setBounds({ x: b.x, y: b.y, width: Math.min(BS_MAX_W, Math.max(300, Math.round(w))), height: Math.min(BS_MAX_H, Math.max(130, Math.round(h))) }); });
 ipcMain.on('bs-resize-end', (e) => { const win = BrowserWindow.fromWebContents(e.sender); if (win) savePos(win); });   // guarda tamaño elegido
 // ---- Modo posicionar ----
 ipcMain.on('enter-positioning', () => enterPositioning());

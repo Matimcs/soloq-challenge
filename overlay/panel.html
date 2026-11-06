@@ -157,7 +157,8 @@
 
   const head = $('head'); let dragging=false;
   head.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });
-  window.addEventListener('mousemove', e => { if(dragging) ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
+  // Si se soltó el mouse FUERA de la ventana no llega el mouseup: sin botón apretado, el arrastre termina (si no, la ventana seguía al cursor).
+  window.addEventListener('mousemove', e => { if(!dragging) return; if(!(e.buttons & 1)){ dragging=false; ipcRenderer.send('drag-end'); return; } ipcRenderer.send('drag-move',{mx:e.screenX,my:e.screenY}); });
   window.addEventListener('mouseup', () => { if(dragging){ dragging=false; ipcRenderer.send('drag-end'); } });
 </script>
 </body>

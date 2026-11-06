@@ -97,7 +97,14 @@
   });
   // ---- Redimensionar (grip esquina) ----
   $('grip').addEventListener('mousedown', e => { rz = { x:e.screenX, y:e.screenY, w:window.innerWidth, h:window.innerHeight }; e.preventDefault(); e.stopPropagation(); });
+  const endPointer = () => {
+    if (dg){ ipcRenderer.send('drag-end'); if (dg.moved){ swallowClick = true; setTimeout(() => { swallowClick = false; }, 60); } dg = null; }
+    if (rz){ rz = null; ipcRenderer.send('bs-resize-end'); }
+  };
   window.addEventListener('mousemove', e => {
+    // Se soltó el mouse FUERA de la ventana (no llegó el mouseup): termina. Antes la ventana seguía
+    // agrandándose/moviéndose cada vez que pasaba el mouse, hasta cubrir la pantalla.
+    if ((dg || rz) && !(e.buttons & 1)) return endPointer();
     if (dg){
       if (!dg.moved && Math.abs(e.screenX - dg.sx) + Math.abs(e.screenY - dg.sy) > 4) dg.moved = true;
       if (dg.moved) ipcRenderer.send('drag-move', { mx:e.screenX, my:e.screenY });
@@ -105,10 +112,7 @@
       ipcRenderer.send('bs-resize', { w: rz.w + (e.screenX - rz.x), h: rz.h + (e.screenY - rz.y) });
     }
   });
-  window.addEventListener('mouseup', () => {
-    if (dg){ ipcRenderer.send('drag-end'); if (dg.moved){ swallowClick = true; setTimeout(() => { swallowClick = false; }, 60); } dg = null; }
-    if (rz){ rz = null; ipcRenderer.send('bs-resize-end'); }
-  });
+  window.addEventListener('mouseup', endPointer);
   // Bloquea el click de cierre si el mouseup venía de un arrastre (fase de captura, antes que el overlay).
   window.addEventListener('click', e => { if (swallowClick){ swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
 
