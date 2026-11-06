@@ -1,5 +1,7 @@
 /* Helper de API compartido. Guarda el JWT y hace las llamadas al backend. */
 window.SQC = (function(){
+  // Ranked interno: por ahora SOLO para jugadores de la organización (el link se oculta al resto).
+  try { const st = document.createElement('style'); st.textContent = 'html:not(.sqc-org) #nav-ranked{ display:none !important; }'; (document.head || document.documentElement).appendChild(st); } catch (e) {}
   const TOKEN_KEY = 'sqc_token';
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = t => localStorage.setItem(TOKEN_KEY, t);
@@ -42,6 +44,7 @@ window.SQC = (function(){
     const g = id => document.getElementById(id);
     const acc = g('nav-account'), logout = g('logout');
     document.documentElement.classList.toggle('sqc-logged', !!user);   // publicidad y demás cosas solo con sesión
+    document.documentElement.classList.toggle('sqc-org', !!(user && !user.external));   // jugador de la org (ve Ranked)
     if (user){
       // Blue Shells y Tickets ocultos por ahora (se re-activan quitando este comentario):
       // ['nav-blueshell','nav-ticket'].forEach(id => { const e = g(id); if (e) e.style.display = ''; });
@@ -58,7 +61,7 @@ window.SQC = (function(){
       if (user.isAdmin){ const a = g('nav-admin'); if (a) a.style.display = ''; localStorage.setItem('sqc_admin','1'); }
       else localStorage.removeItem('sqc_admin');
       // Cachea el perfil para pintar la píldora al instante en la próxima página (sin flash).
-      localStorage.setItem('sqc_user', JSON.stringify({ nickname:user.nickname, avatar:user.avatar || null, isAdmin: !!user.isAdmin }));
+      localStorage.setItem('sqc_user', JSON.stringify({ nickname:user.nickname, avatar:user.avatar || null, isAdmin: !!user.isAdmin, external: !!user.external }));
       if (acc){
         acc.className = 'user-pill'; acc.href = 'perfil.html';
         acc.innerHTML = (user.avatar

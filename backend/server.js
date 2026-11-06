@@ -3599,7 +3599,7 @@ async function rkMatchView(m, uid){
     remake: { votes: (m.remake || []).length, need: RK_REMAKE_NEED, mine: (m.remake || []).includes(uid) },
     lpChange: m.lpChanges[uid] || null };
 }
-app.get('/api/ranked/state', wrap(async (req, res) => {
+app.get('/api/ranked/state', orgOnly, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkTick();
   const real = await optionalUid(req); let uid = real, sup = false;
   if (real){ const ru = (await rkUsers()).get(real), as = Number(req.query.as); sup = !!ru && rkIsSuper(ru.rid); if (sup && RK_BOTS.includes(as)) uid = as; }
@@ -3642,7 +3642,7 @@ const RK_ROLE_SET = Object.fromEntries(Object.entries(RK_ROLE_LIST).map(([r, l])
 async function rkChampRoles(){
   return (await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => RK_ROLE_SET[r].has(c.id)) }));
 }
-app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(await rkChampRoles()); }));
+app.get('/api/ranked/champs', orgOnly, wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(await rkChampRoles()); }));
 app.post('/api/ranked/roles', auth, rkImp, wrap(async (req, res) => {
   await rkInit(); const ok = v => RK_ROLES.includes(v) || v === 'FILL', r1 = String((req.body && req.body.role1) || ''), r2 = String((req.body && req.body.role2) || '');
   if (!ok(r1) || !ok(r2)) return res.status(400).json({ error: 'Elige rol principal y secundario' });
@@ -3911,7 +3911,7 @@ function rkSummary(d, uid){
     conflict: !!(d.conflict && !d.conflict.reviewed), blue: d.teams[0].players.map(pl), red: d.teams[1].players.map(pl),
     me: side ? { side, won: side === d.winner, delta: c.delta != null ? c.delta : null, lp: c.lp != null ? c.lp : null, ...mine } : null };
 }
-app.get('/api/ranked/history', wrap(async (req, res) => {
+app.get('/api/ranked/history', orgOnly, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit();
   const page = Math.max(0, Number(req.query.page) || 0), size = 15, mine = req.query.mine === '1';
   let uid = null; if (mine){ uid = await optionalUid(req); if (!uid) return res.status(401).json({ error: 'Inicia sesión para ver tus partidas' }); }
@@ -3919,7 +3919,7 @@ app.get('/api/ranked/history', wrap(async (req, res) => {
   const viewer = mine ? uid : await optionalUid(req);
   res.json({ items: rows.slice(page * size, page * size + size).map(d => rkSummary(d, viewer)), more: rows.length > (page + 1) * size, total: rows.length });
 }));
-app.get('/api/ranked/match/:id', wrap(async (req, res) => {
+app.get('/api/ranked/match/:id', orgOnly, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit();
   const r = await q1("SELECT id, data FROM ranked_matches WHERE id=$1 AND status='done'", [Number(req.params.id)]);
   if (!r) return res.status(404).json({ error: 'Partida no encontrada' });
@@ -3935,7 +3935,7 @@ app.get('/api/ranked/match/:id', wrap(async (req, res) => {
           k: st.k, d: st.d, a: st.a, cs: st.cs, gold: st.gold, dmg: st.dmg, vision: st.vision, level: st.level, items: st.items || [],
           delta: c.delta != null ? c.delta : null, rank: c.lp != null ? rkRank(c.lp) : null, voted: c.voted || null }; }) })) });
 }));
-app.get('/api/ranked/leaderboard', wrap(async (req, res) => {
+app.get('/api/ranked/leaderboard', orgOnly, wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit(); const users = await rkUsers();
   // racha (últimas 10) y campeones más jugados de cada uno, desde el historial
   const form = {}, champs = {};

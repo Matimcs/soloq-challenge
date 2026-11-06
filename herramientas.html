@@ -561,7 +561,7 @@
     <script>window.RANKED_PAGE = /\/ranked(\.html)?$/i.test(location.pathname); if (window.RANKED_PAGE) document.documentElement.classList.add('ranked-page');</script>
     <style>html.ranked-page .tabs, html.ranked-page #h-tools{ display:none; } html:not(.ranked-page) #h-ranked, html:not(.ranked-page) .tab[data-t="rk"]{ display:none; }</style>
     <h1 id="h-tools">Herramientas</h1>
-    <div id="h-ranked"><h1>Ranked</h1><div class="sub">Cola 5v5 interna con su propio ranking: pick y ban por turnos, partidas personalizadas y resultado automático con el overlay. Cualquiera puede mirar; para buscar partida inicia sesión.</div></div>
+    <div id="h-ranked"><h1>Ranked</h1><div class="sub">Cola 5v5 interna con su propio ranking: pick y ban por turnos, partidas personalizadas y resultado automático con el overlay. Solo para jugadores de la organización.</div></div>
     <div class="sub" id="h-tools-sub">Organiza un 5v5 con equipos parejos, juega subastas y SoloQdle, y compara el rendimiento de los jugadores.</div>
     <style>html.ranked-page #h-tools-sub{ display:none; }</style>
 
@@ -595,6 +595,12 @@
   const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
   if (window.SQC && SQC.preNav) SQC.preNav();
   if (window.SQC && SQC.mountNav) SQC.mountNav();
+  // Ranked interno: por ahora solo para jugadores de la organización.
+  if (window.RANKED_PAGE && window.SQC) SQC.me().then(u => { if (u && !u.external) return;
+    document.querySelectorAll('main.wrap > *:not(script):not(style)').forEach(el => { el.style.display = 'none'; });
+    const m = document.createElement('div'); m.style.cssText = 'padding:60px 10px;text-align:center;color:var(--muted)';
+    m.innerHTML = '<h1 style="color:var(--text)">Sección privada</h1><p>Esta sección es solo para jugadores de la organización.</p>';
+    document.querySelector('main.wrap').appendChild(m); });
 
   // ---- Tabs ----
   let CUR_TAB = 'fv';
