@@ -398,7 +398,7 @@ function applyAlwaysOnTop(){ [win, shellWin, bigWin, bsWin, msgWin].forEach(w =>
 function applyLock(){ if (positioning) return; [win, shellWin].forEach(w => { if (w && !w.isDestroyed()) w.setIgnoreMouseEvents(!!settings.locked); }); }
 let smallShown = true, shellShown = true, lastInGame = false;
 // busyInGame: en selección de campeones o en partida de CUALQUIER cola (normales, swiftplay, ARAM, rankeds, personalizadas…).
-// lastInGame sigue siendo solo SoloQ/práctica (decide si se muestran las tarjetas); busyInGame protege las actualizaciones.
+// lastInGame: en partida de SoloQ, Swiftplay o práctica (decide si se muestran las tarjetas); busyInGame protege las actualizaciones.
 let busyInGame = false;
 // ---- Modo de ventana del juego ----
 // En Pantalla completa (WindowMode 0) Windows no dibuja el overlay encima del juego, y si aparece una ventana nueva
@@ -712,6 +712,10 @@ async function poll(){
         || (gsession && gsession.gameData && gsession.gameData.gameMode === 'PRACTICETOOL');
       const phase = gsession && gsession.phase;
       const inSoloQ = (queueId === 420 || isPractice) && phase === 'InProgress';
+      // Swiftplay (cola 480): las tarjetas también se muestran, para probar el overlay en esas partidas.
+      // Solo afecta lo que se ve: al servidor se sigue reportando "en partida" únicamente en SoloQ.
+      const isSwift = queueId === 480 || (gq && gq.gameMode === 'SWIFTPLAY') || (gsession && gsession.gameData && gsession.gameData.gameMode === 'SWIFTPLAY');
+      const showCards = inSoloQ || (isSwift && phase === 'InProgress');
 
       const myRid = (me && !me.error) ? `${me.gameName}#${me.tagLine}` : null;
       // Solo actualiza (y persiste) con una cuenta REAL; si LoL está en login (myRid null) se
@@ -737,7 +741,7 @@ async function poll(){
         matchup: null,
       });
 
-      lastInGame = inSoloQ;
+      lastInGame = showCards;
       busyInGame = ['ChampSelect', 'GameStart', 'InProgress', 'Reconnect'].includes(phase);
       const wasInGame = inGameNow;
       inGameNow = ['GameStart', 'InProgress', 'Reconnect'].includes(phase);
@@ -757,7 +761,7 @@ async function poll(){
       // ¿Hay jugadores del torneo en tu partida? Se detecta con la Live Client Data API
       // (local, en 127.0.0.1:2999, SIN Riot key) cruzando los 10 con el roster. Aliado/rival
       // según el equipo respecto al tuyo. Solo responde cuando ya estás dentro del juego.
-      if (inSoloQ){
+      if (showCards){
         try {
           const live = await liveClient();
           const all = live && Array.isArray(live.allPlayers) ? live.allPlayers : null;
