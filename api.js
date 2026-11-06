@@ -30,7 +30,7 @@ window.SQC = (function(){
           if (d && d.user){ try { localStorage.setItem('sqc_me', JSON.stringify(d.user)); } catch (e) {} return d.user; }
         }
       } catch (e) {}
-      await new Promise(r => setTimeout(r, 1500 * (i + 1)));
+      if (i < 2) await new Promise(r => setTimeout(r, 1500 * (i + 1)));   // reintenta (no espera tras el último)
     }
     try { return JSON.parse(localStorage.getItem('sqc_me') || 'null'); } catch (e) { return null; }   // sin respuesta: el último perfil conocido
   }

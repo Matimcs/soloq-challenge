@@ -17,7 +17,24 @@
   .gear:hover{ background:rgba(255,255,255,.18); }
   .xbtn{ background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--text); width:26px; height:26px; border-radius:7px; cursor:pointer; font-size:13px; margin-left:8px; }
   .xbtn:hover{ background:rgba(251,113,133,.3); border-color:rgba(251,113,133,.5); }
-  iframe{ flex:1; width:100%; border:none; background:#0b0b0b; }
+  .rk{ flex:1; overflow-y:auto; padding:6px 10px 10px; user-select:text; }
+  .rk::-webkit-scrollbar{ width:8px; } .rk::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.12); border-radius:8px; }
+  .row{ display:grid; grid-template-columns:26px 34px 1fr auto; align-items:center; gap:10px; padding:7px 8px; border-radius:10px; }
+  .row + .row{ border-top:1px solid rgba(255,255,255,.05); }
+  .row.me{ background:rgba(233,255,31,.08); outline:1px solid rgba(233,255,31,.35); }
+  .pos{ font-weight:800; font-size:14px; color:var(--muted); text-align:center; }
+  .row:nth-child(1) .pos{ color:#ffd24a; } .row:nth-child(2) .pos{ color:#c9d1d9; } .row:nth-child(3) .pos{ color:#d9915a; }
+  .crest{ width:34px; height:34px; object-fit:contain; }
+  .nm{ font-weight:700; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .live{ display:inline-block; font-size:9.5px; font-weight:800; color:#0b0b0b; background:#4ade80; border-radius:5px; padding:1px 5px; margin-left:6px; vertical-align:1px; }
+  .sub{ font-size:11.5px; color:var(--muted); margin-top:2px; }
+  .sub b{ color:#c4b5fd; font-weight:700; }
+  .form{ display:flex; gap:3px; justify-content:flex-end; margin-top:5px; }
+  .form i{ width:7px; height:7px; border-radius:2px; background:#fb7185; } .form i.w{ background:#4ade80; }
+  .wr{ text-align:right; font-size:12px; font-weight:700; } .wr small{ display:block; font-size:10.5px; color:var(--muted); font-weight:600; }
+  .rkfoot{ display:flex; align-items:center; gap:10px; padding:8px 14px; border-top:1px solid var(--line); font-size:11px; color:var(--muted); }
+  .rkfoot button{ margin-left:auto; background:var(--accent); color:#000; border:none; border-radius:8px; padding:7px 12px; font-weight:800; font-size:11.5px; cursor:pointer; }
+  .empty{ padding:40px 10px; text-align:center; color:var(--muted); font-size:13px; }
   .settings{ position:absolute; inset:0; background:rgba(6,7,10,.94); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); padding:28px 34px; display:flex; flex-direction:column; gap:14px; }
   .stitle{ font-size:17px; font-weight:800; }
   .opt{ display:flex; align-items:center; gap:10px; font-size:13px; cursor:pointer; }
@@ -37,8 +54,9 @@
       <button class="gear" id="gear" title="Configuración">⚙</button>
       <button class="xbtn" id="close-all" title="Ocultar overlay (Alt+X) — sigue corriendo en la bandeja">✕</button>
     </div>
-    <!-- La página REAL. Cambia esta URL por la de producción cuando despliegues. -->
-    <iframe id="site" src="https://soloq-challenge-em9q.onrender.com"></iframe>
+    <!-- Solo el ranking (sin navegador interno): para todo lo demás, "Abrir la web" en el navegador del jugador. -->
+    <div class="rk" id="rk"><div class="empty">Cargando ranking…</div></div>
+    <div class="rkfoot"><span id="rk-upd"></span><button id="open-site">Abrir la web ↗</button></div>
 
     <div class="settings" id="settings" style="display:none">
       <button class="sclose" id="s-close" title="Cerrar">✕</button>
@@ -107,6 +125,35 @@
     const b = $('s-update'), t = b.textContent; b.textContent = 'Buscando…'; b.disabled = true;
     setTimeout(() => { b.textContent = t; b.disabled = false; }, 5000);
   });
+
+  // ---- Ranking ----
+  const TIER = { IRON:'Hierro', BRONZE:'Bronce', SILVER:'Plata', GOLD:'Oro', PLATINUM:'Platino', EMERALD:'Esmeralda', DIAMOND:'Diamante', MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger', UNRANKED:'Sin rango' };
+  const CREST = t => `assets/ranks/Season_2023_-_${t.charAt(0) + t.slice(1).toLowerCase()}.webp`;
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  const norm = s => String(s || '').toLowerCase().replace(/\s+/g, '');
+  async function loadRanking(){
+    let d; try { d = await ipcRenderer.invoke('get-ranking'); } catch (e) { return; }
+    const ps = (d && d.players) || [], me = norm(d && d.me);
+    if (!ps.length){ $('rk').innerHTML = '<div class="empty">No se pudo cargar el ranking. Revisa tu conexión.</div>'; return; }
+    $('rk').innerHTML = ps.map((p, i) => {
+      const t = p.tier || 'UNRANKED', ranked = t !== 'UNRANKED', g = (p.w || 0) + (p.l || 0), wr = g ? Math.round(p.w / g * 100) : null;
+      const form = (p.form || []).slice(-10).map(w => `<i class="${w ? 'w' : ''}"></i>`).join('');
+      return `<div class="row${norm(p.rid) === me ? ' me' : ''}">
+        <div class="pos">${i + 1}</div>
+        ${ranked ? `<img class="crest" src="${CREST(t)}" alt="">` : '<span></span>'}
+        <div style="min-width:0"><div class="nm">${esc(p.nm || (p.rid || '').split('#')[0])}${p.inGame ? '<span class="live">EN PARTIDA</span>' : ''}</div>
+          <div class="sub"><b>${TIER[t] || t}${p.div ? ' ' + p.div : ''}</b>${ranked ? ' · ' + (p.lp || 0) + ' LP' : ''}</div></div>
+        <div class="wr">${wr != null ? wr + '% WR' : '—'}<small>${p.w || 0}V ${p.l || 0}D</small>${form ? `<div class="form">${form}</div>` : ''}</div>
+      </div>`; }).join('');
+    $('rk-upd').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-CL', { hour:'2-digit', minute:'2-digit' });
+    if (!scrolled){ scrolled = true; const m = $('rk').querySelector('.row.me'); if (m) m.scrollIntoView({ block:'center' }); else $('rk').scrollTop = 0; }   // al abrir: arriba, o centrado en tu fila
+  }
+  let scrolled = false;
+  ipcRenderer.on('panel-shown', () => { scrolled = false; loadRanking(); });
+  $('open-site').addEventListener('click', () => ipcRenderer.send('open-site'));
+  loadRanking();
+  setInterval(() => { if (document.visibilityState === 'visible') loadRanking(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') loadRanking(); });
 
   const head = $('head'); let dragging=false;
   head.addEventListener('mousedown', e => { dragging=true; ipcRenderer.send('drag-start',{mx:e.screenX,my:e.screenY}); e.preventDefault(); });

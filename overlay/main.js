@@ -7,7 +7,7 @@
    Cada una se mueve y se activa/desactiva por separado.
    Se muestra en partidas de SoloQ (queue 420) y en Practice Tool.
    ============================================================ */
-const { app, BrowserWindow, screen, ipcMain, globalShortcut, Tray, Menu, nativeImage } = require('electron');
+const { app, BrowserWindow, screen, ipcMain, globalShortcut, Tray, Menu, nativeImage, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -230,9 +230,8 @@ function retireWin(key, ms){
 }
 function ensureBig(){
   return lazyWin('big', () => {
-  const d = defaults(), BW = 1200, BH = 780;
-  // El panel es ENFOCABLE (a diferencia de los overlays chicos): así se puede escribir en
-  // los campos de la web (login, tickets, etc.).
+  const d = defaults(), BW = 560, BH = 720;
+  // El panel (Alt+X) muestra SOLO el ranking (ya no embebe la web). Es enfocable para poder hacer scroll y usar la configuración.
   const bp = posFor('big', Math.round(d.wa.x + (d.wa.width - BW) / 2), Math.round(d.wa.y + (d.wa.height - BH) / 2));
   bigWin = baseWin(BW, BH, bp.x, bp.y, false, true, true); bigWin._posKey = 'big';   // opaco (iframe web)
   bigWin.setAlwaysOnTop(true, 'screen-saver'); bigWin.loadFile(path.join(__dirname, 'panel.html'));
@@ -411,7 +410,7 @@ function checkD3DFullscreen(){
     d3dBusy = false; if (!inGameNow) return;
     const f = parseInt(String(out || '').trim(), 10) === 3;
     if (f !== d3dFull) dlog('pantalla completa exclusiva según Windows: ' + f);
-    d3dFull = f; fsKnownForGame = true; applyVis();
+    d3dFull = f; fsKnownForGame = true; applyVis(); afterGameFullscreen();
   });
 }
 const isFullscreen = () => gameFullscreen || d3dFull;
@@ -427,10 +426,11 @@ async function checkWindowMode(creds){
 function holdForFullscreen(fn, what){
   if (!(inGameNow && (isFullscreen() || !fsKnownForGame))) return false;   // en partida, también mientras no se sabe el modo
   if (what === 'Aviso') return false;   // el aviso lo pidió el jugador con el atajo: se muestra igual
-  deferredFs.push(fn); dlog(what + ': en partida con pantalla completa → se muestra al terminar'); return true;
+  deferredFs.push(fn); dlog(what + (fsKnownForGame ? ': en partida con pantalla completa → se muestra al terminar' : ': esperando confirmar el modo de pantalla')); return true;
 }
 function afterGameFullscreen(){
-  if (!inGameNow && deferredFs.length) deferredFs.splice(0).forEach((fn, i) => setTimeout(fn, 1500 + i * 12000));
+  const canShow = !inGameNow || (fsKnownForGame && !isFullscreen());
+  if (canShow && deferredFs.length) deferredFs.splice(0).forEach((fn, i) => setTimeout(fn, 1500 + i * 12000));
   // Aviso automático SOLO la primera vez que se detecta (fuera de partida). Después, solo con el atajo del panel.
   if (gameFullscreen && !inGameNow && !settings.fsWarned){ settings.fsWarned = true; saveSettings(); warnFullscreen(); }
 }
@@ -469,7 +469,7 @@ function showAll(){
   forceShow(win, 'small', d.smallX, d.smallY);   smallShown = true;
   forceShow(shellWin, 'shell', d.shellX, d.shellY); shellShown = true;
   applyVis();
-  ensureBig().then(w => { if (w.isDestroyed() || !forceShowAll) return; w.setAlwaysOnTop(true, 'screen-saver'); w.show(); w.moveTop(); w.focus(); }).catch(() => {});
+  ensureBig().then(w => { if (w.isDestroyed() || !forceShowAll) return; w.setAlwaysOnTop(true, 'screen-saver'); w.show(); w.moveTop(); w.focus(); w.webContents.send('panel-shown'); }).catch(() => {});
 }
 // Cerrar todo el overlay (respeta de nuevo la config: fuera de partida vuelve a ocultarse).
 function hideAll(){
@@ -565,6 +565,9 @@ ipcMain.on('reset-pos', () => {
 });
 ipcMain.handle('get-settings', () => settings);
 ipcMain.handle('get-version', () => { try { return app.getVersion(); } catch { return '?'; } });
+// Ranking para el panel (Alt+X): el mismo players.json que usa la web, ya ordenado. me = tu cuenta (se resalta).
+ipcMain.handle('get-ranking', async () => { await refreshRoster(); return { players: (rosterCache && rosterCache.players) || [], updatedAt: rosterCache && rosterCache.updatedAt, me: myRidForShells || null, site: BACKEND }; });
+ipcMain.on('open-site', () => { try { shell.openExternal(BACKEND); } catch {} });   // "Abrir la web" → navegador del jugador
 ipcMain.on('check-updates', () => checkUpdates(true));   // botón "Buscar actualizaciones" del panel
 ipcMain.on('close-all', () => hideAll());   // botón ✕ del panel: solo OCULTA (sigue en la bandeja)
 ipcMain.on('quit-app', () => { try { app.quit(); } catch {} });   // botón "Salir del overlay": cierra la app del todo
