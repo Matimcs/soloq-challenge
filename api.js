@@ -1,7 +1,10 @@
 /* Helper de API compartido. Guarda el JWT y hace las llamadas al backend. */
 window.SQC = (function(){
   // Ranked interno: por ahora SOLO para jugadores de la organización (el link se oculta al resto).
-  try { const st = document.createElement('style'); st.textContent = 'html:not(.sqc-org) #nav-ranked{ display:none !important; }'; (document.head || document.documentElement).appendChild(st); } catch (e) {}
+  // Lo mismo para todo lo marcado con .sqc-org-only (Blue Shells y MMR estimado, por ahora).
+  try { const st = document.createElement('style'); st.textContent = 'html:not(.sqc-org) #nav-ranked, html:not(.sqc-org) .sqc-org-only{ display:none !important; }'; (document.head || document.documentElement).appendChild(st); } catch (e) {}
+  // Pinta "org" al instante con la sesión guardada (sin esperar a la API); mountNav lo confirma después.
+  try { const u = JSON.parse(localStorage.getItem('sqc_user') || 'null'); if (localStorage.getItem('sqc_token') && u && u.external === false) document.documentElement.classList.add('sqc-org'); } catch (e) {}
   const TOKEN_KEY = 'sqc_token';
   const token = () => localStorage.getItem(TOKEN_KEY);
   const setToken = t => localStorage.setItem(TOKEN_KEY, t);

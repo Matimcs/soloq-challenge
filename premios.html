@@ -150,6 +150,9 @@
     { t: '📊 Récords en una partida', items: [['Más kills', 1000], ['Más asistencias', 1000], ['Más daño a campeones', 1000], ['Más visión', 1000], ['Mejor KDA', 1000], ['Victoria más larga', 1000]] },
   ];
   const $ = id => document.getElementById(id);
+  // Blue Shells ocultas al público por ahora: sus 2 premios se muestran como "por definir" (mismo monto, el total sigue en 100%).
+  const ORG = (() => { try { const u = JSON.parse(localStorage.getItem('sqc_user') || 'null'); return !!(localStorage.getItem('sqc_token') && u && u.external === false); } catch (e) { return false; } })();
+  if (!ORG) PLAN.forEach(g => { if (!g.div) g.items = g.items.map(x => /Blue Shell/i.test(x[0] + ' ' + (x[2] || '')) ? ['Premio especial (por definir)', x[1], ''] : x); });
   const clp = v => '$' + Math.round(v).toLocaleString('es-CL');
   const amt = (pot, base) => Math.round(pot * base / B / 100) * 100;
   const pct = base => (base / B * 100).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + '%';

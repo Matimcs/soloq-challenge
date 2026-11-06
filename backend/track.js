@@ -149,7 +149,9 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
     const rows = await q(`SELECT c.*, u.nickname AS org_nick, x.nickname AS ext_nick FROM challenge_accounts c
                           LEFT JOIN users u ON u.id = c.user_id LEFT JOIN ext_users x ON x.id = c.ext_id ORDER BY c.level DESC NULLS LAST, c.created_at`);
     const me = id.uid ? await q1('SELECT nickname FROM users WHERE id=$1', [id.uid]) : null;
-    const est = await estimatesV2(rows.map(r => r.puuid));
+    // MMR estimado (y PL por victoria/derrota, que lo delata): por ahora SOLO para jugadores de la org.
+    const org = !!me;
+    const est = org ? await estimatesV2(rows.map(r => r.puuid)) : {};
     // winrate: partidas de la Grieta que cuentan (normales y rankeds), sin remakes
     const wr = {}; (await q(`SELECT puuid, count(*)::int g, sum(CASE WHEN win THEN 1 ELSE 0 END)::int w FROM track_matches
                             WHERE counted AND NOT remake AND puuid = ANY($1) GROUP BY puuid`, [rows.map(r => r.puuid)])).forEach(x => { wr[x.puuid] = { g: x.g, w: x.w }; });
@@ -160,7 +162,7 @@ module.exports = function setupTrack(app, { q, q1, wrap, auth, isSuper, reqIdent
       players: admin ? (await q("SELECT id, nickname FROM users WHERE coalesce(nickname,'')<>'' ORDER BY lower(nickname)")).map(u => ({ id: u.id, nick: u.nickname })) : undefined,
       accounts: rows.map(r => { const rk = r.ranked || {}, games = ['solo', 'flex'].reduce((t, k) => t + (rk[k] ? rk[k].w + rk[k].l : 0), 0);
         return { id: r.id, riotid: r.game_name + '#' + r.tag_line, level: r.level, icon: r.icon, owner: r.org_nick || r.ext_nick || r.owner_name || '?', org: !!r.user_id,
-          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at, mmr: est[r.puuid] || null, lp: lpOf(r.lp_log), wr: wr[r.puuid] || null }; }) });
+          tagOk: r.tag_line === TAG, rankedGames: games, mine: !!isMine(r, id, claim), checked: r.checked_at, mmr: org ? est[r.puuid] || null : null, lp: org ? lpOf(r.lp_log) : null, wr: wr[r.puuid] || null }; }) });
   }));
   app.post('/api/cuentas', wrap(async (req, res) => {
     if (tooMany(req, 'cuentas', 6, 3600e3)) return res.status(429).json({ error: 'Demasiados intentos. Prueba en un rato.' });

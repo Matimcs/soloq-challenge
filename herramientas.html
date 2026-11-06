@@ -572,7 +572,7 @@
       <button class="tab" data-t="dle">SOLOQDLE</button>
       <button class="tab" data-t="sb">SUBASTA</button>
       <button class="tab active" data-t="fv">5V5</button>
-      <button class="tab" data-t="bs">BLUE SHELLS</button>
+      <button class="tab sqc-org-only" data-t="bs">BLUE SHELLS</button>
       <button class="tab" data-t="ln">LINKS</button>
     </div>
 
@@ -1789,6 +1789,8 @@
   if (window.RANKED_PAGE){ document.title = 'SoloQ Challenge — Ranked';
     document.querySelectorAll('.nav-pill a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === 'ranked.html')); }
   if (window.RANKED_PAGE) showTab('rk'); else  showTab(h0 === 'analisis' ? 'analisis' : (h0 === 'soloqdle' || h0 === 'dle') ? 'dle' : (h0 === 'blueshells' || h0 === 'bs') ? 'bs' : (h0 === 'equipo' || h0 === 'eq') ? 'eq' : (h0 === 'links' || h0 === 'ln') ? 'ln' : (h0 === 'sb' || h0 === 'subasta' || SBC.room) ? 'sb' : 'fv');
+  // Blue Shells: por ahora solo para la org (si alguien de afuera entra por #blueshells, lo manda al Análisis).
+  if (!window.RANKED_PAGE && window.SQC && CUR_TAB === 'bs') SQC.me().then(u => { if (!u || u.external) showTab('analisis'); });
 
   // Pestaña EQUIPO: solo si eres capitán de algún equipo o admin
   (async function(){ try { if (!(window.SQC && SQC.token && SQC.token()) || window.RANKED_PAGE) return; const r = await SQC.api('/team/me');

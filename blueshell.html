@@ -113,6 +113,9 @@
   </div></header>
 
   <main class="wrap">
+    <script>/* Blue Shells: por ahora solo para jugadores de la organización */
+      document.addEventListener('DOMContentLoaded', () => { if (!window.SQC) return; SQC.me().then(u => { if (u && !u.external) return;
+        const m = document.querySelector('main.wrap'); m.innerHTML = '<div style="padding:60px 10px;text-align:center;color:var(--muted)"><h1 style="color:var(--text)">Sección privada</h1><p>Esta sección es solo para jugadores de la organización.</p></div>'; }); });</script>
     <h1>🛡 Blue Shells</h1>
     <div class="sub" id="sub">Tu inventario, historial y lanzamientos.</div>
     <div id="drop-banner" class="dd-banner" style="display:none"></div>
