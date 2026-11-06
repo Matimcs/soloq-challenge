@@ -1,5 +1,15 @@
 /* Helper de API compartido. Guarda el JWT y hace las llamadas al backend. */
 window.SQC = (function(){
+  // Aviso legal al pie de cada página (lo piden las reglas de Riot para competencias y proyectos de la comunidad).
+  // No se agrega dentro de iframes (p. ej. Equipo dentro de Herramientas) para no duplicarlo.
+  (function addLegal(){
+    if (window.top !== window || document.getElementById('sqc-legal')) return;
+    const put = () => { if (document.getElementById('sqc-legal')) return; const f = document.createElement('footer'); f.id = 'sqc-legal';
+      f.style.cssText = 'max-width:900px;margin:40px auto 24px;padding:16px 16px 0;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;line-height:1.55;color:rgba(255,255,255,.45);text-align:center';
+      f.innerHTML = 'SoloQ Challenge es una competencia comunitaria independiente: <b>no es un evento oficial de Riot Games</b> y no está respaldada ni patrocinada por Riot Games, ni refleja las opiniones de Riot Games o de quienes participan oficialmente en la producción o gestión de sus propiedades. Riot Games, League of Legends y todas las propiedades asociadas son marcas comerciales o marcas registradas de Riot Games, Inc.';
+      document.body.appendChild(f); };
+    if (document.body) put(); else document.addEventListener('DOMContentLoaded', put);
+  })();
   // Ranked interno: por ahora SOLO para jugadores de la organización (el link se oculta al resto).
   // Lo mismo para todo lo marcado con .sqc-org-only (Blue Shells y MMR estimado, por ahora).
   try { const st = document.createElement('style'); st.textContent = 'html:not(.sqc-org) #nav-ranked, html:not(.sqc-org) .sqc-org-only{ display:none !important; }'; (document.head || document.documentElement).appendChild(st); } catch (e) {}
