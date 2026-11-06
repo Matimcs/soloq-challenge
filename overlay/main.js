@@ -400,6 +400,21 @@ let busyInGame = false;
 // (Blue Shell, mensaje) el juego pierde la pantalla y se minimiza. Por eso: se avisa que use "Sin bordes", y en
 // partida las Blue Shells y mensajes se guardan y se muestran al terminar.
 let gameFullscreen = false, fsCheckedAt = 0, inGameNow = false, polledOnce = false;
+// Además de la opción guardada del cliente, se le pregunta a WINDOWS si hay un juego en pantalla completa
+// exclusiva (SHQueryUserNotificationState = 3). Cubre el Alt+Enter dentro del juego, que el cliente no ve.
+// En "Sin bordes" Windows responde 2, así que no se confunde. Solo se consulta en partida (cada 15 s).
+let d3dFull = false, d3dBusy = false, d3dAt = 0, fsKnownForGame = false;
+const FS_PS = "Add-Type -Namespace W -Name Q -MemberDefinition '[DllImport(\"shell32.dll\")] public static extern int SHQueryUserNotificationState(out int s);'; $s=0; [void][W.Q]::SHQueryUserNotificationState([ref]$s); $s";
+function checkD3DFullscreen(){
+  if (d3dBusy || Date.now() - d3dAt < 15000) return; d3dBusy = true; d3dAt = Date.now();
+  require('child_process').execFile('powershell', ['-NoProfile', '-NonInteractive', '-Command', FS_PS], { windowsHide: true, timeout: 8000 }, (err, out) => {
+    d3dBusy = false; if (!inGameNow) return;
+    const f = parseInt(String(out || '').trim(), 10) === 3;
+    if (f !== d3dFull) dlog('pantalla completa exclusiva según Windows: ' + f);
+    d3dFull = f; fsKnownForGame = true; applyVis();
+  });
+}
+const isFullscreen = () => gameFullscreen || d3dFull;
 const deferredFs = [];   // lo que llegó en partida con pantalla completa (se muestra al terminar)
 async function checkWindowMode(creds){
   if (Date.now() - fsCheckedAt < 30000) return; fsCheckedAt = Date.now();
@@ -410,7 +425,7 @@ async function checkWindowMode(creds){
   } catch {}
 }
 function holdForFullscreen(fn, what){
-  if (!(gameFullscreen && inGameNow)) return false;
+  if (!(inGameNow && (isFullscreen() || !fsKnownForGame))) return false;   // en partida, también mientras no se sabe el modo
   if (what === 'Aviso') return false;   // el aviso lo pidió el jugador con el atajo: se muestra igual
   deferredFs.push(fn); dlog(what + ': en partida con pantalla completa → se muestra al terminar'); return true;
 }
@@ -431,8 +446,10 @@ function applyVis(){
   // Regla fija: la tarjeta de standing y el popup de Blue Shells SOLO se ven en partida,
   // salvo que se pida mostrar todo a mano (doble-click en bandeja / Alt+X).
   // En Pantalla completa no se abren solas: ahí no se dibujan encima del juego y abrir una ventana puede minimizarlo.
-  const okSmall = forceShowAll || (settings.smallVisible && lastInGame && !gameFullscreen);
-  const okShell = forceShowAll || (settings.shellVisible && lastInGame && !gameFullscreen);
+  // En partida, las tarjetas esperan a que Windows confirme que NO es pantalla completa exclusiva (~1 s).
+  const okGame = lastInGame && fsKnownForGame && !isFullscreen();
+  const okSmall = forceShowAll || (settings.smallVisible && okGame);
+  const okShell = forceShowAll || (settings.shellVisible && okGame);
   if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? win.showInactive() : win.hide(); }
   if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
 }
@@ -464,7 +481,7 @@ function hideAll(){
 function toggleAll(){
   if (forceShowAll || (bigWin && !bigWin.isDestroyed() && bigWin.isVisible())) return hideAll();
   showAll();
-  if (gameFullscreen) warnFullscreen();   // al abrir el panel con el atajo, recuerda que en Pantalla completa no se ve
+  if (isFullscreen()) warnFullscreen();   // al abrir el panel con el atajo, recuerda que en Pantalla completa no se ve
 }
 
 // ---- Modo POSICIONAR overlays: muestra la tarjeta, el popup de shells y el carrusel con un
@@ -713,7 +730,10 @@ async function poll(){
 
       lastInGame = inSoloQ;
       busyInGame = ['ChampSelect', 'GameStart', 'InProgress', 'Reconnect'].includes(phase);
+      const wasInGame = inGameNow;
       inGameNow = ['GameStart', 'InProgress', 'Reconnect'].includes(phase);
+      if (inGameNow && !wasInGame){ d3dAt = 0; fsKnownForGame = false; }   // partida nueva: consulta de inmediato
+      if (inGameNow) checkD3DFullscreen(); else { d3dFull = false; fsKnownForGame = false; }
       await checkWindowMode(creds); afterGameFullscreen();
       reportToBackend(myRid, solo, inSoloQ);   // manda rango/estado a la nube (ahorra API)
 
