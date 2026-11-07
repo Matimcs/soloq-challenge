@@ -293,7 +293,14 @@ function hideUpd(){ if (updWin && !updWin.isDestroyed()) updWin.hide(); retireWi
 // Chequeo de actualización. manual=true (desde la bandeja) muestra también "ya estás al día"
 // o el error; el automático solo aparece si hay algo que descargar.
 let updManual = false;
-function checkUpdates(manual){ if (!app.isPackaged) return; if (!manual && busyInGame) return; updManual = !!manual; try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
+// Descarga a medio terminar bloqueada (el antivirus revisa el .exe recién bajado y Windows no deja renombrarlo:
+// "EPERM: operation not permitted, rename …\pending\…"). Se borra la carpeta pending y se reintenta solo.
+const UPD_PENDING = path.join(process.env.LOCALAPPDATA || '', 'sqc-overlay-updater', 'pending');
+let updLockErr = false, updLockRetries = 0;
+function clearPendingUpdate(){ try { fs.rmSync(UPD_PENDING, { recursive: true, force: true }); dlog('updater: carpeta pending borrada'); } catch (e) { dlog('updater: no se pudo borrar pending: ' + (e && e.message)); } }
+function checkUpdates(manual){ if (!app.isPackaged) return; if (!manual && busyInGame) return; updManual = !!manual;
+  if (updLockErr){ updLockErr = false; clearPendingUpdate(); }
+  try { autoUpdater.checkForUpdates().catch(() => {}); } catch {} }
 // Instala la actualización SIN abrir el instalador (modo silencioso) y relanza la app sola.
 // No interrumpe si estás en partida: espera a que termines (lo reintenta el interval).
 let updateReady = false, pendingVer = null;
@@ -913,10 +920,10 @@ if (hasLock) app.whenReady().then(async () => {
       autoUpdater.autoInstallOnAppQuit = true;
       autoUpdater.on('checking-for-update', () => { if (updManual) showUpd('Buscando actualización…', null); });
       autoUpdater.on('update-available', i => { dlog('update disponible: ' + (i && i.version)); updDownloading = true;
-        showUpd('Actualización ' + (i && i.version ? 'v' + i.version : '') + ' — descargando…', 0); });
+        if (updManual) showUpd('Actualización ' + (i && i.version ? 'v' + i.version : '') + ' — descargando…', 0); });   // en automático baja en silencio
       autoUpdater.on('update-not-available', () => { dlog('sin updates');
         if (updManual){ showUpd('Ya tienes la última versión ✓', null); setTimeout(hideUpd, 4000); } updManual = false; });
-      autoUpdater.on('download-progress', p => showUpd('Descargando actualización… ' + Math.round(p.percent) + '%', p.percent));
+      autoUpdater.on('download-progress', p => { if (updManual) showUpd('Descargando actualización… ' + Math.round(p.percent) + '%', p.percent); });
       autoUpdater.on('update-downloaded', i => { const v = i && i.version; dlog('update descargada: ' + v); pendingVer = v; updDownloading = false;
         // Si ya intentamos auto-instalar ESTA versión y seguimos en la vieja, la instalación silenciosa no
         // funciona en esta máquina → NO reintentar en loop; ofrecer instalación manual clicable.
@@ -928,6 +935,13 @@ if (hasLock) app.whenReady().then(async () => {
         const netErr = /net::ERR_|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENETUNREACH|socket hang up|timeout/i.test(String(e && e.message));
         const wasDownloading = updDownloading; updDownloading = false;
         if (netErr && !updManual && !wasDownloading) return;
+        // Archivo bloqueado (antivirus / instalación anterior): limpia y reintenta solo en 2 min (máx. 3 por sesión), sin mostrar el error.
+        if (/EPERM|EBUSY|EACCES|operation not permitted|rename/i.test(String(e && e.message))){
+          updLockErr = true; hideUpd();
+          if (updLockRetries < 3){ updLockRetries++; setTimeout(() => checkUpdates(false), 2 * 60 * 1000); }
+          if (!updManual) return;
+        }
+        if (!updManual && !wasDownloading) return;   // en automático, los errores solo quedan en el registro
         // Oculta la ventana también en modo automático para que no quede "Descargando…/Actualizando…" pegado.
         showUpd('No se pudo actualizar: ' + (e && e.message ? e.message.slice(0, 50) : 'error'), null); setTimeout(hideUpd, 6000); updManual = false; });
       checkUpdates(false);
