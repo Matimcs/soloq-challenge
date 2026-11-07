@@ -2221,11 +2221,13 @@ app.get('/api/stats', wrap(async (req, res) => {
     const gs = gamesByPuuid[puuid] || [];
     // Δ por partida: exacto si lo capturamos, si no estimado por victoria/derrota.
     const perGame = gs.map(g => ({ t: g.t, delta: g.noLp ? 0 : (g.t in deltaByEnd) ? deltaByEnd[g.t] : (g.win ? STEP : -STEP) }));
-    const useGames = perGame.length ? perGame : lg.map(g => ({ t: g.end, delta: g.delta || 0 }));
-    // Serie: reconstruye absLP hacia atrás desde el actual.
+    // Siempre de la más vieja a la más nueva: lpGames no siempre viene ordenado (con RIOCLARO857NACHO venía al revés
+    // y la línea del gráfico avanzaba y se devolvía).
+    const useGames = (perGame.length ? perGame : lg.map(g => ({ t: g.end, delta: g.delta || 0 }))).sort((x, y) => x.t - y.t);
+    // Serie: reconstruye absLP hacia atrás desde el actual. Cada punto = LP DESPUÉS de esa partida (igual que la ficha).
     if (m.abs != null && useGames.length) {
       let abs = m.abs; const pts = [{ t: Date.now(), lp: abs }];
-      for (let k = useGames.length - 1; k >= 0; k--) { abs -= useGames[k].delta; pts.push({ t: useGames[k].t, lp: Math.max(0, abs) }); }
+      for (let k = useGames.length - 1; k >= 0; k--) { pts.push({ t: useGames[k].t, lp: Math.max(0, abs) }); abs -= useGames[k].delta; }
       series.push({ rid, nm: m.nm, high: !!m.high, points: pts.reverse() });
     }
     // Subidones/bajones: neto por día.
