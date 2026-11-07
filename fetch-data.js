@@ -488,8 +488,11 @@ async function updatePlayerStats(puuid, entry){
   const win15 = store.lpGames.slice(0, 15).filter(g=>g.delta>0).map(g=>g.delta);
   const baseA = median(win15);
   const isAegis = d => baseA && d >= 1.8 * baseA;
+  // Racha de victorias actual (de la más nueva hacia atrás). Remakes y derrotas anuladas no la cortan.
+  let streak = 0;
+  for (const g of store.games){ if (g.remake || g.void) continue; if (!g.win) break; streak++; }
   return {
-    form, formT,
+    form, formT, streak,
     role: mainPos ? (ROLE_LBL[mainPos] || null) : null,
     // ±LP: la última victoria/derrota NORMAL (la victoria se toma sin aegis, que
     // es ~el doble). El aegis se cuenta aparte.
@@ -573,7 +576,7 @@ function rankText(entry) {
         w: entry ? entry.wins : 0, l: entry ? entry.losses : 0,
         inGame: !!soloRaw, hotStreak: entry ? !!entry.hotStreak : false,
         game: soloRaw ? { queue: 'Ranked SoloQ' } : null,
-        form: stats.form, formT: stats.formT, up: stats.up, down: stats.down, aegis: stats.aegis,
+        form: stats.form, formT: stats.formT, streak: stats.streak || 0, up: stats.up, down: stats.down, aegis: stats.aegis,
         session: stats.session, recent: stats.recent,
       });
       if (soloRaw) rawByPlayer.push({ puuid, raw: soloRaw });
