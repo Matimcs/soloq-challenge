@@ -461,10 +461,12 @@
   .m-row{ border-left:3px solid var(--muted-2); background:var(--panel-2); border-radius:8px; margin-bottom:5px; overflow:hidden; }
   .m-row.win{ border-left-color:var(--up); background:rgba(52,211,153,.05); }
   .m-row.loss{ border-left-color:var(--down); background:rgba(251,113,133,.05); }
+  .m-row.mit{ border-left-color:rgba(255,255,255,.28); background:rgba(255,255,255,.035); }
   .m-head{ display:flex; align-items:center; gap:11px; padding:9px 12px; cursor:pointer; min-width:960px; }
   .m-head:hover{ background:rgba(255,255,255,.03); }
   .m-res{ display:flex; align-items:center; gap:7px; width:235px; flex-shrink:0; font-size:12.5px; color:var(--muted); }
   .m-row.win .m-res b{ color:var(--up); } .m-row.loss .m-res b{ color:var(--down-soft); }
+  .m-row.mit .m-res b, .m-row.mit .m-lp{ color:var(--muted) !important; }   /* derrota mitigada: gris */
   .m-role{ width:21px; height:21px; flex-shrink:0; display:inline-block; }
   .m-champ{ width:38px; height:38px; border-radius:7px; flex-shrink:0; }
   .m-champ.e{ background:rgba(255,255,255,.05); display:inline-block; }
@@ -1746,12 +1748,13 @@ function renderHist(c, data){
     const items6 = h.items.map(id => id ? `<img class="m-it" src="${itemUrl(id)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e"></span>').join('');
     const trinket = h.trinket ? `<img class="m-it trk" src="${itemUrl(h.trinket)}" onerror="this.style.visibility='hidden'">` : '<span class="m-it e trk"></span>';
     const aegis = h.aegis ? `<img class="m-aegis" src="overlay/assets/aegis.svg" title="Aegis" onerror="this.style.display='none'">` : '';
-    const lp = h.noLp ? `<span class="m-lp" style="color:var(--gold,#ffd24a)" title="Partida terminada por comportamiento disruptivo de un compañero: no perdió LP">0 LP</span>`
+    const mit = !h.win && (h.noLp || h.lp === 0);   // derrota mitigada: Riot no le restó LP (compañero AFK o disruptivo)
+    const lp = mit ? `<span class="m-lp" title="Derrota mitigada: Riot no restó LP (compañero AFK o disruptivo)">0 LP</span>`
       : (h.lp != null) ? `<span class="m-lp ${h.win?'up':'dn'}">${h.lp>0?'+':''}${h.lp} LP</span>` : '<span class="m-lp"></span>';
     const opp = h.oppChampion ? `<img class="m-champ" src="${champImg(h.oppChampion)}" onerror="this.style.visibility='hidden'">` : '<span class="m-champ e"></span>';
-    return `<div class="m-row ${h.win?'win':'loss'}">
+    return `<div class="m-row ${h.win?'win':'loss'}${mit?' mit':''}">
       <div class="m-head" data-mid="${h.matchId||''}">
-        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':(h.noLp?'Derrota sin LP':'Derrota')}</b> · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}${h.voided?' · <span style="color:var(--gold,#ffd24a)" title="Partida terminada por comportamiento disruptivo: se muestra, pero no cuenta para estadísticas">anulada</span>':''}</span></div>
+        <div class="m-res">${roleIco(h.position)}<span><b>${h.win?'Victoria':(mit?'Derrota mitigada':'Derrota')}</b>${!mit && h.afkMate ? ' · <span style="color:var(--muted)" title="Un compañero quedó AFK. Riot a veces no resta LP en estos casos, pero no lo confirma por la API">compañero AFK</span>' : ''} · ${fmtDur(h.duration)} · ${fmtAgo(h.end)}${h.voided?' · <span style="color:var(--gold,#ffd24a)" title="Partida terminada por comportamiento disruptivo: se muestra, pero no cuenta para estadísticas">anulada</span>':''}</span></div>
         <img class="m-champ" src="${champImg(h.champion)}" onerror="this.style.visibility='hidden'">
         ${spellStack(h.spells)}${runeStack(h.keystone,h.secStyle)}
         <span class="m-vs">VS</span>

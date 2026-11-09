@@ -792,6 +792,8 @@ const ksOf  = p => (p && p.perks && p.perks.styles && p.perks.styles[0] && p.per
 const secOf = p => (p && p.perks && p.perks.styles && p.perks.styles[1] && p.perks.styles[1].style) || null;
 // Derrota SIN pérdida de LP: partida terminada por comportamiento disruptivo de un compañero
 // ("IGNB surrender"). El equipo que rinde no pierde LP, salvo el causante.
+// Derrota sin LP SEGURA: Riot terminó la partida por conducta disruptiva de un compañero. (Con un compañero AFK
+// Riot a veces mitiga y a veces no — no se puede saber por la API —, así que eso solo se marca como "compañero AFK".)
 const noLpLoss = p => !p.win && !!p.teamIGNBSurrendered && !p.causedGameEndFromIGNBSurrender;
 function buildHistoryRow(m, puuid){
   if (!m || !m.info) return null;
@@ -803,7 +805,7 @@ function buildHistoryRow(m, puuid){
   const dur = m.info.gameDuration || 0;
   return {
     matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
-    win: !!me.win, noLp: noLpLoss(me), voided: !!me.gameEndedInIGNBSurrender && !me.win, champion: me.championName, position: me.teamPosition || '',
+    win: !!me.win, noLp: noLpLoss(me), afkMate: !me.win && !me.wasAfk && P.some(x => x.teamId === me.teamId && x.puuid !== me.puuid && x.wasAfk), voided: !!me.gameEndedInIGNBSurrender && !me.win, champion: me.championName, position: me.teamPosition || '',
     k: me.kills||0, d: me.deaths||0, a: me.assists||0,
     kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
     kp: teamKills ? Math.round(((me.kills||0)+(me.assists||0))/teamKills*100) : 0,

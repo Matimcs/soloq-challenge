@@ -92,6 +92,8 @@ async function initDB(){
 }
 // Derrota SIN pérdida de LP: la partida terminó por comportamiento disruptivo de un compañero
 // ("IGNB surrender" de Riot). El equipo que rinde no pierde LP, salvo el causante.
+// Derrota sin LP SEGURA: Riot terminó la partida por conducta disruptiva de un compañero. (Con un compañero AFK
+// Riot a veces mitiga y a veces no — no se puede saber por la API —, así que eso solo se marca como "compañero AFK".)
 const noLpLoss = p => !p.win && !!p.teamIGNBSurrendered && !p.causedGameEndFromIGNBSurrender;
 // Fase de líneas desde 'challenges' de Riot: [CS al min 10, ventaja máx. de CS, ventaja máx. de nivel, solo kills, placas].
 function laneStats(p){
