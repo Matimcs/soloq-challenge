@@ -805,6 +805,7 @@ function buildHistoryRow(m, puuid){
   const dur = m.info.gameDuration || 0;
   return {
     matchId: m.metadata && m.metadata.matchId, queueId: m.info.queueId,
+    remake: !!me.gameEndedInEarlySurrender || ((m.info.gameDuration || 0) > 0 && (m.info.gameDuration || 0) < 300),   // remake: no cuenta ni resta LP
     win: !!me.win, noLp: noLpLoss(me), afkMate: !me.win && !me.wasAfk && P.some(x => x.teamId === me.teamId && x.puuid !== me.puuid && x.wasAfk), voided: !!me.gameEndedInIGNBSurrender && !me.win, champion: me.championName, position: me.teamPosition || '',
     k: me.kills||0, d: me.deaths||0, a: me.assists||0,
     kda: ((me.kills||0)+(me.assists||0)) / Math.max(1, me.deaths||0),
@@ -863,7 +864,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
         // 'end' contradice el resultado (por un desfase del runner al juntarse 2 partidas o un
         // remake), no lo mostramos en vez de mostrar un ±LP incoherente (victoria −23, derrota +17).
         history.forEach(h => {
-          if (h.noLp){ h.lp = 0; return; }   // derrota sin LP: 0 exacto, lo dice Riot
+          if (h.noLp || h.remake){ h.lp = 0; return; }   // derrota sin LP o remake: 0 exacto, lo dice Riot
           const g = byEnd[h.end];
           if (g && ((h.win && g.delta >= 0) || (!h.win && g.delta <= 0))){
             h.lp = g.delta; h.aegis = g.delta > 0 && med > 0 && g.delta >= 1.8*med;
