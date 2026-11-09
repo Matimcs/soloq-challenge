@@ -932,7 +932,7 @@ if (hasLock) app.whenReady().then(async () => {
         setTimeout(tryInstall, 2500); });
       autoUpdater.on('error', e => { dlog('updater error: ' + (e && e.message));
         // Sin internet / DNS caído en la revisión automática: solo queda en el registro (se reintenta en 15 min).
-        const netErr = /net::ERR_|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENETUNREACH|socket hang up|timeout/i.test(String(e && e.message));
+        const netErr = /net::ERR_|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|ECONNRESET|ECONNREFUSED|ENETUNREACH|socket hang up|timeout|Gateway|^\s*5\d\d|50[0234]/i.test(String(e && e.message));   // incluye caídas de GitHub (500/502/503/504)
         const wasDownloading = updDownloading; updDownloading = false;
         if (netErr && !updManual && !wasDownloading) return;
         // Archivo bloqueado (antivirus / instalación anterior): limpia y reintenta solo en 2 min (máx. 3 por sesión), sin mostrar el error.
