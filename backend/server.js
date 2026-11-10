@@ -4371,7 +4371,7 @@ async function clueGame(pus){
 const RECORDS_CACHE = { at: 0, data: null };
 let _recSig = {};   // firma por categoría (nm|valor de cada uno del top-5) para detectar entradas nuevas
 const REC_SIG_V = { kdaBest:r=>r.kda, kdaWorst:r=>r.kda, kills:r=>r.k, deaths:r=>r.d, assists:r=>r.a,
-              cs:r=>r.cs, vision:r=>r.vis, duration:r=>r.durMin, winStreak:r=>r.value, loseStreak:r=>r.value };
+              cs:r=>r.cs, csMin:r=>r.csMin, vision:r=>r.vis, duration:r=>r.durMin, winStreak:r=>r.value, loseStreak:r=>r.value };
 function recordsSig(R){
   const s = {};
   // Firma el TOP-5 completo de cada categoría: así cualquier ENTRADA nueva al top-5 (no solo el #1)
@@ -4416,16 +4416,17 @@ app.get('/api/records', wrap(async (req, res) => {
   const cols = `name, lower(riotid) rid, puuid, champion, match_id, game_end, ${K} k, ${D} d, ${A} a, ${CS} cs, ${DUR} dur, ${VIS} vis`;
   const base = `FROM mp_stats WHERE is_tournament=true AND coalesce(puuid,'')<>''`;
   const kda = `(${K}+${A})::float/GREATEST(${D},1)`;
-  const topBy = order => q(`SELECT ${cols} ${base} ORDER BY ${order} LIMIT ${N}`);
-  const [kdaBest, kdaWorst, cs, dur, kills, deaths, assists, vision] = await Promise.all([
+  const topBy = (order, extra = '') => q(`SELECT ${cols} ${base} ${extra} ORDER BY ${order} LIMIT ${N}`);
+  const [kdaBest, kdaWorst, cs, dur, kills, deaths, assists, vision, csMin] = await Promise.all([
     topBy(`${kda} DESC, ${D} ASC, (${K}+${A}) DESC`),     // KDA+: mayor; empate -> menos muertes
     topBy(`${kda} ASC, ${D} DESC, (${K}+${A}) ASC`),      // KDA-: menor; empate -> más muertes
     topBy(`${CS} DESC`), topBy(`${DUR} DESC`), topBy(`${K} DESC`), topBy(`${D} DESC`), topBy(`${A} DESC`), topBy(`${VIS} DESC`),
+    topBy(`${CS}::float / ${DUR} DESC`, `AND ${DUR} >= 900`),   // CS/min: solo partidas de 15 min o más (sin remakes ni cortas)
   ]);
   const map = r => { const rid = ridByPuuid[r.puuid] || r.rid;
     return { nm: ownerNickByPuuid[r.puuid] || nickByRid[(rid || '').toLowerCase()] || r.name || (r.rid || '').split('#')[0], rid, matchId: r.match_id,
       champ: r.champion, k:+r.k, d:+r.d, a:+r.a, kda:+(((+r.k) + (+r.a)) / Math.max(1, +r.d)).toFixed(2),
-      cs:+r.cs, durMin: Math.round((+r.dur) / 60), vis:+r.vis, end: Number(r.game_end) || 0 }; };
+      cs:+r.cs, csMin: (+r.dur) > 0 ? +((+r.cs) / ((+r.dur) / 60)).toFixed(1) : 0, durMin: Math.round((+r.dur) / 60), vis:+r.vis, end: Number(r.game_end) || 0 }; };
   // Rachas de victorias/derrotas por cuenta (consecutivas en el tiempo); dedup por jugador (máx).
   // 'end' = fecha de la partida con que la racha alcanzó su máximo (para saber si es reciente).
   const gs = await q(`SELECT puuid, win, game_end ${base} AND game_end IS NOT NULL ORDER BY puuid, game_end ASC`);
@@ -4455,7 +4456,7 @@ app.get('/api/records', wrap(async (req, res) => {
       return { rid, nm, high: v.abs >= 2800, value: v.abs };
     }).sort((a, b) => b.value - a.value).slice(0, 5);
   } catch {}
-  RECORDS_CACHE.data = { peakLp, kdaBest: kdaBest.map(map), kdaWorst: kdaWorst.map(map), cs: cs.map(map), duration: dur.map(map),
+  RECORDS_CACHE.data = { peakLp, kdaBest: kdaBest.map(map), kdaWorst: kdaWorst.map(map), cs: cs.map(map), csMin: csMin.map(map), duration: dur.map(map),
     kills: kills.map(map), deaths: deaths.map(map), assists: assists.map(map), vision: vision.map(map),
     winStreak: streaks(wmax), loseStreak: streaks(lmax) };
   _recSig = recordsSig(RECORDS_CACHE.data);

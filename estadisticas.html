@@ -317,6 +317,7 @@
       + recCard('deaths', 'MÁS MUERTES', 'Más muertes en una sola partida', R.deaths, cLine, r=>r.d)
       + recCard('assists', 'MÁS ASISTENCIAS', 'Más asistencias en una sola partida', R.assists, cLine, r=>r.a)
       + recCard('cs', 'MÁS CS', 'Más súbditos en una sola partida', R.cs, cmMin, r=>r.cs)
+      + recCard('csMin', 'MÁS CS/MIN', 'Más súbditos por minuto en una partida (mín. 15 min)', R.csMin, r => `${esc(r.champ)} · ${r.cs} CS en ${r.durMin} min`, r=>r.csMin)
       + recCard('vision', 'MÁS VISIÓN', 'Mayor puntuación de visión en una partida', R.vision, cmMin, r=>r.vis)
       + recCard('duration', 'PARTIDA MÁS LARGA', 'Mayor duración de partida', R.duration, cLine, r=>`${r.durMin} min`)
       + recCard('winStreak', 'RACHA DE VICTORIAS', 'Más victorias seguidas', R.winStreak, ()=>'seguidas', r=>r.value, false)
