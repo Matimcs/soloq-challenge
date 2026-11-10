@@ -298,6 +298,79 @@ async function getPuuid(riotId) {
   return data ? data.puuid : null;
 }
 
+/* ===== Cambios de nombre (Riot ID) — automático =====
+   El puuid nunca cambia; el nombre#tag sí. Cada 12 h por cuenta se le pregunta a Riot el nombre actual
+   (account-v1 by-puuid). Si cambió, se actualiza en TODA la base (usuarios, smurfs, ranking, historial…)
+   y se recuerda en riot_renames para que la lista fija de arriba también lo siga.
+   Si el puuid guardado no se puede leer (quedó de otra API key) y el nombre viejo ya no existe, se ubica la
+   cuenta en su última partida guardada (mismo campeón y KDA) para obtener su puuid y nombre nuevos. */
+const NAMECHK_FILE = path.join(CACHE_DIR, 'namecheck.json');
+const nameChecked = loadJSON(NAMECHK_FILE, {});   // rid (minúsculas, sin espacios) -> última revisión (ms)
+const NAME_TTL = 12 * 60 * 60 * 1000;
+const nrid = r => String(r || '').toLowerCase().replace(/\s+/g, '');
+async function applyRename(oldRid, newRid, newPuuid){
+  console.log(`  ✎ cambio de nombre: ${oldRid} → ${newRid}`);
+  delete puuidCache[oldRid]; if (newPuuid) puuidCache[newRid] = newPuuid;
+  nameChecked[nrid(newRid)] = Date.now();
+  if (!pgPool) return;
+  const newName = newRid.split('#')[0];
+  const W = col => `lower(regexp_replace(${col}, '[[:space:]]', '', 'g')) = $2`;
+  const stmts = [
+    `UPDATE users SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE smurfs SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE ext_users SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE roster SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE roster_hidden SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE team_members SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE player_tags SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE track_accounts SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE smurf_links SET smurf_riotid=$1 WHERE ${W('smurf_riotid')}`,
+    `UPDATE smurf_links SET main_riotid=$1 WHERE ${W('main_riotid')}`,
+    `UPDATE peak_lp SET rid=$1 WHERE ${W('rid')}`,
+    `UPDATE auction_sales SET riotid=$1 WHERE ${W('riotid')}`,
+    `UPDATE match_participants SET riotid=$1, name=$3 WHERE ${W('riotid')}`,
+  ];
+  for (const sql of stmts){
+    try { await pgPool.query(sql, sql.includes('$3') ? [newRid, nrid(oldRid), newName] : [newRid, nrid(oldRid)]); }
+    catch (e) { console.warn(`  ✎ no se pudo actualizar (${sql.split(' ')[1]}): ${e.message}`); }   // p. ej. ya existe con el nombre nuevo
+  }
+  try { await pgPool.query('INSERT INTO riot_renames (old_rid, new_rid) VALUES ($1,$2) ON CONFLICT (old_rid) DO UPDATE SET new_rid=$2, at=now()', [nrid(oldRid), newRid]); } catch {}
+}
+// Devuelve { rid, puuid } al día (o los mismos si no cambió / aún no toca revisar).
+async function checkRename(rid, puuid){
+  const k = nrid(rid);
+  if (Date.now() - (nameChecked[k] || 0) < NAME_TTL) return { rid, puuid };
+  let acc = null;
+  if (puuid){ try { acc = await riot(`https://${CLUSTER}.api.riotgames.com/riot/account/v1/accounts/by-puuid/${puuid}`); } catch {} await sleep(110); }
+  if (acc && acc.gameName){
+    const cur = `${acc.gameName}#${acc.tagLine}`;
+    nameChecked[k] = Date.now();
+    if (nrid(cur) === k) return { rid, puuid };
+    await applyRename(rid, cur, puuid); return { rid: cur, puuid };
+  }
+  // puuid ilegible (de otra key) o sin puuid: ¿el nombre viejo sigue existiendo?
+  let byName = null;
+  try { const [n, t] = rid.split('#'); byName = await riot(`https://${CLUSTER}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(n.trim())}/${encodeURIComponent((t || '').trim())}`); } catch {}
+  await sleep(110);
+  if (byName && byName.puuid){ puuidCache[rid] = byName.puuid; nameChecked[k] = Date.now(); return { rid, puuid: byName.puuid }; }
+  // ya no existe con ese nombre → se busca en su última partida guardada
+  if (!pgPool) return { rid, puuid };
+  try {
+    const r = (await pgPool.query(`SELECT match_id, champion, kills, deaths, assists FROM match_participants
+      WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1 ORDER BY game_end DESC LIMIT 1`, [k])).rows[0];
+    if (!r) return { rid, puuid };
+    const m = await riot(`https://${CLUSTER}.api.riotgames.com/lol/match/v5/matches/${r.match_id}`); await sleep(110);
+    const pp = m && m.info && m.info.participants.find(x => x.championName === r.champion && x.kills === r.kills && x.deaths === r.deaths && x.assists === r.assists);
+    if (!pp) return { rid, puuid };
+    const a = await riot(`https://${CLUSTER}.api.riotgames.com/riot/account/v1/accounts/by-puuid/${pp.puuid}`); await sleep(110);
+    if (!a || !a.gameName) return { rid, puuid };
+    const cur = `${a.gameName}#${a.tagLine}`;
+    nameChecked[k] = Date.now();
+    if (nrid(cur) === k){ puuidCache[rid] = pp.puuid; return { rid, puuid: pp.puuid }; }
+    await applyRename(rid, cur, pp.puuid); return { rid: cur, puuid: pp.puuid };
+  } catch (e) { console.warn('  ✎ no se pudo revisar el nombre: ' + e.message); return { rid, puuid }; }
+}
+
 // Plataforma real de una cuenta (la2, br1, na1…) para consultar league/spectator en el
 // servidor correcto. Así funcionan cuentas de otras regiones (p.ej. #BR). Cacheada.
 async function regionOf(puuid) {
@@ -519,6 +592,15 @@ function rankText(entry) {
 
 (async () => {
   await initDB();   // conexión a Postgres para guardar participantes (si hay DATABASE_URL)
+  // Renombres ya detectados: la lista fija (y la de la DB) siguen a la cuenta con su nombre nuevo.
+  if (pgPool){
+    try {
+      await pgPool.query('CREATE TABLE IF NOT EXISTS riot_renames (old_rid TEXT PRIMARY KEY, new_rid TEXT NOT NULL, at TIMESTAMPTZ DEFAULT now())');
+      const ren = {}; (await pgPool.query('SELECT old_rid, new_rid FROM riot_renames')).rows.forEach(r => { ren[r.old_rid] = r.new_rid; });
+      for (let i = 0; i < RIOT_IDS.length; i++){ let n = ren[nrid(RIOT_IDS[i])], hops = 0; while (n && ren[nrid(n)] && hops++ < 5) n = ren[nrid(n)]; if (n) RIOT_IDS[i] = n; }
+      for (let i = RIOT_IDS.length - 1; i >= 0; i--) if (RIOT_IDS.findIndex(x => nrid(x) === nrid(RIOT_IDS[i])) !== i) RIOT_IDS.splice(i, 1);   // sin duplicados
+    } catch (e) { console.warn('riot_renames: ' + e.message); }
+  }
   process.stdout.write('Cargando Data Dragon... ');
   const DD = await getDDragon();
   console.log(`v${DD.version}\n`);
@@ -533,10 +615,12 @@ function rankText(entry) {
   const players = [];
   const rawByPlayer = [];  // {puuid, raw}
   const seenPuuids = new Set();   // evita duplicados (misma cuenta con distinto casing/tag)
-  for (const rid of RIOT_IDS) {
+  for (let rid of RIOT_IDS) {
     process.stdout.write(`→ ${rid} ... `);
     try {
-      const puuid = await getPuuid(rid); await sleep(110);
+      let puuid = await getPuuid(rid); await sleep(110);
+      // ¿cambió de nombre? (revisa cada 12 h; también rescata cuentas cuyo nombre viejo ya no existe)
+      { const r = await checkRename(rid, puuid); if (r.rid !== rid) TOURNAMENT_SET.add(r.rid.toLowerCase()); rid = r.rid; puuid = r.puuid; }
       if (!puuid) { console.log('cuenta no encontrada'); continue; }
       if (seenPuuids.has(puuid)) { console.log('duplicada (misma cuenta) — omitida'); continue; }
       seenPuuids.add(puuid);
@@ -713,6 +797,7 @@ function rankText(entry) {
   for (const k in rankStore) if (rankStore[k].at < cutoff) delete rankStore[k];
   if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR);
   fs.writeFileSync(PUUID_FILE, JSON.stringify(puuidCache));
+  try { fs.writeFileSync(NAMECHK_FILE, JSON.stringify(nameChecked)); } catch {}
   fs.writeFileSync(RANK_FILE,  JSON.stringify(rankStore));
   fs.writeFileSync(MATCH_FILE, JSON.stringify(matchStore));
   fs.writeFileSync(ENC_FILE, JSON.stringify(encounterStore));
