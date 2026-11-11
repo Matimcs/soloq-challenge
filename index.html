@@ -956,9 +956,13 @@ async function loadTourneyTags(){
 }
 function avaSrc(rid, nm){ return AVA_BY_RID[nrid(rid)] || AVA_BY_NAME[(nm||'').toLowerCase()] || null; }
 // Rol a mostrar: el pos1 registrado por el jugador manda; si no, el auto-detectado por partidas.
+// Rol de la cuenta: el que juega en más del 50% de sus últimas 50 partidas (cada cuenta por separado: una smurf
+// puede tener otro rol que la main). Sin mayoría: el rol registrado del dueño, solo en su cuenta main; si no, el más jugado.
 function roleFor(p){
-  const reg = ROLE_BY_RID[nrid(p.rid)];
-  if (reg) return reg;
+  if (p.roleMaj && p.role && p.role !== '—') return p.role;
+  const reg = ROLE_BY_RID[nrid(p.rid)], isMain = !/^smurf/i.test(LABEL_BY_RID[nrid(p.rid)] || '');
+  if (reg && isMain) return reg;
+  if (p.roleTop) return p.roleTop;
   if (p.role && p.role !== '—' && p.role !== '–') return p.role;
   return null;
 }

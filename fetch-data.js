@@ -673,6 +673,25 @@ function rankText(entry) {
   }
 
   // Orden del ranking y mapa de posiciones
+  // Rol de cada CUENTA: el que juega en MÁS del 50% de sus últimas 50 partidas guardadas (sin remakes).
+  // Cada cuenta por separado: una smurf puede tener otro rol que la main del mismo jugador.
+  // Sin mayoría: roleMaj=false y roleTop = el más jugado (la web decide qué mostrar).
+  if (pgPool && players.length){
+    try {
+      const rows = (await pgPool.query(`SELECT puuid, position FROM (
+          SELECT puuid, position, row_number() OVER (PARTITION BY puuid ORDER BY game_end DESC) rn
+          FROM match_participants WHERE puuid = ANY($1) AND coalesce(position,'') <> '' AND coalesce(duration,0) >= 300) t
+        WHERE rn <= 50`, [players.map(p => p.puuid)])).rows;
+      const cnt = {};
+      for (const r of rows){ const c = cnt[r.puuid] = cnt[r.puuid] || {}; c[r.position] = (c[r.position] || 0) + 1; }
+      for (const p of players){
+        const c = cnt[p.puuid]; if (!c) continue;
+        const n = Object.values(c).reduce((a, b) => a + b, 0), [top, k] = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+        p.roleTop = ROLE_LBL[top] || null; p.roleN = n; p.roleMaj = k / n > 0.5;
+        p.role = p.roleMaj ? (ROLE_LBL[top] || '—') : '—';
+      }
+    } catch (e) { console.warn('roles por cuenta: ' + e.message); }
+  }
   players.sort((a, b) => ladderValue(b) - ladderValue(a));
   const posByPuuid = new Map();
   const nowMs = Date.now();
