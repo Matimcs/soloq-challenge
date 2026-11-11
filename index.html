@@ -2195,7 +2195,7 @@ function initMaio(){
   }
   let count = 0, timer = null, reopenT = null;
   const last = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
-  const paintCount = () => { $m('mai-count').innerHTML = `<b>${count.toLocaleString('es-CL')}</b> ${count === 1 ? 'pidió' : 'pidieron'} que se retire`; };
+  const paintCount = () => { $m('mai-count').innerHTML = `<b>${count.toLocaleString('es-CL')}</b> ${count === 1 ? 'solicitud' : 'solicitudes'} de retiro`; };
   function refreshBtn(){
     const left = COOLDOWN - (Date.now() - last());
     if (left > 0){ btn.disabled = true; const mm = Math.floor(left / 60000), ss = Math.floor(left % 60000 / 1000);
