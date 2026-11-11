@@ -549,8 +549,10 @@ async function updatePlayerStats(puuid, entry){
   // también se marcan las ya guardadas antes de que existiera el flag (VOID_IDS viene de la DB).
   store.games.forEach(g => { if (g.win) delete g.void; else if (VOID_IDS.has(g.id + '|' + puuid)) g.void = true; });
   const counted = store.games.filter(g => !g.void);
-  const form = counted.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
-  const formT = counted.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
+  // Forma (sparkline) y rachas: sin remakes — no son victoria ni derrota (no mueven LP), antes contaban como derrota.
+  const played = counted.filter(g => !g.remake);
+  const form = played.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
+  const formT = played.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
   // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
   const posCount = {};
   counted.forEach(g => { if (g.pos) posCount[g.pos] = (posCount[g.pos] || 0) + 1; });
