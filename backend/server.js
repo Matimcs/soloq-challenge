@@ -1233,6 +1233,26 @@ async function rkChampKeys(){   // id numérico de campeón → id de Data Drago
   return RK_CHAMP_KEYS.map || {};
 }
 const ovNrk = r => String(r || '').toLowerCase().replace(/\s+/g, '');
+// Cruza los jugadores de una partida (del historial del cliente) con los cupos de la sala de Ranked.
+// 1° por Riot ID; 2° por eliminación: si en un equipo queda UN cupo libre y UN participante sin emparejar,
+// es esa persona aunque haya jugado con otra cuenta (p. ej. una smurf no registrada).
+function rkMapGamePlayers(teams, g){
+  const slotByRid = {}, all = []; teams.forEach(t => t.players.forEach(p => { const sl = { uid: p.uid, side: t.side, nick: p.nick }; slotByRid[ovNrk(p.rid)] = sl; all.push(sl); }));
+  const rep = g.players.map(p => ({ p, s: slotByRid[ovNrk(p.rid)] })).filter(x => x.s);
+  const sideTeam = {};
+  for (const side of ['blue', 'red']){
+    const cnt = {}; rep.filter(x => x.s.side === side).forEach(x => { cnt[x.p.teamId] = (cnt[x.p.teamId] || 0) + 1; });
+    const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0]; sideTeam[side] = best ? Number(best[0]) : null;
+  }
+  for (const side of ['blue', 'red']){
+    const tid = sideTeam[side]; if (tid == null) continue;
+    const usedUid = new Set(rep.map(x => x.s.uid)), usedP = new Set(rep.map(x => x.p));
+    const freeSlots = all.filter(sl => sl.side === side && !usedUid.has(sl.uid));
+    const freeParts = g.players.filter(p => p.teamId === tid && !usedP.has(p));
+    if (freeSlots.length === 1 && freeParts.length === 1) rep.push({ p: freeParts[0], s: freeSlots[0], byElim: true });
+  }
+  return { rep, sideTeam };
+}
 app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
   const b = req.body || {}, g = b.game || {}, riotid = String(b.riotid || '').trim();
   if (!/^.+#.+$/.test(riotid) || !Array.isArray(g.players) || !g.players.length || g.players.length > 12) return res.status(400).json({ error: 'datos inválidos' });
@@ -1249,6 +1269,18 @@ app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
       if (mine && won(mine.teamId) !== (d.winner === mine.side) && !d.conflict){
         d.conflict = { by: (u0 && u0.nickname) || riotid, at: Date.now(), claims: won(mine.teamId) ? mine.side : (mine.side === 'blue' ? 'red' : 'blue') };
         await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [used.id, JSON.stringify(d)]); }
+      // ¿a la partida guardada le faltan jugadores (alguno jugó con otra cuenta)? se completa con este reporte
+      if ((d.game.players || []).length < 10){
+        const { rep: rp } = rkMapGamePlayers(d.teams, g), have = new Set((d.game.players || []).map(x => x.uid)), keys = await rkChampKeys(), picks = (d.draft && d.draft.picks) || {};
+        const add = rp.filter(x => !have.has(x.s.uid)).map(({ p, s: sl }) => ({ uid: sl.uid, nick: sl.nick, rid: p.rid, side: sl.side, teamId: p.teamId,
+          champ: keys[String(p.championId)] || (p.championName ? String(p.championName).replace(/[^A-Za-z]/g, '') : null), picked: picks[sl.uid] || null,
+          k: num(p.kills), d: num(p.deaths), a: num(p.assists), cs: num(p.cs), gold: num(p.gold), dmg: num(p.damage), vision: num(p.vision), level: num(p.level),
+          items: Array.isArray(p.items) ? p.items.map(num).filter(x => x).slice(0, 7) : [] }));
+        if (add.length){ d.game.players = (d.game.players || []).concat(add);
+          if (d.champFix) add.forEach(x => { delete d.champFix[x.uid]; });   // ya hay datos reales
+          await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [used.id, JSON.stringify(d)]); RK_HIST.at = 0;
+          return res.json({ ok: true, completed: add.map(x => x.nick), matchId: used.id }); }
+      }
       return res.json({ ok: true, ignored: 'ya registrada', matchId: used.id }); } } catch {}
   const u = await q1("SELECT id, nickname FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [ovNrk(riotid)]);
   const mid = u ? RK.byUser.get(u.id) : null, m = mid != null ? RK.matches.get(mid) : null;
@@ -1257,14 +1289,10 @@ app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
   if ((num(g.duration) || 0) < 180) return res.json({ ok: true, ignored: 'partida demasiado corta' });
   if (g.creation && +g.creation < (m.playingAt || m.createdAt) - 5 * 60000) return res.json({ ok: true, ignored: 'la partida es anterior a la sala' });
   // cruzar los jugadores de la partida con los de la sala
-  const slotByRid = {}; m.teams.forEach(t => t.players.forEach(p => { slotByRid[ovNrk(p.rid)] = { uid: p.uid, side: t.side, nick: p.nick }; }));
-  const rep = g.players.map(p => ({ p, s: slotByRid[ovNrk(p.rid)] })).filter(x => x.s);
-  const sideTeam = {};
+  const { rep, sideTeam } = rkMapGamePlayers(m.teams, g);
   for (const side of ['blue', 'red']){
-    const ids = rep.filter(x => x.s.side === side).map(x => x.p.teamId), cnt = {}; ids.forEach(t => { cnt[t] = (cnt[t] || 0) + 1; });
-    const best = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
-    sideTeam[side] = best ? Number(best[0]) : null;
-    if (!m.sim && (!best || best[1] < 4)) return res.status(400).json({ error: 'los jugadores de la partida no coinciden con los de la sala' });
+    const n = rep.filter(x => x.s.side === side && !x.byElim).length;   // al menos 4 por Riot ID (el 5° puede ir por eliminación)
+    if (!m.sim && (sideTeam[side] == null || n < 4)) return res.status(400).json({ error: 'los jugadores de la partida no coinciden con los de la sala' });
   }
   if (m.sim){ const me = rep.find(x => ovNrk(x.p.rid) === ovNrk(riotid)); if (!me) return res.status(400).json({ error: 'no estás en la partida reportada' });
     sideTeam[me.s.side] = me.p.teamId; sideTeam[me.s.side === 'blue' ? 'red' : 'blue'] = me.p.teamId === 100 ? 200 : 100; }
