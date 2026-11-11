@@ -3201,6 +3201,22 @@ async function rkInitLoad(){
       if (ch) await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [r.id, JSON.stringify(d)]); }
     console.log('Ranked: migración a Maestro aplicada (+400 PL a ' + [...RK.players.values()].filter(p => p.uid > 0).length + ' jugadores)'); } } catch (e) { console.error('migración Maestro:', e.message); }
   try { for (const r of await q("SELECT id, data FROM ranked_matches WHERE status IN ('draft','playing','dispute')")){ const m = r.data; m.id = r.id; RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
+  // Corrección puntual (pedida el 2026-11-11): en la partida #7 el equipo rojo jugó cada campeón en su rol natural
+  // (se olvidaron de intercambiar campeones), así que el rol de cada uno pasa a ser el de su campeón. Una sola vez.
+  try {
+    const FIX7 = { Renekton: 'TOP', Annie: 'MIDDLE', Taliyah: 'JUNGLE', Ezreal: 'BOTTOM', Karma: 'UTILITY' };
+    let m7 = RK.matches.get(7), fromDb = false;
+    if (!m7){ const r7 = await q1("SELECT data FROM ranked_matches WHERE id=7"); if (r7){ m7 = r7.data; m7.id = 7; fromDb = true; } }
+    if (m7 && !m7.rolesByChampFix && !RK_LOCAL){   // solo en el servidor real
+      for (const t of m7.teams || []) for (const p of t.players || []){
+        const nr = FIX7[(m7.draft && m7.draft.picks || {})[p.uid]];
+        if (nr && p.role !== nr){ p.role = nr; try { p.pref = rkPrefName(rkPref(rkPlayer(p.uid), nr)); } catch {} }
+      }
+      m7.rolesByChampFix = true;
+      await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [7, JSON.stringify(m7)]);
+      console.log('Ranked: partida #7 — roles reasignados según campeón' + (fromDb ? ' (ya terminada)' : ''));
+    }
+  } catch (e) { console.error('fix #7:', e.message); }
   try { const r = await q1("SELECT data FROM tool_state WHERE id='rk:queue' AND updated_at > now() - interval '3 hours'");
     for (const e of (r && Array.isArray(r.data) ? r.data : [])) if (e && Number.isFinite(e.uid) && !RK.byUser.has(e.uid)) RK.queue.set(e.uid, { uid: e.uid, since: e.since || Date.now() });
     _rkQueueSig = [...RK.queue.values()].map(e => e.uid + ':' + e.since).sort().join(','); } catch {}
@@ -3575,14 +3591,19 @@ async function rkMatchView(m, uid){
   const flat = { ban: [], pick: [] }; (d.seq || []).forEach(x => flat[x.t].push(...x.u));
   const ord = (t, u) => { const i = flat[t].indexOf(u); return i < 0 ? 99 : i; };
   const w = u => rkVoteWeight(rkPlayer(u).strikes);
+  // Finalización del draft: del equipo rival se ven sus 5 campeones, pero NO quién juega cuál (evita la carrera
+  // de cambiar campeones según lo que se ve del otro lado). Se revela al empezar la partida.
+  const hideRival = m.status === 'draft' && d.phase === 'final' && !!my;
+  const hid = t => hideRival && t !== my;
   return { id: m.id, status: m.status, createdAt: m.createdAt, lobby: m.lobby, winner: m.winner, resolvedBy: m.resolvedBy,
     kickNeed: RK_KICK_NEED,
-    teams: m.teams.map(t => ({ side: t.side, mine: t === my, avgRank: rkRank(t.players.reduce((s, p) => s + p.lp, 0) / 5),
+    teams: m.teams.map(t => ({ side: t.side, mine: t === my,
+      rivalChamps: hid(t) ? t.players.map(p => d.picks[p.uid]).filter(Boolean).sort() : undefined, avgRank: rkRank(t.players.reduce((s, p) => s + p.lp, 0) / 5),
       players: t.players.slice().sort((x, y) => ord('pick', x.uid) - ord('pick', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, rank: rkRank(p.lp), me: p.uid === uid,
-        champ: d.picks[p.uid] || null, auto: !!p.auto, banned: !!d.locked[p.uid],
+        champ: hid(t) ? null : (d.picks[p.uid] || null), hiddenPick: hid(t) && !!d.picks[p.uid], auto: hid(t) ? false : !!p.auto, banned: !!d.locked[p.uid],
         kick: ((m.kicks || {})[p.uid] || []).length, myKick: ((m.kicks || {})[p.uid] || []).includes(uid),
         canSwap: t === my && p.uid !== uid && rkSwapTypes(m, uid, p.uid).length > 0,
-        hover: !d.picks[p.uid] && (t === my || (cur && cur.t === 'pick' && cur.u.includes(p.uid))) ? ((d.hover || {})[p.uid] || null) : null,
+        hover: !hid(t) && !d.picks[p.uid] && (t === my || (cur && cur.t === 'pick' && cur.u.includes(p.uid))) ? ((d.hover || {})[p.uid] || null) : null,
         canRole: m.status === 'draft' && d.phase === 'prep' && t === my && p.uid !== uid,
         canTrade: m.status === 'draft' && t === my && p.uid !== uid && !!d.picks[uid] && !!d.picks[p.uid] })),
       bans: t.players.slice().sort((x, y) => ord('ban', x.uid) - ord('ban', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, champ: d.bans[p.uid] || null, done: !!d.locked[p.uid] })) })),
@@ -3595,7 +3616,9 @@ async function rkMatchView(m, uid){
         open: m.status === 'draft' && d.phase === 'prep' && !d.sideSwapped, canVote: m.status === 'draft' && d.phase === 'prep' && !d.sideSwapped && m.teams[1].players.some(p => p.uid === uid) },
       myPickAt: (d.pickAt || {})[uid] || null, myPickChanged: !!(d.pickChanged || {})[uid],
       pickReqs: m.status === 'draft' ? Object.entries(d.pickReq || {}).map(([a, to]) => { a = Number(a); const t = rkTeamOf(m, a);
-        return { uid: a, nick: (rkSlot(m, a) || {}).nick, side: t.side, from: d.picks[a] || null, to, mine: a === uid, rival: !!my && t !== my }; }) : [],
+        // en la finalización el pedido del rival se ve anónimo (sin quién ni desde qué campeón); igual se puede aceptar
+        if (hid(t)) return { uid: a, nick: null, side: t.side, from: null, to, mine: false, rival: true, anon: true };
+        return { uid: a, nick: (rkSlot(m, a) || {}).nick, side: t.side, from: d.picks[a] || null, to, mine: a === uid, rival: !!my && t !== my }; }).filter(Boolean) : [],
       banReqs: m.status === 'draft' ? Object.entries(d.banReq || {}).map(([a, to]) => { a = Number(a); const t = rkTeamOf(m, a);
         return { uid: a, nick: (rkSlot(m, a) || {}).nick, side: t.side, from: d.bans[a] || null, to, mine: a === uid, rival: !!my && t !== my }; }) : [],
       swapOut: m.status === 'draft' && sw[uid] != null ? sw[uid] : null, swapIn: m.status === 'draft' ? Object.keys(sw).map(Number).filter(a => sw[a] === uid) : [] },

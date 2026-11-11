@@ -243,7 +243,7 @@
     const curSide = d.turn && d.turn.length ? (m.teams.find(t => t.players.some(p => p.uid === d.turn[0])) || {}).side : null;
     const canBan = m.status === 'draft' && d.phase === 'ban' && d.turn.includes(me.uid) && !d.myBanLocked;
     const canPick = m.status === 'draft' && d.phase === 'pick' && d.turn.includes(me.uid) && myP && !myP.champ;
-    const taken = new Set(); m.teams.forEach(t => { t.bans.forEach(b => b.champ && taken.add(b.champ)); t.players.forEach(p => p.champ && taken.add(p.champ)); });
+    const taken = new Set(); m.teams.forEach(t => { t.bans.forEach(b => b.champ && taken.add(b.champ)); t.players.forEach(p => p.champ && taken.add(p.champ)); (t.rivalChamps || []).forEach(c => taken.add(c)); });
     const myReq = (d.banReqs || []).find(r => r.mine);
     const canAskBan = m.status === 'draft' && d.myBanLocked && !d.myBanChanged && !myReq && mine && (!curSide || curSide !== mine.side);
     const myPickReq = (d.pickReqs || []).find(r => r.mine);
@@ -258,7 +258,7 @@
     const m = st.match; if (!m || !st.me){ S.snd = null; return; }
     const d = m.draft, C = m.status === 'draft' ? ctx() : null;
     const cur = { id: m.id, status: m.status, phase: d.phase, my: !!(C && (C.canBan || C.canPick)),
-      picks: m.teams.reduce((s, t) => s + t.players.filter(p => p.champ).length, 0),
+      picks: m.teams.reduce((s, t) => s + t.players.filter(p => p.champ || p.hiddenPick).length, 0),
       bans: m.teams.reduce((s, t) => s + t.bans.filter(b => b.champ).length, 0),
       reqs: (d.roleIn || []).length + (d.swapIn || []).length + (d.tradeIn || []).length + (d.side && d.side.canVote && d.side.votes ? 1 : 0),
       chg: (d.banReqs || []).map(r => 'b' + r.uid + ':' + r.to).concat((d.pickReqs || []).map(r => 'p' + r.uid + ':' + r.to)) };
@@ -321,7 +321,8 @@
       const html = `<div class="tn">Equipo ${sideName(t.side)}</div>
         <div class="ts">${t.mine ? '<span style="color:var(--accent);font-weight:700">Tu equipo</span> · ' : ''}<span><img src="${emb(t.avgRank.tier)}" alt=""> ${esc(TIER[t.avgRank.tier] || t.avgRank.tier)}${t.avgRank.div ? ' ' + t.avgRank.div : ''} promedio</span>
           <a class="mini" href="${multi(t.players.map(p => p.rid))}" target="_blank" rel="noopener">OP.GG del equipo ↗</a></div>`;
-      once('tm-' + t.side, html, $('tm-' + t.side));
+      const rc = (t.rivalChamps || []).length ? `<div class="ts" style="margin-top:6px;flex-wrap:wrap;gap:6px" title="En la finalización no se ve qué jugador tiene cada campeón">🙈 Sus campeones: ${t.rivalChamps.map(c => `<span style="display:inline-flex;align-items:center;gap:4px"><img src="${icon(c)}" alt="" style="width:20px;height:20px;border-radius:4px"> ${esc(cname(c))}</span>`).join(' ')}</div>` : '';
+      once('tm-' + t.side, html + rc, $('tm-' + t.side));
     }
   }
   function renderSides(C){
@@ -330,7 +331,8 @@
       const html = t.players.map(p => {
         const turn = d.turn.includes(p.uid) && (d.phase === 'pick' ? !p.champ : !p.banned);
         const show = p.champ || p.hover, ghost = !p.champ && p.hover;
-        const state = p.champ ? cname(p.champ) + (p.auto ? ' <span style="font-size:11px;color:var(--muted)">(automático)</span>' : '')
+        const state = p.hiddenPick ? '<span style="color:var(--muted)">Campeón oculto</span>'
+          : p.champ ? cname(p.champ) + (p.auto ? ' <span style="font-size:11px;color:var(--muted)">(automático)</span>' : '')
           : p.hover ? cname(p.hover) : (turn && d.phase === 'pick' ? 'Eligiendo…' : 'Esperando');
         const mineTeam = t.mine && !p.me;
         const acts = [];
@@ -352,7 +354,7 @@
           <div class="ov"></div>
           <div class="in">
             <div class="role">${RICO[p.role] ? `<img src="overlay/assets/roles/${RICO[p.role]}.webp" alt="">` : ''}${ROLE[p.role] || p.role}${p.pref === 'auto' ? ' <span class="pf">· autofill</span>' : p.pref === 'sec' ? ' <span class="pf">· secundario</span>' : ''}</div>
-            <div class="ch ${p.champ ? '' : 'wait'}">${state}</div>
+            <div class="ch ${p.champ || p.hiddenPick ? '' : 'wait'}">${state}</div>
             <div class="nk">${esc(p.nick)}${p.me ? ' <small>TÚ</small>' : ''}</div>
             <div class="rk"><img src="${emb(p.rank.tier)}" alt="">${rankTxt(p.rank)}</div>
           </div>
@@ -402,7 +404,7 @@
     });
     (d.pickReqs || []).forEach(r => {
       const ch = c => c ? `<img src="${icon(c)}" alt=""> ${esc(cname(c))}` : '—';
-      if (r.rival) items.push(`<div class="rq hot"><span>Equipo ${sideName(r.side)} · <b>${esc(r.nick)}</b> pide cambiar su campeón: ${ch(r.from)} → ${ch(r.to)}</span><button class="mini ok" data-pk="${r.uid}|accept">Aceptar</button><button class="mini" data-pk="${r.uid}|decline">Rechazar</button></div>`);
+      if (r.rival) items.push(`<div class="rq hot"><span>Equipo ${sideName(r.side)} · ${r.anon ? `alguien pide cambiar su campeón a ${ch(r.to)}` : `<b>${esc(r.nick)}</b> pide cambiar su campeón: ${ch(r.from)} → ${ch(r.to)}`}</span><button class="mini ok" data-pk="${r.uid}|accept">Aceptar</button><button class="mini" data-pk="${r.uid}|decline">Rechazar</button></div>`);
       else if (r.mine) items.push(`<div class="rq"><span>Pediste cambiar tu campeón a ${ch(r.to)}. Lo tiene que aceptar alguien del equipo rival…</span><button class="mini" data-pk="0|cancel">Cancelar</button></div>`);
       else items.push(`<div class="rq"><span><b>${esc(r.nick)}</b> pidió cambiar su campeón a ${ch(r.to)}. Esperando al equipo rival…</span></div>`);
     });
