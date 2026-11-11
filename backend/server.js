@@ -1606,7 +1606,9 @@ app.get('/api/overlay/standing', wrap(async (req,res) => {
   const TV = { IRON:0, BRONZE:1, SILVER:2, GOLD:3, PLATINUM:4, EMERALD:5, DIAMOND:6 }, DV = { IV:0, III:1, II:2, I:3 };
   const abs = p => !p || !p.tier || p.tier === 'UNRANKED' ? 0 : ['MASTER','GRANDMASTER','CHALLENGER'].includes(p.tier) ? 2800 + (p.lp || 0) : (TV[p.tier] || 0) * 400 + (DV[p.div] || 0) * 100 + (p.lp || 0);
   let target = null;
-  if (i > 0){ const up = all[i - 1], k2 = nrSmurf(up.rid);
+  // objetivo = la primera cuenta de arriba con MÁS LP (si están empatados a 0 LP de diferencia, se salta: ya lo alcanzaste)
+  let j = i - 1; while (j >= 0 && abs(all[j]) <= abs(all[i])) j--;
+  if (i > 0 && j >= 0){ const up = all[j], k2 = nrSmurf(up.rid);
     const o = await q1("SELECT u.nickname FROM users u WHERE lower(regexp_replace(u.riotid, '[[:space:]]', '', 'g')) = $1 UNION ALL SELECT u.nickname FROM smurfs s JOIN users u ON u.id = s.user_id WHERE lower(regexp_replace(s.riotid, '[[:space:]]', '', 'g')) = $1 LIMIT 1", [k2]);
     target = { name: (o && o.nickname) || up.nm || String(up.rid).split('#')[0], lp: Math.max(0, abs(up) - abs(all[i])) }; }
   res.json({ pos: i >= 0 ? i + 1 : null, total: all.length, target });

@@ -744,7 +744,8 @@ async function poll(){
         recent: (standing && standing.recent) || [],
         // Objetivo: jugador justo arriba en la ladder + LP para alcanzarlo (null si es #1)
         target: (realPos && realPos.rid === myRid && realPos.pos) ? (realPos.target || null)   // puesto real: el de arriba aunque sea una smurf
-          : idx > 0 ? { name: players[idx - 1].nm, lp: Math.max(0, absLP(players[idx - 1]) - absLP(standing)) } : null,
+          : (() => { let j = idx - 1; while (j >= 0 && absLP(players[j]) <= absLP(standing)) j--;   // a 0 LP de alguien: ya lo alcanzaste, el objetivo es el siguiente con más LP
+              return idx > 0 && j >= 0 ? { name: players[j].nm, lp: absLP(players[j]) - absLP(standing) } : null; })(),
         matchup: null,
       });
 
