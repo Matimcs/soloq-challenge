@@ -1757,27 +1757,9 @@ app.post('/api/admin/confirm', auth, requireAdmin, wrap(async (req,res) => {
 let liveData = null;   // último snapshot en memoria (sobrevive a discos efímeros)
 // Snapshot del ranking: SIEMPRE de memoria (liveData). Cae al disco solo si aún no hay memoria
 // (evita leer un players.json de disco vacío/viejo cuando el runner no lo escribió este arranque).
-// Broma temporal y reversible: rango falso para UN jugador (tool_state 'joke:rank' = { rid, tier, lp, until }).
-// No toca los datos reales: solo se aplica al servir el ranking y se apaga sola al llegar a 'until'.
-// Para quitarla antes: DELETE FROM tool_state WHERE id='joke:rank'.
-let JOKE = null;
-async function loadJoke(){ try { const r = await q1("SELECT data FROM tool_state WHERE id='joke:rank'"); JOKE = r && r.data && r.data.until > Date.now() ? r.data : null; } catch {} }
-loadJoke(); setInterval(loadJoke, 60000);
-function withJoke(d){
-  if (!JOKE || JOKE.until < Date.now() || !d || !Array.isArray(d.players)) return d;
-  const k = String(JOKE.rid).toLowerCase().replace(/\s+/g, '');
-  const i = d.players.findIndex(p => String(p.rid || '').toLowerCase().replace(/\s+/g, '') === k); if (i < 0) return d;
-  const players = d.players.slice(), pj = { ...players[i], tier: JOKE.tier, div: '', lp: JOKE.lp };
-  players.splice(i, 1);
-  // vuelve a ubicarlo por LP absoluto (Challenger/GM/Master se ordenan por LP)
-  const TO = { CHALLENGER: 3, GRANDMASTER: 2, MASTER: 1 }, val = x => (TO[x.tier] != null ? 1e6 + TO[x.tier] * 1e5 : 0) + (x.lp || 0);
-  let at = players.findIndex(x => val(x) < val(pj)); if (at < 0) at = players.length;
-  players.splice(at, 0, pj);
-  return { ...d, players };
-}
 function liveSnapshot(){
-  if (liveData && Array.isArray(liveData.players)) return withJoke(liveData);
-  try { return withJoke(JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'))); } catch { return { players: [], encounters: [] }; }
+  if (liveData && Array.isArray(liveData.players)) return liveData;
+  try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { return { players: [], encounters: [] }; }
 }
 app.post('/api/ingest', wrap(async (req,res) => {
   if (!process.env.INGEST_SECRET) return res.status(503).json({ error:'Ingesta deshabilitada (falta INGEST_SECRET)' });
@@ -1806,7 +1788,6 @@ app.get('/api/nav-counts', wrap(async (req,res) => {
 // Snapshot público SIN live games ni encuentros (dicen quién juega ahora, con qué y con quién): eso va en /api/live, solo org.
 const publicSnap = () => {
   let d = liveData; if (!d){ try { d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { d = { players: [] }; } }
-  d = withJoke(d);
   return { ...d, liveGames: [], encounters: [], orgOnly: true,
     players: (d.players || []).filter(p => !isSmurf(p.rid)).map(p => ({ ...p, inGame: false, game: null })) };
 };
