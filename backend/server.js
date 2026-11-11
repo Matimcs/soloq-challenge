@@ -4704,7 +4704,8 @@ function startEmbeddedRunner(){
     // largo no pierde historial.
     let stopping = false;
     process.once('SIGTERM', async () => { if (stopping) return; stopping = true;
-      const t = setTimeout(() => process.exit(0), 20000); try { await saveCache(); await persistPlayers(); } catch {} clearTimeout(t); process.exit(0); });
+      const t = setTimeout(() => process.exit(0), 20000);   // primero el ranking (liviano y es lo que se ve al reiniciar), después los cachés grandes
+      try { await persistPlayers(); } catch {} try { await saveCache(); } catch {} clearTimeout(t); process.exit(0); });
     for (;;){
       const t = Date.now();
       try {
