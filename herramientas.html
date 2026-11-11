@@ -1206,7 +1206,7 @@
           <a class="fv-btn sm" href="${rkMulti(t.players.map(p => p.rid))}" target="_blank" rel="noopener">OP.GG</a></div>` +
         t.players.map(p => `<div class="rkx-dp">
           <span class="ch">${p.champ ? `<img src="${anChamp(p.champ)}" alt="">` : '<i></i>'}${p.level ? `<em>${p.level}</em>` : ''}</span>
-          <span class="who"><a href="${rkOpgg(p.rid)}" target="_blank" rel="noopener"><b>${esc(p.nick)}</b></a><small>${rkRoleIco(p.role)} ${RK_ROLE[p.role] || ''}${p.champ ? ' · ' + esc(rkChampName(p.champ)) : ''}${p.picked && p.champ && p.picked !== p.champ ? ` <span class="down" title="En el draft eligió ${esc(rkChampName(p.picked))}">(draft: ${esc(rkChampName(p.picked))})</span>` : ''}</small></span>
+          <span class="who"><a href="${rkOpgg(p.rid)}" target="_blank" rel="noopener"><b>${esc(p.nick)}</b></a><small>${rkRoleIco(p.role)} ${RK_ROLE[p.role] || ''}${p.champ ? ' · ' + esc(rkChampName(p.champ)) : ''}</small></span>
           ${d.stats ? `<span class="kda"><b>${rkKda(p)}</b><small>${p.d ? ((p.k + p.a) / p.d).toFixed(2) : 'Perfecto'} KDA</small></span>
           <span class="num"><b>${p.cs ?? '–'}</b><small>${p.cs != null && d.duration ? (p.cs / (d.duration / 60)).toFixed(1) + '/min' : 'CS'}</small></span>
           <span class="num hm"><b>${fmtK(p.gold)}</b><small>oro</small></span>
