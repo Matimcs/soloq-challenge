@@ -3181,6 +3181,13 @@ function rkRank(abs){
   const ti = Math.floor(abs / 400), rem = abs - ti * 400, di = Math.floor(rem / 100);
   return { tier: RK_TIERS[ti], div: RK_DIVS[di], lp: rem - di * 100, abs };
 }
+// Broma temporal y reversible: rango que SE MUESTRA para un jugador en la Ranked interna (tabla, su perfil y el draft).
+// No cambia su LP/MMR real ni el emparejamiento. tool_state 'rk:joke' = { uid, abs, until }; se apaga sola al llegar a
+// 'until'. Para quitarla antes: DELETE FROM tool_state WHERE id='rk:joke'.
+let RK_JOKE = null;
+async function rkLoadJoke(){ try { const r = await q1("SELECT data FROM tool_state WHERE id='rk:joke'"); RK_JOKE = r && r.data && r.data.until > Date.now() ? r.data : null; } catch {} }
+rkLoadJoke(); setInterval(rkLoadJoke, 60000);
+const rkShowLp = (uid, lp) => (RK_JOKE && RK_JOKE.uid === uid && RK_JOKE.until > Date.now()) ? RK_JOKE.abs : lp;
 // Peso del voto: quien vota mal seguido pesa menos y, si insiste, pierde el voto.
 const rkVoteWeight = strikes => strikes >= 4 ? 0 : strikes >= 2 ? 0.5 : 1;
 // Carga inicial (una sola vez; quien llegue mientras carga espera la misma promesa, así nadie ve la cola vacía al arrancar).
@@ -3598,8 +3605,8 @@ async function rkMatchView(m, uid){
   return { id: m.id, status: m.status, createdAt: m.createdAt, lobby: m.lobby, winner: m.winner, resolvedBy: m.resolvedBy,
     kickNeed: RK_KICK_NEED,
     teams: m.teams.map(t => ({ side: t.side, mine: t === my,
-      rivalChamps: hid(t) ? t.players.map(p => d.picks[p.uid]).filter(Boolean).sort() : undefined, avgRank: rkRank(t.players.reduce((s, p) => s + p.lp, 0) / 5),
-      players: t.players.slice().sort((x, y) => ord('pick', x.uid) - ord('pick', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, rank: rkRank(p.lp), me: p.uid === uid,
+      rivalChamps: hid(t) ? t.players.map(p => d.picks[p.uid]).filter(Boolean).sort() : undefined, avgRank: rkRank(t.players.reduce((s, p) => s + rkShowLp(p.uid, p.lp), 0) / 5),
+      players: t.players.slice().sort((x, y) => ord('pick', x.uid) - ord('pick', y.uid)).map(p => ({ uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, rank: rkRank(rkShowLp(p.uid, p.lp)), me: p.uid === uid,
         champ: hid(t) ? null : (d.picks[p.uid] || null), hiddenPick: hid(t) && !!d.picks[p.uid], auto: hid(t) ? false : !!p.auto, banned: !!d.locked[p.uid],
         kick: ((m.kicks || {})[p.uid] || []).length, myKick: ((m.kicks || {})[p.uid] || []).includes(uid),
         canSwap: t === my && p.uid !== uid && rkSwapTypes(m, uid, p.uid).length > 0,
@@ -3634,7 +3641,7 @@ app.get('/api/ranked/state', orgOnly, wrap(async (req, res) => {
   const out = { now: Date.now(), size: RK_SIZE, queue: { count: RK.queue.size }, me: null, pending: null, match: null, last: null };
   if (uid){
     const users = await rkUsers(), u = users.get(uid) || { nick: '', rid: '', admin: false }, p = rkPlayer(uid);
-    out.me = { uid, nick: u.nick, rid: u.rid, admin: u.admin, role1: p.role1, role2: p.role2, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, strikes: p.strikes, voteWeight: rkVoteWeight(p.strikes), roles: rkFillStats(p), lastOff: !!p.lastOff };
+    out.me = { uid, nick: u.nick, rid: u.rid, admin: u.admin, role1: p.role1, role2: p.role2, rank: rkRank(rkShowLp(uid, p.lp)), wins: p.wins, losses: p.losses, strikes: p.strikes, voteWeight: rkVoteWeight(p.strikes), roles: rkFillStats(p), lastOff: !!p.lastOff };
     const e = RK.queue.get(uid); out.queue.inQueue = !!e; out.queue.since = e ? e.since : null;
     const pd = [...RK.pending.values()].find(x => x.players.includes(uid));
     if (pd) out.pending = { id: pd.id, deadline: pd.deadline, accepted: pd.accepted.size, total: RK_SIZE, iAccepted: pd.accepted.has(uid) };
@@ -3970,9 +3977,9 @@ app.get('/api/ranked/leaderboard', orgOnly, wrap(async (req, res) => {
   for (const d of await rkHistRows()) for (const t of d.teams) for (const p of t.players){
     (form[p.uid] = form[p.uid] || []); if (form[p.uid].length < 10) form[p.uid].push(t.side === d.winner ? 1 : 0);
     const st = rkGameP(d, p.uid), c = (st && st.champ) || (d.draft.picks || {})[p.uid]; if (c){ const m = champs[p.uid] = champs[p.uid] || {}; m[c] = (m[c] || 0) + 1; } }
-  const board = [...RK.players.values()].filter(p => p.uid > 0 && p.wins + p.losses > 0).sort((a, b) => b.lp - a.lp || b.wins - a.wins)
+  const board = [...RK.players.values()].filter(p => p.uid > 0 && p.wins + p.losses > 0).sort((a, b) => rkShowLp(b.uid, b.lp) - rkShowLp(a.uid, a.lp) || b.wins - a.wins)
     .map((p, i) => { const u = users.get(p.uid) || { nick: '?', rid: '' }; const f = rkFillStats(p);
-      return { pos: i + 1, uid: p.uid, nick: u.nick, rid: u.rid, rank: rkRank(p.lp), wins: p.wins, losses: p.losses, role1: p.role1, role2: p.role2, roles: { n: f.n, main: f.main, sec: f.sec, off: f.off, fill: f.fill },
+      return { pos: i + 1, uid: p.uid, nick: u.nick, rid: u.rid, rank: rkRank(rkShowLp(p.uid, p.lp)), wins: p.wins, losses: p.losses, role1: p.role1, role2: p.role2, roles: { n: f.n, main: f.main, sec: f.sec, off: f.off, fill: f.fill },
         form: form[p.uid] || [], champs: Object.entries(champs[p.uid] || {}).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => ({ c, n })) }; });
   const open = [...RK.matches.values()].map(m => ({ id: m.id, sim: !!m.sim, status: m.status, createdAt: m.createdAt, blue: m.teams[0].players.map(p => p.nick), red: m.teams[1].players.map(p => p.nick),
     votes: { blue: Object.values(m.votes).filter(v => v === 'blue').length, red: Object.values(m.votes).filter(v => v === 'red').length } }));
