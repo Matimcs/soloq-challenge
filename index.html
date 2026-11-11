@@ -764,7 +764,7 @@
               <tr id="rank-head">
                 <th class="sortable sort-desc" data-sort="rank">#<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
                 <th class="sortable" data-sort="name">Jugador<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
-                <th>Rol</th>
+                <th class="sortable" data-sort="role" title="Agrupa por rol (Top, Jungla, Mid, ADC, Support) y ordena cada grupo por LP">Rol<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
                 <th class="sortable" data-sort="elo">Elo<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
                 <th class="sortable" data-sort="wr">V / D<span class="arrows"><span class="a-up">▲</span><span class="a-dn">▼</span></span></th>
                 <th>Racha</th>
@@ -1046,6 +1046,7 @@ function matches(p,f){
 }
 
 // valor de orden por columna (mayor = "arriba" cuando dir='desc')
+const ROLE_ORDER = { Top:0, Jungla:1, Medio:2, ADC:3, Support:4 };
 const SORT_VAL = {
   rank: p => -p.rankPos,
   elo:  p => -p.rankPos,
@@ -1053,6 +1054,8 @@ const SORT_VAL = {
   wr:   p => p.w / ((p.w + p.l) || 1),
   dlp:   p => (p.up || 0),
   aegis: p => (p.aegis || 0),
+  // por rol: Top, Jungla, Mid, ADC, Support (y sin rol al final); dentro de cada rol, por LP (puesto en el ranking)
+  role: p => { const i = ROLE_ORDER[roleFor(p)]; return -((i == null ? 9 : i) * 10000 + (p.rankPos || 9999)); },
 };
 
 const STAR = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.5l2.6 5.3 5.9.85-4.25 4.15 1 5.85L12 16.9l-5.25 2.75 1-5.85L3.5 9.65l5.9-.85L12 3.5z"></path></svg>`;
