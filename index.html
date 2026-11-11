@@ -2162,8 +2162,58 @@ if (location.hash === '#live'){ const lt = document.querySelector('.tab-link[dat
   const tok = (() => { try { return localStorage.getItem('sqc_token'); } catch (e) { return null; } })();
   if (!done && tok){ try { const r = await fetch('/api/preinscripcion/me', { headers: { Authorization: 'Bearer ' + tok } }); const d = await r.json();
     if (d && d.done === true){ done = true; try { localStorage.setItem('sqc_preinscrito', '1'); } catch (e) {} } } catch (e) {} }
-  if (!done) initInvite();   // ya preinscrito: sin popup
+  // Jugadores de la org con sesión: el popup "Retírate Maio". Al resto que no se preinscribió: la invitación.
+  let org = false; if (tok && window.SQC){ try { const u = await SQC.me(); org = !!(u && !u.external); } catch (e) {} }
+  if (org) initMaio(); else if (!done) initInvite();
 })();
+/* ===== Popup (solo org): Maio#Fidd (SionAntisionista) vs Maio#BARD (Maio), los dos de support ===== */
+function initMaio(){
+  const box = document.getElementById('pat-popup'); if (!box) return;
+  const COOLDOWN = 10 * 60 * 1000, KEY = 'retirateMaioAt', CLOSE_TTL = 10 * 60 * 1000, CKEY = 'retirateMaioClosed';
+  box.innerHTML = `<div class="pat-h" style="background:linear-gradient(180deg,rgba(251,113,133,.16),rgba(251,113,133,.02))"><span>🏳️</span><span class="t" style="color:var(--down)">MAIO VS MAIO</span><button class="pat-x" id="mai-x" aria-label="Cerrar">✕</button></div>
+    <div class="pat-body">
+      <div class="pat-msg" id="mai-msg">Cargando…</div>
+      <div id="mai-cmp" style="margin:12px 0;display:flex;flex-direction:column;gap:6px;font-size:12px;text-align:left"></div>
+      <button class="pat-btn" id="mai-btn" style="background:var(--down);color:#fff">🏳️ Retírate Maio</button>
+      <div class="pat-count" id="mai-count">—</div>
+    </div>`;
+  const $m = id => document.getElementById(id), btn = $m('mai-btn');
+  const find = rid => PLAYERS.find(p => nrid(p.rid) === nrid(rid));
+  const TN = { MASTER:'Maestro', GRANDMASTER:'Gran Maestro', CHALLENGER:'Challenger', DIAMOND:'Diamante', EMERALD:'Esmeralda', PLATINUM:'Platino', GOLD:'Oro', SILVER:'Plata', BRONZE:'Bronce', IRON:'Hierro' };
+  const rank = p => `${TN[p.tier] || p.tier}${p.div ? ' ' + p.div : ''} · ${p.lp} LP`;
+  function paint(){
+    const a = find('Maio#Fidd'), b = find('Maio#BARD');
+    if (!a || !b){ $m('mai-msg').textContent = 'Cargando…'; return; }
+    const d = absLPf(a) - absLPf(b);
+    $m('mai-msg').innerHTML = d > 0 ? `<b>SionAntisionista</b> le saca <b style="color:var(--up)">${d} LP</b> a <b>Maio</b> jugando <b>su</b> main role 🫠`
+      : d < 0 ? `<b>Maio</b> le saca <b>${-d} LP</b> a SionAntisionista en su main role… por ahora 👀`
+      : `<b>Empatados</b>: SionAntisionista y Maio, mismos LP de support 🤝`;
+    $m('mai-cmp').innerHTML = [[a, 'SionAntisionista'], [b, 'Maio']].map(([p, who]) =>
+      `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.04)"><span><b>${who}</b> <span style="color:var(--muted)">${escAttr(p.rid)}</span></span><b style="white-space:nowrap">${rank(p)}</b></div>`).join('');
+  }
+  let count = 0, timer = null, reopenT = null;
+  const last = () => { try { return +localStorage.getItem(KEY) || 0; } catch (e) { return 0; } };
+  const paintCount = () => { $m('mai-count').innerHTML = `<b>${count.toLocaleString('es-CL')}</b> ${count === 1 ? 'pidió' : 'pidieron'} que se retire`; };
+  function refreshBtn(){
+    const left = COOLDOWN - (Date.now() - last());
+    if (left > 0){ btn.disabled = true; const mm = Math.floor(left / 60000), ss = Math.floor(left % 60000 / 1000);
+      btn.textContent = `🏳️ Ya se lo pediste · ${mm}:${String(ss).padStart(2, '0')}`; clearTimeout(timer); timer = setTimeout(refreshBtn, 1000); }
+    else { btn.disabled = false; btn.textContent = '🏳️ Retírate Maio'; clearTimeout(timer); }
+  }
+  async function load(){ try { const d = await SQC.api('/palmadita'); count = (d && d.count) || 0; paintCount(); } catch (e) {} }
+  btn.addEventListener('click', async () => {
+    if (btn.disabled) return;
+    try { localStorage.setItem(KEY, String(Date.now())); } catch (e) {}
+    refreshBtn(); count++; paintCount();
+    try { const d = await SQC.api('/palmadita', { method: 'POST' }); if (d && typeof d.count === 'number'){ count = d.count; paintCount(); } } catch (e) {}
+  });
+  const open = () => { box.classList.remove('hidden'); paint(); refreshBtn(); load(); };
+  $m('mai-x').addEventListener('click', () => { try { localStorage.setItem(CKEY, String(Date.now())); } catch (e) {} box.classList.add('hidden'); clearTimeout(reopenT); reopenT = setTimeout(open, CLOSE_TTL); });
+  setInterval(() => { if (!box.classList.contains('hidden')) paint(); }, 30000);   // LP al día con cada actualización del ranking
+  let closedAt = 0; try { closedAt = +localStorage.getItem(CKEY) || 0; } catch (e) {}
+  const remaining = CLOSE_TTL - (Date.now() - closedAt);
+  if (closedAt && remaining > 0){ box.classList.add('hidden'); reopenT = setTimeout(open, remaining); } else { open(); setTimeout(paint, 3000); }   // las smurfs llegan un poco después
+}
 function initInvite(){
   const box = document.getElementById('pat-popup'); if (!box) return;
   const CLOSE_TTL = 30 * 60 * 1000, CKEY = 'preInvClosed';   // tras cerrarla, reaparece a los 30 min
