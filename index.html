@@ -1932,6 +1932,8 @@ async function openFullFicha(rid){
   catch{ overlay.querySelector('.ff-card').innerHTML='<button class="ff-x">✕</button><div class="ff-loading">No se pudo cargar la ficha.</div>'; overlay.querySelector('.ff-x').onclick=close; return; }
   renderFullFicha(overlay.querySelector('.ff-card'), data, close);
 }
+// Peak elo (LP absoluto): bajo Maestro, división y LP; desde Maestro, LP sobre Maestro (no se sabe el tier exacto de ese momento)
+function peakTxt(abs){ abs=+abs||0; if(abs>=2800) return (abs-2800)+' LP (Maestro+)'; const T=['Hierro','Bronce','Plata','Oro','Platino','Esmeralda','Diamante'], D=['IV','III','II','I']; const t=Math.floor(abs/400), r=abs-t*400, d=Math.floor(r/100); return `${T[t]||'?'} ${D[d]||''} · ${r-d*100} LP`; }
 function renderFullFicha(card, data, close){
   const p=data.profile||{};
   const tierTxt=(p.tier&&p.tier!=='UNRANKED')?`${p.tier.charAt(0)+p.tier.slice(1).toLowerCase()}${p.div?' '+p.div:''} · ${p.lp} LP`:'Sin rango';
@@ -1987,7 +1989,7 @@ function renderFullFicha(card, data, close){
     <button class="ff-x" title="Cerrar">✕</button>
     <div class="ff-head">
       <div class="ff-title">${p.nickname}</div>
-      <div class="ff-tags">${p.tier?`<span class="ff-tag lime">${tierTxt}</span>`:''}${p.elo?`<span class="ff-tag">${p.elo}</span>`:''}${p.role?`<span class="ff-tag">${p.role}</span>`:''}</div>
+      <div class="ff-tags">${p.tier?`<span class="ff-tag lime">${tierTxt}</span>`:''}${p.elo?`<span class="ff-tag">${p.elo}</span>`:''}${p.peak!=null?`<span class="ff-tag" title="El LP más alto que registró el ranking para esta cuenta">Peak: ${peakTxt(p.peak)}</span>`:''}${p.role?`<span class="ff-tag">${p.role}</span>`:''}</div>
     </div>
     <div class="ff-stats">
       <div class="ff-s"><div class="v good">${p.winrate}%</div><div class="k">Winrate</div></div>

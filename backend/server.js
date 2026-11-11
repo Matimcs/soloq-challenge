@@ -1193,8 +1193,10 @@ app.get('/api/ficha/:riotid', wrap(async (req,res) => {
   }
 
   const w = lp ? lp.w : 0, l = lp ? lp.l : 0, tot = w+l;
+  // peak elo de la cuenta (el máximo LP absoluto que registró el ranking)
+  let peak = null; try { const pr = await q1("SELECT peak_abs FROM peak_lp WHERE lower(regexp_replace(rid, '[[:space:]]', '', 'g')) = $1", [riotid.toLowerCase().replace(/\s+/g, '')]); if (pr) peak = +pr.peak_abs; } catch {}
   res.json({
-    profile: { riotid, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:admin&&u?u.realname:undefined, avatar:u&&u.avatar,
+    profile: { riotid, peak, nickname:(u&&u.nickname)||(lp&&lp.nm)||riotid.split('#')[0], realname:admin&&u?u.realname:undefined, avatar:u&&u.avatar,
       tier:lp&&lp.tier, div:lp&&lp.div, lp:lp&&lp.lp, rankPos, role:(u&&u.pos1)||(lp&&lp.role),
       elo: lp && ['MASTER','GRANDMASTER','CHALLENGER'].includes(lp.tier) ? 'High Elo' : 'Low Elo',
       w, l, winrate: tot?Math.round(w/tot*100):0 },
