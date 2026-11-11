@@ -3208,22 +3208,6 @@ async function rkInitLoad(){
       if (ch) await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [r.id, JSON.stringify(d)]); }
     console.log('Ranked: migración a Maestro aplicada (+400 PL a ' + [...RK.players.values()].filter(p => p.uid > 0).length + ' jugadores)'); } } catch (e) { console.error('migración Maestro:', e.message); }
   try { for (const r of await q("SELECT id, data FROM ranked_matches WHERE status IN ('draft','playing','dispute')")){ const m = r.data; m.id = r.id; RK.matches.set(m.id, m); rkUids(m).forEach(u => RK.byUser.set(u, m.id)); } } catch {}
-  // Corrección puntual (pedida el 2026-11-11): en la partida #7 el equipo rojo jugó cada campeón en su rol natural
-  // (se olvidaron de intercambiar campeones), así que el rol de cada uno pasa a ser el de su campeón. Una sola vez.
-  try {
-    const FIX7 = { Renekton: 'TOP', Annie: 'MIDDLE', Taliyah: 'JUNGLE', Ezreal: 'BOTTOM', Karma: 'UTILITY' };
-    let m7 = RK.matches.get(7), fromDb = false;
-    if (!m7){ const r7 = await q1("SELECT data FROM ranked_matches WHERE id=7"); if (r7){ m7 = r7.data; m7.id = 7; fromDb = true; } }
-    if (m7 && !m7.rolesByChampFix && !RK_LOCAL){   // solo en el servidor real
-      for (const t of m7.teams || []) for (const p of t.players || []){
-        const nr = FIX7[(m7.draft && m7.draft.picks || {})[p.uid]];
-        if (nr && p.role !== nr){ p.role = nr; try { p.pref = rkPrefName(rkPref(rkPlayer(p.uid), nr)); } catch {} }
-      }
-      m7.rolesByChampFix = true;
-      await q('UPDATE ranked_matches SET data=$2::jsonb WHERE id=$1', [7, JSON.stringify(m7)]);
-      console.log('Ranked: partida #7 — roles reasignados según campeón' + (fromDb ? ' (ya terminada)' : ''));
-    }
-  } catch (e) { console.error('fix #7:', e.message); }
   try { const r = await q1("SELECT data FROM tool_state WHERE id='rk:queue' AND updated_at > now() - interval '3 hours'");
     for (const e of (r && Array.isArray(r.data) ? r.data : [])) if (e && Number.isFinite(e.uid) && !RK.byUser.has(e.uid)) RK.queue.set(e.uid, { uid: e.uid, since: e.since || Date.now() });
     _rkQueueSig = [...RK.queue.values()].map(e => e.uid + ':' + e.since).sort().join(','); } catch {}
@@ -3938,9 +3922,11 @@ async function rkHistRows(){
   return RK_HIST.rows;
 }
 const rkGameP = (d, uid) => d.game && (d.game.players || []).find(x => x.uid === uid);
+// Campeón que realmente jugó: el de las stats de la partida; si no llegaron, la corrección manual (champFix: { uid: champ }); si no, el pickeado.
+const rkPlayedChamp = (d, uid) => { const st = rkGameP(d, uid); return (st && st.champ) || (d.champFix || {})[uid] || (d.draft.picks || {})[uid] || null; };
 const rkSideOf = (d, uid) => { const t = d.teams.find(t => t.players.some(p => p.uid === uid)); return t ? t.side : null; };
 function rkSummary(d, uid){
-  const pl = p => { const st = rkGameP(d, p.uid); return { uid: p.uid, nick: p.nick, role: p.role, champ: (st && st.champ) || (d.draft.picks || {})[p.uid] || null, ...(st ? { k: st.k, d: st.d, a: st.a } : {}) }; };
+  const pl = p => { const st = rkGameP(d, p.uid); return { uid: p.uid, nick: p.nick, role: p.role, champ: rkPlayedChamp(d, p.uid), ...(st ? { k: st.k, d: st.d, a: st.a } : {}) }; };
   const side = uid ? rkSideOf(d, uid) : null, c = side ? (d.lpChanges || {})[uid] || {} : null, mine = side ? pl(d.teams.find(t => t.side === side).players.find(p => p.uid === uid)) : null;
   return { id: d.id, endedAt: d.endedAt, duration: d.game ? d.game.duration : null, winner: d.winner, by: d.resolvedBy, reportedBy: d.game ? d.game.reportedBy : null, stats: !!d.game,
     conflict: !!(d.conflict && !d.conflict.reviewed), blue: d.teams[0].players.map(pl), red: d.teams[1].players.map(pl),
@@ -3966,7 +3952,7 @@ app.get('/api/ranked/match/:id', orgOnly, wrap(async (req, res) => {
     teams: d.teams.map(t => ({ side: t.side, won: t.side === d.winner,
       bans: t.players.map(p => ({ nick: p.nick, champ: bans[p.uid] || null })),
       players: t.players.map(p => { const st = rkGameP(d, p.uid) || {}, c = (d.lpChanges || {})[p.uid] || {};
-        return { uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, champ: st.champ || picks[p.uid] || null, picked: picks[p.uid] || null,
+        return { uid: p.uid, nick: p.nick, rid: p.rid, role: p.role, pref: p.pref, champ: rkPlayedChamp(d, p.uid), picked: picks[p.uid] || null,
           k: st.k, d: st.d, a: st.a, cs: st.cs, gold: st.gold, dmg: st.dmg, vision: st.vision, level: st.level, items: st.items || [],
           delta: c.delta != null ? c.delta : null, rank: c.lp != null ? rkRank(c.lp) : null, voted: c.voted || null }; }) })) });
 }));
@@ -3976,7 +3962,7 @@ app.get('/api/ranked/leaderboard', orgOnly, wrap(async (req, res) => {
   const form = {}, champs = {};
   for (const d of await rkHistRows()) for (const t of d.teams) for (const p of t.players){
     (form[p.uid] = form[p.uid] || []); if (form[p.uid].length < 10) form[p.uid].push(t.side === d.winner ? 1 : 0);
-    const st = rkGameP(d, p.uid), c = (st && st.champ) || (d.draft.picks || {})[p.uid]; if (c){ const m = champs[p.uid] = champs[p.uid] || {}; m[c] = (m[c] || 0) + 1; } }
+    const c = rkPlayedChamp(d, p.uid); if (c){ const m = champs[p.uid] = champs[p.uid] || {}; m[c] = (m[c] || 0) + 1; } }
   const board = [...RK.players.values()].filter(p => p.uid > 0 && p.wins + p.losses > 0).sort((a, b) => rkShowLp(b.uid, b.lp) - rkShowLp(a.uid, a.lp) || b.wins - a.wins)
     .map((p, i) => { const u = users.get(p.uid) || { nick: '?', rid: '' }; const f = rkFillStats(p);
       return { pos: i + 1, uid: p.uid, nick: u.nick, rid: u.rid, rank: rkRank(rkShowLp(p.uid, p.lp)), wins: p.wins, losses: p.losses, role1: p.role1, role2: p.role2, roles: { n: f.n, main: f.main, sec: f.sec, off: f.off, fill: f.fill },
