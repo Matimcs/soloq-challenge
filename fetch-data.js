@@ -49,10 +49,15 @@ try {
 let OVERLAY_REPORTS = {};
 try { OVERLAY_REPORTS = JSON.parse(fs.readFileSync(path.join(__dirname, 'overlay-reports.json'), 'utf8')) || {}; } catch {}
 const REPORT_TTL = 6 * 60 * 1000;
+const ovKey = r => String(r || '').toLowerCase().replace(/\s+/g, '');
+const OVERLAY_REPORTS_N = {}; for (const k in OVERLAY_REPORTS) OVERLAY_REPORTS_N[ovKey(k)] = OVERLAY_REPORTS[k];
 function freshReport(rid){
-  const r = OVERLAY_REPORTS[rid];
+  const r = OVERLAY_REPORTS[rid] || OVERLAY_REPORTS_N[ovKey(rid)];
   return (r && r.at && (Date.now() - r.at) < REPORT_TTL) ? r : null;
 }
+// SoloQ que el overlay avisó que terminaron (por cuenta): se piden directo a Riot, sin listar.
+let OVERLAY_GAMES = {};
+try { const og = JSON.parse(fs.readFileSync(path.join(__dirname, 'overlay-games.json'), 'utf8')) || {}; for (const k in og) OVERLAY_GAMES[ovKey(k)] = og[k]; } catch {}
 
 // ===== Persistencia de datos crudos en Postgres (para stats históricas a futuro) =====
 // Guarda CADA participante de CADA partida que juega un jugador del torneo: aliado/rival,
@@ -440,11 +445,19 @@ async function getMatch(id){
 }
 
 // Actualiza historial (solo pide detalles de partidas NUEVAS) y trackea ±LP.
-async function updatePlayerStats(puuid, entry){
+async function updatePlayerStats(puuid, entry, rid){
   const store = matchStore[puuid] || { games:[], lpGames:[], lastAbsLP:null };
   const known = new Set(store.games.map(g=>g.id));
   const backfill = store.games.length === 0;
-  const ids = await getMatchIds(puuid, backfill ? 20 : 3); await sleep(110);
+  // Con el overlay abierto, el overlay avisa cuando termina cada SoloQ → no hace falta pedirle a Riot la lista de
+  // partidas en cada ciclo: se pide directo la avisada. Por seguridad igual se lista cada 20 min (por si un aviso se perdió).
+  const pend = (OVERLAY_GAMES[ovKey(rid)] || []).map(gid => `${PLATFORM.toUpperCase()}_${gid}`).filter(id => !known.has(id))
+    .sort((a, b) => Number(b.split('_')[1]) - Number(a.split('_')[1]));   // nuevas primero (como las da Riot)
+  const viaOverlay = !backfill && !!freshReport(rid) && Date.now() - (store.listAt || 0) < 20 * 60 * 1000;
+  let ids;
+  if (viaOverlay) ids = pend;
+  else { ids = await getMatchIds(puuid, backfill ? 20 : 3); await sleep(110); store.listAt = Date.now();
+    for (const id of pend.slice().reverse()) if (!ids.includes(id)) ids.unshift(id); }
   const newIds = ids.filter(id => !known.has(id));
 
   const fetched = [];
@@ -653,7 +666,7 @@ function rankText(entry) {
       const [name] = rid.split('#');
       trackedByPuuid.set(puuid, { nm:name, rid });
 
-      const stats = await updatePlayerStats(puuid, entry);   // historial + ±LP + aegis
+      const stats = await updatePlayerStats(puuid, entry, rid);   // historial + ±LP + aegis
 
       const tier = entry ? entry.tier : 'UNRANKED';
       const div  = entry ? (NO_DIVISION.has(tier) ? '' : entry.rank) : '';

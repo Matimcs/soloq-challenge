@@ -588,6 +588,16 @@ ipcMain.on('quit-app', () => { try { app.quit(); } catch {} });   // botón "Sal
 // Reporta a la nube el rango del jugador (sacado del cliente vía LCU, GRATIS) y si está en
 // partida, para que el runner NO gaste llamadas a la Riot API por este jugador. Máx. 1/min.
 let lastReportAt = 0;
+let soloGame = null;   // SoloQ en curso { id, rid } (para avisar cuando termina)
+async function notifyGameEnd(g){
+  if (!g || !g.rid) return;
+  try {
+    const r = await fetch(`${BACKEND}/api/overlay/game-ended`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ riotid: g.rid, gameId: g.id, queueId: 420, secret: CONFIG.reportSecret || undefined }) });
+    dlog(`fin de SoloQ ${g.id} avisado → HTTP ${r.status}`);
+  } catch (e) { dlog('notifyGameEnd: ' + (e && e.message)); }
+  lastReportAt = 0;   // manda el rango nuevo en el próximo poll (sin esperar el minuto)
+}
 async function reportToBackend(riotid, solo, inGame){
   if (!riotid) return;
   if (Date.now() - lastReportAt < 60000) return;
@@ -750,6 +760,9 @@ async function poll(){
       });
 
       lastInGame = showCards;
+      // Fin de SoloQ: el overlay avisa al servidor (solo el ID de la partida) para que la pida a Riot al tiro.
+      if (queueId === 420 && phase === 'InProgress' && gsession.gameData && gsession.gameData.gameId) soloGame = { id: gsession.gameData.gameId, rid: myRid };
+      else if (soloGame && phase !== 'InProgress' && phase !== 'Reconnect'){ const g = soloGame; soloGame = null; notifyGameEnd(g); }
       busyInGame = ['ChampSelect', 'GameStart', 'InProgress', 'Reconnect'].includes(phase);
       const wasInGame = inGameNow;
       inGameNow = ['GameStart', 'InProgress', 'Reconnect'].includes(phase);

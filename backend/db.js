@@ -452,6 +452,13 @@ async function init(){
     ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;
     ALTER TABLE ext_users ADD COLUMN IF NOT EXISTS token_version INTEGER DEFAULT 0;
     -- Cuentas del SoloQ Challenge (página pública /cuentas): una por persona; se sigue su nivel, tag y rankeds.
+    -- Fin de SoloQ avisado por el overlay (solo el ID): el runner pide esa partida a Riot al tiro.
+    CREATE TABLE IF NOT EXISTS overlay_game_end (
+      riotid  TEXT NOT NULL,
+      game_id TEXT NOT NULL,
+      at      TIMESTAMPTZ DEFAULT now(),
+      PRIMARY KEY (riotid, game_id)
+    );
     CREATE TABLE IF NOT EXISTS challenge_accounts (
       id         SERIAL PRIMARY KEY,
       puuid      TEXT UNIQUE NOT NULL,

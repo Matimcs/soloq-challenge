@@ -1210,7 +1210,7 @@ app.post('/api/overlay/report', wrap(async (req,res) => {
   if (!/^.+#.+$/.test(riotid)) return res.status(400).json({ error:'riotid inválido' });
   let allowed;
   if (REPORT_SECRET) allowed = b.secret === REPORT_SECRET;
-  else allowed = !!(await q1('SELECT 1 FROM users WHERE riotid=$1 UNION SELECT 1 FROM roster WHERE riotid=$1', [riotid]));
+  else allowed = !!(await q1('SELECT 1 FROM users WHERE riotid=$1 UNION SELECT 1 FROM roster WHERE riotid=$1 UNION SELECT 1 FROM smurfs WHERE riotid=$1', [riotid]));
   if (!allowed) return res.status(403).json({ error:'no autorizado' });
   const entry = (b.entry && typeof b.entry === 'object') ? b.entry : null;
   await q(`INSERT INTO overlay_reports (riotid,entry,in_game,updated_at) VALUES ($1,$2::jsonb,$3,now())
@@ -1251,6 +1251,22 @@ async function rkMapGamePlayers(teams, g){
   }
   return { rep, sideTeam };
 }
+// Fin de una SoloQ avisado por el overlay (solo el ID de la partida): el servidor la pide a Riot al tiro, en vez de
+// esperar al próximo ciclo. Los DATOS siguen saliendo de la API de Riot (el overlay no puede inventar una partida).
+let RUNNER_WAKE = null;   // lo define el runner embebido: despierta el próximo ciclo antes de tiempo
+app.post('/api/overlay/game-ended', wrap(async (req, res) => {
+  const b = req.body || {}, riotid = String(b.riotid || '').trim(), gameId = String(b.gameId || '').replace(/\D/g, '').slice(0, 20);
+  if (!/^.+#.+$/.test(riotid) || !gameId) return res.status(400).json({ error: 'datos inválidos' });
+  if (Number(b.queueId) !== 420) return res.json({ ok: true, ignored: 'no es SoloQ' });
+  if (REPORT_SECRET && b.secret !== REPORT_SECRET) return res.status(403).json({ error: 'no autorizado' });
+  const k = ovNrk(riotid);
+  const known = await q1("SELECT 1 FROM users WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1 UNION SELECT 1 FROM smurfs WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1 UNION SELECT 1 FROM roster WHERE lower(regexp_replace(riotid, '[[:space:]]', '', 'g')) = $1", [k]);
+  if (!known) return res.status(403).json({ error: 'cuenta no registrada' });
+  await q('INSERT INTO overlay_game_end (riotid, game_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [riotid, gameId]);
+  // Riot tarda ~1 min en publicar la partida: se despierta el ciclo del ranking en 60 s (y se reintenta solo si aún no está)
+  setTimeout(() => { try { RUNNER_WAKE && RUNNER_WAKE(); } catch {} }, 60000);
+  res.json({ ok: true });
+}));
 app.post('/api/overlay/ranked-result', wrap(async (req, res) => {
   const b = req.body || {}, g = b.game || {}, riotid = String(b.riotid || '').trim();
   if (!/^.+#.+$/.test(riotid) || !Array.isArray(g.players) || !g.players.length || g.players.length > 12) return res.status(400).json({ error: 'datos inválidos' });
@@ -4592,6 +4608,13 @@ function startEmbeddedRunner(){
       const obj = {}; reps.forEach(r => { obj[r.riotid] = { entry:r.entry, inGame:r.in_game, at:Number(r.at) }; });
       fs.writeFileSync(path.join(ROOT, 'overlay-reports.json'), JSON.stringify(obj));
     } catch {}
+    // Partidas que el overlay avisó que terminaron (últimas 3 h): el runner las pide directo a Riot.
+    try {
+      const gs = await q("SELECT riotid, game_id FROM overlay_game_end WHERE at > now() - interval '3 hours'");
+      const og = {}; gs.forEach(r => { (og[r.riotid] = og[r.riotid] || []).push(r.game_id); });
+      fs.writeFileSync(path.join(ROOT, 'overlay-games.json'), JSON.stringify(og));
+      q("DELETE FROM overlay_game_end WHERE at < now() - interval '2 days'").catch(() => {});
+    } catch {}
   };
 
   // El caché (PUUIDs, rangos y sobre todo el historial ±LP/aegis) se guarda en
@@ -4702,7 +4725,8 @@ function startEmbeddedRunner(){
         } catch {}
       }
       catch (e){ console.error('Runner embebido:', e.message); }
-      await new Promise(r => setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))));
+      await new Promise(r => { const tm = setTimeout(r, Math.max(0, INTERVAL - (Date.now() - t))); RUNNER_WAKE = () => { clearTimeout(tm); r(); }; });
+      RUNNER_WAKE = null;
     }
   })();
 }
