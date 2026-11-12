@@ -659,7 +659,7 @@ async function reportCustomResult(creds, gameId, myRid){
 let realPos = null, realPosAt = 0;
 async function refreshStanding(rid){
   if (!rid || Date.now() - realPosAt < 60000) return; realPosAt = Date.now();
-  try { const r = await fetch(`${BACKEND}/api/overlay/standing?riotid=${encodeURIComponent(rid)}`); if (r.ok){ const j = await r.json(); realPos = { rid, pos: j.pos, target: j.target || null }; } } catch {}
+  try { const r = await fetch(`${BACKEND}/api/overlay/standing?riotid=${encodeURIComponent(rid)}`); if (r.ok){ const j = await r.json(); realPos = { rid, pos: j.pos, target: j.target || null, me: j.me || null }; } } catch {}
 }
 
 // ---- Historial privado del equipo: cuando un capitán cataloga una personalizada, el servidor la pide y el overlay de
@@ -741,7 +741,8 @@ async function poll(){
       const players = roster.players || [];
       const idx = players.findIndex(p => p.rid === myRid);
       refreshStanding(myRid);
-      const standing = idx >= 0 ? players[idx] : null;
+      // si la cuenta no está en el ranking público (smurf), se usan los datos que manda /api/overlay/standing
+      const standing = idx >= 0 ? players[idx] : ((realPos && realPos.rid === myRid && realPos.me) || null);
       const tier = (solo && solo.tier) || (standing && standing.tier) || 'UNRANKED';
 
       Object.assign(payload, {

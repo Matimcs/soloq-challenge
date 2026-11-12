@@ -1629,7 +1629,9 @@ app.get('/api/overlay/standing', wrap(async (req,res) => {
   if (i > 0 && j >= 0){ const up = all[j], k2 = nrSmurf(up.rid);
     const o = await q1("SELECT u.nickname FROM users u WHERE lower(regexp_replace(u.riotid, '[[:space:]]', '', 'g')) = $1 UNION ALL SELECT u.nickname FROM smurfs s JOIN users u ON u.id = s.user_id WHERE lower(regexp_replace(s.riotid, '[[:space:]]', '', 'g')) = $1 LIMIT 1", [k2]);
     target = { name: (o && o.nickname) || up.nm || String(up.rid).split('#')[0], lp: Math.max(0, abs(up) - abs(all[i])) }; }
-  res.json({ pos: i >= 0 ? i + 1 : null, total: all.length, target });
+  // datos de la cuenta para la tarjeta del overlay (el players.json público no trae las smurfs)
+  const me = i >= 0 ? (({ tier, div, lp, w, l, session, recent, form, streak }) => ({ tier, div, lp, w, l, session, recent, form, streak }))(all[i]) : null;
+  res.json({ pos: i >= 0 ? i + 1 : null, total: all.length, target, me });
 }));
 app.get('/api/overlay/shells', wrap(async (req,res) => {
   const riotid = (req.query.riotid || '').trim();
