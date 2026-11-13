@@ -358,8 +358,8 @@ function createTray(){
 }
 
 // ---- Drag / resize (dirigido a la ventana que envía) ----
-ipcMain.on('drag-start', (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w._d = { dx: mx - b.x, dy: my - b.y }; });
-ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && w._d) w.setPosition(Math.round(mx - w._d.dx), Math.round(my - w._d.dy)); });
+ipcMain.on('drag-start', (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return; const b = w.getBounds(); w._d = { dx: mx - b.x, dy: my - b.y, w: b.width, h: b.height }; });
+ipcMain.on('drag-move',  (e, { mx, my }) => { const w = BrowserWindow.fromWebContents(e.sender); if (w && w._d) w.setBounds({ x: Math.round(mx - w._d.dx), y: Math.round(my - w._d.dy), width: w._d.w, height: w._d.h }); });   // tamaño fijo: con escala de Windows 125/150%, setPosition agrandaba la ventana en cada movimiento
 ipcMain.on('drag-end',   (e) => { const w = BrowserWindow.fromWebContents(e.sender); if (w){ w._d = null; savePos(w); } });
 ipcMain.on('resize',     (e, h) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) return;
   w._cssH = h;   // alto natural del contenido (sin zoom); la ventana se ajusta multiplicando por el zoom

@@ -16,7 +16,7 @@
   .gear{ background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--text); width:26px; height:26px; border-radius:7px; cursor:pointer; font-size:13px; margin-left:10px; }
   .gear:hover{ background:rgba(255,255,255,.18); }
   .xbtn{ background:rgba(255,255,255,.08); border:1px solid var(--line); color:var(--text); width:26px; height:26px; border-radius:7px; cursor:pointer; font-size:13px; margin-left:8px; }
-  .xbtn:hover{ background:rgba(251,113,133,.3); border-color:rgba(251,113,133,.5); }
+  .xbtn:hover{ background:rgba(255,255,255,.18); }
   .rk{ flex:1; overflow-y:auto; padding:6px 10px 10px; user-select:text; }
   .rk::-webkit-scrollbar{ width:8px; } .rk::-webkit-scrollbar-thumb{ background:rgba(255,255,255,.12); border-radius:8px; }
   .row{ display:grid; grid-template-columns:26px 34px 1fr auto; align-items:center; gap:10px; padding:7px 8px; border-radius:10px; }
@@ -52,7 +52,7 @@
       <img class="logo" src="assets/logo.png" alt=""><div class="btitle">SoloQ Challenge</div>
       <div class="hint">Ocultar: <b>Alt&nbsp;+&nbsp;X</b></div>
       <button class="gear" id="gear" title="Configuración">⚙</button>
-      <button class="xbtn" id="close-all" title="Ocultar overlay (Alt+X) — sigue corriendo en la bandeja">✕</button>
+      <button class="xbtn" id="close-all" title="Minimizar (Alt+X) — el overlay sigue funcionando en la bandeja" aria-label="Minimizar">—</button>
     </div>
     <!-- Solo el ranking (sin navegador interno): para todo lo demás, "Abrir la web" en el navegador del jugador. -->
     <div class="rk" id="rk"><div class="empty">Cargando ranking…</div></div>
@@ -76,7 +76,7 @@
         <button class="sbtn" id="s-update" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16)">Buscar actualizaciones</button>
         <button class="sbtn" id="s-quit" style="background:rgba(251,113,133,.16);color:#fb7185;border:1px solid rgba(251,113,133,.45)">Salir del overlay</button>
       </div>
-      <div class="snote"><b>Ocultar</b> (Alt+X / ✕) solo esconde el overlay; sigue corriendo en la bandeja para trackear. <b>Salir del overlay</b> lo cierra por completo.<br>Los cambios se guardan automáticamente. SoloQ Overlay <span id="s-version">—</span></div>
+      <div class="snote"><b>Minimizar</b> (Alt+X / —) solo esconde el overlay; sigue corriendo en la bandeja para trackear. <b>Salir del overlay</b> lo cierra por completo.<br>Los cambios se guardan automáticamente. SoloQ Overlay <span id="s-version">—</span></div>
     </div>
   </div>
 
