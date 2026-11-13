@@ -72,6 +72,7 @@
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="sbtn" id="s-position" style="background:#e9ff1f;color:#000;border:1px solid #e9ff1f;font-weight:800">🎯 Posicionar overlays</button>
         <button class="sbtn" id="s-reset">Reponer posiciones</button>
+        <button class="sbtn" id="s-folder" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16)" title="Abre la carpeta donde está instalado el overlay">📂 Abrir carpeta del programa</button>
         <button class="sbtn" id="s-update" style="background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16)">Buscar actualizaciones</button>
         <button class="sbtn" id="s-quit" style="background:rgba(251,113,133,.16);color:#fb7185;border:1px solid rgba(251,113,133,.45)">Salir del overlay</button>
       </div>
@@ -119,6 +120,7 @@
   $('s-vol').addEventListener('input', e => { const v=+e.target.value; $('s-vol-val').textContent=v+'%'; set('volume', v/100); });
   $('s-vvol').addEventListener('input', e => { const v=+e.target.value; $('s-vvol-val').textContent=v+'%'; set('voiceVolume', v/100); });
   $('s-reset').addEventListener('click', () => ipcRenderer.send('reset-pos'));
+  $('s-folder').addEventListener('click', () => ipcRenderer.send('open-app-folder'));
   $('s-position').addEventListener('click', () => { settingsEl.style.display='none'; ipcRenderer.send('enter-positioning'); });
   $('s-update').addEventListener('click', () => {
     ipcRenderer.send('check-updates');
