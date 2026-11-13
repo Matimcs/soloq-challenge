@@ -4696,7 +4696,17 @@ function startEmbeddedRunner(){
   (async () => {
     // Muestra de inmediato el ÚLTIMO ranking bueno (guardado en DB), para no servir el
     // players.json viejo del repo durante los ~2-3 min del primer ciclo tras un redeploy.
-    try { const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data) liveData = row.data; } catch {}
+    let bootAt = 0, firstCycleDone = false;
+    try { const row = await q1("SELECT data, updated_at FROM fetch_cache WHERE id='players'"); if (row && row.data){ liveData = row.data; bootAt = new Date(row.updated_at).getTime(); } } catch {}
+    // Deploy sin corte: Render arranca este servidor ANTES de apagar el viejo, que guarda su ranking al apagarse.
+    // Hasta terminar el primer ciclo propio, cada 10 s se revisa si llegó un ranking más nuevo y se usa (si no, se
+    // mostraba unos minutos un ranking atrasado: LP que 'se deshacían').
+    const bootPoll = setInterval(async () => {
+      if (firstCycleDone) return clearInterval(bootPoll);
+      try { const r = await q1("SELECT updated_at FROM fetch_cache WHERE id='players'"); const at = r ? new Date(r.updated_at).getTime() : 0;
+        if (at > bootAt){ const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data && !firstCycleDone){ liveData = row.data; bootAt = at; console.log('Ranking del servidor anterior cargado'); } } } catch {}
+    }, 10000);
+    setTimeout(() => clearInterval(bootPoll), 15 * 60 * 1000);
     await loadCache();   // restaura el historial ±LP/aegis persistido
     let lastPersist = Date.now(), lastPlayersHash = '', lastPlayersAt = 0;   // el ranking (liviano) se respalda tras el 1er ciclo y luego cada 20 min
     const PERSIST_MS = (Number(process.env.PERSIST_MIN) || 120) * 60 * 1000;   // cada cuánto persistir los blobs a Supabase (antes: cada ciclo; luego 30 min)
@@ -4713,6 +4723,7 @@ function startEmbeddedRunner(){
       try {
         await writeRoster(); await runOnce();
         liveData = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8'));   // ranking fresco EN MEMORIA cada ciclo (gratis)
+        firstCycleDone = true;
         // Los blobs de caché SOLO se leen al arrancar (restaurar tras un redeploy), así que persistirlos
         // cada 90s era ~64 GB/mes de egress a Supabase. Se persisten cada PERSIST_MS (30 min).
         if (Date.now() - lastPersist >= PERSIST_MS){
