@@ -995,9 +995,10 @@ async function loadAvatars(){
       if (u.pos1) ROLE_BY_RID[rl] = u.pos1;
       if (!u.avatar) return;
       AVA_BY_RID[rl] = u.avatar;
-      AVA_BY_NAME[(u.riotid.split('#')[0] || '').toLowerCase()] = u.avatar;
-      if (u.nickname) AVA_BY_NAME[u.nickname.toLowerCase()] = u.avatar;
+      // por nombre de cuenta solo si no está tomado: el nick del dueño manda (Maio#Fidd de Sion no debe pisar la foto de Maio)
+      const gk = (u.riotid.split('#')[0] || '').toLowerCase(); if (!AVA_BY_NAME[gk]) AVA_BY_NAME[gk] = u.avatar;
     });
+    list.forEach(u => { if (u.avatar && u.nickname) AVA_BY_NAME[u.nickname.toLowerCase()] = u.avatar; });   // los nicks pisan a los nombres de cuenta
     counts(); render(); renderLive();   // con los dueños ya cargados, '1 cuenta' cuenta jugadores (no cuentas)
   } catch {}
 }
@@ -1309,7 +1310,7 @@ function encDisp(t, tracked){
   return /^smurf/i.test(LABEL_BY_RID[rl] || 'Main') ? t.nm : nick;   // smurf -> su cuenta; main -> dueño
 }
 function gameCard(g){
-  const avatars = g.tracked.map(t => avaHtml(null, encDisp(t, g.tracked), 'lg-ava')).join('');
+  const avatars = g.tracked.map(t => avaHtml(t.rid || null, encDisp(t, g.tracked), 'lg-ava')).join('');   // por cuenta (Riot ID): dos cuentas pueden llamarse igual
   return `
     <div class="lg-card" data-gid="${g.gameId}">
       <div class="lg-head">
@@ -1532,7 +1533,7 @@ function showEncuentro(g){
        <button class="enc-ico-btn enc-close" title="Cerrar">${X_SVG}</button>
      </div>
      <div class="enc-body">
-       <div class="enc-avas">${(g.tracked || []).slice(0,3).map(t => avaHtml(null, encNick(t), 'enc-ava')).join('')}</div>
+       <div class="enc-avas">${(g.tracked || []).slice(0,3).map(t => avaHtml(t.rid || null, encNick(t), 'enc-ava')).join('')}</div>
        <div class="enc-text">
          <div class="enc-names">${names.join(', ')}</div>
          <div class="enc-sub">juntos en la misma partida</div>
