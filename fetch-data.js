@@ -682,7 +682,23 @@ function rankText(entry) {
       });
       if (soloRaw) rawByPlayer.push({ puuid, raw: soloRaw });
       console.log(`${tier} ${div} ${entry?entry.leaguePoints+'LP':''}`.trim() + (soloRaw ? ' [EN SOLOQ]' : ''));
-    } catch (e) { console.log('ERROR ' + e.message); }
+    } catch (e) {
+      console.log('ERROR ' + e.message);
+      // puuid ilegible para la key actual (quedó de una key anterior: Riot responde 400 'Exception decrypting'):
+      // se olvida y se vuelve a resolver por Riot ID en el próximo ciclo; su historial (partidas, ±LP, rango) se
+      // traspasa al puuid nuevo. Antes la cuenta quedaba congelada en su último rango (no veía el decay, etc.).
+      if (/^400 /.test(e.message) && /by-puuid/.test(e.message)) {
+        try {
+          const old = puuidCache[rid]; delete puuidCache[rid];
+          const fresh = await getPuuid(rid); await sleep(110);
+          if (fresh && old && fresh !== old) {
+            if (matchStore[old] && !matchStore[fresh]) matchStore[fresh] = matchStore[old];
+            if (rankStore[old] && !rankStore[fresh]) rankStore[fresh] = rankStore[old];
+            console.log(`  ↻ puuid renovado para ${rid} (era de una key anterior)`);
+          }
+        } catch (e2) { console.log('  ↻ no se pudo renovar el puuid: ' + e2.message); }
+      }
+    }
   }
 
   // Orden del ranking y mapa de posiciones
