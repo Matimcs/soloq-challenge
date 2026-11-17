@@ -2142,7 +2142,9 @@ function simOpen(){
   simFill(); simSyncMode();
   document.getElementById('sim-modal').style.display='flex';
   if(window.SQC && SQC.me) SQC.me().then(u=>{ if(u&&u.riotid){ const sel=document.getElementById('sim-me');
-    const o=[...sel.options].find(x=>nrid(x.value)===nrid(u.riotid)); if(o){ o.selected=true; simCompute(); } } }).catch(()=>{});
+    // tu cuenta MÁS ALTA (main o smurf): las opciones ya vienen ordenadas por LP, así que basta la primera tuya
+    const mine=x=>nrid(x.value)===nrid(u.riotid) || (u.nickname && NICK_BY_RID[nrid(x.value)]===u.nickname);
+    const o=[...sel.options].find(mine); if(o){ o.selected=true; simCompute(); } } }).catch(()=>{});
   simCompute();
 }
 document.getElementById('sim-btn').addEventListener('click', simOpen);
