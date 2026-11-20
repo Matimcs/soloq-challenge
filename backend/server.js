@@ -1834,10 +1834,16 @@ app.get('/api/nav-counts', wrap(async (req,res) => {
 // SIN caché, así el primer render nunca sale con un snapshot viejo (evita cronómetros de live
 // games inflados al abrir). Cargar players.js fresco 1 vez por página es despreciable.
 // Snapshot público SIN live games ni encuentros (dicen quién juega ahora, con qué y con quién): eso va en /api/live, solo org.
+// Peak elo por cuenta (tabla peak_lp, LP absoluto), en memoria: se refresca cada 2 min y va en el ranking (filtro "Peak").
+let PEAK = {};
+const peakKey = r => String(r || '').toLowerCase().replace(/\s+/g, '');
+async function loadPeaks(){ try { const m = {}; for (const r of await q('SELECT rid, peak_abs FROM peak_lp')) m[peakKey(r.rid)] = +r.peak_abs; PEAK = m; } catch {} }
+loadPeaks(); setInterval(loadPeaks, 120000);
+const withPeak = p => ({ ...p, peak: PEAK[peakKey(p.rid)] != null ? PEAK[peakKey(p.rid)] : null });
 const publicSnap = () => {
   let d = liveData; if (!d){ try { d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { d = { players: [] }; } }
   return { ...d, liveGames: [], encounters: [], orgOnly: true,
-    players: (d.players || []).filter(p => !isSmurf(p.rid)).map(p => ({ ...p, inGame: false, game: null })) };
+    players: (d.players || []).filter(p => !isSmurf(p.rid)).map(p => withPeak({ ...p, inGame: false, game: null })) };
 };
 app.get('/players.json', (req,res) => { res.setHeader('Cache-Control', 'public, max-age=20'); res.json(publicSnap()); });
 app.get('/api/live', wrap(async (req,res) => {
@@ -1848,7 +1854,7 @@ app.get('/api/live', wrap(async (req,res) => {
   const age = liveData && liveData.updatedAt ? Date.now() - new Date(liveData.updatedAt).getTime() : Infinity, stale = age > 10 * 60 * 1000;
   res.json({ liveGames: stale ? [] : ((liveData && liveData.liveGames) || []), encounters: (liveData && liveData.encounters) || [], updatedAt: liveData && liveData.updatedAt, stale,
     inGame: stale ? [] : ((liveData && liveData.players) || []).filter(p => p.inGame).map(p => ({ rid: p.rid, game: p.game || null })),
-    smurfs: (liveSnapshot().players || []).filter(p => isSmurf(p.rid)).map(p => ({ ...p, inGame: stale ? false : !!p.inGame, game: stale ? null : (p.game || null) })),
+    smurfs: (liveSnapshot().players || []).filter(p => isSmurf(p.rid)).map(p => withPeak({ ...p, inGame: stale ? false : !!p.inGame, game: stale ? null : (p.game || null) })),
     order: (liveSnapshot().players || []).map(p => p.rid) });
 }));
 app.get('/players.js',   (req,res) => { res.setHeader('Cache-Control', 'no-store'); res.type('application/javascript').send('window.SQC_DATA = ' + JSON.stringify(publicSnap()) + ';\n'); });

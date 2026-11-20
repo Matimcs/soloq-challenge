@@ -752,6 +752,7 @@
         <button class="chip" data-f="low">LOW ELO <span class="n" id="c-low"></span></button>
         <button class="chip" data-f="live">LIVE <span class="n" id="c-live"></span></button>
         <button class="chip" data-f="ingame">EN PARTIDA <span class="n" id="c-ingame"></span></button>
+        <button class="chip" data-f="peak" title="Ordena por el LP más alto que alcanzó cada cuenta">PEAK</button>
         <button class="chip" data-f="teams" title="Ranking agrupado por equipos">POR EQUIPOS</button>
         <button class="chip" data-f="teamrank" title="Ranking de equipos (top 5 cuentas de distintos jugadores)">RANKING EQUIPOS</button>
         <span class="stats-sel">Stats: <b>OP.GG</b></span>
@@ -880,6 +881,11 @@ function streakEl(s){
   return `<span class="streak n">–</span>`;
 }
 const CREST = tier => { const n = tier || 'UNRANKED'; return `overlay/assets/ranks/Season_2023_-_${n.charAt(0)+n.slice(1).toLowerCase()}.webp`; };
+// Elo en la vista "Peak": el peak de la cuenta y, abajo, su LP actual
+function peakEl(p){
+  const now = p.tier && p.tier !== 'UNRANKED' ? `${niceTier(p.tier)}${p.div ? ' ' + p.div : ''} · ${p.lp} LP` : 'Sin rango';
+  return `<div class="elo"><span><span class="lp" style="font-size:14px">${peakTxt(p._pk)}</span><small style="display:block;color:var(--muted);font-size:11px;font-weight:600">Ahora: ${now}</small></span></div>`;
+}
 function eloEl(p){
   const crest = (p.tier && p.tier!=='UNRANKED')
     ? `<img class="elo-crest" src="${CREST(p.tier)}" alt="${p.tier}" onerror="this.style.display='none'">` : '';
@@ -1098,7 +1104,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
         ${badges}
       </div></td>
       <td>${roleCell(p)}</td>
-      <td>${eloEl(p)}</td>
+      <td>${p._peakView ? peakEl(p) : eloEl(p)}</td>
       <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
       <td>${sparkline(p.form)}</td>
       <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp ${(p.up===p.down && p.up>0)?'even':''}"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
@@ -1181,6 +1187,12 @@ function render(){
   const body = document.getElementById('rows');
   if (currentFilter === 'teamrank'){ body.innerHTML = renderTeamRank(); return; }
   if (currentFilter === 'teams'){ body.innerHTML = renderByTeams(); return; }
+  // Ranking por PEAK: el LP más alto que alcanzó cada cuenta (nunca menos que el actual)
+  if (currentFilter === 'peak'){
+    const list = PLAYERS.slice().map(p => ({ ...p, _pk: Math.max(p.peak || 0, absLPf(p)) })).sort((a, b) => b._pk - a._pk)
+      .map((p, i) => ({ ...p, rankPos: i + 1, move: null, _peakView: true }));
+    body.innerHTML = list.map(rowHTML).join(''); return;
+  }
   let base = PLAYERS.filter(p => matches(p, currentFilter));
   if (currentFilter === 'oneacct'){ const seen = new Set(); base = base.filter(p => { const k = ownerKey(p).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }); }
   const val = SORT_VAL[sortKey] || SORT_VAL.rank;
