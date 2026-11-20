@@ -456,11 +456,13 @@ async function updatePlayerStats(puuid, entry, rid){
   const viaOverlay = !backfill && !!freshReport(rid) && Date.now() - (store.listAt || 0) < 20 * 60 * 1000;
   let ids;
   if (viaOverlay) ids = pend;
-  else { ids = await getMatchIds(puuid, backfill ? 20 : 3); await sleep(110); store.listAt = Date.now();
+  // 10 (no 3): misma única llamada; si el caché quedó atrasado (reinicio) o hubo varias partidas seguidas, no se pierde ninguna.
+  else { ids = await getMatchIds(puuid, backfill ? 20 : 10); await sleep(110); store.listAt = Date.now();
     for (const id of pend.slice().reverse()) if (!ids.includes(id)) ids.unshift(id); }
   const newIds = ids.filter(id => !known.has(id));
 
   const fetched = [];
+  const prevNewest = store.games.reduce((m, g) => Math.max(m, g.end || 0), 0);   // la más nueva que ya conocíamos
   for (const id of newIds.reverse()) {           // viejas→nuevas; unshift mantiene orden
     const m = await getMatch(id); await sleep(110);
     if (!m || !m.info) continue;
@@ -477,7 +479,7 @@ async function updatePlayerStats(puuid, entry, rid){
     if (isVoidLoss(me)) g.void = true;   // derrota anulada: se muestra, no cuenta (las victorias anuladas sí cuentan)
     store.games.unshift(g); fetched.push(g);
   }
-  store.games = store.games.slice(0, 20);
+  store.games = store.games.sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 20);
 
   // Backfill acotado: guarda en la DB las partidas recientes que ya conocíamos pero
   // aún no están guardadas (p.ej. jugadas antes de arreglar la persistencia). Máx 4
@@ -519,7 +521,7 @@ async function updatePlayerStats(puuid, entry, rid){
     // dan LP → siempre 0 (y no quedan "pendientes" esperando un delta que nunca llega).
     const pend = (store.lpGames[0] && store.lpGames[0].pending) ? store.lpGames[0] : null;
     const list = [...(pend ? [{ win: pend.win, end: pend.end, remake: !!pend.remake }] : []),
-                  ...fetched.map(g => ({ win: g.win, end: g.end, remake: !!g.remake || !!g.noLp }))];
+                  ...fetched.filter(g => (g.end || 0) > prevNewest).map(g => ({ win: g.win, end: g.end, remake: !!g.remake || !!g.noLp }))];
     const net = cur - store.lastAbsLP;
     const N = list.length;
     if (N >= 1 && Math.abs(net) <= 100 * N) {   // descarta saltos raros (promo de tier, decay, reset)
@@ -550,9 +552,22 @@ async function updatePlayerStats(puuid, entry, rid){
         const per = (net - est.reduce((a, b) => a + b, 0)) / nonRemake;   // el residuo solo a las que dan LP
         est = est.map((d, i) => list[i].remake ? 0 : Math.round(d + per));
         if (pend) store.lpGames.shift();                          // quita el pendiente; se re-inserta
-        for (let i = 0; i < N; i++) store.lpGames.unshift({ win: list[i].win, delta: est[i], end: list[i].end, est: !list[i].remake, remake: list[i].remake });
+        const batch = Date.now();   // lote: si en los próximos minutos llega LP que Riot aún no había sumado, se reparte entre ellas
+        for (let i = 0; i < N; i++) store.lpGames.unshift({ win: list[i].win, delta: est[i], end: list[i].end, est: !list[i].remake, remake: list[i].remake, batch });
       }
       store.lpGames = store.lpGames.slice(0, 40);
+    } else if (N === 0 && net !== 0 && Math.abs(net) <= 60) {
+      // Sin partidas nuevas pero el LP se movió: si hace poco se estimó un lote de varias partidas, es LP que Riot sumó tarde
+      // (antes quedaba +9/+9 en vez de +19/+19). Se re-reparte el lote con el neto completo. Si no hay lote reciente (p. ej.
+      // decay por inactividad), no se atribuye a nadie.
+      const top = store.lpGames[0];
+      if (top && top.batch && Date.now() - top.batch < 30 * 60 * 1000){
+        const lote = store.lpGames.filter(g => g.batch === top.batch), full = lote.reduce((a, g) => a + (g.delta || 0), 0) + net;
+        const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
+        const vivas = lote.filter(g => !g.remake), nv = vivas.length || 1;
+        const base = vivas.map(g => g.win ? mag : -mag), per = (full - base.reduce((a, b) => a + b, 0)) / nv;
+        vivas.forEach((g, i) => { g.delta = Math.round(base[i] + per); });
+      }
     }
   }
   if (cur != null) store.lastAbsLP = cur;
