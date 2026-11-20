@@ -1837,9 +1837,10 @@ app.get('/api/nav-counts', wrap(async (req,res) => {
 // Peak elo por cuenta (tabla peak_lp, LP absoluto), en memoria: se refresca cada 2 min y va en el ranking (filtro "Peak").
 let PEAK = {};
 const peakKey = r => String(r || '').toLowerCase().replace(/\s+/g, '');
-async function loadPeaks(){ try { const m = {}; for (const r of await q('SELECT rid, peak_abs FROM peak_lp')) m[peakKey(r.rid)] = +r.peak_abs; PEAK = m; } catch {} }
+let PEAK_TIER = {};
+async function loadPeaks(){ try { const m = {}, t = {}; for (const r of await q('SELECT rid, peak_abs, peak_tier FROM peak_lp')){ m[peakKey(r.rid)] = +r.peak_abs; if (r.peak_tier) t[peakKey(r.rid)] = r.peak_tier; } PEAK = m; PEAK_TIER = t; } catch {} }
 loadPeaks(); setInterval(loadPeaks, 120000);
-const withPeak = p => ({ ...p, peak: PEAK[peakKey(p.rid)] != null ? PEAK[peakKey(p.rid)] : null });
+const withPeak = p => ({ ...p, peak: PEAK[peakKey(p.rid)] != null ? PEAK[peakKey(p.rid)] : null, peakTier: PEAK_TIER[peakKey(p.rid)] || null });
 const publicSnap = () => {
   let d = liveData; if (!d){ try { d = JSON.parse(fs.readFileSync(path.join(ROOT, 'players.json'), 'utf8')); } catch { d = { players: [] }; } }
   return { ...d, liveGames: [], encounters: [], orgOnly: true,
@@ -4739,10 +4740,13 @@ function startEmbeddedRunner(){
         } else if (Date.now() - lastPlayersAt >= 20 * 60 * 1000){ await persistPlayers(); lastPlayersAt = Date.now(); }   // así un reinicio no arranca con un ranking de horas atrás
         // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
         try {
-          const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp) })).filter(x => x.rid && x.abs != null);
+          const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp), tier: pl.tier || null })).filter(x => x.rid && x.abs != null);
           if (pls.length){
-            const vals = pls.map((_, i) => `($${i*2+1},$${i*2+2})`).join(',');
-            await q(`INSERT INTO peak_lp (rid, peak_abs) VALUES ${vals} ON CONFLICT (rid) DO UPDATE SET peak_abs=GREATEST(peak_lp.peak_abs, EXCLUDED.peak_abs), updated_at=now()`, pls.flatMap(x => [x.rid, x.abs]));
+            // el tier del peak se guarda cuando se marca un peak nuevo (para mostrar Gran Maestro / Challenger en la vista Peak)
+            const vals = pls.map((_, i) => `($${i*3+1},$${i*3+2},$${i*3+3})`).join(',');
+            await q(`INSERT INTO peak_lp (rid, peak_abs, peak_tier) VALUES ${vals} ON CONFLICT (rid) DO UPDATE SET
+              peak_tier = CASE WHEN EXCLUDED.peak_abs > peak_lp.peak_abs THEN EXCLUDED.peak_tier ELSE coalesce(peak_lp.peak_tier, CASE WHEN EXCLUDED.peak_abs = peak_lp.peak_abs THEN EXCLUDED.peak_tier END) END,
+              peak_abs=GREATEST(peak_lp.peak_abs, EXCLUDED.peak_abs), updated_at=now()`, pls.flatMap(x => [x.rid, x.abs, x.tier]));
           }
         } catch {}
       }

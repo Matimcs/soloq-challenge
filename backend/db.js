@@ -125,6 +125,7 @@ async function init(){
       peak_abs   INTEGER NOT NULL,              -- LP absoluto (Master=2800+apexLP; sub = tier*400+div*100+lp)
       updated_at TIMESTAMPTZ DEFAULT now()
     );
+    ALTER TABLE peak_lp ADD COLUMN IF NOT EXISTS peak_tier TEXT;   -- tier en el momento del peak (MASTER / GRANDMASTER / CHALLENGER)
     CREATE TABLE IF NOT EXISTS match_participants ( -- datos crudos: cada participante de cada partida de un jugador del torneo (historial para stats)
       match_id      TEXT,
       puuid         TEXT,

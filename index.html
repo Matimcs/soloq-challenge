@@ -885,7 +885,9 @@ const CREST = tier => { const n = tier || 'UNRANKED'; return `overlay/assets/ran
 // Rango 'como si tuviera su peak': bajo Maestro, tier y división desde el LP absoluto; desde Maestro, el LP sobre
 // Maestro con el tier actual de la cuenta si ya es Gran Maestro/Challenger (no se guarda en qué tier estaba en su peak).
 function peakRank(p){ const abs = p._pk;
-  if (abs >= 2800) return { tier: (p.tier === 'CHALLENGER' || p.tier === 'GRANDMASTER') ? p.tier : 'MASTER', div: '', lp: abs - 2800 };
+  // tier guardado en su peak (si el peak vigente es el LP de hoy, el tier de hoy); si no se sabe, Maestro
+  if (abs >= 2800){ const apex = t => ['MASTER','GRANDMASTER','CHALLENGER'].includes(t) ? t : null;
+    const tier = (absLPf(p) >= abs && apex(p.tier)) || apex(p.peakTier) || 'MASTER'; return { tier, div: '', lp: abs - 2800 }; }
   const T = ['IRON','BRONZE','SILVER','GOLD','PLATINUM','EMERALD','DIAMOND'], D = ['IV','III','II','I'], t = Math.floor(abs / 400), r = abs - t * 400, d = Math.floor(r / 100);
   return { tier: T[t] || 'IRON', div: D[d] || 'IV', lp: r - d * 100 }; }
 function peakEl(p){
@@ -1469,6 +1471,7 @@ document.querySelectorAll('.tab-link').forEach(a=>{
     document.querySelectorAll('.tab-link').forEach(x=>x.classList.remove('active'));
     a.classList.add('active');
     const v = a.dataset.view, ranking = v==='ranking';
+    try { history.replaceState(null, '', ranking ? location.pathname + location.search : '#live'); } catch (err) {}
     document.getElementById('hero').style.display      = ranking ? '' : 'none';
     document.getElementById('ranking').style.display   = ranking ? '' : 'none';
     document.getElementById('view-live').style.display = ranking ? 'none' : '';
