@@ -882,6 +882,12 @@ function streakEl(s){
 }
 const CREST = tier => { const n = tier || 'UNRANKED'; return `overlay/assets/ranks/Season_2023_-_${n.charAt(0)+n.slice(1).toLowerCase()}.webp`; };
 // Elo en la vista "Peak": el peak de la cuenta y, abajo, su LP actual
+// Rango 'como si tuviera su peak': bajo Maestro, tier y división desde el LP absoluto; desde Maestro, el LP sobre
+// Maestro con el tier actual de la cuenta si ya es Gran Maestro/Challenger (no se guarda en qué tier estaba en su peak).
+function peakRank(p){ const abs = p._pk;
+  if (abs >= 2800) return { tier: (p.tier === 'CHALLENGER' || p.tier === 'GRANDMASTER') ? p.tier : 'MASTER', div: '', lp: abs - 2800 };
+  const T = ['IRON','BRONZE','SILVER','GOLD','PLATINUM','EMERALD','DIAMOND'], D = ['IV','III','II','I'], t = Math.floor(abs / 400), r = abs - t * 400, d = Math.floor(r / 100);
+  return { tier: T[t] || 'IRON', div: D[d] || 'IV', lp: r - d * 100 }; }
 function peakEl(p){
   const now = p.tier && p.tier !== 'UNRANKED' ? `${niceTier(p.tier)}${p.div ? ' ' + p.div : ''} · ${p.lp} LP` : 'Sin rango';
   return `<div class="elo"><span><span class="lp" style="font-size:14px">${peakTxt(p._pk)}</span><small style="display:block;color:var(--muted);font-size:11px;font-weight:600">Ahora: ${now}</small></span></div>`;
@@ -1190,7 +1196,7 @@ function render(){
   // Ranking por PEAK: el LP más alto que alcanzó cada cuenta (nunca menos que el actual)
   if (currentFilter === 'peak'){
     const list = PLAYERS.slice().map(p => ({ ...p, _pk: Math.max(p.peak || 0, absLPf(p)) })).sort((a, b) => b._pk - a._pk)
-      .map((p, i) => ({ ...p, rankPos: i + 1, move: null, _peakView: true }));
+      .map((p, i) => ({ ...p, ...peakRank(p), rankPos: i + 1, move: null }));   // se ve igual que el ranking, como si tuvieran su peak
     body.innerHTML = list.map(rowHTML).join(''); return;
   }
   let base = PLAYERS.filter(p => matches(p, currentFilter));
