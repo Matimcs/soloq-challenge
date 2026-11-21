@@ -2794,11 +2794,16 @@ async function analysisEntities(mode){
 const anMode = v => (v === 'all' || v === 'merge') ? v : 'top';
 // Rol principal (el más jugado) y partidas que CUENTAN para las estadísticas: a quien no es support
 // no se le cuentan las partidas que jugó de support (suelen ser autofill y distorsionan CS, daño, etc.).
+// Rol del jugador: el más jugado en sus ÚLTIMAS 50 partidas (como el ranking; antes era todo el historial y una cuenta que
+// pasó de top a support quedaba como top). Support → se comparan SOLO sus partidas de support; los demás roles → sin las
+// partidas que jugaron de support (otro rol, otras estadísticas).
 function anCounted(valid){
-  const roles = {}; valid.forEach(g => { if (g.pos) roles[g.pos] = (roles[g.pos] || 0) + 1; });
+  const recent = valid.slice().sort((a, b) => (b.end || 0) - (a.end || 0)).filter(g => g.pos).slice(0, 50);
+  const roles = {}; recent.forEach(g => { roles[g.pos] = (roles[g.pos] || 0) + 1; });
   const role = Object.keys(roles).sort((a, b) => roles[b] - roles[a])[0] || null;
   const skipSup = !!role && role !== 'UTILITY';
-  return { role, skipSup, counted: skipSup ? valid.filter(g => g.pos !== 'UTILITY') : valid };
+  const counted = role === 'UTILITY' ? valid.filter(g => g.pos === 'UTILITY') : skipSup ? valid.filter(g => g.pos !== 'UTILITY') : valid;
+  return { role, skipSup, onlySup: role === 'UTILITY', counted };
 }
 const anGamesOf = (by, puuids) => puuids.length === 1 ? (by[puuids[0]] || [])
   : [].concat(...puuids.map(pu => by[pu] || [])).sort((a, b) => b.end - a.end);
@@ -2836,14 +2841,14 @@ app.get('/api/analysis/detail', orgOnly, wrap(async (req, res) => {
   const e = (await analysisEntities(mode)).find(x => x.key === key);
   if (!e) return res.json({ games: [], champs: [] });
   const by = await analysisRows(), all = anGamesOf(by, e.puuids);
-  const { skipSup, counted } = anCounted(all.filter(g => !g.voided));
+  const { skipSup, onlySup, counted } = anCounted(all.filter(g => !g.voided));
   const lpByEnd = {};
   try { const blob = await matchesBlob(); e.puuids.forEach(pu => ((blob && blob[pu] && blob[pu].lpGames) || []).forEach(g => { if (g.end && !g.pending) lpByEnd[g.end] = g.delta; })); } catch {}
   const games = all.slice(0, 60).map(g => {
     const dl = lpByEnd[g.end]; let lp = null;
     if (g.noLp) lp = 0; else if (dl != null && ((g.win && dl >= 0) || (!g.win && dl <= 0))) lp = dl;
     return { id: g.id, champ: g.champ, pos: g.pos, win: g.win, k: g.k, d: g.d, a: g.a, cs: g.cs, gold: g.gold, dmg: g.dmg, vis: g.vis, lvl: g.lvl,
-      dur: g.dur, end: g.end, voided: g.voided, off: skipSup && g.pos === 'UTILITY' && !g.voided, lp, kp: g.tk ? Math.round((g.k + g.a) / g.tk * 100) : null };
+      dur: g.dur, end: g.end, voided: g.voided, off: !g.voided && ((skipSup && g.pos === 'UTILITY') || (onlySup && g.pos !== 'UTILITY')), lp, kp: g.tk ? Math.round((g.k + g.a) / g.tk * 100) : null };
   });
   const cm = {};
   counted.filter(g => g.champ).forEach(g => { const c = cm[g.champ] || (cm[g.champ] = { champ: g.champ, games: 0, wins: 0, k: 0, d: 0, a: 0 });
