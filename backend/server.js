@@ -2264,9 +2264,11 @@ app.get('/api/stats', wrap(async (req, res) => {
   // Partidas guardadas por cuenta (win/loss). Riot NO da el LP histórico, así que la curva se
   // reconstruye desde aquí: LP exacto donde el runner lo capturó (lpGames), estimado por V/D si no.
   const gamesByPuuid = {};
-  for (const g of await q("SELECT puuid, game_end, win, coalesce(no_lp,false) no_lp FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND game_end IS NOT NULL ORDER BY game_end ASC"))
-    (gamesByPuuid[g.puuid] = gamesByPuuid[g.puuid] || []).push({ t: Number(g.game_end), win: !!g.win, noLp: !!g.no_lp });
+  for (const g of await q("SELECT puuid, game_end, win, coalesce(no_lp,false) no_lp, coalesce(voided,false) voided, coalesce(duration,0) dur FROM match_participants WHERE is_tournament=true AND coalesce(puuid,'')<>'' AND game_end IS NOT NULL ORDER BY game_end ASC"))
+    // remakes (< 5 min) y derrotas anuladas no mueven LP
+    (gamesByPuuid[g.puuid] = gamesByPuuid[g.puuid] || []).push({ t: Number(g.game_end), win: !!g.win, noLp: !!g.no_lp || !!g.voided || (+g.dur > 0 && +g.dur < 300) });
   const dayAcc = {}, series = [];
+  const peakByRid = {}; try { for (const r of await q('SELECT lower(rid) rid, peak_abs FROM peak_lp')) peakByRid[r.rid] = +r.peak_abs; } catch {}   // tope de la curva
   const dayKey = t => new Date((t || 0) - 4 * 3600 * 1000).toISOString().slice(0, 10);  // día en Chile (UTC-4 aprox)
   for (const puuid in store) {
     if (excludeAcct.has(puuid)) continue;   // solo la cuenta más alta de cada jugador (excluye smurfs)
@@ -2274,18 +2276,27 @@ app.get('/api/stats', wrap(async (req, res) => {
     const rid = m.rid || puuid;
     const s = store[puuid]; const lg = (s && Array.isArray(s.lpGames) ? s.lpGames : []).filter(g => g.end);
     const deltaByEnd = {}; lg.forEach(g => { deltaByEnd[g.end] = g.delta || 0; });
-    const known = lg.map(g => Math.abs(g.delta || 0)).filter(x => x > 0).sort((a, b) => a - b);
-    const STEP = known.length ? known[Math.floor(known.length / 2)] : 20;   // paso estimado (mediana de |Δ| conocidos)
+    // paso estimado: mediana de |Δ| de partidas CONFIRMADAS (sin estimadas ni saltos raros), acotada a 10–30 LP. Antes podía
+    // salir 40+ y, sumado en cientos de partidas, la curva terminaba muy por sobre el peak real (p. ej. vishh en 400+).
+    const known = lg.filter(g => !g.est && !g.remake).map(g => Math.abs(g.delta || 0)).filter(x => x > 0 && x <= 60).sort((a, b) => a - b);
+    const STEP = Math.max(10, Math.min(30, known.length ? known[Math.floor(known.length / 2)] : 20));
     const gs = gamesByPuuid[puuid] || [];
     // Δ por partida: exacto si lo capturamos, si no estimado por victoria/derrota.
-    const perGame = gs.map(g => ({ t: g.t, delta: g.noLp ? 0 : (g.t in deltaByEnd) ? deltaByEnd[g.t] : (g.win ? STEP : -STEP) }));
+    const perGame = gs.map(g => ({ t: g.t, delta: g.noLp ? 0 : (g.t in deltaByEnd) ? deltaByEnd[g.t] : (g.win ? STEP : -STEP), est: !g.noLp && !(g.t in deltaByEnd) }));
     // Siempre de la más vieja a la más nueva: lpGames no siempre viene ordenado (con RIOCLARO857NACHO venía al revés
     // y la línea del gráfico avanzaba y se devolvía).
     const useGames = (perGame.length ? perGame : lg.map(g => ({ t: g.end, delta: g.delta || 0 }))).sort((x, y) => x.t - y.t);
     // Serie: reconstruye absLP hacia atrás desde el actual. Cada punto = LP DESPUÉS de esa partida (igual que la ficha).
     if (m.abs != null && useGames.length) {
-      let abs = m.abs; const pts = [{ t: Date.now(), lp: abs }];
-      for (let k = useGames.length - 1; k >= 0; k--) { pts.push({ t: useGames[k].t, lp: Math.max(0, abs) }); abs -= useGames[k].delta; }
+      // f escala SOLO los Δ estimados. Si con f=1 la curva pasa del peak real, se achican (búsqueda binaria) hasta que su
+      // punto más alto calce con el peak: así no quedan valores imposibles y la forma se mantiene (en vez de cortarla plana).
+      const build = f => { let abs = m.abs; const pts = [{ t: Date.now(), lp: abs }];
+        for (let k = useGames.length - 1; k >= 0; k--) { pts.push({ t: useGames[k].t, lp: abs }); abs -= useGames[k].est ? useGames[k].delta * f : useGames[k].delta; }
+        return pts; };
+      const cap = peakByRid[(rid || '').toLowerCase()] || null;
+      let pts = build(1);
+      if (cap && Math.max(...pts.map(x => x.lp)) > cap){ let lo = 0, hi = 1; for (let it = 0; it < 18; it++){ const mid = (lo + hi) / 2; if (Math.max(...build(mid).map(x => x.lp)) > cap) hi = mid; else lo = mid; } pts = build(lo); }
+      pts = pts.map(x => ({ t: x.t, lp: Math.max(0, Math.round(cap ? Math.min(cap, x.lp) : x.lp)) }));
       series.push({ rid, nm: m.nm, high: !!m.high, points: pts.reverse() });
     }
     // Subidones/bajones: neto por día.
