@@ -1197,7 +1197,9 @@ function render(){
   if (currentFilter === 'teams'){ body.innerHTML = renderByTeams(); return; }
   // Ranking por PEAK: el LP más alto que alcanzó cada cuenta (nunca menos que el actual)
   if (currentFilter === 'peak'){
+    const seenOwner = new Set();   // solo la cuenta con el peak más alto de cada jugador
     const list = PLAYERS.slice().map(p => ({ ...p, _pk: Math.max(p.peak || 0, absLPf(p)) })).sort((a, b) => b._pk - a._pk)
+      .filter(p => { const k = ownerKey(p).toLowerCase(); if (seenOwner.has(k)) return false; seenOwner.add(k); return true; })
       .map((p, i) => ({ ...p, ...peakRank(p), rankPos: i + 1, move: null }));   // se ve igual que el ranking, como si tuvieran su peak
     // los encabezados ordenan igual que en el ranking (# y Elo = orden por peak)
     const val = SORT_VAL[sortKey] || SORT_VAL.rank;
