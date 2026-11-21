@@ -27,7 +27,9 @@
      para no tapar pantalla. Fondo transparente, sin borde/sombra/padding, sin título/hint. */
   .sqcr-overlay{ background:transparent !important; -webkit-backdrop-filter:none !important; backdrop-filter:none !important; }
   .sqcr-box{ background:transparent !important; border:none !important; box-shadow:none !important; padding:0 !important; width:520px !important; }
-  .sqcr-title, .sqcr-sub, .sqcr-hint, .sqcr-legend{ display:none !important; }
+  .sqcr-sub, .sqcr-hint, .sqcr-legend{ display:none !important; }
+  /* quién te la lanzó: una línea compacta sobre el carrusel */
+  .sqcr-title{ font-size:15px !important; margin-bottom:6px; text-shadow:0 1px 3px rgba(0,0,0,.9); }
   .sqcr-box::before{ display:none !important; }
   /* Track ceñido a las cartas (148px + zoom de la ganadora) y fondo más transparente */
   .sqcr-track{ height:166px !important; margin:0 0 6px !important;
@@ -55,6 +57,10 @@
   const $ = id => document.getElementById(id);
   const SLUG = { 'Sin tus 3 campeones más jugados':'sin-3-campeones','Una partida con Yuumi':'yuumi','Campeón aleatorio':'campeon-aleatorio','Sin Flash':'sin-flash','Autofill':'autofill','Sin botas y sin pies veloces':'sin-botas','Hechizos cambiados':'hechizos-cambiados','Sin pociones ni pinks':'sin-pociones','Sin objetos completos hasta min 15':'sin-objetos-min15','Reverse':'reverse','Clase de campeón aleatoria':'clase-campeon' };
   const AUDIO = 'assets/Roulette Sound.mp3';
+  // Quién te la lanzó (si es un rebote, a quién se la tiraste tú)
+  const escH = x => String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+  function shellTitle(from){ const m = /rebote \((.+)\)/.exec(from || '');
+    return m ? '↩️ Tu Blue Shell a <b style="color:#ffd24a">' + escH(m[1]) + '</b> rebotó' : '🛡 <b style="color:#ffd24a">' + escH(from) + '</b> te lanzó una Blue Shell'; }
   const IMG = 'assets/shells/';
 
   // Muestra/oculta el grip de redimensionar (solo en modo ruleta).
@@ -129,7 +135,7 @@
         SQCRoulette.loading(false);
         try { audio.currentTime = 0; audio.play().catch(()=>{}); } catch(e){}
         SQCRoulette.show({ castigo, imgBase: IMG, audioUrl: AUDIO, audio, champIcon: ev.champIcon, champName: ev.champ,
-          title: '🛡 <b style="color:#ffd24a">' + from + '</b> te lanzó una Blue Shell', subtitle: 'De ' + from + ' para ti', onDone: done });
+          title: shellTitle(from), subtitle: 'De ' + from + ' para ti', onDone: done });
         setChrome(false);   // sin grip: la ventana es click-through (se mueve en "Posicionar overlays")
         // Re-escala en varios momentos (el layout/imagenes tardan un frame) para que no salga cortada.
         [0, 120, 300, 700].forEach(t => setTimeout(fitBox, t));
