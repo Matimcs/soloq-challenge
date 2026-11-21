@@ -1199,6 +1199,9 @@ function render(){
   if (currentFilter === 'peak'){
     const list = PLAYERS.slice().map(p => ({ ...p, _pk: Math.max(p.peak || 0, absLPf(p)) })).sort((a, b) => b._pk - a._pk)
       .map((p, i) => ({ ...p, ...peakRank(p), rankPos: i + 1, move: null }));   // se ve igual que el ranking, como si tuvieran su peak
+    // los encabezados ordenan igual que en el ranking (# y Elo = orden por peak)
+    const val = SORT_VAL[sortKey] || SORT_VAL.rank;
+    list.sort((a, b) => { const va = val(a), vb = val(b); const cmp = (typeof va === 'string') ? va.localeCompare(vb) : va - vb; return sortDir === 'asc' ? cmp : -cmp; });
     body.innerHTML = list.map(rowHTML).join(''); return;
   }
   let base = PLAYERS.filter(p => matches(p, currentFilter));
