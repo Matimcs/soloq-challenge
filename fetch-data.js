@@ -445,6 +445,11 @@ async function getMatch(id){
 }
 
 // Actualiza historial (solo pide detalles de partidas NUEVAS) y trackea ±LP.
+// Marca/desmarca en la base una derrota mitigada (0 LP) para que las estadísticas no la cuenten como derrota.
+function markNoLp(puuid, end, on){
+  if (!pgPool || !puuid || !end) return;
+  pgPool.query('UPDATE match_participants SET no_lp=$3 WHERE puuid=$1 AND game_end=$2 AND NOT coalesce(win,false)', [puuid, end, !!on]).catch(() => {});
+}
 async function updatePlayerStats(puuid, entry, rid){
   const store = matchStore[puuid] || { games:[], lpGames:[], lastAbsLP:null };
   const known = new Set(store.games.map(g=>g.id));
@@ -537,7 +542,8 @@ async function updatePlayerStats(puuid, entry, rid){
         //      LP sigue sin moverse, se CONFIRMA en 0 (así la siguiente victoria se atribuye completa).
         if (!pend) store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, pending: true, pendAt: Date.now() });
         // 10 min (antes 3): Riot a veces tarda más en mover el LP y una derrota normal quedaba como 'mitigada' (0 LP)
-        else if (pend.pendAt && (Date.now() - pend.pendAt) > 10 * 60 * 1000) { pend.delta = 0; delete pend.pending; pend.zeroAt = Date.now(); }
+        else if (pend.pendAt && (Date.now() - pend.pendAt) > 10 * 60 * 1000) { pend.delta = 0; delete pend.pending; pend.zeroAt = Date.now();
+          if (!pend.win) markNoLp(puuid, pend.end, true); }   // derrota en 0 LP = mitigada: deja de contar en estadísticas
       } else if (N === 1) {
         // Una sola partida con el LP ya movido → atribución directa (caso normal, ±LP exacto).
         if (pend) { pend.delta = net; delete pend.pending; }
@@ -565,7 +571,7 @@ async function updatePlayerStats(puuid, entry, rid){
       // una partida que se dio por 0 LP y el LP se movió después en el sentido esperado (pérdida tras derrota, subida tras
       // victoria): era LP que Riot sumó tarde → se le asigna a esa partida en vez de dejarla como 'mitigada'.
       if (top && top.zeroAt && !top.remake && Date.now() - top.zeroAt < 30 * 60 * 1000 && ((top.win && net > 0) || (!top.win && net < 0))){
-        top.delta = net; delete top.zeroAt; if (top.win) countAegis(net);
+        top.delta = net; delete top.zeroAt; if (top.win) countAegis(net); else markNoLp(puuid, top.end, false);
       } else if (top && top.batch && Date.now() - top.batch < 30 * 60 * 1000){
         const lote = store.lpGames.filter(g => g.batch === top.batch), full = lote.reduce((a, g) => a + (g.delta || 0), 0) + net;
         const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
@@ -583,7 +589,10 @@ async function updatePlayerStats(puuid, entry, rid){
   store.games.forEach(g => { if (g.win) delete g.void; else if (VOID_IDS.has(g.id + '|' + puuid)) g.void = true; });
   const counted = store.games.filter(g => !g.void);
   // Forma (sparkline) y rachas: sin remakes — no son victoria ni derrota (no mueven LP), antes contaban como derrota.
-  const played = counted.filter(g => !g.remake);
+  // derrotas mitigadas: con flag de Riot (noLp) o confirmadas en 0 LP
+  const zeroLoss = new Set(store.lpGames.filter(g => !g.win && g.delta === 0 && !g.pending && !g.remake).map(g => g.end));
+  const mitig = g => !g.win && (g.noLp || zeroLoss.has(g.end));
+  const played = counted.filter(g => !g.remake && !mitig(g));
   const form = played.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
   const formT = played.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
   // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
@@ -600,7 +609,7 @@ async function updatePlayerStats(puuid, entry, rid){
   const isAegis = d => baseA && d >= 1.8 * baseA;
   // Racha de victorias actual (de la más nueva hacia atrás). Remakes y derrotas anuladas no la cortan.
   let streak = 0;
-  for (const g of store.games){ if (g.remake || g.void) continue; if (!g.win) break; streak++; }
+  for (const g of store.games){ if (g.remake || g.void || mitig(g)) continue; if (!g.win) break; streak++; }
   return {
     form, formT, streak,
     role: mainPos ? (ROLE_LBL[mainPos] || null) : null,

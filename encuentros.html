@@ -176,7 +176,8 @@
   // Winrate total jugando como ALIADOS (encuentros no-rival: todos del mismo bando).
   function paintAllyWR(){
     const box = document.getElementById('ally-wr');
-    const allies = ENC_LIST.filter(e => !isRival(e));
+    // sin derrotas mitigadas (0 LP por AFK o conducta disruptiva): no cuentan como derrota
+    const allies = ENC_LIST.filter(e => !isRival(e) && !(e.players || []).some(p => !p.win && p.noLp));
     if (!allies.length){ box.style.display = 'none'; return; }
     const wins = allies.filter(e => (e.players || []).some(p => p.win)).length;
     const losses = allies.length - wins;

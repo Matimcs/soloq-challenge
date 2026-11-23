@@ -2820,7 +2820,7 @@ app.get('/api/analysis', orgOnly, wrap(async (req, res) => {
   const avg = (arr, f) => { const v = arr.map(f).filter(x => x != null); return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; };
   const players = [];
   for (const e of ents){
-    const { role, counted: all } = anCounted(anGamesOf(by, e.puuids).filter(g => !g.voided)); if (!all.length) continue;
+    const { role, counted: all } = anCounted(anGamesOf(by, e.puuids).filter(g => !g.voided && !(g.noLp && !g.win))); if (!all.length) continue;   // sin anuladas ni derrotas mitigadas
     const gs = n ? all.slice(0, n) : all, G = gs.length, sum = f => gs.reduce((s, g) => s + f(g), 0);
     const min = sum(g => g.dur) / 60 || 1, K = sum(g => g.k), D = sum(g => g.d), A = sum(g => g.a), TK = sum(g => g.tk);
     const r1 = v => v == null ? null : Math.round(v * 10) / 10;
@@ -2843,7 +2843,7 @@ app.get('/api/analysis/detail', orgOnly, wrap(async (req, res) => {
   const e = (await analysisEntities(mode)).find(x => x.key === key);
   if (!e) return res.json({ games: [], champs: [] });
   const by = await analysisRows(), all = anGamesOf(by, e.puuids);
-  const { skipSup, onlySup, counted } = anCounted(all.filter(g => !g.voided));
+  const { skipSup, onlySup, counted } = anCounted(all.filter(g => !g.voided && !(g.noLp && !g.win)));
   const lpByEnd = {};
   try { const blob = await matchesBlob(); e.puuids.forEach(pu => ((blob && blob[pu] && blob[pu].lpGames) || []).forEach(g => { if (g.end && !g.pending) lpByEnd[g.end] = g.delta; })); } catch {}
   const games = all.slice(0, 60).map(g => {
@@ -2913,7 +2913,7 @@ async function fvChampPool(){
 }
 // Datos de un jugador a partir de su entidad del ranking (cuenta más alta + rol habitual).
 async function fvFromEntity(e, uid){
-  const by = await analysisRows(), valid = anGamesOf(by, e.puuids).filter(g => !g.voided && g.pos);
+  const by = await analysisRows(), valid = anGamesOf(by, e.puuids).filter(g => !g.voided && !(g.noLp && !g.win) && g.pos);
   const cnt = {}; valid.forEach(g => { cnt[g.pos] = (cnt[g.pos] || 0) + 1; });
   const main = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0] || null;
   const roles = {}; Object.keys(cnt).forEach(r => { roles[r] = Math.round(cnt[r] / valid.length * 100) / 100; });

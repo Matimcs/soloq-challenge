@@ -524,6 +524,7 @@ async function init(){
         GROUP BY puuid
       ) r ON r.puuid = m.puuid
       WHERE NOT coalesce(m.voided, false)
+        AND NOT (coalesce(m.no_lp, false) AND NOT coalesce(m.win, false))   -- derrota mitigada (0 LP): no cuenta como derrota
         AND NOT (m.is_tournament = true AND upper(coalesce(m.position, '')) = 'UTILITY'
                  AND r.role IS NOT NULL AND r.role <> 'UTILITY');
 
