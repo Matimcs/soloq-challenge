@@ -197,6 +197,12 @@ const DEAD_PUUIDS = new Set([
 for (const k of Object.keys(puuidCache)) if (DEAD_PUUIDS.has(puuidCache[k])) delete puuidCache[k];
 const rankStore  = loadJSON(RANK_FILE,  {});   // puuid -> { entry, at }
 const matchStore = loadJSON(MATCH_FILE, {});   // puuid -> { games:[{id,win,champ,end}], lastAbsLP, lpGames:[{win,delta}] }
+// Derrotas que quedaron en 0 LP solo porque Riot tardó en descontar (sin AFK ni conducta disruptiva): son derrotas normales
+// con LP desconocido, no mitigadas. Se quita su 0 para que no se vean grises ni dejen de contar.
+const NOT_MITIG_ENDS = new Set([1792297280024, 1792295200172, 1790929612239, 1791403334796, 1792438240098, 1794260008137,
+  1790037327533, 1786505006661, 1793806507844, 1794268359681, 1793179674862, 1794458960382]);
+for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st || !Array.isArray(st.lpGames)) continue;
+  st.lpGames = st.lpGames.filter(g => !(g && !g.win && g.delta === 0 && NOT_MITIG_ENDS.has(+g.end))); }
 const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
 const REGION_FILE = path.join(CACHE_DIR, 'regions.json');
 const regionStore = loadJSON(REGION_FILE, {}); // puuid -> plataforma real (la2, br1, na1…) para league/spectator

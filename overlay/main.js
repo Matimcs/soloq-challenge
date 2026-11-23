@@ -463,8 +463,27 @@ function applyVis(){
   const okGame = lastInGame && fsKnownForGame && !isFullscreen();
   const okSmall = forceShowAll || (settings.smallVisible && okGame);
   const okShell = forceShowAll || (settings.shellVisible && okGame);
-  if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? win.showInactive() : win.hide(); }
-  if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? shellWin.showInactive() : shellWin.hide(); }
+  if (win && okSmall !== smallShown){ smallShown = okSmall; okSmall ? showCard(win, 'small') : win.hide(); }
+  if (shellWin && okShell !== shellShown){ shellShown = okShell; okShell ? showCard(shellWin, 'shell') : shellWin.hide(); }
+  // Vigía en partida: si la tarjeta debería verse pero Windows la ocultó, quedó fuera de pantalla (monitores que aún no
+  // estaban listos al prender el PC) o debajo del juego, se vuelve a mostrar igual que con el doble-click en la bandeja.
+  if (okGame && !forceShowAll){
+    if (okSmall && win && !win.isDestroyed() && (!win.isVisible() || offScreen(win))) showCard(win, 'small');
+    if (okShell && shellWin && !shellWin.isDestroyed() && (!shellWin.isVisible() || offScreen(shellWin))) showCard(shellWin, 'shell');
+    // cada 20 s se re-afirma "encima de todo" (el juego al tomar el foco puede quedar por sobre la tarjeta)
+    if (Date.now() - topAt > 20000){ topAt = Date.now();
+      [okSmall && win, okShell && shellWin].forEach(w => { if (w && !w.isDestroyed() && w.isVisible()){ w.setAlwaysOnTop(true, 'screen-saver'); w.moveTop(); } }); }
+  }
+}
+let topAt = 0;
+function offScreen(w){ const b = w.getBounds();
+  return !screen.getAllDisplays().some(d => { const r = d.bounds; return b.x < r.x + r.width - 40 && b.x + 60 > r.x && b.y < r.y + r.height - 20 && b.y + 30 > r.y; }); }
+// Muestra una tarjeta en partida de forma robusta: posición visible, encima de todo y al frente (sin quitarle el foco al juego).
+function showCard(w, key){
+  if (!w || w.isDestroyed()) return;
+  if (offScreen(w)){ const d = defaults(), p = key === 'small' ? posFor('small', d.smallX, d.smallY) : posFor('shell', d.shellX, d.shellY);
+    const b = w.getBounds(); w.setBounds({ x: p.x, y: p.y, width: b.width, height: b.height }); }
+  w.setAlwaysOnTop(true, 'screen-saver'); w.showInactive(); w.moveTop();
 }
 // Mostrar todo (tarjeta de standing + popup de Blue Shells + panel de la web).
 // Es a prueba de fallos: si el modo posicionar quedó pegado lo cierra, y reubica los overlays a una
