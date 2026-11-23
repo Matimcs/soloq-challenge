@@ -117,7 +117,7 @@
 
   function plHtml(p){
     const res = p.win ? '<span class="res w">Ganó</span>'
-      : p.noLp ? '<span class="res n" style="color:var(--muted)" title="Derrota mitigada: Riot terminó la partida por conducta disruptiva de un compañero y no restó LP">Derrota mitigada</span>'
+      : p.noLp ? '<span class="res n" style="color:var(--muted)" title="Derrota mitigada: Riot no restó LP (compañero AFK o con conducta disruptiva)">Derrota mitigada</span>'
       : '<span class="res l">Perdió</span>';
     return `<a class="pl" href="${opgg(p.rid)}" target="_blank" rel="noopener" title="op.gg de ${p.nm}">
       <img src="${champUrl(p.champ)}" onerror="this.style.visibility='hidden'">

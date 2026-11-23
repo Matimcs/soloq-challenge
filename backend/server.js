@@ -2368,10 +2368,12 @@ app.get('/api/encounters', orgOnly, wrap(async (req, res) => {
     GROUP BY match_id, lower(riotid)`);
   const byMatch = {};
   for (const r of rows) (byMatch[r.match_id] = byMatch[r.match_id] || []).push(r);
+  // derrotas con 0 LP registrado (compañero AFK, etc.): también son 'Derrota mitigada', igual que en el historial
+  const zeroLp = new Set(); try { const blob = await matchesBlob(); for (const pu in (blob || {})) for (const g of (blob[pu].lpGames || [])) if (g.end && g.delta === 0 && !g.pending && !g.est && !g.remake) zeroLp.add(pu + '|' + g.end); } catch {}
   const encounters = Object.entries(byMatch).map(([id, ps]) => {
     const ownerCount = {}; ps.forEach(p => { const o = ownerOf(p.rid); ownerCount[o] = (ownerCount[o] || 0) + 1; });
     return { id, end: Math.max(...ps.map(p => Number(p.gend) || 0)), voided: ps.some(p => p.voided),
-      players: ps.map(p => ({ nm: dispName(p.rid, ownerCount) || p.nm, rid: p.rid, win: !!p.win, noLp: !!p.nolp, champ: p.champ || null })) };
+      players: ps.map(p => ({ nm: dispName(p.rid, ownerCount) || p.nm, rid: p.rid, win: !!p.win, noLp: !!p.nolp || (!p.win && zeroLp.has(rid2puuid[p.rid] + '|' + Number(p.gend))), champ: p.champ || null })) };
   }).filter(e => e.players.length >= 2)
     .sort((a, b) => (b.end || 0) - (a.end || 0)).slice(0, 400);   // historial completo (antes se cortaba en 100)
   ENC_CACHE.data = { encounters };
