@@ -536,7 +536,8 @@ async function updatePlayerStats(puuid, entry, rid){
         //      victoria sin LP. Se detecta como pediste: si tras el tiempo de propagación (~3 min) el
         //      LP sigue sin moverse, se CONFIRMA en 0 (así la siguiente victoria se atribuye completa).
         if (!pend) store.lpGames.unshift({ win: list[0].win, delta: 0, end: list[0].end, pending: true, pendAt: Date.now() });
-        else if (pend.pendAt && (Date.now() - pend.pendAt) > 3 * 60 * 1000) { pend.delta = 0; delete pend.pending; }
+        // 10 min (antes 3): Riot a veces tarda más en mover el LP y una derrota normal quedaba como 'mitigada' (0 LP)
+        else if (pend.pendAt && (Date.now() - pend.pendAt) > 10 * 60 * 1000) { pend.delta = 0; delete pend.pending; pend.zeroAt = Date.now(); }
       } else if (N === 1) {
         // Una sola partida con el LP ya movido → atribución directa (caso normal, ±LP exacto).
         if (pend) { pend.delta = net; delete pend.pending; }
@@ -561,7 +562,11 @@ async function updatePlayerStats(puuid, entry, rid){
       // (antes quedaba +9/+9 en vez de +19/+19). Se re-reparte el lote con el neto completo. Si no hay lote reciente (p. ej.
       // decay por inactividad), no se atribuye a nadie.
       const top = store.lpGames[0];
-      if (top && top.batch && Date.now() - top.batch < 30 * 60 * 1000){
+      // una partida que se dio por 0 LP y el LP se movió después en el sentido esperado (pérdida tras derrota, subida tras
+      // victoria): era LP que Riot sumó tarde → se le asigna a esa partida en vez de dejarla como 'mitigada'.
+      if (top && top.zeroAt && !top.remake && Date.now() - top.zeroAt < 30 * 60 * 1000 && ((top.win && net > 0) || (!top.win && net < 0))){
+        top.delta = net; delete top.zeroAt; if (top.win) countAegis(net);
+      } else if (top && top.batch && Date.now() - top.batch < 30 * 60 * 1000){
         const lote = store.lpGames.filter(g => g.batch === top.batch), full = lote.reduce((a, g) => a + (g.delta || 0), 0) + net;
         const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
         const vivas = lote.filter(g => !g.remake), nv = vivas.length || 1;
