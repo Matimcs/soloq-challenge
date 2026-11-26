@@ -205,7 +205,8 @@ for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st ||
   st.lpGames = st.lpGames.filter(g => !(g && !g.win && g.delta === 0 && NOT_MITIG_ENDS.has(+g.end))); }
 // LP corregido a mano (partidas cuyo LP se perdió en un redeploy y quedó repartido en partes iguales). Se aplica una vez.
 const LP_FIX = { 1795717238889: 20, 1795721499246: 20, 1795724448678: 40,   // Maio#Fidd 26-nov: +20, +20, doble LP
-  1795723019051: 39, 1795725397210: -21 };                                    // carloco69 26-nov: doble LP, derrota normal
+  1795723019051: 39, 1795725397210: -21,                                      // carloco69 26-nov: doble LP, derrota normal
+  1795719464472: 19, 1795721750501: 37, 1795724366228: 19 };                  // Muspe 26-nov: Sylas, Nasus top (doble LP), Zaahen
 for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st || !Array.isArray(st.lpGames)) continue;
   for (const g of st.lpGames){ const v = g && LP_FIX[+g.end]; if (v == null || g.fixed) continue;
     g.delta = v; g.fixed = true; delete g.est; delete g.batch; if (v >= 35) st.aegisTotal = (st.aegisTotal || 0) + 1; } }
