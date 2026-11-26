@@ -4736,9 +4736,9 @@ function startEmbeddedRunner(){
     setTimeout(() => clearInterval(bootPoll), 15 * 60 * 1000);
     // Deploy sin corte: el servidor anterior sigue vivo y guarda su caché (±LP de cada partida) recién cuando Render lo apaga,
     // DESPUÉS de que este arrancó. Antes se cargaba el caché viejo de inmediato y se perdía el LP de las partidas de las
-    // últimas horas (quedaban sin LP). Se espera hasta 60 s a que llegue ese guardado; si no hay servidor anterior, sigue igual.
+    // últimas horas (quedaban sin LP). Se espera hasta 30 s a que llegue ese guardado; si no hay servidor anterior, sigue igual.
     try {
-      const at0 = await q1("SELECT updated_at FROM fetch_cache WHERE id='matches'"), t0 = at0 ? new Date(at0.updated_at).getTime() : 0, until = Date.now() + 60000;
+      const at0 = await q1("SELECT updated_at FROM fetch_cache WHERE id='matches'"), t0 = at0 ? new Date(at0.updated_at).getTime() : 0, until = Date.now() + 30000;
       while (Date.now() < until){
         await new Promise(r => setTimeout(r, 3000));
         const r = await q1("SELECT updated_at FROM fetch_cache WHERE id='matches'");
@@ -4772,9 +4772,9 @@ function startEmbeddedRunner(){
           await saveCache();
           await persistPlayers(); lastPlayersAt = Date.now();
         } else if (Date.now() - lastPlayersAt >= 20 * 60 * 1000){ await persistPlayers(); lastPlayersAt = Date.now(); }
-        // El ±LP de cada partida (matches, ~65 KB) se respalda cada 15 min: si un redeploy no alcanzaba a guardarlo al apagarse,
+        // El ±LP de cada partida (matches, ~65 KB) se respalda cada 5 min: en los redeploys el guardado al apagarse no alcanza a correr,
         // se perdía el LP de las partidas de las últimas horas (quedaban sin LP en el historial).
-        if (Date.now() - lastMatchesAt >= 15 * 60 * 1000){ lastMatchesAt = Date.now(); await saveCache(['matches']); }   // así un reinicio no arranca con un ranking de horas atrás
+        if (Date.now() - lastMatchesAt >= 5 * 60 * 1000){ lastMatchesAt = Date.now(); await saveCache(['matches']); }
         // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
         try {
           const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp), tier: pl.tier || null })).filter(x => x.rid && x.abs != null);
