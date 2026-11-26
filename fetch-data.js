@@ -203,6 +203,11 @@ const NOT_MITIG_ENDS = new Set([1792297280024, 1792295200172, 1790929612239, 179
   1790037327533, 1786505006661, 1793806507844, 1794268359681, 1793179674862, 1794458960382]);
 for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st || !Array.isArray(st.lpGames)) continue;
   st.lpGames = st.lpGames.filter(g => !(g && !g.win && g.delta === 0 && NOT_MITIG_ENDS.has(+g.end))); }
+// LP corregido a mano (partidas cuyo LP se perdió en un redeploy y quedó repartido en partes iguales). Se aplica una vez.
+const LP_FIX = { 1795717238889: 20, 1795721499246: 20, 1795724448678: 40 };   // Maio#Fidd 26-nov: +20, +20, doble LP
+for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st || !Array.isArray(st.lpGames)) continue;
+  for (const g of st.lpGames){ const v = g && LP_FIX[+g.end]; if (v == null || g.fixed) continue;
+    g.delta = v; g.fixed = true; delete g.est; delete g.batch; if (v >= 40) st.aegisTotal = (st.aegisTotal || 0) + 1; } }
 const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
 const REGION_FILE = path.join(CACHE_DIR, 'regions.json');
 const regionStore = loadJSON(REGION_FILE, {}); // puuid -> plataforma real (la2, br1, na1…) para league/spectator

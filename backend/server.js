@@ -4755,6 +4755,9 @@ function startEmbeddedRunner(){
     let stopping = false;
     process.once('SIGTERM', async () => { if (stopping) return; stopping = true;
       const t = setTimeout(() => process.exit(0), 20000);   // primero el ranking (liviano y es lo que se ve al reiniciar), después los cachés grandes
+      // primero el ±LP de cada partida (si se pierde, las partidas recientes quedan sin LP), luego el ranking y el resto
+      console.log('SIGTERM: guardando caché');
+      try { await saveCache(['matches']); console.log('SIGTERM: ±LP guardado'); } catch (e) { console.log('SIGTERM: ±LP falló ' + e.message); }
       try { await persistPlayers(); } catch {} try { await saveCache(); } catch {} clearTimeout(t); process.exit(0); });
     for (;;){
       const t = Date.now();
