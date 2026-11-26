@@ -4699,8 +4699,10 @@ function startEmbeddedRunner(){
   // era la mayor parte de la banda "Service-Initiated" de Render.
   const lastSaved = {};
   const hashOf = raw => crypto.createHash('sha1').update(raw).digest('hex');
-  const saveCache = async () => {
-    for (const [id, file] of Object.entries(CACHE_FILES)){
+  // only: guardar solo esos ids (p. ej. ['matches']). 'matches' va primero: es el ±LP de cada partida y es lo que más duele perder.
+  const saveCache = async (only) => {
+    const order = ['matches', ...Object.keys(CACHE_FILES).filter(k => k !== 'matches')];
+    for (const id of order){ const file = CACHE_FILES[id]; if (only && !only.includes(id)) continue;
       try { const raw = fs.readFileSync(path.join(CACHE_DIR, file), 'utf8'), h = hashOf(raw);
         if (lastSaved[id] === h) continue;
         await q('INSERT INTO fetch_cache (id,data,updated_at) VALUES ($1,$2::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$2::jsonb, updated_at=now()', [id, raw]);
@@ -4732,8 +4734,19 @@ function startEmbeddedRunner(){
         if (at > bootAt){ const row = await q1("SELECT data FROM fetch_cache WHERE id='players'"); if (row && row.data && !firstCycleDone){ liveData = row.data; bootAt = at; console.log('Ranking del servidor anterior cargado'); } } } catch {}
     }, 10000);
     setTimeout(() => clearInterval(bootPoll), 15 * 60 * 1000);
+    // Deploy sin corte: el servidor anterior sigue vivo y guarda su caché (±LP de cada partida) recién cuando Render lo apaga,
+    // DESPUÉS de que este arrancó. Antes se cargaba el caché viejo de inmediato y se perdía el LP de las partidas de las
+    // últimas horas (quedaban sin LP). Se espera hasta 60 s a que llegue ese guardado; si no hay servidor anterior, sigue igual.
+    try {
+      const at0 = await q1("SELECT updated_at FROM fetch_cache WHERE id='matches'"), t0 = at0 ? new Date(at0.updated_at).getTime() : 0, until = Date.now() + 60000;
+      while (Date.now() < until){
+        await new Promise(r => setTimeout(r, 3000));
+        const r = await q1("SELECT updated_at FROM fetch_cache WHERE id='matches'");
+        if (r && new Date(r.updated_at).getTime() > t0){ console.log('Caché del servidor anterior recibido'); await new Promise(r => setTimeout(r, 8000)); break; }
+      }
+    } catch {}
     await loadCache();   // restaura el historial ±LP/aegis persistido
-    let lastPersist = Date.now(), lastPlayersHash = '', lastPlayersAt = 0;   // el ranking (liviano) se respalda tras el 1er ciclo y luego cada 20 min
+    let lastPersist = Date.now(), lastPlayersHash = '', lastPlayersAt = 0, lastMatchesAt = Date.now();   // el ranking (liviano) se respalda tras el 1er ciclo y luego cada 20 min
     const PERSIST_MS = (Number(process.env.PERSIST_MIN) || 120) * 60 * 1000;   // cada cuánto persistir los blobs a Supabase (antes: cada ciclo; luego 30 min)
     const persistPlayers = async () => { const raw = JSON.stringify(liveData), h = hashOf(raw); if (h === lastPlayersHash) return;
       try { await q("INSERT INTO fetch_cache (id,data,updated_at) VALUES ('players',$1::jsonb,now()) ON CONFLICT (id) DO UPDATE SET data=$1::jsonb, updated_at=now()", [raw]); lastPlayersHash = h; } catch {} };
@@ -4755,7 +4768,10 @@ function startEmbeddedRunner(){
           lastPersist = Date.now();
           await saveCache();
           await persistPlayers(); lastPlayersAt = Date.now();
-        } else if (Date.now() - lastPlayersAt >= 20 * 60 * 1000){ await persistPlayers(); lastPlayersAt = Date.now(); }   // así un reinicio no arranca con un ranking de horas atrás
+        } else if (Date.now() - lastPlayersAt >= 20 * 60 * 1000){ await persistPlayers(); lastPlayersAt = Date.now(); }
+        // El ±LP de cada partida (matches, ~65 KB) se respalda cada 15 min: si un redeploy no alcanzaba a guardarlo al apagarse,
+        // se perdía el LP de las partidas de las últimas horas (quedaban sin LP en el historial).
+        if (Date.now() - lastMatchesAt >= 15 * 60 * 1000){ lastMatchesAt = Date.now(); await saveCache(['matches']); }   // así un reinicio no arranca con un ranking de horas atrás
         // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
         try {
           const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp), tier: pl.tier || null })).filter(x => x.rid && x.abs != null);

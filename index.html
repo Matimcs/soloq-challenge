@@ -1027,7 +1027,9 @@ function sparkline(form, lps){
   const known = useLp ? lps.filter(d => d != null && d !== 0).map(Math.abs).sort((a,b)=>a-b) : [];
   const typ = known.length ? known[Math.floor(known.length/2)] : 20;
   let y = 0; const pts = [0];
-  form.forEach((w, i) => { const d = useLp ? (lps[i] != null ? lps[i] : (w ? typ : -typ)) : (w ? 1 : -1); y += d; pts.push(y); });
+  // LP que no calza con el resultado (victoria con 0 o menos, derrota con 0 o más) = desconocido → el típico
+  const ok = (w, d) => d != null && (w ? d > 0 : d < 0);
+  form.forEach((w, i) => { const d = useLp ? (ok(w, lps[i]) ? lps[i] : (w ? typ : -typ)) : (w ? 1 : -1); y += d; pts.push(y); });
   const min = Math.min(...pts), max = Math.max(...pts), range = (max - min) || 1;
   const W = 72, H = 26, n = pts.length - 1;
   const coords = pts.map((v,i)=>{
