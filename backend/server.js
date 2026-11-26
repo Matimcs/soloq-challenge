@@ -4774,7 +4774,7 @@ function startEmbeddedRunner(){
         } else if (Date.now() - lastPlayersAt >= 20 * 60 * 1000){ await persistPlayers(); lastPlayersAt = Date.now(); }
         // El ±LP de cada partida (matches, ~65 KB) se respalda cada 5 min: en los redeploys el guardado al apagarse no alcanza a correr,
         // se perdía el LP de las partidas de las últimas horas (quedaban sin LP en el historial).
-        if (Date.now() - lastMatchesAt >= 5 * 60 * 1000){ lastMatchesAt = Date.now(); await saveCache(['matches']); }
+        if (Date.now() - lastMatchesAt >= 5 * 60 * 1000){ lastMatchesAt = Date.now(); await saveCache(['matches', 'ranks', 'puuids', 'positions']); }   // + rangos: así el 1er ciclo tras un redeploy no re-pide todo a Riot (tardaba ~6 min)
         // Récord de LP: sube el peak_abs de cada cuenta si su LP actual lo supera (batch en un solo statement).
         try {
           const pls = (liveData.players || []).map(pl => ({ rid:(pl.rid||'').toLowerCase(), abs:absLPof(pl.tier, pl.div, pl.lp), tier: pl.tier || null })).filter(x => x.rid && x.abs != null);
