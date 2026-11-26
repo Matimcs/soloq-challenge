@@ -1019,10 +1019,15 @@ async function loadAvatars(){
 }
 
 // sparkline de forma: suma acumulada (+1 win / -1 loss), verde si sube, rojo si baja
-function sparkline(form){
+// Línea de forma según LP: cada partida sube/baja lo que dio (si no se conoce su LP, el típico de esa cuenta).
+// Sin LP (p. ej. equipos), cada partida vale ±1. Color = LP neto: verde sube, rojo baja, amarillo igual.
+function sparkline(form, lps){
   if(!form || form.length < 2) return '<span class="streak n">–</span>';
+  const useLp = Array.isArray(lps) && lps.length === form.length;
+  const known = useLp ? lps.filter(d => d != null && d !== 0).map(Math.abs).sort((a,b)=>a-b) : [];
+  const typ = known.length ? known[Math.floor(known.length/2)] : 20;
   let y = 0; const pts = [0];
-  form.forEach(w => { y += w ? 1 : -1; pts.push(y); });
+  form.forEach((w, i) => { const d = useLp ? (lps[i] != null ? lps[i] : (w ? typ : -typ)) : (w ? 1 : -1); y += d; pts.push(y); });
   const min = Math.min(...pts), max = Math.max(...pts), range = (max - min) || 1;
   const W = 72, H = 26, n = pts.length - 1;
   const coords = pts.map((v,i)=>{
@@ -1115,7 +1120,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
       <td>${roleCell(p)}</td>
       <td>${p._peakView ? peakEl(p) : eloEl(p)}</td>
       <td><div class="vd"><div class="wr ${wrClass(wr)}">${wr}%</div><div class="rec">${p.w}V · ${p.l}D</div></div></td>
-      <td>${sparkline(p.form)}</td>
+      <td>${sparkline(p.form, p.formLp)}</td>
       <td>${p.up==null ? '<span class="streak n">–</span>' : `<div class="dlp ${(p.up===p.down && p.up>0)?'even':''}"><span class="u">▲${p.up}</span><span class="d">▼${p.down}</span></div>`}</td>
       <td>${aegisEl(p.aegis)}</td>
       <td><a class="opgg" href="${opggUrl(p.rid)}" target="_blank" rel="noopener">OP.GG</a></td>
@@ -1687,7 +1692,7 @@ function renderDetail(root, rid, data){
       </div>
       <div class="pd-elo">${crest}<div><div class="pd-lp">${prof.lp!=null?prof.lp+' LP':'—'}</div><div class="pd-tier">${tierTxt}</div></div></div>
       <div class="pd-wr"><div class="pd-wrbar"><span style="width:${wr}%"></span></div><div class="pd-wrtxt"><b class="${wr>=50?'good':'bad'}">${wr}%</b> ${prof.w||0}V · ${prof.l||0}D</div></div>
-      <div class="pd-mini">${sparkline(prof.form)}</div>
+      <div class="pd-mini">${sparkline(prof.form, prof.formLp)}</div>
       <div class="pd-mini">${prof.up==null?'':`<span class="dlp"><span class="u">▲${prof.up}</span> <span class="d">▼${prof.down}</span></span>`}</div>
       <div class="pd-mini">${prof.aegis?aegisEl(prof.aegis):''}</div>
       <div class="pd-actions">
@@ -2115,7 +2120,7 @@ if (location.protocol.startsWith('http')){
       LIVE_GAMES = d.liveGames || []; if (DATA) DATA.encounters = d.encounters || [];
       // smurfs: el ranking público no las trae; la org las recibe aquí y se intercalan en su posición
       ORG_SMURFS = Array.isArray(d.smurfs) ? d.smurfs : [];
-      ORG_ORDER = Array.isArray(d.order) ? new Map(d.order.map((r, i) => [String(r || '').toLowerCase(), i])) : null; { const sig = () => PLAYERS.map(x => [x.rid, x.tier, x.div, x.lp, x.w, x.l, x.rankPos, (x.form || []).join(""), x.streak || 0].join("|")).join(";");   // si cambió algo de las smurfs (LP, V/D, puesto, forma), se redibuja
+      ORG_ORDER = Array.isArray(d.order) ? new Map(d.order.map((r, i) => [String(r || '').toLowerCase(), i])) : null; { const sig = () => PLAYERS.map(x => [x.rid, x.tier, x.div, x.lp, x.w, x.l, x.rankPos, (x.form || []).join(""), (x.formLp || []).join(","), x.streak || 0].join("|")).join(";");   // si cambió algo de las smurfs (LP, V/D, puesto, forma), se redibuja
         const before = sig(); PLAYERS = withSmurfs(PLAYERS); if (sig() !== before){ counts(); render(); } }
       // "● EN PARTIDA" del ranking: el snapshot público ya no lo trae; la org lo recibe aquí
       const ig = new Set((d.inGame || []).map(x => (x.rid || '').toLowerCase())); let ch = false;

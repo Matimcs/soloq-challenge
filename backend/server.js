@@ -927,7 +927,7 @@ app.get('/api/player/:riotid', wrap(async (req,res) => {
     isRegistered: !!u, isAdmin: !!(u && u.is_admin), label: accLabel,
     tier: lp && lp.tier, div: lp && lp.div, lp: lp && lp.lp, rankPos,
     w: lp ? lp.w : (stats?stats.wins:0), l: lp ? lp.l : (stats?stats.losses:0),
-    form: (lp && lp.form) || [], up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
+    form: (lp && lp.form) || [], formLp: (lp && lp.formLp) || null, up: lp && lp.up, down: lp && lp.down, aegis: lp && lp.aegis,
   };
   if (!(await reqOrg(req))){ if (profile.label && /smurf/i.test(profile.label)) profile.label = null; profile.champs = []; profile.flashSlot = null;
     return res.json({ profile, history: [], stats: null, duels: null, blueshells: null, orgOnly: true, ddragonVersion: liveData && liveData.ddragonVersion }); }

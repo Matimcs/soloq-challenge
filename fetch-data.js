@@ -600,6 +600,9 @@ async function updatePlayerStats(puuid, entry, rid){
   const mitig = g => !g.win && (g.noLp || zeroLoss.has(g.end));
   const played = counted.filter(g => !g.remake && !mitig(g));
   const form = played.slice(0, 20).reverse().map(g => g.win);   // últimas 20, viejas→nuevas (para sparkline/racha)
+  // LP de cada partida de la forma (misma alineación); null = LP desconocido (el frontend usa el típico)
+  const lpByEnd = {}; store.lpGames.forEach(g => { if (g.end && !g.pending) lpByEnd[g.end] = g.delta; });
+  const formLp = played.slice(0, 20).reverse().map(g => (g.end in lpByEnd) ? lpByEnd[g.end] : null);
   const formT = played.slice(0, 20).map(g => ({ w: !!g.win, t: g.end || 0 }));   // con fecha (para racha combinada por equipo)
   // Rol principal = posición más jugada en el historial (se llena a medida que entran partidas)
   const posCount = {};
@@ -617,7 +620,7 @@ async function updatePlayerStats(puuid, entry, rid){
   let streak = 0;
   for (const g of store.games){ if (g.remake || g.void || mitig(g)) continue; if (!g.win) break; streak++; }
   return {
-    form, formT, streak,
+    form, formLp, formT, streak,
     role: mainPos ? (ROLE_LBL[mainPos] || null) : null,
     // ±LP: la última victoria/derrota NORMAL (la victoria se toma sin aegis, que
     // es ~el doble). El aegis se cuenta aparte.
@@ -712,7 +715,7 @@ function rankText(entry) {
         w: entry ? entry.wins : 0, l: entry ? entry.losses : 0,
         inGame: !!soloRaw, hotStreak: entry ? !!entry.hotStreak : false,
         game: soloRaw ? { queue: 'Ranked SoloQ' } : null,
-        form: stats.form, formT: stats.formT, streak: stats.streak || 0, up: stats.up, down: stats.down, aegis: stats.aegis,
+        form: stats.form, formLp: stats.formLp, formT: stats.formT, streak: stats.streak || 0, up: stats.up, down: stats.down, aegis: stats.aegis,
         session: stats.session, recent: stats.recent,
       });
       if (soloRaw) rawByPlayer.push({ puuid, raw: soloRaw });
