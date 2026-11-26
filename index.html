@@ -561,6 +561,16 @@
   .ff-s .k{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-top:5px; }
   .ff-sec{ margin-top:22px; }
   .ff-sec-t{ font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--muted-2); margin-bottom:12px; }
+  /* botón "?" con explicación de cada premio (aparece al pasar el mouse o al tocarlo) */
+  .ff-help{ position:relative; display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; margin-left:8px; vertical-align:middle;
+    border-radius:50%; border:1px solid var(--muted-2); color:var(--muted-2); font-size:11px; font-weight:800; letter-spacing:0; cursor:help; background:none; padding:0; }
+  .ff-help:hover, .ff-help:focus{ color:var(--accent); border-color:var(--accent); outline:none; }
+  .ff-help-pop{ display:none; position:absolute; top:calc(100% + 8px); left:-8px; z-index:50; width:min(360px, 80vw); padding:12px 14px; border-radius:10px;
+    background:var(--panel-2); border:1px solid rgba(255,255,255,.12); box-shadow:0 10px 30px rgba(0,0,0,.45); text-align:left;
+    text-transform:none; letter-spacing:0; font-weight:500; font-size:12.5px; line-height:1.45; color:var(--text); cursor:default; }
+  .ff-help:hover .ff-help-pop, .ff-help:focus .ff-help-pop{ display:block; }
+  .ff-help-pop b{ color:var(--accent); font-weight:700; }
+  .ff-help-pop div + div{ margin-top:6px; }
   .ffc{ width:100%; height:auto; display:block; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
   .ffc-yl{ fill:var(--muted-2); font-size:10px; } .ffc-xl{ fill:var(--muted-2); font-size:9px; }
   .ff-empty{ color:var(--muted); font-size:13px; padding:30px; text-align:center; background:var(--panel-2); border:1px solid var(--line); border-radius:12px; }
@@ -1976,6 +1986,18 @@ function peakTxt(abs){ abs=+abs||0; if(abs>=2800) return (abs-2800)+' LP (Maestr
 function renderFullFicha(card, data, close){
   const p=data.profile||{};
   const tierTxt=(p.tier&&p.tier!=='UNRANKED')?`${p.tier.charAt(0)+p.tier.slice(1).toLowerCase()}${p.div?' '+p.div:''} · ${p.lp} LP`:'Sin rango';
+  const AWARD_HELP={
+    grindeador:'más partidas de SoloQ jugadas en el torneo.',
+    onetrick:'más partidas jugadas con un mismo campeón.',
+    main:'mejor winrate (mínimo 20 partidas).',
+    sinfrenos:'más muertes en una sola partida.',
+    penta:'más pentakills.',
+    caos:'racha más larga de derrotas seguidas.',
+    pool:'más campeones distintos jugados.',
+    consistency:'racha más larga de victorias seguidas.',
+    kda:'mejor KDA en una sola partida.',
+    criminal:'más kills en una sola partida.'
+  };
   const award=a=>{
     const has=a.value!=null;
     const pct=has&&a.leader&&a.leader.value?Math.max(4,Math.min(100,a.value/a.leader.value*100)):0;
@@ -2039,7 +2061,7 @@ function renderFullFicha(card, data, close){
     </div>
     ${statsHTML}
     <div class="ff-sec"><div class="ff-sec-t">Evolución de elo</div>${eloChartSVG(data.eloSeries)}</div>
-    <div class="ff-sec"><div class="ff-sec-t">Premios · Objetivos</div><div class="ff-awards">${(data.premios||[]).map(award).join('')}</div></div>
+    <div class="ff-sec"><div class="ff-sec-t">Premios · Objetivos<button type="button" class="ff-help" aria-label="¿Qué es cada premio?">?<span class="ff-help-pop">${(data.premios||[]).map(a=>`<div><b>${a.title}:</b> ${AWARD_HELP[a.key]||''}</div>`).join('')}</span></button></div><div class="ff-awards">${(data.premios||[]).map(award).join('')}</div></div>
     <div class="ff-sec"><div class="ff-sec-t">Récords por partida · Mejor puesto</div><div class="ff-recs">${(data.records||[]).map(rec).join('')}</div></div>`;
   card.querySelector('.ff-x').onclick=close;
 }
