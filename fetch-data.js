@@ -204,10 +204,11 @@ const NOT_MITIG_ENDS = new Set([1792297280024, 1792295200172, 1790929612239, 179
 for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st || !Array.isArray(st.lpGames)) continue;
   st.lpGames = st.lpGames.filter(g => !(g && !g.win && g.delta === 0 && NOT_MITIG_ENDS.has(+g.end))); }
 // LP corregido a mano (partidas cuyo LP se perdió en un redeploy y quedó repartido en partes iguales). Se aplica una vez.
-const LP_FIX = { 1795717238889: 20, 1795721499246: 20, 1795724448678: 40 };   // Maio#Fidd 26-nov: +20, +20, doble LP
+const LP_FIX = { 1795717238889: 20, 1795721499246: 20, 1795724448678: 40,   // Maio#Fidd 26-nov: +20, +20, doble LP
+  1795723019051: 39, 1795725397210: -21 };                                    // carloco69 26-nov: doble LP, derrota normal
 for (const pu of Object.keys(matchStore)){ const st = matchStore[pu]; if (!st || !Array.isArray(st.lpGames)) continue;
   for (const g of st.lpGames){ const v = g && LP_FIX[+g.end]; if (v == null || g.fixed) continue;
-    g.delta = v; g.fixed = true; delete g.est; delete g.batch; if (v >= 40) st.aegisTotal = (st.aegisTotal || 0) + 1; } }
+    g.delta = v; g.fixed = true; delete g.est; delete g.batch; if (v >= 35) st.aegisTotal = (st.aegisTotal || 0) + 1; } }
 const encounterStore = loadJSON(ENC_FILE, {}); // matchId -> { id, end, players:[{nm,rid,win,champ}] }
 const REGION_FILE = path.join(CACHE_DIR, 'regions.json');
 const regionStore = loadJSON(REGION_FILE, {}); // puuid -> plataforma real (la2, br1, na1…) para league/spectator
@@ -457,6 +458,20 @@ async function getMatch(id){
 
 // Actualiza historial (solo pide detalles de partidas NUEVAS) y trackea ±LP.
 // Marca/desmarca en la base una derrota mitigada (0 LP) para que las estadísticas no la cuenten como derrota.
+// Reparte el LP neto de varias partidas juntas (no se sabe el de cada una): cada victoria el +LP típico y cada derrota el
+// −LP típico de la cuenta (por separado: p. ej. +19 / −21); remakes 0. Si sobra ~una victoria más y hay UNA sola victoria,
+// esa victoria fue de doble LP (antes se repartía entre todas: +28 / −10 en vez de +39 / −21). Si no, el resto se reparte.
+function splitLp(store, list, net){
+  const real = store.lpGames.filter(g => !g.est && !g.remake);
+  const magW = median(real.filter(g => g.delta > 0).map(g => g.delta).slice(0, 15)) || 20;
+  const magL = median(real.filter(g => g.delta < 0).map(g => -g.delta).slice(0, 15)) || magW;
+  const est = list.map(g => g.remake ? 0 : (g.win ? magW : -magL));
+  const resid = net - est.reduce((a, b) => a + b, 0);
+  const wins = list.map((g, i) => (!g.remake && g.win) ? i : -1).filter(i => i >= 0);
+  if (wins.length === 1 && resid >= 0.6 * magW) { est[wins[0]] += resid; return { est, aegisIdx: wins[0] }; }
+  const vivas = list.filter(g => !g.remake).length || 1;
+  return { est: est.map((d, i) => list[i].remake ? 0 : Math.round(d + resid / vivas)), aegisIdx: -1 };
+}
 function markNoLp(puuid, end, on){
   if (!pgPool || !puuid || !end) return;
   pgPool.query('UPDATE match_participants SET no_lp=$3 WHERE puuid=$1 AND game_end=$2 AND NOT coalesce(win,false)', [puuid, end, !!on]).catch(() => {});
@@ -564,11 +579,8 @@ async function updatePlayerStats(puuid, entry, rid){
         // VARIAS partidas en un ciclo: no se puede separar el LP exacto de cada una. Los remakes van
         // 0; el neto se reparte por V/D (LP típico reciente) SOLO entre las que dan LP. Marcadas como
         // estimadas (est) para no contarlas como aegis (evita el "doble" fantasma de 2 partidas).
-        const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
-        const nonRemake = list.filter(g => !g.remake).length || 1;
-        let est = list.map(g => g.remake ? 0 : (g.win ? mag : -mag));
-        const per = (net - est.reduce((a, b) => a + b, 0)) / nonRemake;   // el residuo solo a las que dan LP
-        est = est.map((d, i) => list[i].remake ? 0 : Math.round(d + per));
+        const { est, aegisIdx } = splitLp(store, list, net);
+        if (aegisIdx >= 0) countAegis(est[aegisIdx]);
         if (pend) store.lpGames.shift();                          // quita el pendiente; se re-inserta
         const batch = Date.now();   // lote: si en los próximos minutos llega LP que Riot aún no había sumado, se reparte entre ellas
         for (let i = 0; i < N; i++) store.lpGames.unshift({ win: list[i].win, delta: est[i], end: list[i].end, est: !list[i].remake, remake: list[i].remake, batch });
@@ -585,10 +597,8 @@ async function updatePlayerStats(puuid, entry, rid){
         top.delta = net; delete top.zeroAt; if (top.win) countAegis(net); else markNoLp(puuid, top.end, false);
       } else if (top && top.batch && Date.now() - top.batch < 30 * 60 * 1000){
         const lote = store.lpGames.filter(g => g.batch === top.batch), full = lote.reduce((a, g) => a + (g.delta || 0), 0) + net;
-        const mag = median(store.lpGames.filter(g => g.delta > 0 && !g.est).map(g => g.delta).slice(0, 15)) || 20;
-        const vivas = lote.filter(g => !g.remake), nv = vivas.length || 1;
-        const base = vivas.map(g => g.win ? mag : -mag), per = (full - base.reduce((a, b) => a + b, 0)) / nv;
-        vivas.forEach((g, i) => { g.delta = Math.round(base[i] + per); });
+        const { est } = splitLp(store, lote, full);
+        lote.forEach((g, i) => { g.delta = est[i]; });
       }
     }
   }
