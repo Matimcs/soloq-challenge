@@ -858,7 +858,8 @@ let ORG_SMURFS = [];
 let ORG_ORDER = null;   // orden completo del ranking (solo org, vía /api/live): rid -> posición
 function withSmurfs(list){ const base = (list || []).filter(p => !p._smurf);
   let all = ORG_SMURFS.length ? base.concat(ORG_SMURFS.map(p => ({ ...p, _smurf: true }))) : base;
-  if (ORG_SMURFS.length && ORG_ORDER){ const ix = p => { const v = ORG_ORDER.get(String(p.rid || '').toLowerCase()); return v == null ? 1e9 : v; }; all = all.slice().sort((x, y) => ix(x) - ix(y)); }
+  // smurfs intercaladas por LP (el orden del servidor solo desempata): si /api/live no trae el orden o viene atrasado, igual quedan en su lugar
+  if (ORG_SMURFS.length){ const ix = p => { const v = ORG_ORDER && ORG_ORDER.get(String(p.rid || '').toLowerCase()); return v == null ? 1e9 : v; }; all = all.slice().sort((x, y) => (absLPf(y) - absLPf(x)) || (ix(x) - ix(y))); }
   all.forEach((p, i) => { p.rankPos = i + 1; });   // la numeración se recalcula con las smurfs ya intercaladas
   return all; }
 
@@ -1122,7 +1123,7 @@ function rowHTML(p, extraCls='', extraAttr=''){
 }
 
 // Cuentas de un equipo: solo la más alta de cada jugador (PLAYERS ya viene ordenado de mayor a menor).
-function bestPerOwner(list){ const seen = new Set(); return list.filter(p => { const k = ownerKey(p).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }); }
+function bestPerOwner(list){ const best = new Map(); list.forEach(p => { const k = ownerKey(p).toLowerCase(), b = best.get(k); if (!b || absLPf(p) > absLPf(b)) best.set(k, p); }); const keep = new Set(best.values()); return list.filter(p => keep.has(p)); }
 // Puntaje de equipo: mejores 5 cuentas de jugadores DISTINTOS (LP absoluto sumado).
 function teamScores(){
   const byTeam = {}, seen = new Set();
@@ -1207,7 +1208,11 @@ function render(){
     body.innerHTML = list.map(rowHTML).join(''); return;
   }
   let base = PLAYERS.filter(p => matches(p, currentFilter));
-  if (currentFilter === 'oneacct'){ const seen = new Set(); base = base.filter(p => { const k = ownerKey(p).toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; }); }
+  // 1 cuenta: la de MÁS LP de cada jugador (main o smurf), sin depender del orden de la lista
+  // (antes se quedaba con la primera; si el orden de las smurfs venía atrasado, salía la main aunque la smurf tuviera más LP)
+  if (currentFilter === 'oneacct'){ const best = new Map();
+    base.forEach(p => { const k = ownerKey(p).toLowerCase(), b = best.get(k); if (!b || absLPf(p) > absLPf(b)) best.set(k, p); });
+    const keep = new Set(best.values()); base = base.filter(p => keep.has(p)); }
   const val = SORT_VAL[sortKey] || SORT_VAL.rank;
   const list = base.slice().sort((a,b)=>{ const va=val(a), vb=val(b); const cmp=(typeof va==='string')?va.localeCompare(vb):va-vb; return sortDir==='asc'?cmp:-cmp; });
   body.innerHTML = list.map(rowHTML).join('');
