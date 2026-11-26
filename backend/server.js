@@ -2468,7 +2468,7 @@ app.get('/api/menciones', wrap(async (req, res) => {
   const bestAcctAbs = {};   // dueño -> { acct, abs } de su cuenta MÁS ALTA (mayor elo) — para el Sommelier
   (liveSnapshot().players || []).forEach(p => { const o = ownerOf((p.rid||'').toLowerCase());
     if (!nmByOwner[o]) nmByOwner[o] = uNick[o] || p.nm;
-    aegisByOwner[o] = (aegisByOwner[o]||0) + (p.aegis||0);
+    aegisByOwner[o] = Math.max(aegisByOwner[o]||0, p.aegis||0);   // Aegis King: la cuenta con más aegis (no la suma de main + smurfs)
     const g = (p.w||0)+(p.l||0); const c = bestWR[o]; if (g && (!c || g > c.g)) bestWR[o] = { g, w:p.w||0 };
     const abs = absLPof(p.tier, p.div, p.lp);
     if (abs != null){ const ba = bestAcctAbs[o]; if (!ba || abs > ba.abs) bestAcctAbs[o] = { acct: acctOf((p.rid||'').toLowerCase()), abs };
