@@ -595,12 +595,6 @@
   const fdate = ms => ms ? new Date(ms).toLocaleString('es-CL',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
   if (window.SQC && SQC.preNav) SQC.preNav();
   if (window.SQC && SQC.mountNav) SQC.mountNav();
-  // Ranked interno: por ahora solo para jugadores de la organización.
-  if (window.RANKED_PAGE && window.SQC) SQC.me().then(u => { if (u && !u.external) return;
-    document.querySelectorAll('main.wrap > *:not(script):not(style)').forEach(el => { el.style.display = 'none'; });
-    const m = document.createElement('div'); m.style.cssText = 'padding:60px 10px;text-align:center;color:var(--muted)';
-    m.innerHTML = '<h1 style="color:var(--text)">Sección privada</h1><p>Esta sección es solo para jugadores de la organización.</p>';
-    document.querySelector('main.wrap').appendChild(m); });
 
   // ---- Tabs ----
   let CUR_TAB = 'fv';
