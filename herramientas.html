@@ -858,7 +858,7 @@
   function fvLanding(){
     const msg = FVC.gone ? `<div class="fv-err">Esa sala no existe o ya expiró.</div>` : (FVC.err ? `<div class="fv-err">${esc(FVC.err)}</div>` : '');
     $('p-fv').innerHTML = `<div class="fvq-grid">
-      <div class="card" id="fvq-card">${fvqCardHtml()}</div>
+      <div class="card sqc-org-only" id="fvq-card">${fvqCardHtml()}</div>
       <div class="card">
         <h3>Sala privada</h3>
         <div class="fv-note" style="margin-top:4px">Crea una sala y comparte el enlace con los demás. Cuando estén los 10, el anfitrión sortea equipos parejos en elo, con roles y campeones al azar si quieren. La sala se cierra sola tras 3 horas sin actividad.</div>
@@ -1046,7 +1046,7 @@
     fvqDraw();
   }
   async function fvqPoll(){
-    if (!fvLogged()) return;
+    if (!fvLogged() || !document.documentElement.classList.contains('sqc-org')) return;   // cola 5v5: solo org
     try { fvqApply(await SQC.api('/5v5/queue')); } catch (e) {}
   }
   async function fvqAct(path, body){
