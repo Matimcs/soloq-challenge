@@ -3331,6 +3331,7 @@ async function rkUsers(){
   if (Date.now() - RK_USERS.at < 300000) return RK_USERS.map;
   const map = new Map();
   try { for (const u of await q('SELECT id, nickname, riotid, is_admin FROM users')) map.set(u.id, { nick: (u.nickname || '').trim() || (u.riotid || '').split('#')[0], rid: u.riotid || '', admin: !!u.is_admin }); } catch {}
+  try { for (const x of await q('SELECT id, nickname, riotid FROM ext_users')) map.set(RK_EXT + x.id, { nick: (x.nickname || '').trim() || (x.riotid || '').split('#')[0], rid: x.riotid || '', admin: false, external: true }); } catch {}
   RK_BOTS.forEach(b => map.set(b, rkBotUser(b)));
   RK_USERS = { at: Date.now(), map }; return map;
 }
@@ -3595,6 +3596,28 @@ setInterval(() => { if (RK.armed && !RK.stopped) rkTick(); }, 1000);
 // si fuera cada uno, para probar cola, aceptar, draft y votación sin juntar a 10 personas. Una sala con
 // algún ficticio queda marcada como `sim`: no se guarda en la base ni cambia PL, MMR o faltas.
 const RK_SUPER = 'sionantisionista#sas', RK_BOTS = [-1, -2, -3, -4, -5, -6, -7, -8, -9];
+// Ranked abierto a todos: un usuario externo (cuenta creada fuera de la org) juega con el id RK_EXT + su id de ext_users.
+const RK_EXT = 1000000;
+async function rkExtUser(xid, tv){
+  const x = await q1('SELECT * FROM ext_users WHERE id=$1', [xid]);
+  if (!x || (tv || 0) !== (x.token_version || 0)) return null;
+  return { id: RK_EXT + x.id, riotid: x.riotid, nickname: x.nickname, is_admin: false, external: true };
+}
+// Como auth, pero también acepta usuarios externos.
+async function rkAuth(req, res, next){
+  const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return res.status(401).json({ error: 'No autenticado' });
+  let p; try { p = jwt.verify(t, JWT_SECRET); } catch { return res.status(401).json({ error: 'Sesión inválida' }); }
+  if (p.xid && !p.uid){ const u = await rkExtUser(p.xid, p.tv); if (!u) return res.status(401).json({ error: 'Sesión inválida' }); req.user = u; return next(); }
+  return auth(req, res, next);
+}
+// id de Ranked de quien llama (o null), sea de la org o externo.
+async function rkOptionalUid(req){
+  const h = req.headers.authorization || ''; const t = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!t) return null;
+  try { const p = jwt.verify(t, JWT_SECRET); if (p.uid) return p.uid; if (p.xid){ const u = await rkExtUser(p.xid, p.tv); return u ? u.id : null; } } catch {}
+  return null;
+}
 const rkIsSuper = rid => String(rid || '').trim().toLowerCase() === RK_SUPER;
 const rkBotUser = uid => ({ nick: 'Bot ' + (-uid), rid: 'Bot ' + (-uid) + '#TEST', admin: false });
 // Tras `auth`: si el superadmin manda `as` con un ficticio, la acción se ejecuta como ese jugador.
@@ -3693,7 +3716,7 @@ async function rkMatchView(m, uid){
 }
 app.get('/api/ranked/state', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkTick();
-  const real = await optionalUid(req); let uid = real, sup = false;
+  const real = await rkOptionalUid(req); let uid = real, sup = false;
   if (real){ const ru = (await rkUsers()).get(real), as = Number(req.query.as); sup = !!ru && rkIsSuper(ru.rid); if (sup && RK_BOTS.includes(as)) uid = as; }
   const out = { now: Date.now(), size: RK_SIZE, queue: { count: RK.queue.size }, me: null, pending: null, match: null, last: null };
   if (uid){
@@ -3735,7 +3758,7 @@ async function rkChampRoles(){
   return (await rkChamps()).map(c => ({ ...c, roles: RK_ROLES.filter(r => RK_ROLE_SET[r].has(c.id)) }));
 }
 app.get('/api/ranked/champs', wrap(async (req, res) => { res.set('Cache-Control', 'public, max-age=600'); res.json(await rkChampRoles()); }));
-app.post('/api/ranked/roles', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/roles', rkAuth, rkImp, wrap(async (req, res) => {
   await rkInit(); const ok = v => RK_ROLES.includes(v) || v === 'FILL', r1 = String((req.body && req.body.role1) || ''), r2 = String((req.body && req.body.role2) || '');
   if (!ok(r1) || !ok(r2)) return res.status(400).json({ error: 'Elige rol principal y secundario' });
   if (r1 === r2 && r1 !== 'FILL') return res.status(400).json({ error: 'El rol secundario debe ser distinto del principal' });
@@ -3743,7 +3766,7 @@ app.post('/api/ranked/roles', auth, rkImp, wrap(async (req, res) => {
   const p = rkPlayer(req.user.id); p.role1 = r1; p.role2 = r2; await rkSavePlayer(p);
   res.json({ ok: true });
 }));
-app.post('/api/ranked/queue', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/queue', rkAuth, rkImp, wrap(async (req, res) => {
   await rkInit(); const p = rkPlayer(req.user.id);
   if (!req.user.riotid) return res.status(400).json({ error: 'Tu cuenta no tiene Riot ID' });
   if (!p.role1 || !p.role2) return res.status(400).json({ error: 'Elige primero tu rol principal y secundario' });
@@ -3751,12 +3774,12 @@ app.post('/api/ranked/queue', auth, rkImp, wrap(async (req, res) => {
   if (!RK.queue.has(req.user.id)) RK.queue.set(req.user.id, { uid: req.user.id, since: Date.now() });
   await rkTick(); res.json({ ok: true });
 }));
-app.post('/api/ranked/dequeue', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/dequeue', rkAuth, rkImp, wrap(async (req, res) => {
   await rkInit();
   const pd = [...RK.pending.values()].find(x => x.players.includes(req.user.id)); if (pd) pd.declined.add(req.user.id);
   RK.queue.delete(req.user.id); await rkTick(); res.json({ ok: true });
 }));
-app.post('/api/ranked/accept', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/accept', rkAuth, rkImp, wrap(async (req, res) => {
   await rkInit(); const pd = [...RK.pending.values()].find(x => x.players.includes(req.user.id));
   if (!pd) return res.status(400).json({ error: 'No hay partida por aceptar' });
   if (req.body && req.body.accept === false){ pd.declined.add(req.user.id); pd.accepted.delete(req.user.id); } else pd.accepted.add(req.user.id);
@@ -3767,7 +3790,7 @@ async function rkMine(req, res){
   await rkTick(); const mid = RK.byUser.get(req.user.id), m = mid != null ? RK.matches.get(mid) : null;
   if (!m){ res.status(400).json({ error: 'No estás en una partida' }); return null; } return m;
 }
-app.post('/api/ranked/ban', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/ban', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'ban') return res.status(400).json({ error: 'No es la fase de bans' });
   if (d.locked[uid]) return res.status(400).json({ error: 'Ya baneaste' });
@@ -3777,7 +3800,7 @@ app.post('/api/ranked/ban', auth, rkImp, wrap(async (req, res) => {
   if (champ && (Object.values(d.bans).includes(champ) || Object.values(d.picks).includes(champ))) return res.status(400).json({ error: 'Ese campeón ya fue baneado o elegido' });
   d.bans[uid] = champ; d.locked[uid] = true; rkPurgeHovers(d); await rkSaveMatch(m); await rkAdvance(m); res.json({ ok: true });
 }));
-app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/pick', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'pick') return res.status(400).json({ error: 'No es la fase de picks' });
   if (!d.seq[d.step].u.includes(uid)) return res.status(400).json({ error: 'No es tu turno' });
@@ -3790,7 +3813,7 @@ app.post('/api/ranked/pick', auth, rkImp, wrap(async (req, res) => {
 }));
 // Campeón seleccionado (sin fijar). Si se acaba el tiempo, se fija ese. En tu turno de ban es el ban; si no, tu pick
 // (se puede dejar elegido antes de que llegue tu turno, como en el LoL). Solo lo ve tu equipo.
-app.post('/api/ranked/hover', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/hover', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   const champ = (req.body && req.body.champ) || null;
@@ -3803,7 +3826,7 @@ app.post('/api/ranked/hover', auth, rkImp, wrap(async (req, res) => {
   else if (!d.picks[uid]) d.hover[uid] = champ;
   res.json({ ok: true });
 }));
-app.post('/api/ranked/side', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/side', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id;
   if (m.status !== 'draft' || d.phase !== 'prep') return res.status(400).json({ error: 'El cambio de lado solo se vota en la preparación' });
   if (d.sideSwapped) return res.status(400).json({ error: 'Los equipos ya cambiaron de lado' });
@@ -3814,7 +3837,7 @@ app.post('/api/ranked/side', auth, rkImp, wrap(async (req, res) => {
 }));
 // Intercambio de CAMPEONES con un compañero (como en el LoL): cuando los dos ya eligieron, uno lo pide y el otro
 // acepta. Se puede apenas ambos tienen campeón y durante la fase final de 30 s.
-app.post('/api/ranked/trade', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/trade', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, other = Number(req.body && req.body.with), act = req.body && req.body.action;
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   d.trades = d.trades || {};
@@ -3834,7 +3857,7 @@ app.post('/api/ranked/trade', auth, rkImp, wrap(async (req, res) => {
   await rkSaveMatch(m); res.json({ ok: true });
 }));
 // Cambio de ROL con un compañero (se pide y el otro tiene que aceptar).
-app.post('/api/ranked/roleswap', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/roleswap', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, other = Number(req.body && req.body.with), act = req.body && req.body.action;
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   d.roleSwaps = d.roleSwaps || {};
@@ -3855,7 +3878,7 @@ app.post('/api/ranked/roleswap', auth, rkImp, wrap(async (req, res) => {
 }));
 // Cambio de BAN: quien ya baneó (o se quedó sin ban) pide cambiarlo durante el turno del otro equipo; se aplica
 // solo si alguien del equipo rival acepta. Una vez por jugador.
-app.post('/api/ranked/banchange', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/banchange', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, act = req.body && req.body.action;
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   d.banReq = d.banReq || {}; d.banChanged = d.banChanged || {};
@@ -3885,7 +3908,7 @@ app.post('/api/ranked/banchange', auth, rkImp, wrap(async (req, res) => {
 }));
 // Cambio de CAMPEÓN: hasta 30 s después de fijarlo se puede pedir otro; se aplica solo si alguien del equipo rival
 // acepta. Una vez por jugador.
-app.post('/api/ranked/pickchange', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/pickchange', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, act = req.body && req.body.action;
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   d.pickReq = d.pickReq || {}; d.pickChanged = d.pickChanged || {}; d.pickAt = d.pickAt || {};
@@ -3912,7 +3935,7 @@ app.post('/api/ranked/pickchange', auth, rkImp, wrap(async (req, res) => {
   await rkSaveMatch(m); res.json({ ok: true });
 }));
 // Pedir / aceptar / rechazar / cancelar un cambio de turno con un compañero de equipo.
-app.post('/api/ranked/swap', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/swap', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const d = m.draft, uid = req.user.id, other = Number(req.body && req.body.with), act = req.body && req.body.action;
   if (m.status !== 'draft') return res.status(400).json({ error: 'El draft ya terminó' });
   d.swaps = d.swaps || {};
@@ -3930,7 +3953,7 @@ app.post('/api/ranked/swap', auth, rkImp, wrap(async (req, res) => {
   }
   await rkSaveMatch(m); res.json({ ok: true });
 }));
-app.post('/api/ranked/kick', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/kick', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const uid = req.user.id, target = Number(req.body && req.body.target);
   if (target === uid || !rkUids(m).includes(target)) return res.status(400).json({ error: 'Jugador inválido' });
   res.json({ ok: true, cancelled: await rkKickVote(m, uid, target, req.body.on) });
@@ -3942,12 +3965,12 @@ async function rkRemakeVote(m, uid, on){
   if (v.size >= RK_REMAKE_NEED){ await rkCancel(m, 'remake'); return true; }
   await rkSaveMatch(m); return false;
 }
-app.post('/api/ranked/remake', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/remake', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return;
   if (m.status !== 'playing' && m.status !== 'dispute') return res.status(400).json({ error: 'El remake se vota cuando la partida ya está armada' });
   res.json({ ok: true, cancelled: await rkRemakeVote(m, req.user.id, req.body && req.body.on) });
 }));
-app.post('/api/ranked/vote', auth, rkImp, wrap(async (req, res) => {
+app.post('/api/ranked/vote', rkAuth, rkImp, wrap(async (req, res) => {
   const m = await rkMine(req, res); if (!m) return; const side = req.body && req.body.team;
   if (m.status !== 'playing') return res.status(400).json({ error: m.status === 'dispute' ? 'La votación quedó empatada: decide un admin' : 'Aún no se puede votar' });
   if (side !== 'blue' && side !== 'red') return res.status(400).json({ error: 'Voto inválido' });
@@ -4008,9 +4031,9 @@ function rkSummary(d, uid){
 app.get('/api/ranked/history', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store'); await rkInit();
   const page = Math.max(0, Number(req.query.page) || 0), size = 15, mine = req.query.mine === '1';
-  let uid = null; if (mine){ uid = await optionalUid(req); if (!uid) return res.status(401).json({ error: 'Inicia sesión para ver tus partidas' }); }
+  let uid = null; if (mine){ uid = await rkOptionalUid(req); if (!uid) return res.status(401).json({ error: 'Inicia sesión para ver tus partidas' }); }
   let rows = await rkHistRows(); if (mine) rows = rows.filter(d => rkSideOf(d, uid));
-  const viewer = mine ? uid : await optionalUid(req);
+  const viewer = mine ? uid : await rkOptionalUid(req);
   res.json({ items: rows.slice(page * size, page * size + size).map(d => rkSummary(d, viewer)), more: rows.length > (page + 1) * size, total: rows.length });
 }));
 app.get('/api/ranked/match/:id', wrap(async (req, res) => {
