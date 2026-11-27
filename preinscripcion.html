@@ -133,8 +133,9 @@
           <div class="f"><label for="email">Correo <span class="req">*</span></label><input type="email" id="email" name="email" maxlength="120" autocomplete="email"></div>
           <div class="f"><label for="discord">Discord <span class="req">*</span></label><input type="text" id="discord" name="discord" maxlength="60" placeholder="tu usuario de Discord"></div>
         </div>
+        <div class="f"><label for="university">Universidad <span class="req">*</span></label><select id="university" name="university"></select></div>
         <div class="two">
-          <div class="f"><label for="faculty">Facultad <span class="req">*</span></label><select id="faculty" name="faculty"><option value="">— elige —</option></select></div>
+          <div class="f" id="faculty-f"><label for="faculty">Facultad <span class="req">*</span></label><select id="faculty" name="faculty"><option value="">— elige —</option></select></div>
           <div class="f"><label for="career">Carrera <span class="req">*</span></label><input type="text" id="career" name="career" maxlength="100"></div>
         </div>
       </div>
@@ -224,7 +225,10 @@
   fetch('/api/preinscripcion/count').then(r => r.json()).then(d => { if (d && d.count > 0){ const el = $('pre-count'); el.textContent = `🔥 ${d.count} preinscrito${d.count === 1 ? '' : 's'} hasta ahora`; el.style.display = ''; } }).catch(() => {});
   const tok = (() => { try { return localStorage.getItem('sqc_token'); } catch (e) { return null; } })();
   fetch('/api/preinscripcion/options', { cache: 'no-cache', headers: tok ? { Authorization: 'Bearer ' + tok } : {} }).then(r => r.json()).then(o => {
-    fill('faculty', o.faculties); fill('role', o.roles, ROLE); fill('peak_rank', o.ranks, RANK); fill('source', o.sources);
+    fill('university', o.universities || ['Universidad de Chile']); fill('faculty', o.faculties);
+    // la facultad solo se pide para la Universidad de Chile
+    const uniSync = () => { $('faculty-f').style.display = $('university').value === 'Universidad de Chile' ? '' : 'none'; };
+    $('university').addEventListener('change', uniSync); uniSync(); fill('role', o.roles, ROLE); fill('peak_rank', o.ranks, RANK); fill('source', o.sources);
     const escH = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
     $('org_user_id').insertAdjacentHTML('beforeend', (o.players || []).map(p => `<option value="${p.id}">${escH(p.nick)}</option>`).join(''));
     // con sesión de la organización: se detecta solo
@@ -248,7 +252,7 @@
     const org = r('org_member');
     if (!org){ $('err').textContent = 'Responde si eres jugador de la organización'; return; }
     if (org === 'si' && !r('extend_uc')){ $('err').textContent = 'Responde si extenderías la invitación a la comunidad UC'; return; }
-    const body = { org_member: org === 'si', org_user_id: org === 'si' ? v('org_user_id') : null, extend_uc: org === 'si' ? r('extend_uc') : null, interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), faculty: v('faculty'), career: v('career'),
+    const body = { org_member: org === 'si', org_user_id: org === 'si' ? v('org_user_id') : null, extend_uc: org === 'si' ? r('extend_uc') : null, interest: r('interest'), name: v('name'), email: v('email'), discord: v('discord'), university: v('university'), faculty: v('university') === 'Universidad de Chile' ? v('faculty') : '', career: v('career'),
       account_way: r('account_way'), role: v('role'), peak_rank: v('peak_rank'), start_month: [...f.querySelectorAll('input[name="start_month"]:checked')].map(x => x.value), riotid: v('riotid'), fee: r('fee'),
       rules_ok: f.elements.rules_ok.checked, contact_ok: f.elements.contact_ok.checked, source: org === 'si' ? '' : v('source'), comments: v('comments'), website: v('website') };
     const btn = $('send'); btn.disabled = true; $('err').textContent = '';

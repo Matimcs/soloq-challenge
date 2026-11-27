@@ -4862,6 +4862,8 @@ async function detectRenames(){
 // ================= PREINSCRIPCIONES AL SOLOQ CHALLENGE =================
 // Formulario público (preinscripcion.html). Una por correo: si reenvía con el mismo correo, se actualiza.
 const PRE = {
+  // todas las universidades de Chile; la facultad solo se pide para la Universidad de Chile
+  universities: ["Universidad de Chile","Universidad Academia de Humanismo Cristiano","Universidad de Aconcagua","Universidad Adolfo Ibáñez (UAI)","Universidad Adventista de Chile","Universidad del Alba","Universidad Alberto Hurtado","Universidad Andrés Bello (UNAB)","Universidad de Antofagasta","Universidad de Artes, Ciencias y Comunicación (UNIACC)","Universidad Arturo Prat","Universidad de Atacama","Universidad Austral de Chile","Universidad Autónoma de Chile","Universidad de Aysén","Universidad Bernardo O'Higgins","Universidad del Bío-Bío","Pontificia Universidad Católica de Chile (UC)","Universidad Católica de la Santísima Concepción","Universidad Católica de Temuco","Pontificia Universidad Católica de Valparaíso (PUCV)","Universidad Católica del Maule","Universidad Católica del Norte","Universidad Católica Silva Henríquez","Universidad Central de Chile","Universidad de Concepción","Universidad del Desarrollo (UDD)","Universidad Diego Portales (UDP)","Universidad Finis Terrae","Universidad Gabriela Mistral","Universidad de La Frontera","Universidad de La Serena","Universidad de las Américas (UDLA)","Universidad de los Andes","Universidad de Los Lagos","Universidad de Magallanes","Universidad Mayor","Universidad Metropolitana de Ciencias de la Educación (UMCE)","Universidad Miguel de Cervantes","Universidad de O'Higgins","Universidad de Playa Ancha","Universidad San Sebastián","Universidad de Santiago de Chile (USACH)","Universidad Santo Tomás","Universidad SEK","Universidad de Talca","Universidad de Tarapacá","Universidad Técnica Federico Santa María (USM)","Universidad Tecnológica de Chile INACAP","Universidad Tecnológica Metropolitana (UTEM)","Universidad de Valparaíso","Universidad Viña del Mar","Otra"],
   faculties: ['Arquitectura y Urbanismo', 'Artes', 'Ciencias', 'Ciencias Agronómicas', 'Ciencias Físicas y Matemáticas (FCFM)',
     'Ciencias Forestales y de la Conservación de la Naturaleza', 'Ciencias Químicas y Farmacéuticas', 'Ciencias Sociales',
     'Ciencias Veterinarias y Pecuarias', 'Comunicación e Imagen', 'Derecho', 'Economía y Negocios (FEN)', 'Filosofía y Humanidades',
@@ -4885,7 +4887,11 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
   if (name.length < 3) return res.status(400).json({ error: 'Escribe tu nombre completo' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Correo inválido' });
   if (discord.length < 2) return res.status(400).json({ error: 'Escribe tu Discord' });
-  if (!PRE.faculties.includes(b.faculty)) return res.status(400).json({ error: 'Elige tu facultad' });
+  const university = b.university == null || b.university === '' ? 'Universidad de Chile' : String(b.university);   // formularios viejos: U. de Chile
+  if (!PRE.universities.includes(university)) return res.status(400).json({ error: 'Elige tu universidad' });
+  const isUch = university === 'Universidad de Chile';
+  if (isUch && !PRE.faculties.includes(b.faculty)) return res.status(400).json({ error: 'Elige tu facultad' });
+  const faculty = isUch ? b.faculty : '';
   if (career.length < 2) return res.status(400).json({ error: 'Escribe tu carrera' });
   if (!PRE.way.includes(b.account_way)) return res.status(400).json({ error: 'Elige cómo conseguirías tu cuenta' });
   const fee = b.fee !== '' && b.fee != null && PRE.fee.includes(Number(b.fee)) ? Number(b.fee) : null; if (fee === null) return res.status(400).json({ error: 'Elige cuánto pagarías de entrada' });
@@ -4908,11 +4914,11 @@ app.post('/api/preinscripcion', wrap(async (req, res) => {
   const startMonth = MONTHS.filter(m => picked.has(m)).join(',') || null;
   if (!startMonth) return res.status(400).json({ error: 'Elige al menos un mes para el inicio' });
   if (org && !extendUc) return res.status(400).json({ error: 'Responde si extenderías la invitación a la comunidad UC' });
-  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id, extend_uc, start_month)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+  await q(`INSERT INTO preinscriptions (email, name, discord, faculty, career, interest, account_way, fee, role, riotid, peak_rank, source, comments, contact_ok, ip, org_member, org_user_id, extend_uc, start_month, university)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
            ON CONFLICT (email) DO UPDATE SET name=$2, discord=$3, faculty=$4, career=$5, interest=$6, account_way=$7, fee=$8, role=$9, riotid=$10,
-             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, org_member=$16, org_user_id=$17, extend_uc=$18, start_month=$19, updated_at=now()`,
-    [email, name, discord, b.faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip, org, orgUid, extendUc, startMonth]);
+             peak_rank=$11, source=$12, comments=$13, contact_ok=$14, ip=$15, org_member=$16, org_user_id=$17, extend_uc=$18, start_month=$19, university=$20, updated_at=now()`,
+    [email, name, discord, faculty, career, b.interest, b.account_way, fee, b.role, riotid || null, b.peak_rank, source, str(b.comments, 1000) || null, !!b.contact_ok, ip, org, orgUid, extendUc, startMonth, university]);
   res.json({ ok: true });
 }));
 // Contador público: cuántos se han preinscrito (los que dijeron Sí o Tal vez; el "No" no cuenta como preinscrito)
@@ -4939,7 +4945,7 @@ app.get('/api/preinscripcion/options', wrap(async (req, res) => {
 }));
 app.get('/api/admin/preinscripciones', auth, requireAdmin, wrap(async (req, res) => {
   res.set('Cache-Control', 'private, no-store');
-  res.json(await q(`SELECT p.id, p.email, p.name, p.discord, p.faculty, p.career, p.interest, p.account_way, p.fee, p.role, p.riotid, p.peak_rank, p.source, p.comments, p.contact_ok,
+  res.json(await q(`SELECT p.id, p.email, p.name, p.discord, coalesce(p.university, 'Universidad de Chile') AS university, p.faculty, p.career, p.interest, p.account_way, p.fee, p.role, p.riotid, p.peak_rank, p.source, p.comments, p.contact_ok,
                       p.org_member, p.org_user_id, u.nickname AS org_nick, p.extend_uc, p.start_month, p.created_at, p.updated_at
                     FROM preinscriptions p LEFT JOIN users u ON u.id = p.org_user_id ORDER BY p.created_at DESC`));
 }));
