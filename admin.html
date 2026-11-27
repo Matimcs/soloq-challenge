@@ -114,7 +114,18 @@
       <button class="atab-btn" data-g="jugadores">🎮 Jugadores</button>
       <button class="atab-btn" data-g="comunidad">📺 Streams y tickets</button>
       <button class="atab-btn" data-g="pre">📝 Preinscripciones</button>
+      <button class="atab-btn" data-g="ext">🌐 Externos</button>
     </div>
+
+    <!-- ===== USUARIOS EXTERNOS (cuentas de la página que no son de la org) ===== -->
+    <section class="atab" id="at-ext">
+      <div class="box">
+        <h2>Usuarios externos <span class="n" id="ext-count"></span><button class="btn btn-ghost" id="ext-csv" style="margin-left:auto;padding:6px 12px;font-size:12px">⬇ Descargar CSV (Excel)</button></h2>
+        <div class="sub" style="margin:-4px 0 12px">Cuentas creadas en la página por personas que no son de la organización.</div>
+        <input type="text" id="ext-q" placeholder="Buscar por nick, Riot ID, nombre, correo o universidad…" style="width:100%;margin-bottom:12px">
+        <div id="ext-list"></div>
+      </div>
+    </section>
 
     <!-- ===== PREINSCRIPCIONES AL SOLOQ CHALLENGE ===== -->
     <section class="atab" id="at-pre">
@@ -690,6 +701,37 @@
       const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); a.download = 'preinscripciones.csv'; a.click();
     };
     load();
+  })();
+
+  // ---- Usuarios externos ----
+  (async function(){
+    const e6 = v => String(v == null ? '' : v).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const fd = v => v ? new Date(v).toLocaleString('es-CL', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '';
+    const INT = { si:'Sí', talvez:'Tal vez', no:'No' };
+    let rows = [], qy = '', loaded = false;
+    async function load(){ try { rows = await SQC.api('/admin/externos'); loaded = true; } catch (e) { $('ext-list').textContent = e.message; return; } render(); }
+    function render(){
+      $('ext-count').textContent = rows.length;
+      const k = qy.toLowerCase(), list = !k ? rows : rows.filter(r => [r.nickname, r.riotid, r.realname, r.email, r.university].some(x => String(x || '').toLowerCase().includes(k)));
+      $('ext-list').innerHTML = !list.length ? '<div style="color:var(--muted);font-size:13px">Sin usuarios externos.</div>' : `<div class="scrollbox" style="max-height:600px;overflow-x:auto"><table style="width:100%;min-width:760px;border-collapse:collapse;font-size:13px">
+        <tr style="color:var(--muted);text-align:left"><th style="padding:6px">Jugador</th><th>Nombre · correo</th><th>Universidad</th><th>Preinscrito</th><th>Ranked</th><th>Se registró</th></tr>`
+        + list.map(r => `<tr style="border-top:1px solid var(--line);vertical-align:top">
+          <td style="padding:7px 6px"><b>${e6(r.nickname)}</b><div style="color:var(--muted)">${e6(r.riotid)}</div></td>
+          <td style="padding:7px 6px">${e6(r.realname || '–')}<div style="color:var(--muted)">${e6(r.email)}</div></td>
+          <td style="padding:7px 6px">${e6(r.university || '–')}</td>
+          <td style="padding:7px 6px">${r.preinscrito ? `<span class="badge on">Sí</span>${r.pre_interest ? ` <span style="color:var(--muted)">juega: ${INT[r.pre_interest] || e6(r.pre_interest)}</span>` : ''}` : '<span style="color:var(--muted)">No</span>'}</td>
+          <td style="padding:7px 6px">${(r.rk_wins + r.rk_losses) ? `${r.rk_wins}V · ${r.rk_losses}D${r.rk_lp != null ? `<div style="color:var(--muted)">${r.rk_lp} LP</div>` : ''}` : '<span style="color:var(--muted)">–</span>'}</td>
+          <td style="padding:7px 6px;color:var(--muted)">${fd(r.created_at)}</td></tr>`).join('') + '</table></div>';
+    }
+    $('ext-q').oninput = e => { qy = e.target.value; render(); };
+    $('ext-csv').onclick = () => {
+      const cols = [['nickname','Nick'],['riotid','Riot ID'],['realname','Nombre'],['email','Correo'],['university','Universidad'],['preinscrito','Preinscrito'],['rk_wins','Ranked V'],['rk_losses','Ranked D'],['created_at','Se registró']];
+      const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+      const csv = '\ufeff' + cols.map(c => cell(c[1])).join(';') + '\r\n' + rows.map(r => cols.map(([k]) => cell(k === 'preinscrito' ? (r[k] ? 'Sí' : 'No') : k === 'created_at' ? fd(r[k]) : r[k])).join(';')).join('\r\n');
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8' })); a.download = 'externos.csv'; a.click();
+    };
+    // se carga al abrir la pestaña
+    document.querySelector('.atab-btn[data-g="ext"]').addEventListener('click', () => { if (!loaded) load(); });
   })();
 
   // ---- Capitanes de equipo ----

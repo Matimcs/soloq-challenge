@@ -4949,6 +4949,16 @@ app.get('/api/admin/preinscripciones', auth, requireAdmin, wrap(async (req, res)
                       p.org_member, p.org_user_id, u.nickname AS org_nick, p.extend_uc, p.start_month, p.created_at, p.updated_at
                     FROM preinscriptions p LEFT JOIN users u ON u.id = p.org_user_id ORDER BY p.created_at DESC`));
 }));
+// Usuarios externos (cuentas creadas en la página por gente que no es de la org), con si se preinscribió y su Ranked.
+app.get('/api/admin/externos', auth, requireAdmin, wrap(async (req, res) => {
+  res.json(await q(`SELECT x.id, x.email, x.riotid, x.nickname, x.realname, x.university, x.avatar, x.created_at,
+                           (p.id IS NOT NULL) AS preinscrito, p.interest AS pre_interest,
+                           r.lp AS rk_lp, coalesce(r.wins, 0) AS rk_wins, coalesce(r.losses, 0) AS rk_losses
+                      FROM ext_users x
+                      LEFT JOIN preinscriptions p ON lower(p.email) = lower(x.email)
+                      LEFT JOIN ranked_players r ON r.user_id = $1 + x.id
+                     ORDER BY x.created_at DESC`, [RK_EXT]));
+}));
 app.post('/api/admin/preinscripciones/:id/delete', auth, requireAdmin, wrap(async (req, res) => {
   await q('DELETE FROM preinscriptions WHERE id=$1', [Number(req.params.id)]); res.json({ ok: true });
 }));
