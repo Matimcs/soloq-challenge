@@ -3364,8 +3364,22 @@ function rkFillStats(p){
 // Arma la sala: entre las 126 formas de repartir 10 jugadores y todas las asignaciones de roles, elige la
 // que mejor combina "cada uno en lo que pidió" (ponderado por su prioridad de arriba) con equipos de MMR parejo
 // (un rol bien asignado vale 60 MMR).
+// Partidas en curso con un jugador sin nombre/Riot ID (se creó la sala antes de que su cuenta entrara a la lista de
+// nombres): se completan desde la base. Sin Riot ID tampoco se podía casar el resultado con la partida de Riot.
+let RK_FIX_AT = 0;
+async function rkFixNames(){
+  if (Date.now() - RK_FIX_AT < 30000) return; RK_FIX_AT = Date.now();
+  const live = [...RK.matches.values()].filter(m => m && ['draft', 'playing', 'dispute'].includes(m.status));
+  const bad = p => p && p.uid > 0 && (!p.rid || /^Jugador \d+$/.test(p.nick || ''));
+  if (!live.some(m => m.teams.some(t => t.players.some(bad)))) return;
+  RK_USERS.at = 0; const users = await rkUsers();
+  for (const m of live){ let ch = false;
+    m.teams.forEach(t => t.players.forEach(p => { if (!bad(p)) return; const u = users.get(p.uid); if (u && u.rid){ p.nick = u.nick; p.rid = u.rid; ch = true; } }));
+    if (ch){ await rkSaveMatch(m); console.log('Ranked: nombres completados en la partida #' + m.id); } }
+}
 async function rkCreateMatch(uids){
-  const users = await rkUsers();
+  let users = await rkUsers();
+  if (uids.some(u => u > 0 && !users.has(u))){ RK_USERS.at = 0; users = await rkUsers(); }   // cuenta recién creada: refresca la lista
   const P = uids.map(uid => { const p = rkPlayer(uid), u = users.get(uid) || { nick: 'Jugador ' + uid, rid: '' }; return { uid, nick: u.nick, rid: u.rid, mmr: p.mmr, lp: p.lp, role1: p.role1, role2: p.role2, w: rkFillStats(p).weight }; });
   const perms = []; (function pm(a, r){ if (!r.length){ perms.push(a); return; } r.forEach((x, i) => pm(a.concat(x), r.filter((_, j) => j !== i))); })([], RK_ROLES);
   const bestPerm = team => { let bs = -Infinity, opts = []; for (const pr of perms){ const sc = team.reduce((s, i, k) => s - (1 - rkPref(P[i], pr[k])) * P[i].w, 0); if (sc > bs + 1e-9){ bs = sc; opts = [pr]; } else if (Math.abs(sc - bs) < 1e-9) opts.push(pr); } return { sc: bs, pr: opts[fvRand(opts.length)] }; };
@@ -3563,6 +3577,7 @@ async function rkTick(){
   if (_rkTicking){ await rkInit(); return; } _rkTicking = true;
   try {
     await rkInit(); const now = Date.now();
+    try { await rkFixNames(); } catch {}
     for (const pd of [...RK.pending.values()]){
       const all = pd.players.every(u => pd.accepted.has(u));
       if (all){ RK.pending.delete(pd.id); await rkCreateMatch(pd.players); }
