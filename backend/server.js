@@ -258,6 +258,7 @@ app.post('/api/register', wrap(async (req,res) => {
   const u = await q1(`INSERT INTO users (email,password_hash,nickname,realname,riotid,main,discord,pos1,pos2,avatar,champ1,champ2,champ3,flash_slot,team,confirmed,is_admin)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16) RETURNING *`,
     [b.email, hash, b.nickname, b.realname, riotid, b.main||null, b.discord, b.pos1, b.pos2, b.avatar||null, b.champ1, b.champ2, b.champ3, flash, team, ADMIN_RIDS.has(riotid)]);
+  invalidateAvatars(); RK_USERS.at = 0;   // que su perfil (avatar, nick) aparezca enlazado al tiro en el ranking y en Ranked (antes: "Jugador N" hasta 5-10 min)
   // El equipo se guarda en team_members (fuente única, multi-equipo). Si eligió uno al registrarse,
   // lo añade (conserva lo que el admin haya sembrado para esta cuenta).
   if (team && TEAMS.has(team)) await q('INSERT INTO team_members (riotid, team) VALUES ($1,$2) ON CONFLICT (riotid, team) DO NOTHING', [riotid, team]);
@@ -351,6 +352,7 @@ app.post('/api/register-external', wrap(async (req,res) => {
   if (await q1('SELECT 1 FROM users WHERE lower(email)=$1 UNION SELECT 1 FROM ext_users WHERE lower(email)=$1', [email])) return res.status(409).json({ error:'Ese email ya está registrado' });
   const x = await q1(`INSERT INTO ext_users (email, password_hash, riotid, nickname, realname, university, avatar) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
     [email, await bcrypt.hash(String(b.password), 10), riotid, riotid.split('#')[0].trim(), String(b.realname || '').trim().slice(0, 80) || null, uni, avatar]);
+  RK_USERS.at = 0;   // su nombre aparece al tiro en Ranked
   res.json({ token: signExt(x), user: publicExt(x) });
 }));
 

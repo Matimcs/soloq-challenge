@@ -120,6 +120,18 @@
   .actbar{ display:flex; align-items:center; gap:10px; }
   .actbar .sn{ flex:1; min-width:0; font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .actbar .sn b{ color:var(--text); }
+  /* confirmación: banear un campeón que un compañero tiene prepickeado */
+  .cfm-bg{ position:fixed; inset:0; z-index:100; background:rgba(0,0,0,.66); display:grid; place-items:center; padding:16px; }
+  .cfm{ width:min(420px, 100%); background:var(--panel); border:1px solid var(--line-2); border-radius:14px; padding:20px 20px 16px; box-shadow:0 20px 50px rgba(0,0,0,.6); }
+  .cfm h3{ font-size:17px; margin-bottom:8px; }
+  .cfm p{ font-size:13.5px; color:var(--muted); line-height:1.5; }
+  .cfm p b{ color:var(--text); }
+  .cfm-row{ display:flex; align-items:center; gap:10px; margin:14px 0 4px; }
+  .cfm-row img{ width:48px; height:48px; border-radius:9px; border:1px solid var(--red); }
+  .cfm-btns{ display:flex; justify-content:flex-end; gap:10px; margin-top:16px; }
+  .cfm-btns button{ font-family:inherit; font-size:13px; font-weight:700; border-radius:9px; padding:9px 16px; cursor:pointer; }
+  .cfm-no{ background:var(--panel-2); color:var(--text); border:1px solid var(--line-2); }
+  .cfm-yes{ background:var(--red); color:#fff; border:0; }
   .lock{ background:var(--accent); color:#000; border:0; border-radius:10px; font-size:14px; font-weight:700; letter-spacing:.06em; padding:11px 26px; cursor:pointer; }
   .lock.ban{ background:var(--red); color:#fff; }
   .lock:disabled{ opacity:.35; cursor:not-allowed; }
@@ -194,7 +206,7 @@
 </div>
 <div class="cover" id="cover" style="display:none"></div>
 
-<script src="sfx.js"></script>
+<script src="sfx.js?v=20261127"></script>
 <script src="api.js?v=20261126"></script>
 <script>
   const $ = id => document.getElementById(id);
@@ -260,7 +272,8 @@
     const cur = { id: m.id, status: m.status, phase: d.phase, my: !!(C && (C.canBan || C.canPick)),
       picks: m.teams.reduce((s, t) => s + t.players.filter(p => p.champ || p.hiddenPick).length, 0),
       bans: m.teams.reduce((s, t) => s + t.bans.filter(b => b.champ).length, 0),
-      reqs: (d.roleIn || []).length + (d.swapIn || []).length + (d.tradeIn || []).length + (d.side && d.side.canVote && d.side.votes ? 1 : 0),
+      // solicitudes dirigidas a mí (cambio de rol, de turno/slot, de campeón) + votación de lado: cada una con su clave
+      reqs: (d.roleIn || []).map(u => 'r' + u).concat((d.swapIn || []).map(u => 's' + u), (d.tradeIn || []).map(u => 't' + u), (d.side && d.side.canVote && d.side.votes ? ['side'] : [])),
       chg: (d.banReqs || []).map(r => 'b' + r.uid + ':' + r.to).concat((d.pickReqs || []).map(r => 'p' + r.uid + ':' + r.to)) };
     const p = S.snd; S.snd = cur; if (!p || p.id !== cur.id) return;
     if (cur.status !== 'draft'){ if (p.status === 'draft') SFX.done(); return; }
@@ -268,7 +281,8 @@
     if (cur.picks > p.picks) SFX.lock(); else if (cur.bans > p.bans) SFX.ban();
     if (cur.my && !p.my) setTimeout(() => SFX.turn(), hit ? 380 : 0);
     else if (cur.phase !== p.phase) setTimeout(() => SFX.phase(), hit ? 380 : 0);
-    if (cur.reqs > p.reqs) SFX.notify();
+    // alguien te pidió algo (rol, slot, campeón): suena con cada solicitud NUEVA (antes solo si subía la cantidad), con el aviso notorio
+    if (cur.reqs.some(k => !(p.reqs || []).includes(k))) setTimeout(() => SFX.alert(), hit ? 380 : 0);
     if (cur.chg.some(k => !(p.chg || []).includes(k))) SFX.alert();   // nueva solicitud de cambio de pick o ban (para todos)
   }
   function sfxBtn(){ const b = $('sfx-btn'); if (!b) return; b.textContent = SFX.muted ? '🔇 Sonidos' : '🔊 Sonidos'; b.classList.toggle('off', SFX.muted); b.title = SFX.muted ? 'Activar sonidos' : 'Silenciar sonidos'; }
@@ -475,7 +489,12 @@
     const el = $('actbar');
     if (once('act', html, el)) el.querySelectorAll('[data-a]').forEach(b => b.onclick = () => {
       const a = b.dataset.a, c = S.sel;
-      if (a === 'ban'){ S.sel = null; act('ban', { champ: c }); }
+      if (a === 'ban'){
+        // ¿algún compañero lo tiene prepickeado? → confirmar antes de banearlo
+        const mates = ((ctx().mine || {}).players || []).filter(p => !p.me && p.hover === c && !p.champ).map(p => p.nick);
+        if (!mates.length){ S.sel = null; act('ban', { champ: c }); }
+        else confirmBan(c, mates).then(ok => { if (ok){ S.sel = null; act('ban', { champ: c }); } });
+      }
       else if (a === 'noban'){ S.sel = null; act('ban', { champ: null }); }
       else if (a === 'pick'){ S.sel = null; act('pick', { champ: c }); }
       else if (a === 'banmode' || a === 'pickmode'){ S.chg = a === 'banmode' ? 'ban' : 'pick'; S.sel = null;
@@ -485,13 +504,34 @@
       else if (a === 'pickask'){ S.chg = null; S.sel = null; act('pickchange', { champ: c }); }
     });
   }
+  // Aviso: vas a banear un campeón que un compañero tiene prepickeado. Devuelve true si confirma.
+  function confirmBan(c, mates){
+    return new Promise(done => {
+      const bg = document.createElement('div'); bg.className = 'cfm-bg';
+      const who = mates.length === 1 ? `<b>${esc(mates[0])}</b> lo tiene` : `<b>${mates.map(esc).join('</b> y <b>')}</b> lo tienen`;
+      bg.innerHTML = `<div class="cfm" role="dialog" aria-modal="true">
+        <h3>¿Seguro que quieres banear a ${esc(cname(c))}?</h3>
+        <div class="cfm-row"><img src="${icon(c)}" alt=""><p>${who} prepickeado.</p></div>
+        <p>Si lo baneas, tu equipo no lo podrá elegir.</p>
+        <div class="cfm-btns"><button class="cfm-no" type="button">No, cancelar</button><button class="cfm-yes" type="button">Sí, banear</button></div></div>`;
+      const end = ok => { bg.remove(); document.removeEventListener('keydown', key); done(ok); };
+      const key = e => { if (e.key === 'Escape') end(false); else if (e.key === 'Enter') end(true); };
+      bg.addEventListener('click', e => { if (e.target === bg) end(false); });
+      bg.querySelector('.cfm-no').onclick = () => end(false); bg.querySelector('.cfm-yes').onclick = () => end(true);
+      document.addEventListener('keydown', key); document.body.appendChild(bg); bg.querySelector('.cfm-no').focus();
+    });
+  }
   // reloj: número, fase y barra de tiempo del equipo en turno (no re-dibuja nada más)
   function clock(){
     const st = S.st; if (!st || !st.match || st.match.status !== 'draft') return;
     const C = ctx(), { d } = C, left = Math.max(0, d.deadline - now()), secs = Math.ceil(left / 1000), frac = Math.min(1, left / TURN_MS);
     const ph = $('ph'); ph.className = 'ph ' + (C.curSide || ''); ph.textContent = d.phase === 'prep' ? 'Preparación' : d.phase === 'final' ? 'Fase final' : `${d.phase === 'ban' ? 'Ban' : 'Pick'} · Equipo ${sideName(C.curSide)}`;
     const num = $('num'); num.textContent = secs; num.classList.toggle('low', secs <= 5);
-    if ((C.canBan || C.canPick) && secs <= 5 && secs > 0 && secs !== S.lastSec){ if (secs <= 3) SFX.tickLast(); else SFX.tick(); }
+    // tu turno y queda poco: aviso a los 10 s (una vez) y tic-tac en los últimos 5
+    if ((C.canBan || C.canPick) && secs > 0 && secs !== S.lastSec){
+      if (secs === 10) SFX.hurry();
+      else if (secs <= 5){ if (secs <= 3) SFX.tickLast(); else SFX.tick(); }
+    }
     S.lastSec = secs;
     $('who').textContent = d.phase === 'prep' ? 'Pónganse de acuerdo: solo ahora se pueden cambiar roles' : d.phase === 'final' ? 'Últimos cambios antes de cerrar el draft' : (C.canBan || C.canPick) ? '¡Es tu turno!' : d.turn.map(C.nick).join(' y ');
     document.querySelectorAll('.pkc').forEach(el => { el.textContent = Math.max(0, Math.ceil(C.pickLeft / 1000)) + ' s'; });

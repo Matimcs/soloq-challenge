@@ -52,8 +52,10 @@ window.SFX = (function(){
     lock(){ noise(0.22, { from: 900, to: 120, vol: 0.35 }); tone(140, 0.35, { type: 'sine', vol: 0.55, slide: 55 }); tone(784, 0.45, { type: 'triangle', vol: 0.18, delay: 0.04 }); tone(1174.7, 0.5, { type: 'triangle', vol: 0.12, delay: 0.08 }); },
     // ban: golpe descendente
     ban(){ noise(0.18, { from: 1500, to: 200, vol: 0.3 }); tone(330, 0.32, { type: 'sawtooth', vol: 0.16, slide: 110 }); },
-    tick(){ tone(1000, 0.05, { type: 'square', vol: 0.09 }); },
-    tickLast(){ tone(1500, 0.07, { type: 'square', vol: 0.13 }); },
+    tick(){ tone(1000, 0.08, { type: 'square', vol: 0.2 }); },
+    tickLast(){ tone(1500, 0.1, { type: 'square', vol: 0.28 }); },
+    // ¡apúrate!: te quedan pocos segundos para tu pick/ban (tres pitidos ascendentes)
+    hurry(){ [880, 1175, 1568].forEach((f, i) => tone(f, 0.14, { type: 'triangle', vol: 0.5, delay: i * 0.13 })); },
     // solicitud recibida (cambio de rol, de turno, de campeón, de ban…)
     notify(){ tone(740, 0.12, { type: 'sine', vol: 0.4, slide: 990 }); tone(1180, 0.18, { type: 'sine', vol: 0.3, delay: 0.1 }); },
     // alerta: alguien pidió cambiar un pick o un ban (dos "ding-dong" seguidos, más notorio)
