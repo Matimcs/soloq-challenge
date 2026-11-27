@@ -3190,27 +3190,27 @@ function fvqView(s, uid){
   if (s.last[uid]) out.room = s.last[uid].code;
   return out;
 }
-app.get('/api/5v5/queue', orgOnly, wrap(async (req, res) => {
+app.get('/api/5v5/queue', wrap(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   const uid = await optionalUid(req), s = await fvqState();
   const e = uid && s.queue.find(x => x.uid === uid); if (e) e.seen = Date.now();
   res.json(fvqView(await fvqTick(), uid));
 }));
-app.post('/api/5v5/queue/join', auth, orgOnly, wrap(async (req, res) => {
+app.post('/api/5v5/queue/join', auth, wrap(async (req, res) => {
   const uid = req.user.id;
   await fvqSerial(async () => { const s = await fvqState(), now = Date.now();
     if (!s.queue.some(x => x.uid === uid)) s.queue.push({ uid, since: now, seen: now });
     delete s.last[uid]; await fvqSave(); });
   res.json(fvqView(await fvqTick(), uid));
 }));
-app.post('/api/5v5/queue/leave', auth, orgOnly, wrap(async (req, res) => {
+app.post('/api/5v5/queue/leave', auth, wrap(async (req, res) => {
   const uid = req.user.id;
   await fvqSerial(async () => { const s = await fvqState();
     if (s.pending && s.pending.uids.includes(uid) && !s.pending.declined.includes(uid)) s.pending.declined.push(uid);
     s.queue = s.queue.filter(x => x.uid !== uid); await fvqSave(); });
   res.json(fvqView(await fvqTick(), uid));
 }));
-app.post('/api/5v5/queue/accept', auth, orgOnly, wrap(async (req, res) => {
+app.post('/api/5v5/queue/accept', auth, wrap(async (req, res) => {
   const uid = req.user.id, yes = !(req.body && req.body.accept === false);
   const err = await fvqSerial(async () => { const s = await fvqState(), p = s.pending;
     if (!p || !p.uids.includes(uid)) return 'No hay partida por aceptar';
